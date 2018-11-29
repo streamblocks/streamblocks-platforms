@@ -21,7 +21,7 @@ package com.streamgenomics.phase;
 import com.streamgenomics.backend.cpp.Backend;
 import com.streamgenomics.backend.cpp.Controllers;
 import org.multij.MultiJ;
-import platformutils.Utils;
+import platformutils.PathUtils;
 import se.lth.cs.tycho.compiler.CompilationTask;
 import se.lth.cs.tycho.compiler.Compiler;
 import se.lth.cs.tycho.compiler.Context;
@@ -29,6 +29,7 @@ import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.phase.Phase;
 import se.lth.cs.tycho.reporting.CompilationException;
 import se.lth.cs.tycho.reporting.Diagnostic;
+import se.lth.cs.tycho.reporting.Reporter;
 import se.lth.cs.tycho.settings.Setting;
 
 import java.io.IOException;
@@ -95,21 +96,6 @@ public class CPPBackendPhase implements Phase {
         return ImmutableList.of(Controllers.scopeLivenessAnalysis);
     }
 
-    @Override
-    public CompilationTask execute(CompilationTask task, Context context) {
-        // -- Create directories
-        createDirectories(context);
-
-        Path path = context.getConfiguration().get(Compiler.targetPath);
-        String filename = "prelude.h";
-        copyResource(path, filename);
-        Backend backend = MultiJ.from(Backend.class)
-                .bind("task").to(task)
-                .bind("context").to(context)
-                .instance();
-        backend.main().generateCode();
-        return task;
-    }
 
     private void copyResource(Path path, String filename) {
         try {
@@ -119,26 +105,64 @@ public class CPPBackendPhase implements Phase {
         }
     }
 
-    private void createDirectories(Context context){
+    private void createDirectories(Context context) {
         // -- Get target Path
         targetPath = context.getConfiguration().get(Compiler.targetPath);
 
         // -- Code Generation paths
-        codeGenPath = Utils.createDirectory(targetPath,"code-gen");
-        codeGenPathSrc = Utils.createDirectory(codeGenPath, "src");
-        codeGenPathInclude = Utils.createDirectory(codeGenPath, "include");
+        codeGenPath = PathUtils.createDirectory(targetPath, "code-gen");
+        codeGenPathSrc = PathUtils.createDirectory(codeGenPath, "src");
+        codeGenPathInclude = PathUtils.createDirectory(codeGenPath, "include");
 
         // -- Library paths
-        libPath = Utils.createDirectory(targetPath,"lib");
-        libPathSrc = Utils.createDirectory(targetPath, "src");
-        libPathInclude = Utils.createDirectory(targetPath, "include");
+        libPath = PathUtils.createDirectory(targetPath, "lib");
+        libPathSrc = PathUtils.createDirectory(libPath, "src");
+        libPathInclude = PathUtils.createDirectory(libPath, "include");
 
         // -- Build path
-        buildPath = Utils.createDirectory(targetPath,"build");
+        buildPath = PathUtils.createDirectory(targetPath, "build");
 
         // -- Binary path
-        binPath = Utils.createDirectory(targetPath, "bin");
+        binPath = PathUtils.createDirectory(targetPath, "bin");
+
+    }
+
+    @Override
+    public CompilationTask execute(CompilationTask task, Context context) {
+        // -- Get Reporter
+        Reporter reporter = context.getReporter();
+        reporter.report(new Diagnostic(Diagnostic.Kind.INFO,"StreamBlocks C Code Generation"));
+        reporter.report(new Diagnostic(Diagnostic.Kind.INFO,"Identifier, " + task.getIdentifier().toString()));
 
 
+        // -- Create directories
+        createDirectories(context);
+
+        String filename = "prelude.h";
+        copyResource(libPathInclude, filename);
+        Backend backend = MultiJ.from(Backend.class)
+                .bind("task").to(task)
+                .bind("context").to(context)
+                .instance();
+
+        // -- Generate actors
+        backend.actors().generateActors();
+
+        backend.main().generateCode();
+
+        // -- Generate CMakeLists
+        generateCmakeLists(backend);
+        return task;
+    }
+
+    private void generateCmakeLists(Backend backend){
+        // -- Top CMakeLists
+        backend.cmakelists().generateTopCmakeLists();
+
+        // -- Lib CMakeLists
+        backend.cmakelists().generateLibCmakeLists();
+
+        // -- Code-Gen CMakeLists
+        backend.cmakelists().generateCodeGenCmakeLists();
     }
 }

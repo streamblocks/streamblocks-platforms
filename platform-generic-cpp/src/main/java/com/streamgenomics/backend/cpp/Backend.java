@@ -72,6 +72,10 @@ public interface Backend {
     @Binding(LAZY) default Controllers controllers() {
         return MultiJ.from(Controllers.class).bind("backend").to(this).instance();
     }
+
+    @Binding(LAZY) default Actor actors() {
+        return MultiJ.from(Actor.class).bind("backend").to(this).instance();
+    }
     @Binding(LAZY) default Main main() {
         return MultiJ.from(Main.class).bind("backend").to(this).instance();
     }
@@ -90,4 +94,9 @@ public interface Backend {
     @Binding(LAZY) default AlternativeChannels channels() {
         return MultiJ.from(AlternativeChannels.class).bind("backend").to(this).instance();
     }
+
+    @Binding(LAZY) default CMakeLists cmakelists() {
+        return MultiJ.from(CMakeLists.class).bind("backend").to(this).instance();
+    }
+
 }

@@ -10,10 +10,7 @@ import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.reporting.CompilationException;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.nio.file.Path;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -41,27 +38,27 @@ public interface Main {
     default void generateCode() {
         global();
         fifo();
-        actors();
+      //  actors();
         main();
     }
 
     default void global() {
-        emitter().open(target().resolve("global.h"));
+        emitter().open(targetLibInclude().resolve("global.h"));
         backend().global().generateGlobalHeader();
         emitter().close();
-        emitter().open(target().resolve("global.c"));
+        emitter().open(targetLibSrc().resolve("global.c"));
         backend().global().generateGlobalCode();
         emitter().close();
     }
 
     default void fifo() {
-        emitter().open(target().resolve("fifo.h"));
+        emitter().open(targetLibInclude().resolve("fifo.h"));
         channels().fifo_h();
         emitter().close();
     }
 
     default void main() {
-        Path mainTarget = target().resolve("main.c");
+        Path mainTarget = targetCodeGenSrc().resolve("main.c");
         emitter().open(mainTarget);
         CompilationTask task = backend().task();
         includeSystem("stdlib.h");
@@ -83,9 +80,6 @@ public interface Main {
         emitter().close();
     }
 
-    default void actors() {
-        backend().task().getNetwork().getInstances().forEach(this::actor);
-    }
 
     @Binding(LAZY)
     default Set<String> actorFileNames() {
@@ -103,34 +97,6 @@ public interface Main {
         return name;
     }
 
-    default void actor(Instance instance) {
-        backend().instance().set(instance);
-        GlobalEntityDecl actor = backend().task().getSourceUnits().stream()
-                .map(SourceUnit::getTree)
-                .filter(ns -> ns.getQID().equals(instance.getEntityName().getButLast()))
-                .flatMap(ns -> ns.getEntityDecls().stream())
-                .filter(decl -> decl.getName().equals(instance.getEntityName().getLast().toString()))
-                .findFirst().get();
-        String fileNameBase = actorFileName(instance.getInstanceName());
-        String headerFileName = fileNameBase + ".h";
-        emitter().open(target().resolve(headerFileName));
-        String headerGuard = headerGuard(headerFileName);
-        emitter().emit("#ifndef %s", headerGuard);
-        emitter().emit("#define %s", headerGuard);
-        emitDefaultHeaders();
-        backend().structure().actorHdr(actor);
-        emitter().emit("#endif");
-        emitter().close();
-
-        emitter().open(target().resolve(fileNameBase + ".c"));
-        emitDefaultHeaders();
-        includeUser("fifo.h");
-        includeUser("global.h");
-        includeUser(headerFileName);
-        backend().structure().actorDecl(actor);
-        emitter().close();
-        backend().instance().clear();
-    }
 
     default String headerGuard(String fileName) {
         return fileName.replaceAll("[^a-zA-Z0-9]", "_").toUpperCase();
@@ -147,6 +113,31 @@ public interface Main {
 
     default Path target() {
         return backend().context().getConfiguration().get(Compiler.targetPath);
+    }
+
+
+    default Path targetLibSrc(){
+        String includeDirectory = "lib" + File.separator + "src";
+        File directory = new File(backend().context().getConfiguration().get(Compiler.targetPath).toFile(), includeDirectory);
+        return directory.toPath();
+    }
+
+    default Path targetLibInclude(){
+        String includeDirectory = "lib" + File.separator + "include";
+        File directory = new File(backend().context().getConfiguration().get(Compiler.targetPath).toFile(), includeDirectory);
+        return directory.toPath();
+    }
+
+    default Path targetCodeGenSrc(){
+        String includeDirectory = "code-gen" + File.separator + "src";
+        File directory = new File(backend().context().getConfiguration().get(Compiler.targetPath).toFile(), includeDirectory);
+        return directory.toPath();
+    }
+
+    default Path targetCodeGenInclude(){
+        String includeDirectory = "code-gen" + File.separator + "include";
+        File directory = new File(backend().context().getConfiguration().get(Compiler.targetPath).toFile(), includeDirectory);
+        return directory.toPath();
     }
 
     default void include() {
