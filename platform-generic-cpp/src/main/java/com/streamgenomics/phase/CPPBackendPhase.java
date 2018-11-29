@@ -1,6 +1,6 @@
 /*
     StreamBlocks
-    Copyright (C) 2018 streamgenomics sarl
+    Copyright (C) 2018 Endri Bezati
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@ package com.streamgenomics.phase;
 import com.streamgenomics.backend.cpp.Backend;
 import com.streamgenomics.backend.cpp.Controllers;
 import org.multij.MultiJ;
+import platformutils.Utils;
 import se.lth.cs.tycho.compiler.CompilationTask;
 import se.lth.cs.tycho.compiler.Compiler;
 import se.lth.cs.tycho.compiler.Context;
@@ -37,9 +38,56 @@ import java.nio.file.StandardCopyOption;
 import java.util.List;
 
 public class CPPBackendPhase implements Phase {
+
+    /**
+     * Code generation path
+     */
+    private Path codeGenPath;
+
+    /**
+     * Code generation source path
+     */
+    private Path codeGenPathSrc;
+
+    /**
+     * Code generation include path
+     */
+    private Path codeGenPathInclude;
+
+    /**
+     * Libraries path
+     */
+    private Path libPath;
+
+    /**
+     * Libraries source path
+     */
+    private Path libPathSrc;
+
+    /**
+     * Libraries include path
+     */
+    private Path libPathInclude;
+
+    /**
+     * Binary path
+     */
+    private Path binPath;
+
+    /**
+     * CMake build path
+     */
+    private Path buildPath;
+
+    /**
+     * Target Path
+     */
+    private Path targetPath;
+
+
     @Override
     public String getDescription() {
-        return null;
+        return "StreamBlocks CPP Platform for Tycho compiler";
     }
 
     @Override
@@ -49,6 +97,9 @@ public class CPPBackendPhase implements Phase {
 
     @Override
     public CompilationTask execute(CompilationTask task, Context context) {
+        // -- Create directories
+        createDirectories(context);
+
         Path path = context.getConfiguration().get(Compiler.targetPath);
         String filename = "prelude.h";
         copyResource(path, filename);
@@ -66,5 +117,28 @@ public class CPPBackendPhase implements Phase {
         } catch (IOException e) {
             throw new CompilationException(new Diagnostic(Diagnostic.Kind.ERROR, "Could not generate code to \"" + filename + "\""));
         }
+    }
+
+    private void createDirectories(Context context){
+        // -- Get target Path
+        targetPath = context.getConfiguration().get(Compiler.targetPath);
+
+        // -- Code Generation paths
+        codeGenPath = Utils.createDirectory(targetPath,"code-gen");
+        codeGenPathSrc = Utils.createDirectory(codeGenPath, "src");
+        codeGenPathInclude = Utils.createDirectory(codeGenPath, "include");
+
+        // -- Library paths
+        libPath = Utils.createDirectory(targetPath,"lib");
+        libPathSrc = Utils.createDirectory(targetPath, "src");
+        libPathInclude = Utils.createDirectory(targetPath, "include");
+
+        // -- Build path
+        buildPath = Utils.createDirectory(targetPath,"build");
+
+        // -- Binary path
+        binPath = Utils.createDirectory(targetPath, "bin");
+
+
     }
 }
