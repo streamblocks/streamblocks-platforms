@@ -43,16 +43,16 @@ public interface Main {
     }
 
     default void global() {
-        emitter().open(targetLibInclude().resolve("global.h"));
+        emitter().open(targetCodeGenInclude().resolve("global.h"));
         backend().global().generateGlobalHeader();
         emitter().close();
-        emitter().open(targetLibSrc().resolve("global.c"));
+        emitter().open(targetCodeGenSrc().resolve("global.c"));
         backend().global().generateGlobalCode();
         emitter().close();
     }
 
     default void fifo() {
-        emitter().open(targetLibInclude().resolve("fifo.h"));
+        emitter().open(targetCodeGenInclude().resolve("fifo.h"));
         channels().fifo_h();
         emitter().close();
     }
@@ -70,16 +70,23 @@ public interface Main {
         includeUser("fifo.h");
         includeUser("prelude.h");
         includeUser("global.h");
+        actorHeaders();
         include();
-        for (String fileNameBase : actorFileNames()) {
-            includeUser(fileNameBase + ".h");
-        }
         channels().inputActorCode();
         channels().outputActorCode();
         mainNetwork().main(task.getNetwork());
         emitter().close();
     }
 
+    default void actorHeaders() {
+        backend().task().getNetwork().getInstances().forEach(this::actorHeader);
+    }
+
+    default void actorHeader(Instance instance){
+        String fileNameBase = actorFileName(instance.getInstanceName());
+        String headerFileName = fileNameBase + ".h";
+        includeUser(headerFileName);
+    }
 
     @Binding(LAZY)
     default Set<String> actorFileNames() {

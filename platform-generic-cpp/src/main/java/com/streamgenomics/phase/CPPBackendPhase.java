@@ -115,9 +115,9 @@ public class CPPBackendPhase implements Phase {
         codeGenPathInclude = PathUtils.createDirectory(codeGenPath, "include");
 
         // -- Library paths
-        libPath = PathUtils.createDirectory(targetPath, "lib");
-        libPathSrc = PathUtils.createDirectory(libPath, "src");
-        libPathInclude = PathUtils.createDirectory(libPath, "include");
+        //libPath = PathUtils.createDirectory(targetPath, "lib");
+        //libPathSrc = PathUtils.createDirectory(libPath, "src");
+        //libPathInclude = PathUtils.createDirectory(libPath, "include");
 
         // -- Build path
         buildPath = PathUtils.createDirectory(targetPath, "build");
@@ -139,7 +139,7 @@ public class CPPBackendPhase implements Phase {
         createDirectories(context);
 
         String filename = "prelude.h";
-        copyResource(libPathInclude, filename);
+        copyResource(codeGenPathInclude, filename);
         Backend backend = MultiJ.from(Backend.class)
                 .bind("task").to(task)
                 .bind("context").to(context)
@@ -160,7 +160,7 @@ public class CPPBackendPhase implements Phase {
         backend.cmakelists().generateTopCmakeLists();
 
         // -- Lib CMakeLists
-        backend.cmakelists().generateLibCmakeLists();
+        // backend.cmakelists().generateLibCmakeLists();
 
         // -- Code-Gen CMakeLists
         backend.cmakelists().generateCodeGenCmakeLists();

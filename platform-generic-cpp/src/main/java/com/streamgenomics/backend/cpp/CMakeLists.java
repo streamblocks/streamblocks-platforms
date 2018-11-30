@@ -38,7 +38,7 @@ public interface CMakeLists {
 
         emitter().emit("");
         emitter().emit("# Add Library");
-        emitter().emit("add_subdirectory(lib)");
+        emitter().emit("# add_subdirectory(lib)");
 
         emitter().emit("");
         emitter().emit("# Add Code-gen");
@@ -108,6 +108,7 @@ public interface CMakeLists {
         emitter().emit("set(filenames");
         emitter().increaseIndentation();
         actors();
+        emitter().emit("src/global.c");
         emitter().emit("src/main.c");
         emitter().decreaseIndentation();
         emitter().emit(")");
@@ -122,7 +123,7 @@ public interface CMakeLists {
         emitter().emit("set(libraries streamblocks-c-runtime)");
         emitter().emit("");
 
-        emitter().emit("target_link_libraries(%s ${libraries})", backend().task().getIdentifier().getLast());
+        emitter().emit("# target_link_libraries(%s ${libraries})", backend().task().getIdentifier().getLast());
 
 
         emitter().close();
