@@ -12,6 +12,7 @@
 
     <modules>
         <module>platform-core</module>
+        <module>platform-generic-c</module>
         <module>platform-generic-cpp</module>
     </modules>
 
