@@ -36,20 +36,11 @@ public interface Main {
     }
 
     default void generateCode() {
-        global();
         fifo();
-      //  actors();
         main();
     }
 
-    default void global() {
-        emitter().open(targetCodeGenInclude().resolve("global.h"));
-        backend().global().generateGlobalHeader();
-        emitter().close();
-        emitter().open(targetCodeGenSrc().resolve("global.c"));
-        backend().global().generateGlobalCode();
-        emitter().close();
-    }
+
 
     default void fifo() {
         emitter().open(targetCodeGenInclude().resolve("fifo.h"));

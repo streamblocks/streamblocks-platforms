@@ -165,4 +165,12 @@ public class CPPBackendPhase implements Phase {
         // -- Code-Gen CMakeLists
         backend.cmakelists().generateCodeGenCmakeLists();
     }
+
+    private void generateGlobal(Backend backend){
+        // -- Global source code
+        backend.global().generateGlobalCode();
+
+        // -- Global header code
+        backend.global().generateGlobalHeader();
+    }
 }

@@ -3,6 +3,7 @@ package com.streamgenomics.backend.cpp;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
+import platformutils.PathUtils;
 import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.type.CallableType;
@@ -28,15 +29,18 @@ public interface Global {
 	}
 
 	default void generateGlobalCode() {
+		emitter().open(PathUtils.getTargetCodeGenInclude(backend().context()).resolve("global.c"));
 		backend().main().emitDefaultHeaders();
 		emitter().emit("#include \"global.h\"");
 		emitter().emit("");
 		backend().callables().defineCallables();
 		emitter().emit("");
 		globalVariableInitializer(getGlobalVarDecls());
+		emitter().close();
 	}
 
 	default void generateGlobalHeader() {
+		emitter().open(PathUtils.getTargetCodeGenInclude(backend().context()).resolve("global.h"));
 		emitter().emit("#ifndef GLOBAL_H");
 		emitter().emit("#define GLOBAL_H");
 		emitter().emit("");
@@ -55,6 +59,7 @@ public interface Global {
 		globalVariableDeclarations(getGlobalVarDecls());
 		emitter().emit("");
 		emitter().emit("#endif");
+		emitter().close();
 	}
 
 	default Stream<VarDecl> getGlobalVarDecls() {
