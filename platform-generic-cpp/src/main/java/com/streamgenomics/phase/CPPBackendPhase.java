@@ -25,6 +25,7 @@ import platformutils.PathUtils;
 import se.lth.cs.tycho.compiler.CompilationTask;
 import se.lth.cs.tycho.compiler.Compiler;
 import se.lth.cs.tycho.compiler.Context;
+import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.phase.Phase;
 import se.lth.cs.tycho.reporting.CompilationException;
@@ -131,24 +132,25 @@ public class CPPBackendPhase implements Phase {
     public CompilationTask execute(CompilationTask task, Context context) {
         // -- Get Reporter
         Reporter reporter = context.getReporter();
-        reporter.report(new Diagnostic(Diagnostic.Kind.INFO,"StreamBlocks C Code Generation"));
-        reporter.report(new Diagnostic(Diagnostic.Kind.INFO,"Identifier, " + task.getIdentifier().toString()));
+        reporter.report(new Diagnostic(Diagnostic.Kind.INFO, "StreamBlocks C Code Generation"));
+        reporter.report(new Diagnostic(Diagnostic.Kind.INFO, "Identifier, " + task.getIdentifier().toString()));
         reporter.report(new Diagnostic(Diagnostic.Kind.INFO, "Target Path, " + PathUtils.getTarget(context)));
 
 
         // -- Create directories
         createDirectories(context);
 
+        // -- Instantiate backend, bind current compilation task and the context
         Backend backend = MultiJ.from(Backend.class)
                 .bind("task").to(task)
                 .bind("context").to(context)
                 .instance();
 
         // -- Generate actors
-        backend.actors().generateActors();
+        generateActors(backend);
 
-        // -- Generate Main
-        backend.main().generateMain();
+        // -- Generate Network
+        generateNetwork(backend);
 
         // -- Generate Globals
         generateGlobal(backend);
@@ -164,7 +166,28 @@ public class CPPBackendPhase implements Phase {
         return task;
     }
 
-    private void generateCmakeLists(Backend backend){
+    private void generateNetwork(Backend backend) {
+        // -- Generate Main
+        backend.main().generateMain();
+    }
+
+    /**
+     * Generates the source code for all actors
+     *
+     * @param backend
+     */
+    private void generateActors(Backend backend) {
+        for (Instance instance : backend.task().getNetwork().getInstances()) {
+            backend.actors().generateActor(instance);
+        }
+    }
+
+    /**
+     * Generates the various CMakeLists.txt for building the generated code
+     *
+     * @param backend
+     */
+    private void generateCmakeLists(Backend backend) {
         // -- Top CMakeLists
         backend.cmakelists().generateTopCmakeLists();
 
@@ -175,7 +198,12 @@ public class CPPBackendPhase implements Phase {
         backend.cmakelists().generateCodeGenCmakeLists();
     }
 
-    private void generateGlobal(Backend backend){
+    /**
+     * Generates the global source code and header
+     *
+     * @param backend
+     */
+    private void generateGlobal(Backend backend) {
         // -- Global source code
         Path srcPath = PathUtils.getTargetCodeGenSource(backend.context());
         backend.global().generateGlobalCode(srcPath.resolve("global.c"));
@@ -185,13 +213,23 @@ public class CPPBackendPhase implements Phase {
         backend.global().generateGlobalHeader(headerPath.resolve("global.h"));
     }
 
-    private void generateChannels(Backend backend){
+    /**
+     * Genetates the fifo source code
+     *
+     * @param backend
+     */
+    private void generateChannels(Backend backend) {
         // -- Channel header
         Path path = PathUtils.getTargetCodeGenInclude(backend.context());
         backend.channels().generateFifoHeader(path.resolve("fifo.h"));
     }
 
-    private void copyBackedResources(Backend backend){
+    /**
+     * Copies all the resources source code files to the target folder
+     *
+     * @param backend
+     */
+    private void copyBackedResources(Backend backend) {
         String filename = "prelude.h";
         copyResource(codeGenPathInclude, filename);
     }

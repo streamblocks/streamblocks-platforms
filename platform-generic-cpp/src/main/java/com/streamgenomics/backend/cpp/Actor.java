@@ -23,17 +23,9 @@ public interface Actor {
         return backend().emitter();
     }
 
-    default void actors() {
-        backend().task().getNetwork().getInstances().forEach(this::actor);
-    }
-
     @Binding(LAZY)
     default Set<String> actorFileNames() {
         return new LinkedHashSet<>();
-    }
-
-    default void generateActors(){
-        actors();
     }
 
     default String actorFileName(String base) {
@@ -67,7 +59,7 @@ public interface Actor {
     }
 
 
-    default void actor(Instance instance) {
+    default void generateActor(Instance instance) {
         backend().instance().set(instance);
         GlobalEntityDecl actor = backend().task().getSourceUnits().stream()
                 .map(SourceUnit::getTree)
