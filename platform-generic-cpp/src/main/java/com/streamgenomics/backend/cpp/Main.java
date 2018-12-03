@@ -3,6 +3,7 @@ package com.streamgenomics.backend.cpp;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
+import platformutils.PathUtils;
 import se.lth.cs.tycho.compiler.CompilationTask;
 import se.lth.cs.tycho.compiler.Compiler;
 import se.lth.cs.tycho.compiler.SourceUnit;
@@ -35,21 +36,9 @@ public interface Main {
         return backend().mainNetwork();
     }
 
-    default void generateCode() {
-        fifo();
-        main();
-    }
 
-
-
-    default void fifo() {
-        emitter().open(targetCodeGenInclude().resolve("fifo.h"));
-        channels().fifo_h();
-        emitter().close();
-    }
-
-    default void main() {
-        Path mainTarget = targetCodeGenSrc().resolve("main.c");
+    default void generateMain() {
+        Path mainTarget = PathUtils.getTargetCodeGenSource(backend().context()).resolve("main.c");
         emitter().open(mainTarget);
         CompilationTask task = backend().task();
         includeSystem("stdlib.h");
@@ -109,34 +98,6 @@ public interface Main {
     default void includeSystem(String h) { emitter().emit("#include <%s>", h); }
     default void includeUser(String h) { emitter().emit("#include \"%s\"", h); }
 
-    default Path target() {
-        return backend().context().getConfiguration().get(Compiler.targetPath);
-    }
-
-
-    default Path targetLibSrc(){
-        String includeDirectory = "lib" + File.separator + "src";
-        File directory = new File(backend().context().getConfiguration().get(Compiler.targetPath).toFile(), includeDirectory);
-        return directory.toPath();
-    }
-
-    default Path targetLibInclude(){
-        String includeDirectory = "lib" + File.separator + "include";
-        File directory = new File(backend().context().getConfiguration().get(Compiler.targetPath).toFile(), includeDirectory);
-        return directory.toPath();
-    }
-
-    default Path targetCodeGenSrc(){
-        String includeDirectory = "code-gen" + File.separator + "src";
-        File directory = new File(backend().context().getConfiguration().get(Compiler.targetPath).toFile(), includeDirectory);
-        return directory.toPath();
-    }
-
-    default Path targetCodeGenInclude(){
-        String includeDirectory = "code-gen" + File.separator + "include";
-        File directory = new File(backend().context().getConfiguration().get(Compiler.targetPath).toFile(), includeDirectory);
-        return directory.toPath();
-    }
 
     default void include() {
         try (InputStream in = ClassLoader.getSystemResourceAsStream("c_backend_code/included.c")) {

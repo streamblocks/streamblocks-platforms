@@ -133,13 +133,12 @@ public class CPPBackendPhase implements Phase {
         Reporter reporter = context.getReporter();
         reporter.report(new Diagnostic(Diagnostic.Kind.INFO,"StreamBlocks C Code Generation"));
         reporter.report(new Diagnostic(Diagnostic.Kind.INFO,"Identifier, " + task.getIdentifier().toString()));
+        reporter.report(new Diagnostic(Diagnostic.Kind.INFO, "Target Path, " + PathUtils.getTarget(context)));
 
 
         // -- Create directories
         createDirectories(context);
 
-        String filename = "prelude.h";
-        copyResource(codeGenPathInclude, filename);
         Backend backend = MultiJ.from(Backend.class)
                 .bind("task").to(task)
                 .bind("context").to(context)
@@ -148,10 +147,20 @@ public class CPPBackendPhase implements Phase {
         // -- Generate actors
         backend.actors().generateActors();
 
-        backend.main().generateCode();
+        // -- Generate Main
+        backend.main().generateMain();
+
+        // -- Generate Globals
+        generateGlobal(backend);
+
+        // -- Generate Channels
+        generateChannels(backend);
 
         // -- Generate CMakeLists
         generateCmakeLists(backend);
+
+        // -- Backend resources
+        copyBackedResources(backend);
         return task;
     }
 
@@ -168,9 +177,22 @@ public class CPPBackendPhase implements Phase {
 
     private void generateGlobal(Backend backend){
         // -- Global source code
-        backend.global().generateGlobalCode();
+        Path srcPath = PathUtils.getTargetCodeGenSource(backend.context());
+        backend.global().generateGlobalCode(srcPath.resolve("global.c"));
 
         // -- Global header code
-        backend.global().generateGlobalHeader();
+        Path headerPath = PathUtils.getTargetCodeGenInclude(backend.context());
+        backend.global().generateGlobalHeader(headerPath.resolve("global.h"));
+    }
+
+    private void generateChannels(Backend backend){
+        // -- Channel header
+        Path path = PathUtils.getTargetCodeGenInclude(backend.context());
+        backend.channels().generateFifoHeader(path.resolve("fifo.h"));
+    }
+
+    private void copyBackedResources(Backend backend){
+        String filename = "prelude.h";
+        copyResource(codeGenPathInclude, filename);
     }
 }

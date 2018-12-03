@@ -9,6 +9,7 @@ import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.type.CallableType;
 import se.lth.cs.tycho.type.Type;
 
+import java.nio.file.Path;
 import java.util.stream.Stream;
 
 @Module
@@ -28,8 +29,8 @@ public interface Global {
 		return backend().types();
 	}
 
-	default void generateGlobalCode() {
-		emitter().open(PathUtils.getTargetCodeGenInclude(backend().context()).resolve("global.c"));
+	default void generateGlobalCode(Path path) {
+		emitter().open(path);
 		backend().main().emitDefaultHeaders();
 		emitter().emit("#include \"global.h\"");
 		emitter().emit("");
@@ -39,8 +40,8 @@ public interface Global {
 		emitter().close();
 	}
 
-	default void generateGlobalHeader() {
-		emitter().open(PathUtils.getTargetCodeGenInclude(backend().context()).resolve("global.h"));
+	default void generateGlobalHeader(Path path) {
+		emitter().open(path);
 		emitter().emit("#ifndef GLOBAL_H");
 		emitter().emit("#define GLOBAL_H");
 		emitter().emit("");

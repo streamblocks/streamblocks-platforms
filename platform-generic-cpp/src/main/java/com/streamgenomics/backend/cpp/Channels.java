@@ -3,12 +3,14 @@ package com.streamgenomics.backend.cpp;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
+import platformutils.PathUtils;
 import se.lth.cs.tycho.ir.ToolValueAttribute;
 import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.util.ImmutableEntry;
 import se.lth.cs.tycho.type.IntType;
 import se.lth.cs.tycho.type.Type;
 
+import java.nio.file.Path;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -36,13 +38,15 @@ public interface Channels {
 				.forEach((type) -> inputActorCodeForType(type, new int[] {0}));
 	}
 
-	default void fifo_h() {
+	default void generateFifoHeader(Path targetPath) {
+		emitter().open(targetPath);
 		emitter().emit("#include <stdint.h>");
 		emitter().emit("");
 		emitter().emitRawLine("#ifndef BUFFER_SIZE\n" +
 				"#define BUFFER_SIZE 256\n" +
 				"#endif\n");
 		channelCode();
+		emitter().close();
 	}
 
 	default Type alignedConnectionTypes(Connection connection) {
