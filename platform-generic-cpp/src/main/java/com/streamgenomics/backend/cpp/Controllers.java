@@ -22,7 +22,7 @@ public interface Controllers {
     }
 
     default void emitControllerHeader(String name, ActorMachine actorMachine) {
-        emitter().emit("_Bool %s_run(%1$s_state *self);", name);
+        emitter().emit("bool run();");
     }
 
     OnOffSetting scopeLivenessAnalysis = new OnOffSetting() {

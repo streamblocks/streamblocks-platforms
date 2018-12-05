@@ -78,7 +78,7 @@ public interface Actor {
         emitter().emit("#endif");
         emitter().close();
 
-        emitter().open(PathUtils.getTargetCodeGenSource(backend().context()).resolve(fileNameBase + ".c"));
+        emitter().open(PathUtils.getTargetCodeGenSource(backend().context()).resolve(fileNameBase + ".cpp"));
         emitDefaultHeaders();
         includeUser("fifo.h");
         includeUser("global.h");

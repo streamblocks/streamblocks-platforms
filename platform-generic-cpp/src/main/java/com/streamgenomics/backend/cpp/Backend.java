@@ -73,6 +73,9 @@ public interface Backend {
         return MultiJ.from(Controllers.class).bind("backend").to(this).instance();
     }
 
+    @Binding(LAZY) default Preprocessor preprocessor() {
+        return MultiJ.from(Preprocessor.class).bind("backend").to(this).instance();
+    }
     @Binding(LAZY) default Actor actors() {
         return MultiJ.from(Actor.class).bind("backend").to(this).instance();
     }

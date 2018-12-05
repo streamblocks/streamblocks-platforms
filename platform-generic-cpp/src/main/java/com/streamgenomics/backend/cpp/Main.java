@@ -38,7 +38,7 @@ public interface Main {
 
 
     default void generateMain() {
-        Path mainTarget = PathUtils.getTargetCodeGenSource(backend().context()).resolve("main.c");
+        Path mainTarget = PathUtils.getTargetCodeGenSource(backend().context()).resolve("main.cpp");
         emitter().open(mainTarget);
         CompilationTask task = backend().task();
         includeSystem("stdlib.h");

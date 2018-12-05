@@ -58,4 +58,8 @@ public class Emitter {
         }
         writer.println(text);
     }
+
+    public void emitNewLine(){
+        emit("");
+    }
 }

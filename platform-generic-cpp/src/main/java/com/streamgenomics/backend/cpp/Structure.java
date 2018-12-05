@@ -26,6 +26,10 @@ public interface Structure {
         return backend().emitter();
     }
 
+    default Preprocessor preprocessor() {
+        return backend().preprocessor();
+    }
+
     default Code code() {
         return backend().code();
     }
@@ -34,7 +38,9 @@ public interface Structure {
         return backend().types();
     }
 
-    default DefaultValues defVal() { return backend().defaultValues(); }
+    default DefaultValues defVal() {
+        return backend().defaultValues();
+    }
 
     default void actorHdr(GlobalEntityDecl decl) {
         String name = backend().instance().get().getInstanceName();
@@ -46,19 +52,41 @@ public interface Structure {
         actor(name, decl.getEntity());
     }
 
-    default void actorHeader(String name, Entity entity) {}
-
-    default void actorHeader(String name, ActorMachine actorMachine) {
-        actorMachineState(name, actorMachine);
-        actorMachineInitHeader(name, actorMachine);
-        actorMachineControllerHeader(name, actorMachine);
+    default void actorHeader(String name, Entity entity) {
     }
 
-    default void actor(String name, Entity entity) {}
+    default void actorHeader(String name, ActorMachine actorMachine) {
+        preprocessor().userInclude("actor.h");
+
+        emitter().emitNewLine();
+
+        emitter().emit("class %s : public Actor {", name);
+        emitter().emit("public :");
+        emitter().increaseIndentation();
+
+        actorMachineConstructor(name, actorMachine);
+        actorMachineControllerHeader(name, actorMachine);
+
+        emitter().decreaseIndentation();
+
+        emitter().emit("private :");
+        emitter().increaseIndentation();
+
+        actorMachineState(name, actorMachine);
+
+        emitter().decreaseIndentation();
+
+        emitter().emit("};");
+    }
+
+    default void actor(String name, Entity entity) {
+    }
 
     default void actor(String name, ActorMachine actorMachine) {
+        preprocessor().userIncludeActor(name);
+        emitter().emitNewLine();
+
         actorMachineStateInit(name, actorMachine);
-        actorMachineInit(name, actorMachine);
         actorMachineTransitions(name, actorMachine);
         actorMachineConditions(name, actorMachine);
         actorMachineController(name, actorMachine);
@@ -68,6 +96,7 @@ public interface Structure {
         backend().controllers().emitControllerHeader(name, actorMachine);
         emitter().emit("");
     }
+
     default void actorMachineController(String name, ActorMachine actorMachine) {
         backend().controllers().emitController(name, actorMachine);
         emitter().emit("");
@@ -75,35 +104,32 @@ public interface Structure {
     }
 
     default void actorMachineInitHeader(String name, ActorMachine actorMachine) {
-        String selfParameter = name + "_state *self";
-        List<String> parameters = getEntityInitParameters(selfParameter, actorMachine);
-        emitter().emit("void %s_init_actor(%s);", name, String.join(", ", parameters));
+        emitter().emit("void init_actor();");
         emitter().emit("");
     }
 
-    default void actorMachineInit(String name, ActorMachine actorMachine) {
-        String selfParameter = name + "_state *self";
-        List<String> parameters = getEntityInitParameters(selfParameter, actorMachine);
-        emitter().emit("void %s_init_actor(%s) {", name, String.join(", ", parameters));
+    default void actorMachineConstructor(String name, ActorMachine actorMachine) {
+        List<String> parameters = getEntityInitParameters(actorMachine);
+        emitter().emit("%s(%s) {", name, String.join(", ", parameters));
         emitter().increaseIndentation();
-        emitter().emit("self->program_counter = 0;");
+        emitter().emit("this->program_counter = 0;");
         emitter().emit("");
 
         emitter().emit("// parameters");
         actorMachine.getValueParameters().forEach(d -> {
-            emitter().emit("self->%s = %1$s;", backend().variables().declarationName(d));
+            emitter().emit("this->%s = %1$s;", backend().variables().declarationName(d));
         });
         emitter().emit("");
 
         emitter().emit("// input ports");
         actorMachine.getInputPorts().forEach(p -> {
-            emitter().emit("self->%s_channel = %1$s_channel;", p.getName());
+            emitter().emit("this->%s_channel = %1$s_channel;", p.getName());
         });
         emitter().emit("");
 
         emitter().emit("// output ports");
         actorMachine.getOutputPorts().forEach(p -> {
-            emitter().emit("self->%s_channels = %1$s_channels;", p.getName());
+            emitter().emit("this->%s_channels = %1$s_channels;", p.getName());
         });
         emitter().emit("");
 
@@ -111,7 +137,7 @@ public interface Structure {
         int i = 0;
         for (Scope s : actorMachine.getScopes()) {
             if (s.isPersistent()) {
-                emitter().emit("%s_init_scope_%d(self);", name, i);
+                emitter().emit("%s_init_scope_%d();", name, i);
             }
             i = i + 1;
         }
@@ -121,9 +147,8 @@ public interface Structure {
         emitter().emit("");
     }
 
-    default List<String> getEntityInitParameters(String selfParameter, Entity actorMachine) {
+    default List<String> getEntityInitParameters(Entity actorMachine) {
         List<String> parameters = new ArrayList<>();
-        parameters.add(selfParameter);
         actorMachine.getValueParameters().forEach(d -> {
             parameters.add(code().declaration(types().declaredType(d), backend().variables().declarationName(d)));
         });
@@ -212,33 +237,36 @@ public interface Structure {
 
 
     default void actorMachineState(String name, ActorMachine actorMachine) {
-        emitter().emit("typedef struct {");
-        emitter().increaseIndentation();
-
         emitter().emit("int program_counter;");
         emitter().emit("");
 
-        emitter().emit("// parameters");
-        for (VarDecl param : actorMachine.getValueParameters()) {
-            String decl = code().declaration(types().declaredType(param), backend().variables().declarationName(param));
-            emitter().emit("%s;", decl);
+        if (!actorMachine.getValueParameters().isEmpty()) {
+            emitter().emit("// parameters");
+            for (VarDecl param : actorMachine.getValueParameters()) {
+                String decl = code().declaration(types().declaredType(param), backend().variables().declarationName(param));
+                emitter().emit("%s;", decl);
+            }
+            emitter().emit("");
         }
-        emitter().emit("");
 
-        emitter().emit("// input ports");
-        for (PortDecl input : actorMachine.getInputPorts()) {
-            String type = backend().channels().targetEndTypeSize(new Connection.End(Optional.of(backend().instance().get().getInstanceName()), input.getName()));
-            emitter().emit("channel_%s *%s_channel;", type, input.getName());
+        if (!actorMachine.getInputPorts().isEmpty()) {
+            emitter().emit("// input ports");
+            for (PortDecl input : actorMachine.getInputPorts()) {
+                String type = backend().channels().targetEndTypeSize(new Connection.End(Optional.of(backend().instance().get().getInstanceName()), input.getName()));
+                emitter().emit("channel_%s *%s_channel;", type, input.getName());
+            }
+            emitter().emit("");
         }
-        emitter().emit("");
 
-        emitter().emit("// output ports");
-        for (PortDecl output : actorMachine.getOutputPorts()) {
-            Connection.End source = new Connection.End(Optional.of(backend().instance().get().getInstanceName()), output.getName());
-            String type = backend().channels().sourceEndTypeSize(source);
-            emitter().emit("channel_list_%s %s_channels;", type, output.getName());
+        if (!actorMachine.getOutputPorts().isEmpty()) {
+            emitter().emit("// output ports");
+            for (PortDecl output : actorMachine.getOutputPorts()) {
+                Connection.End source = new Connection.End(Optional.of(backend().instance().get().getInstanceName()), output.getName());
+                String type = backend().channels().sourceEndTypeSize(source);
+                emitter().emit("channel_list_%s %s_channels;", type, output.getName());
+            }
+            emitter().emit("");
         }
-        emitter().emit("");
 
         int i = 0;
         for (Scope scope : actorMachine.getScopes()) {
@@ -251,10 +279,6 @@ public interface Structure {
             emitter().emit("");
             i++;
         }
-        emitter().decreaseIndentation();
-        emitter().emit("} %s_state;", name);
-        emitter().emit("");
-        emitter().emit("");
     }
 
     default void actorDecls(List<GlobalEntityDecl> entityDecls) {

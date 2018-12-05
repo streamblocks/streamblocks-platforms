@@ -54,7 +54,7 @@ public interface CMakeLists {
 
         emitter().emit("set(runtime_sources");
         emitter().increaseIndentation();
-        emitter().emit("src/global.c");
+        emitter().emit("src/global.cpp");
         emitter().decreaseIndentation();
         emitter().emit(")");
         emitter().emit("");
@@ -92,7 +92,7 @@ public interface CMakeLists {
 
     default void actor(Instance instance) {
         String fileNameBase = actorFileName(instance.getInstanceName());
-        String fileName = fileNameBase + ".c";
+        String fileName = fileNameBase + ".cpp";
         emitter().emit("src/%s", fileName);
     }
 
@@ -108,8 +108,8 @@ public interface CMakeLists {
         emitter().emit("set(filenames");
         emitter().increaseIndentation();
         actors();
-        emitter().emit("src/global.c");
-        emitter().emit("src/main.c");
+        emitter().emit("src/global.cpp");
+        emitter().emit("src/main.cpp");
         emitter().decreaseIndentation();
         emitter().emit(")");
         emitter().emit("");

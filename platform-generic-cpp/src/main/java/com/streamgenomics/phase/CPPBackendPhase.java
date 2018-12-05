@@ -20,6 +20,7 @@ package com.streamgenomics.phase;
 
 import com.streamgenomics.backend.cpp.Backend;
 import com.streamgenomics.backend.cpp.Controllers;
+import org.apache.commons.io.FileUtils;
 import org.multij.MultiJ;
 import platformutils.PathUtils;
 import se.lth.cs.tycho.compiler.CompilationTask;
@@ -34,9 +35,13 @@ import se.lth.cs.tycho.reporting.Reporter;
 import se.lth.cs.tycho.settings.Setting;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
+import java.io.InputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.util.Collections;
 import java.util.List;
 
 public class CPPBackendPhase implements Phase {
@@ -97,15 +102,6 @@ public class CPPBackendPhase implements Phase {
         return ImmutableList.of(Controllers.scopeLivenessAnalysis);
     }
 
-
-    private void copyResource(Path path, String filename) {
-        try {
-            Files.copy(ClassLoader.getSystemResourceAsStream("c_backend_code/" + filename), path.resolve(filename), StandardCopyOption.REPLACE_EXISTING);
-        } catch (IOException e) {
-            throw new CompilationException(new Diagnostic(Diagnostic.Kind.ERROR, "Could not generate code to \"" + filename + "\""));
-        }
-    }
-
     private void createDirectories(Context context) {
         // -- Get target Path
         targetPath = context.getConfiguration().get(Compiler.targetPath);
@@ -116,9 +112,9 @@ public class CPPBackendPhase implements Phase {
         codeGenPathInclude = PathUtils.createDirectory(codeGenPath, "include");
 
         // -- Library paths
-        //libPath = PathUtils.createDirectory(targetPath, "lib");
-        //libPathSrc = PathUtils.createDirectory(libPath, "src");
-        //libPathInclude = PathUtils.createDirectory(libPath, "include");
+        libPath = PathUtils.createDirectory(targetPath, "lib");
+        libPathSrc = PathUtils.createDirectory(libPath, "src");
+        libPathInclude = PathUtils.createDirectory(libPath, "include");
 
         // -- Build path
         buildPath = PathUtils.createDirectory(targetPath, "build");
@@ -206,7 +202,7 @@ public class CPPBackendPhase implements Phase {
     private void generateGlobal(Backend backend) {
         // -- Global source code
         Path srcPath = PathUtils.getTargetCodeGenSource(backend.context());
-        backend.global().generateGlobalCode(srcPath.resolve("global.c"));
+        backend.global().generateGlobalCode(srcPath.resolve("global.cpp"));
 
         // -- Global header code
         Path headerPath = PathUtils.getTargetCodeGenInclude(backend.context());
@@ -230,7 +226,14 @@ public class CPPBackendPhase implements Phase {
      * @param backend
      */
     private void copyBackedResources(Backend backend) {
-        String filename = "prelude.h";
-        copyResource(codeGenPathInclude, filename);
+        try {
+            Files.copy(ClassLoader.getSystemResourceAsStream("c_backend_code/prelude.h"), PathUtils.getTargetCodeGenSource(backend.context()).resolve("prelude.h"), StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(getClass().getResourceAsStream("/cpp_backend_code/lib/include/actor.h"), PathUtils.getTargetLibInclude(backend.context()).resolve("actor.h"), StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException e) {
+            throw new CompilationException(new Diagnostic(Diagnostic.Kind.ERROR, "Could not copy backend resources"));
+        } catch (NullPointerException e) {
+            throw new CompilationException(new Diagnostic(Diagnostic.Kind.ERROR, "Could not copy backend resources"));
+        }
     }
+
 }
