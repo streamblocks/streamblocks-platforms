@@ -86,9 +86,9 @@ public interface Code {
         return t + " " + name;
     }
 
-    default String declaration(BoolType type, String name) { return "_Bool " + name; }
+    default String declaration(BoolType type, String name) { return "bool " + name; }
 
-    default String declaration(StringType type, String name) { return "char *" + name; }
+    default String declaration(StringType type, String name) { return "std::string" + name; }
 
     String type(Type type);
 
@@ -122,10 +122,10 @@ public interface Code {
     }
 
     default String type(StringType type) {
-        return "char*";
+        return "std::string";
     }
 
-    default String type(BoolType type) { return "_Bool"; }
+    default String type(BoolType type) { return "bool"; }
 
     default String type(RefType type) { return type(type.getType()) + "*"; }
 
@@ -169,15 +169,15 @@ public interface Code {
         emitter().emit("%s;", declaration(types().type(input), tmp));
         if (input.hasRepeat()) {
             if (input.getOffset() == 0) {
-                emitter().emit("channel_peek_%s(self->%s_channel, 0, %d, %s.data);", inputPortTypeSize(input.getPort()), input.getPort().getName(), input.getRepeat(), tmp);
+                emitter().emit("channel_peek_%s(this->%s_channel, 0, %d, %s.data);", inputPortTypeSize(input.getPort()), input.getPort().getName(), input.getRepeat(), tmp);
             } else {
                 throw new RuntimeException("not implemented");
             }
         } else {
             if (input.getOffset() == 0) {
-                emitter().emit("%s = channel_peek_first_%s(self->%s_channel);", tmp, inputPortTypeSize(input.getPort()), input.getPort().getName());
+                emitter().emit("%s = channel_peek_first_%s(this->%s_channel);", tmp, inputPortTypeSize(input.getPort()), input.getPort().getName());
             } else {
-                emitter().emit("channel_peek_%s(self->%s_channel, %d, 1, &%s);", inputPortTypeSize(input.getPort()), input.getPort().getName(), input.getOffset(), tmp);
+                emitter().emit("channel_peek_%s(this->%s_channel, %d, 1, &%s);", inputPortTypeSize(input.getPort()), input.getPort().getName(), input.getOffset(), tmp);
             }
         }
         return tmp;
@@ -450,7 +450,7 @@ public interface Code {
     void execute(Statement stmt);
 
     default void execute(StmtConsume consume) {
-        emitter().emit("channel_consume_%s(self->%s_channel, %d);", inputPortTypeSize(consume.getPort()), consume.getPort().getName(), consume.getNumberOfTokens());
+        emitter().emit("channel_consume_%s(this->%s_channel, %d);", inputPortTypeSize(consume.getPort()), consume.getPort().getName(), consume.getNumberOfTokens());
     }
 
     default void execute(StmtWrite write) {
@@ -461,7 +461,7 @@ public interface Code {
             emitter().emit("%s;", declaration(types().portType(write.getPort()), tmp));
             for (Expression expr : write.getValues()) {
                 emitter().emit("%s = %s;", tmp, evaluate(expr));
-                emitter().emit("channel_write_one_%s(self->%s_channels, %s);", outputPortTypeSize(write.getPort()), portName, tmp);
+                emitter().emit("channel_write_one_%s(this->%s_channels, %s);", outputPortTypeSize(write.getPort()), portName, tmp);
             }
         } else if (write.getValues().size() == 1) {
             String portType = type(types().portType(write.getPort()));
@@ -470,7 +470,7 @@ public interface Code {
             String temp = variables().generateTemp();
             emitter().emit("for (size_t %1$s = 0; %1$s < %2$s; %1$s++) {", temp, repeat);
             emitter().increaseIndentation();
-            emitter().emit("channel_write_one_%1$s(self->%2$s_channels, %3$s.data[%4$s]);", outputPortTypeSize(write.getPort()), portName, value, temp);
+            emitter().emit("channel_write_one_%1$s(this->%2$s_channels, %3$s.data[%4$s]);", outputPortTypeSize(write.getPort()), portName, value, temp);
             emitter().decreaseIndentation();
             emitter().emit("}");
         } else {

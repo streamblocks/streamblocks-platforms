@@ -28,6 +28,8 @@ public interface Main {
         return backend().emitter();
     }
 
+    default Preprocessor preprocessor(){ return backend().preprocessor();}
+
     default Channels channels() {
         return backend().channels();
     }
@@ -41,6 +43,7 @@ public interface Main {
         Path mainTarget = PathUtils.getTargetCodeGenSource(backend().context()).resolve("main.cpp");
         emitter().open(mainTarget);
         CompilationTask task = backend().task();
+        preprocessor().systemInclude("iostream");
         includeSystem("stdlib.h");
         includeSystem("stdio.h");
         includeSystem("stdbool.h");

@@ -48,10 +48,10 @@ public interface Controllers {
         Map<State, Integer> stateMap = stateMap(stateList);
         Set<State> waitTargets = collectWaitTargets(stateList);
 
-        emitter().emit("_Bool %s_run(%1$s_state *self) {", name);
+        emitter().emit("bool %s::run() {", name);
         emitter().increaseIndentation();
 
-        emitter().emit("_Bool progress = false;");
+        emitter().emit("bool progress = false;");
         emitter().emit("");
 
         jumpInto(waitTargets.stream().mapToInt(stateMap::get).collect(BitSet::new, BitSet::set, BitSet::or));
@@ -68,7 +68,7 @@ public interface Controllers {
             emitter().emit("S%d:", stateMap.get(s));
             Instruction instruction = s.getInstructions().get(0);
             initialize.apply(instruction).stream().forEach(scope ->
-                    emitter().emit("%s_init_scope_%d(self);", name, scope)
+                    emitter().emit("init_scope_%d();", scope)
             );
             emitInstruction(name, instruction, stateMap);
         }
@@ -89,7 +89,7 @@ public interface Controllers {
     void emitInstruction(String name, Instruction instruction, Map<State, Integer> stateNumbers);
 
     default void emitInstruction(String name, Test test, Map<State, Integer> stateNumbers) {
-        emitter().emit("if (%s_condition_%d(self)) {", name, test.condition());
+        emitter().emit("if (condition_%d()) {", test.condition());
         emitter().increaseIndentation();
         emitter().emit("goto S%d;", stateNumbers.get(test.targetTrue()));
         emitter().decreaseIndentation();
@@ -102,20 +102,20 @@ public interface Controllers {
     }
 
     default void emitInstruction(String name, Wait wait, Map<State, Integer> stateNumbers) {
-        emitter().emit("self->program_counter = %d;", stateNumbers.get(wait.target()));
+        emitter().emit("this->program_counter = %d;", stateNumbers.get(wait.target()));
         emitter().emit("return progress;");
         emitter().emit("");
     }
 
     default void emitInstruction(String name, Exec exec, Map<State, Integer> stateNumbers) {
-        emitter().emit("%s_transition_%d(self);", name, exec.transition());
+        emitter().emit("transition_%d();", exec.transition());
         emitter().emit("progress = true;");
         emitter().emit("goto S%d;", stateNumbers.get(exec.target()));
         emitter().emit("");
     }
 
     default void jumpInto(BitSet waitTargets) {
-        emitter().emit("switch (self->program_counter) {");
+        emitter().emit("switch (this->program_counter) {");
         waitTargets.stream().forEach(s -> emitter().emit("case %d: goto S%1$d;", s));
         emitter().emit("}");
         emitter().emit("");

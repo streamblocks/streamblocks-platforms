@@ -53,7 +53,7 @@ public interface Variables {
     default String reference(VarDecl decl) {
         IRNode parent = backend().tree().parent(decl);
         if (parent instanceof Scope || parent instanceof ActorMachine) {
-            return "&(self->" + declarationName(decl) + ")";
+            return "&(this->" + declarationName(decl) + ")";
         } else {
             return "&" + declarationName(decl);
         }
@@ -65,7 +65,7 @@ public interface Variables {
         if (backend().closures().isDeclaredInClosure(var)) {
             return "*(env->" + declarationName(decl) + ")";
         } else if (parent instanceof Scope || parent instanceof ActorMachine) {
-            return "(self->" + declarationName(decl) + ")";
+            return "(this->" + declarationName(decl) + ")";
         } else {
             return declarationName(decl);
         }

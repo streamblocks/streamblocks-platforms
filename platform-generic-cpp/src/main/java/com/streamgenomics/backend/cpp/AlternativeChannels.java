@@ -169,7 +169,7 @@ public interface AlternativeChannels extends Channels {
 		emitter().emit("");
 
 		emitter().emit("static void channel_create_%s_%s(channel_%1$s_%2$s *channel) {", tokenType, sizeString);
-		emitter().emit("	%s *buffer = malloc(sizeof(%1$s)*%s);", tokenType, bufferSize);
+		emitter().emit("	%s *buffer = new %1$s[%s];", tokenType, bufferSize);
 		emitter().emit("	channel->read = 0;");
 		emitter().emit("	channel->write = 0;");
 		emitter().emit("	channel->buffer = buffer;");

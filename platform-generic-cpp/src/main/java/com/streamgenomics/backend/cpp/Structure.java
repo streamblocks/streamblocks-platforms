@@ -65,6 +65,7 @@ public interface Structure {
         emitter().increaseIndentation();
 
         actorMachineConstructor(name, actorMachine);
+
         actorMachineControllerHeader(name, actorMachine);
 
         emitter().decreaseIndentation();
@@ -72,6 +73,16 @@ public interface Structure {
         emitter().emit("private :");
         emitter().increaseIndentation();
 
+        emitter().emit("// -- Scopes Initialization");
+        actorMachineScopesInit(actorMachine);
+
+        emitter().emit("// -- Actor Machine Transitions");
+        actorMachineTransitionsPrototype(actorMachine);
+
+        emitter().emit("// -- Actor Machine Conditions");
+        actorMachineConditionsPrototypes(actorMachine);
+
+        emitter().emit("// -- State Variables");
         actorMachineState(name, actorMachine);
 
         emitter().decreaseIndentation();
@@ -137,7 +148,7 @@ public interface Structure {
         int i = 0;
         for (Scope s : actorMachine.getScopes()) {
             if (s.isPersistent()) {
-                emitter().emit("%s_init_scope_%d();", name, i);
+                emitter().emit("init_scope_%d();", i);
             }
             i = i + 1;
         }
@@ -167,7 +178,7 @@ public interface Structure {
     default void actorMachineTransitions(String name, ActorMachine actorMachine) {
         int i = 0;
         for (Transition transition : actorMachine.getTransitions()) {
-            emitter().emit("static void %s_transition_%d(%s_state *self) {", name, i, name);
+            emitter().emit("void %s::transition_%d() {", name, i);
             emitter().increaseIndentation();
             transition.getBody().forEach(code()::execute);
             emitter().decreaseIndentation();
@@ -178,15 +189,33 @@ public interface Structure {
         }
     }
 
+    default void actorMachineTransitionsPrototype(ActorMachine actorMachine) {
+        int i = 0;
+        for (Transition transition : actorMachine.getTransitions()) {
+            emitter().emit("void transition_%d();", i);
+            emitter().emit("");
+            i++;
+        }
+    }
+
     default void actorMachineConditions(String name, ActorMachine actorMachine) {
         int i = 0;
         for (Condition condition : actorMachine.getConditions()) {
-            emitter().emit("static _Bool %s_condition_%d(%s_state *self) {", name, i, name);
+            emitter().emit("bool %s::condition_%d() {", name, i);
             emitter().increaseIndentation();
             emitter().emit("return %s;", evaluateCondition(condition));
             emitter().decreaseIndentation();
             emitter().emit("}");
             emitter().emit("");
+            emitter().emit("");
+            i++;
+        }
+    }
+
+    default void actorMachineConditionsPrototypes(ActorMachine actorMachine) {
+        int i = 0;
+        for (Condition condition : actorMachine.getConditions()) {
+            emitter().emit("bool condition_%d();", i);
             emitter().emit("");
             i++;
         }
@@ -200,9 +229,9 @@ public interface Structure {
 
     default String evaluateCondition(PortCondition condition) {
         if (condition.isInputCondition()) {
-            return String.format("channel_has_data_%s(self->%s_channel, %d)", code().inputPortTypeSize(condition.getPortName()), condition.getPortName().getName(), condition.N());
+            return String.format("channel_has_data_%s(this->%s_channel, %d)", code().inputPortTypeSize(condition.getPortName()), condition.getPortName().getName(), condition.N());
         } else {
-            return String.format("channel_has_space_%s(self->%s_channels, %d)", code().outputPortTypeSize(condition.getPortName()), condition.getPortName().getName(), condition.N());
+            return String.format("channel_has_space_%s(this->%s_channels, %d)", code().outputPortTypeSize(condition.getPortName()), condition.getPortName().getName(), condition.N());
         }
     }
 
@@ -210,7 +239,7 @@ public interface Structure {
     default void actorMachineStateInit(String name, ActorMachine actorMachine) {
         int i = 0;
         for (Scope scope : actorMachine.getScopes()) {
-            emitter().emit("static void %s_init_scope_%d(%s_state *self) {", name, i, name);
+            emitter().emit("void %s::init_scope_%d() {", name, i);
             emitter().increaseIndentation();
             for (VarDecl var : scope.getDeclarations()) {
                 Type type = types().declaredType(var);
@@ -218,11 +247,11 @@ public interface Structure {
                     String wrapperName = backend().callables().externalWrapperFunctionName(var);
                     String variableName = backend().variables().declarationName(var);
                     String t = backend().callables().mangle(type).encode();
-                    emitter().emit("self->%s = (%s) { *%s, NULL };", variableName, t, wrapperName);
+                    emitter().emit("this->%s = (%s) { *%s, NULL };", variableName, t, wrapperName);
                 } else if (var.getValue() != null) {
                     emitter().emit("{");
                     emitter().increaseIndentation();
-                    code().copy(types().declaredType(var), "self->" + backend().variables().declarationName(var), types().type(var.getValue()), code().evaluate(var.getValue()));
+                    code().copy(types().declaredType(var), "this->" + backend().variables().declarationName(var), types().type(var.getValue()), code().evaluate(var.getValue()));
                     emitter().decreaseIndentation();
                     emitter().emit("}");
                 }
@@ -230,6 +259,16 @@ public interface Structure {
             emitter().decreaseIndentation();
             emitter().emit("}");
             emitter().emit("");
+            emitter().emit("");
+            i++;
+        }
+    }
+
+    default void actorMachineScopesInit(ActorMachine actorMachine) {
+        int i = 0;
+        for (Scope scope : actorMachine.getScopes()) {
+            emitter().emit("void init_scope_%d();", i);
+
             emitter().emit("");
             i++;
         }
