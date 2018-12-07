@@ -1,6 +1,6 @@
-package com.streamgenomics.backend.cpp;
+package com.streamgenomics.backend.c;
 
-import com.streamgenomics.backend.cpp.util.NameExpression;
+import com.streamgenomics.backend.c.util.NameExpression;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;

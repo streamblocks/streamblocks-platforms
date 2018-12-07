@@ -16,7 +16,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-package com.streamgenomics.platform.cpp;
+package com.streamgenomics.platform.c;
 
 import com.streamgenomics.phase.CBackendPhase;
 import se.lth.cs.tycho.compiler.Compiler;

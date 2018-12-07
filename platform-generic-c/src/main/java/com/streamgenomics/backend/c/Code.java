@@ -1,4 +1,4 @@
-package com.streamgenomics.backend.cpp;
+package com.streamgenomics.backend.c;
 
 import org.multij.Binding;
 import org.multij.BindingKind;

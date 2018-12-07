@@ -18,8 +18,8 @@
 
 package com.streamgenomics.phase;
 
-import com.streamgenomics.backend.cpp.Backend;
-import com.streamgenomics.backend.cpp.Controllers;
+import com.streamgenomics.backend.c.Backend;
+import com.streamgenomics.backend.c.Controllers;
 import org.multij.MultiJ;
 import platformutils.PathUtils;
 import se.lth.cs.tycho.compiler.CompilationTask;

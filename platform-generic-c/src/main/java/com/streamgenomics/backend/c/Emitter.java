@@ -1,4 +1,4 @@
-package com.streamgenomics.backend.cpp;
+package com.streamgenomics.backend.c;
 
 import se.lth.cs.tycho.reporting.CompilationException;
 

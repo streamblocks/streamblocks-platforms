@@ -1,4 +1,4 @@
-package com.streamgenomics.backend.cpp.util;
+package com.streamgenomics.backend.c.util;
 
 import java.util.Objects;
 

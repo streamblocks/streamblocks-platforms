@@ -1,6 +1,6 @@
-package com.streamgenomics.backend.cpp;
+package com.streamgenomics.backend.c;
 
-import com.streamgenomics.backend.cpp.util.Box;
+import com.streamgenomics.backend.c.util.Box;
 import org.multij.Binding;
 import org.multij.Module;
 import org.multij.MultiJ;

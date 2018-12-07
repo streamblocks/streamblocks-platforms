@@ -89,8 +89,8 @@ public interface MainNetwork {
                 String channelName = "channel_" + i;
                 connectionTypes.put(targetPort.getKey(), typeSize);
                 connectionNames.put(targetPort.getKey(), channelName);
-                emitter().emit("channel_%s %s;", typeSize, channelName);
-                emitter().emit("channel_create_%s(&%s);", typeSize, channelName);
+                emitter().emit("auto *%s = new Fifo< %s >();", channelName, typeSize);
+
                 i = i + 1;
             }
         }
@@ -114,15 +114,15 @@ public interface MainNetwork {
 
             for (PortDecl port : entityDecl.getEntity().getInputPorts()) {
                 Connection.End end = new Connection.End(Optional.of(instance.getInstanceName()), port.getName());
-                initParameters.add("&" + connectionNames.get(end));
+                initParameters.add(connectionNames.get(end));
             }
             for (PortDecl port : entityDecl.getEntity().getOutputPorts()) {
                 Connection.End end = new Connection.End(Optional.of(instance.getInstanceName()), port.getName());
                 List<Connection.End> outgoing = srcToTgt.getOrDefault(end, Collections.emptyList());
-                String channels = outgoing.stream().map(connectionNames::get).map(c -> "&" + c).collect(Collectors.joining(", "));
+                String channels = outgoing.stream().map(connectionNames::get).collect(Collectors.joining(", "));
                 Connection.End source = new Connection.End(Optional.of(instance.getInstanceName()), port.getName());
                 String tokenType = backend().channels().sourceEndTypeSize(source);
-                emitter().emit("channel_list_%s %s_%s = { %s };", tokenType, instance.getInstanceName(), port.getName(), channels);
+                emitter().emit("auto *%s_%s = new FifoList<%s > (%s);", instance.getInstanceName(), port.getName(), tokenType, channels);
                 initParameters.add(String.format("%s_%s", instance.getInstanceName(), port.getName()));
             }
             emitter().emit("%s *actor_%1$s = new %1$s(%s);", instance.getInstanceName(), String.join(", ", initParameters));
@@ -172,7 +172,7 @@ public interface MainNetwork {
         for (Map.Entry<Connection.End, String> nameEntry : connectionNames.entrySet()) {
             String name = nameEntry.getValue();
             String type = connectionTypes.get(nameEntry.getKey());
-            emitter().emit("channel_destroy_%s(&%s);", type, name);
+            emitter().emit("delete %s;", name);
         }
 
 

@@ -6,7 +6,7 @@
 template<typename T>
 class Fifo {
 public:
-    Fifo(size_t size);
+    Fifo(size_t size = 512);
 
     ~Fifo();
 

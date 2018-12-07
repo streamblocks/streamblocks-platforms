@@ -169,14 +169,15 @@ public interface Code {
         emitter().emit("%s;", declaration(types().type(input), tmp));
         if (input.hasRepeat()) {
             if (input.getOffset() == 0) {
-                emitter().emit("channel_peek_%s(this->%s_channel, 0, %d, %s.data);", inputPortTypeSize(input.getPort()), input.getPort().getName(), input.getRepeat(), tmp);
+                emitter().emit("%s_channel->peek(0, %d, %s.data)", input.getPort().getName(), input.getRepeat(), tmp);
             } else {
                 throw new RuntimeException("not implemented");
             }
         } else {
             if (input.getOffset() == 0) {
-                emitter().emit("%s = channel_peek_first_%s(this->%s_channel);", tmp, inputPortTypeSize(input.getPort()), input.getPort().getName());
-            } else {
+                emitter().emit("%s = %s_channel->peek_first();", tmp, input.getPort().getName());
+            }
+            else {
                 emitter().emit("channel_peek_%s(this->%s_channel, %d, 1, &%s);", inputPortTypeSize(input.getPort()), input.getPort().getName(), input.getOffset(), tmp);
             }
         }
@@ -450,27 +451,26 @@ public interface Code {
     void execute(Statement stmt);
 
     default void execute(StmtConsume consume) {
-        emitter().emit("channel_consume_%s(this->%s_channel, %d);", inputPortTypeSize(consume.getPort()), consume.getPort().getName(), consume.getNumberOfTokens());
+        emitter().emit("%s_channel->consume(%d);", consume.getPort().getName(), consume.getNumberOfTokens());
     }
 
     default void execute(StmtWrite write) {
         String portName = write.getPort().getName();
         if (write.getRepeatExpression() == null) {
-            String portType = type(types().portType(write.getPort()));
             String tmp = variables().generateTemp();
             emitter().emit("%s;", declaration(types().portType(write.getPort()), tmp));
             for (Expression expr : write.getValues()) {
                 emitter().emit("%s = %s;", tmp, evaluate(expr));
-                emitter().emit("channel_write_one_%s(this->%s_channels, %s);", outputPortTypeSize(write.getPort()), portName, tmp);
+                emitter().emit("%s_channels->write_one(%s);", portName, tmp);
             }
         } else if (write.getValues().size() == 1) {
-            String portType = type(types().portType(write.getPort()));
             String value = evaluate(write.getValues().get(0));
             String repeat = evaluate(write.getRepeatExpression());
             String temp = variables().generateTemp();
             emitter().emit("for (size_t %1$s = 0; %1$s < %2$s; %1$s++) {", temp, repeat);
             emitter().increaseIndentation();
-            emitter().emit("channel_write_one_%1$s(this->%2$s_channels, %3$s.data[%4$s]);", outputPortTypeSize(write.getPort()), portName, value, temp);
+            emitter().emit("%2$s_channels->write_one(%3$s.data[%4$s]);", portName, value, temp);
+
             emitter().decreaseIndentation();
             emitter().emit("}");
         } else {

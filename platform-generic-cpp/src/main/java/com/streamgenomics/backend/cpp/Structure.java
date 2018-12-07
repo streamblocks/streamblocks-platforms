@@ -57,6 +57,8 @@ public interface Structure {
 
     default void actorHeader(String name, ActorMachine actorMachine) {
         preprocessor().userInclude("actor.h");
+        preprocessor().userInclude("fifo.h");
+        preprocessor().userInclude("fifo_list.h");
 
         emitter().emitNewLine();
 
@@ -126,25 +128,25 @@ public interface Structure {
         emitter().emit("this->program_counter = 0;");
         emitter().emit("");
 
-        emitter().emit("// parameters");
+        emitter().emit("// -- parameters");
         actorMachine.getValueParameters().forEach(d -> {
             emitter().emit("this->%s = %1$s;", backend().variables().declarationName(d));
         });
         emitter().emit("");
 
-        emitter().emit("// input ports");
+        emitter().emit("// -- input ports");
         actorMachine.getInputPorts().forEach(p -> {
             emitter().emit("this->%s_channel = %1$s_channel;", p.getName());
         });
         emitter().emit("");
 
-        emitter().emit("// output ports");
+        emitter().emit("// -- output ports");
         actorMachine.getOutputPorts().forEach(p -> {
             emitter().emit("this->%s_channels = %1$s_channels;", p.getName());
         });
         emitter().emit("");
 
-        emitter().emit("// init persistent scopes");
+        emitter().emit("// -- init persistent scopes");
         int i = 0;
         for (Scope s : actorMachine.getScopes()) {
             if (s.isPersistent()) {
@@ -165,12 +167,12 @@ public interface Structure {
         });
         actorMachine.getInputPorts().forEach(p -> {
             String type = backend().channels().targetEndTypeSize(new Connection.End(Optional.of(backend().instance().get().getInstanceName()), p.getName()));
-            parameters.add(String.format("channel_%s *%s_channel", type, p.getName()));
+            parameters.add(String.format("Fifo<%s> *%s_channel", type, p.getName()));
         });
         actorMachine.getOutputPorts().forEach(p -> {
             Connection.End source = new Connection.End(Optional.of(backend().instance().get().getInstanceName()), p.getName());
             String type = backend().channels().sourceEndTypeSize(source);
-            parameters.add(String.format("channel_list_%s %s_channels", type, p.getName()));
+            parameters.add(String.format("FifoList<%s > *%s_channels", type, p.getName()));
         });
         return parameters;
     }
@@ -229,9 +231,11 @@ public interface Structure {
 
     default String evaluateCondition(PortCondition condition) {
         if (condition.isInputCondition()) {
-            return String.format("channel_has_data_%s(this->%s_channel, %d)", code().inputPortTypeSize(condition.getPortName()), condition.getPortName().getName(), condition.N());
+            //return String.format("channel_has_data_%s(this->%s_channel, %d)", code().inputPortTypeSize(condition.getPortName()), condition.getPortName().getName(), condition.N());
+            return String.format("%s_channel->has_data(%d)", condition.getPortName().getName(), condition.N());
         } else {
-            return String.format("channel_has_space_%s(this->%s_channels, %d)", code().outputPortTypeSize(condition.getPortName()), condition.getPortName().getName(), condition.N());
+           // return String.format("channel_has_space_%s(this->%s_channels, %d)", code().outputPortTypeSize(condition.getPortName()), condition.getPortName().getName(), condition.N());
+            return String.format("%s_channels->has_space(%d)", condition.getPortName().getName(), condition.N());
         }
     }
 
@@ -280,7 +284,7 @@ public interface Structure {
         emitter().emit("");
 
         if (!actorMachine.getValueParameters().isEmpty()) {
-            emitter().emit("// parameters");
+            emitter().emit("// -- parameters");
             for (VarDecl param : actorMachine.getValueParameters()) {
                 String decl = code().declaration(types().declaredType(param), backend().variables().declarationName(param));
                 emitter().emit("%s;", decl);
@@ -289,27 +293,27 @@ public interface Structure {
         }
 
         if (!actorMachine.getInputPorts().isEmpty()) {
-            emitter().emit("// input ports");
+            emitter().emit("// -- input ports");
             for (PortDecl input : actorMachine.getInputPorts()) {
                 String type = backend().channels().targetEndTypeSize(new Connection.End(Optional.of(backend().instance().get().getInstanceName()), input.getName()));
-                emitter().emit("channel_%s *%s_channel;", type, input.getName());
+                emitter().emit("Fifo<%s > *%s_channel;", type, input.getName());
             }
             emitter().emit("");
         }
 
         if (!actorMachine.getOutputPorts().isEmpty()) {
-            emitter().emit("// output ports");
+            emitter().emit("// -- output ports");
             for (PortDecl output : actorMachine.getOutputPorts()) {
                 Connection.End source = new Connection.End(Optional.of(backend().instance().get().getInstanceName()), output.getName());
                 String type = backend().channels().sourceEndTypeSize(source);
-                emitter().emit("channel_list_%s %s_channels;", type, output.getName());
+                emitter().emit("FifoList<%s > *%s_channels;", type, output.getName());
             }
             emitter().emit("");
         }
 
         int i = 0;
         for (Scope scope : actorMachine.getScopes()) {
-            emitter().emit("// scope %d", i);
+            emitter().emit("// -- scope %d", i);
             backend().callables().declareEnvironmentForCallablesInScope(scope);
             for (VarDecl var : scope.getDeclarations()) {
                 String decl = code().declaration(types().declaredType(var), backend().variables().declarationName(var));

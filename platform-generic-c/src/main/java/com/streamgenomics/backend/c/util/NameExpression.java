@@ -1,4 +1,4 @@
-package com.streamgenomics.backend.cpp.util;
+package com.streamgenomics.backend.c.util;
 
 import se.lth.cs.tycho.ir.util.ImmutableList;
 

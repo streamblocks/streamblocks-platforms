@@ -27,7 +27,10 @@ public interface CMakeLists {
         emitter().emit("");
         emitter().emit("project (%s)", backend().task().getIdentifier().getLast().toString());
 
-        emitter().emit("");
+        emitter().emitNewLine();
+
+        emitter().emit("set (CMAKE_CXX_STANDARD 11)");
+        emitter().emitNewLine();
 
         emitter().emit("# Place the executable on bin directory");
         emitter().emit("set(EXECUTABLE_OUTPUT_PATH ${CMAKE_SOURCE_DIR}/bin)");

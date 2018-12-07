@@ -105,10 +105,10 @@ public interface AlternativeChannels extends Channels {
 				.filter(conn -> conn.getSource().equals(source))
 				.collect(Collectors.toList());
 		Type type = backend().types().connectionType(network, connections.get(0));
-		String size = connections.stream()
-				.map(c -> sizeToString(connectionBufferSize(c)))
-				.collect(Collectors.joining("_"));
-		return backend().code().type(type) + "_" + size;
+		//String size = connections.stream()
+		//		.map(c -> sizeToString(connectionBufferSize(c)))
+		//		.collect(Collectors.joining("_"));
+		return backend().code().type(type);
 	}
 
 	default String targetEndTypeSize(Connection.End target) {
@@ -117,14 +117,14 @@ public interface AlternativeChannels extends Channels {
 				.filter(conn -> conn.getTarget().equals(target))
 				.findFirst().get();
 		Type type = backend().types().connectionType(network, connection);
-		String size = sizeToString(connectionBufferSize(connection));
-		return backend().code().type(type) + "_" + size;
+		//String size = sizeToString(connectionBufferSize(connection));
+		return backend().code().type(type);
 	}
 
 
 	default String sizeToString(int size) {
 		if (size == 0) {
-			return "D";
+			return "";
 		} else if (size > 0) {
 			return Integer.toString(size);
 		} else {
