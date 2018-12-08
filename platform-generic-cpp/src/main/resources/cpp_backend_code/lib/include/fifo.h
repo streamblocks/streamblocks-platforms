@@ -52,7 +52,7 @@ private:
 
 template<typename T>
 Fifo<T>::Fifo(size_t s) :
-        buffer(new T[s], rd(0), write(0), size(s)) {
+        buffer(new T[s]), rd(0), wr(0), size(s) {
 }
 
 template<typename T>

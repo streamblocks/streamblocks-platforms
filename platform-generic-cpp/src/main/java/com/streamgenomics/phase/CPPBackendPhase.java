@@ -152,7 +152,7 @@ public class CPPBackendPhase implements Phase {
         generateGlobal(backend);
 
         // -- Generate Channels
-        generateChannels(backend);
+        //generateChannels(backend);
 
         // -- Generate CMakeLists
         generateCmakeLists(backend);
