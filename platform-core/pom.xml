@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <artifactId>streamblocks</artifactId>
-        <groupId>com.streamblocks</groupId>
+        <groupId>ch.epfl.vlsc</groupId>
         <version>1.0-SNAPSHOT</version>
     </parent>
     <artifactId>platform-core</artifactId>

@@ -4,11 +4,11 @@
 	xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 	<modelVersion>4.0.0</modelVersion>
 	<parent>
-		<groupId>com.streamblocks</groupId>
+		<groupId>ch.epfl.vlsc</groupId>
 		<artifactId>streamblocks</artifactId>
 		<version>1.0-SNAPSHOT</version>
 	</parent>
-	<groupId>com.streamblocks</groupId>
+	<groupId>ch.epfl.vlsc.streamblock</groupId>
 	<artifactId>platform-generic-cpp</artifactId>
 	<version>1.0-SNAPSHOT</version>
 	<name>StreamBlocks CPP platform for Tycho compiler</name>
@@ -46,7 +46,7 @@
 			<version>0.1</version>
 		</dependency>
 		<dependency>
-			<groupId>com.streamblocks</groupId>
+			<groupId>ch.epfl.vlsc</groupId>
 			<artifactId>platform-core</artifactId>
 			<version>1.0-SNAPSHOT</version>
 		</dependency>
