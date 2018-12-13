@@ -181,7 +181,7 @@ public class CPPBackendPhase implements Phase {
         backend.cmakelists().generateTopCmakeLists();
 
         // -- Lib CMakeLists
-        // backend.cmakelists().generateLibCmakeLists();
+        backend.cmakelists().generateLibCmakeLists();
 
         // -- Code-Gen CMakeLists
         backend.cmakelists().generateCodeGenCmakeLists();

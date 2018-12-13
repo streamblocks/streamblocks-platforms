@@ -41,7 +41,7 @@ public interface CMakeLists {
 
         emitter().emit("");
         emitter().emit("# Add Library");
-        emitter().emit("# add_subdirectory(lib)");
+        emitter().emit("add_subdirectory(lib)");
 
         emitter().emit("");
         emitter().emit("# Add Code-gen");
@@ -55,23 +55,24 @@ public interface CMakeLists {
         emitter().emit("# -- StreamBlocks Library");
         emitter().emit("");
 
-        emitter().emit("set(runtime_sources");
-        emitter().increaseIndentation();
-        emitter().emit("src/global.cpp");
-        emitter().decreaseIndentation();
-        emitter().emit(")");
-        emitter().emit("");
+        //emitter().emit("set(runtime_sources");
+        //emitter().increaseIndentation();
+        //emitter().emit("src/global.cpp");
+        //emitter().decreaseIndentation();
+        //emitter().emit(")");
+        //emitter().emit("");
 
         emitter().emit("set(runtime_headers");
         emitter().increaseIndentation();
-        emitter().emit("include/prelude.h");
+        emitter().emit("include/actor.h");
         emitter().emit("include/fifo.h");
-        emitter().emit("include/global.h");
+        emitter().emit("include/fifo_list.h");
         emitter().decreaseIndentation();
         emitter().emit(")");
         emitter().emit("");
 
-        emitter().emit("add_library(streamblocks-c-runtime STATIC ${runtime_sources} ${runtime_header})");
+        emitter().emit("add_library(streamblocks-cpp-runtime INTERFACE )");
+        emitter().emit("target_include_directories(streamblocks-cpp-runtime INTERFACE ${runtime_header})");
 
         emitter().close();
     }
@@ -123,10 +124,10 @@ public interface CMakeLists {
         emitter().emit("add_executable(%s ${filenames})", backend().task().getIdentifier().getLast());
         emitter().emit("");
 
-        emitter().emit("set(libraries streamblocks-c-runtime)");
+        emitter().emit("set(libraries streamblocks-cpp-runtime)");
         emitter().emit("");
 
-        emitter().emit("# target_link_libraries(%s ${libraries})", backend().task().getIdentifier().getLast());
+        emitter().emit("target_link_libraries(%s ${libraries})", backend().task().getIdentifier().getLast());
 
 
         emitter().close();

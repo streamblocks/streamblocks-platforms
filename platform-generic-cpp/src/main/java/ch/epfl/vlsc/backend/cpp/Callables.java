@@ -133,10 +133,13 @@ public interface Callables {
 	}
 
 	default NameExpression mangle(CallableType type) {
+		/*
 		NameExpression kind = NameExpression.name("fn");
 		NameExpression returnType = mangle(type.getReturnType());
 		List<NameExpression> parameterTypes = type.getParameterTypes().stream().map(this::mangle).collect(Collectors.toList());
 		return new NameExpression.Seq(ImmutableList.<NameExpression> builder().add(kind).add(returnType).addAll(parameterTypes).build());
+*/
+		return mangle(type.getReturnType());
 	}
 
 	default NameExpression mangle(UnitType type) {
@@ -184,17 +187,17 @@ public interface Callables {
                 .distinct()
 				.collect(ImmutableList.collector());
 	}
-	default void callablePrototype(IRNode callable) {};
+	default void  callablePrototype(IRNode callable) {};
 
 	default void callablePrototype(ExprLambda lambda) {
 		String name = functionName(lambda);
-		closureTypedef(closure(lambda), name);
+		//closureTypedef(closure(lambda), name);
 		backend().emitter().emit("%s;", lambdaHeader(lambda));
 	}
 
 	default void callablePrototype(ExprProc proc) {
 		String name = functionName(proc);
-		closureTypedef(closure(proc), name);
+		//closureTypedef(closure(proc), name);
 		backend().emitter().emit("%s;", procHeader(proc));
 	}
 
@@ -227,11 +230,9 @@ public interface Callables {
 	}
 
 	default void callableDefinition(ExprProc proc) {
-		String name = functionName(proc);
+		String name = functionNameDefinition(proc);
 		backend().emitter().emit("%s {", procHeader(proc));
 		backend().emitter().increaseIndentation();
-		proc.forEachChild(this::declareEnvironmentForCallablesInScope);
-		backend().emitter().emit("envt_%s *env = (envt_%s*) e;", name, name);
 		proc.getBody().forEach(backend().code()::execute);
 		backend().emitter().decreaseIndentation();
 		backend().emitter().emit("}");
@@ -277,6 +278,16 @@ public interface Callables {
 		}
 		return callablesNames().get(callable);
 	}
+
+	default String functionNameDefinition(Expression callable){
+		assert callable instanceof ExprLambda || callable instanceof ExprProc;
+		IRNode parent = backend().tree().parent(callable);
+		String name = "" + functionName(callable);
+
+
+		return name;
+	}
+
 
 	default IRNode environmentScope(IRNode callable) {
 		return backend().tree().parent(callable);
@@ -367,14 +378,14 @@ public interface Callables {
 		String name = functionName(lambda);
 		LambdaType type = (LambdaType) backend().types().type(lambda);
 		ImmutableList<String> parameterNames = lambda.getValueParameters().map(backend().variables()::declarationName);
-		return callableHeader(name, type, parameterNames, true);
+		return callableHeader(name, type, parameterNames, false);
 	}
 
 	default String procHeader(ExprProc proc) {
 		String name = functionName(proc);
 		ProcType type = (ProcType) backend().types().type(proc);
 		ImmutableList<String> parameterNames = proc.getValueParameters().map(backend().variables()::declarationName);
-		return callableHeader(name, type, parameterNames, true);
+		return callableHeader(name, type, parameterNames, false);
 	}
 
 	default String callableHeader(String name, CallableType type, List<String> parameterNames, boolean withEnv) {

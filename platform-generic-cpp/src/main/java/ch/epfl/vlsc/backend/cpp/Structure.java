@@ -98,7 +98,7 @@ public interface Structure {
     default void actor(String name, ActorMachine actorMachine) {
         preprocessor().userIncludeActor(name);
         emitter().emitNewLine();
-
+        actorMachineLocalCallables(name, actorMachine);
         actorMachineStateInit(name, actorMachine);
         actorMachineTransitions(name, actorMachine);
         actorMachineConditions(name, actorMachine);
@@ -234,8 +234,20 @@ public interface Structure {
             //return String.format("channel_has_data_%s(this->%s_channel, %d)", code().inputPortTypeSize(condition.getPortName()), condition.getPortName().getName(), condition.N());
             return String.format("%s_channel->has_data(%d)", condition.getPortName().getName(), condition.N());
         } else {
-           // return String.format("channel_has_space_%s(this->%s_channels, %d)", code().outputPortTypeSize(condition.getPortName()), condition.getPortName().getName(), condition.N());
+            // return String.format("channel_has_space_%s(this->%s_channels, %d)", code().outputPortTypeSize(condition.getPortName()), condition.getPortName().getName(), condition.N());
             return String.format("%s_channels->has_space(%d)", condition.getPortName().getName(), condition.N());
+        }
+    }
+
+
+    default void actorMachineLocalCallables(String name, ActorMachine actorMachine){
+        for (Scope scope : actorMachine.getScopes()){
+            for(VarDecl var : scope.getDeclarations()){
+                Type type = types().declaredType(var);
+                if(type instanceof CallableType){
+                    backend().callables().callableDefinition(var.getValue());
+                }
+            }
         }
     }
 
@@ -247,12 +259,7 @@ public interface Structure {
             emitter().increaseIndentation();
             for (VarDecl var : scope.getDeclarations()) {
                 Type type = types().declaredType(var);
-                if (var.isExternal() && type instanceof CallableType) {
-                    String wrapperName = backend().callables().externalWrapperFunctionName(var);
-                    String variableName = backend().variables().declarationName(var);
-                    String t = backend().callables().mangle(type).encode();
-                    emitter().emit("this->%s = (%s) { *%s, NULL };", variableName, t, wrapperName);
-                } else if (var.getValue() != null) {
+                if (var.getValue() != null && !(type instanceof CallableType)) {
                     emitter().emit("{");
                     emitter().increaseIndentation();
                     code().copy(types().declaredType(var), "this->" + backend().variables().declarationName(var), types().type(var.getValue()), code().evaluate(var.getValue()));
@@ -272,7 +279,6 @@ public interface Structure {
         int i = 0;
         for (Scope scope : actorMachine.getScopes()) {
             emitter().emit("void init_scope_%d();", i);
-
             emitter().emit("");
             i++;
         }
@@ -314,10 +320,14 @@ public interface Structure {
         int i = 0;
         for (Scope scope : actorMachine.getScopes()) {
             emitter().emit("// -- scope %d", i);
-            backend().callables().declareEnvironmentForCallablesInScope(scope);
             for (VarDecl var : scope.getDeclarations()) {
-                String decl = code().declaration(types().declaredType(var), backend().variables().declarationName(var));
-                emitter().emit("%s;", decl);
+                Type type = types().declaredType(var);
+                if (type instanceof CallableType) {
+                    backend().callables().callablePrototype(var.getValue());
+                } else {
+                    String decl = code().declaration(types().declaredType(var), backend().variables().declarationName(var));
+                    emitter().emit("%s;", decl);
+                }
             }
             emitter().emit("");
             i++;

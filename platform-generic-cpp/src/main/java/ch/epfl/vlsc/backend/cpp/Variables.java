@@ -63,7 +63,7 @@ public interface Variables {
         VarDecl decl = backend().varDecls().declaration(var);
         IRNode parent = backend().tree().parent(decl);
         if (backend().closures().isDeclaredInClosure(var)) {
-            return "*(env->" + declarationName(decl) + ")";
+            return declarationName(decl);
         } else if (parent instanceof Scope || parent instanceof ActorMachine) {
             return "(this->" + declarationName(decl) + ")";
         } else {

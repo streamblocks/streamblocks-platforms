@@ -16,7 +16,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-package ch.epfl.vlsc.platform.cpp;
+package ch.epfl.vlsc.platform.c;
 
 import ch.epfl.vlsc.phase.CBackendPhase;
 import se.lth.cs.tycho.compiler.Compiler;

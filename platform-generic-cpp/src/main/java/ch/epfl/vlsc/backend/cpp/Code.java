@@ -127,6 +127,8 @@ public interface Code {
 
     default String type(BoolType type) { return "bool"; }
 
+    default String type(CallableType type){ return type(type.getReturnType()); }
+
     default String type(RefType type) { return type(type.getType()) + "*"; }
 
     String evaluate(Expression expr);
@@ -178,7 +180,7 @@ public interface Code {
                 emitter().emit("%s = %s_channel->peek_first();", tmp, input.getPort().getName());
             }
             else {
-                emitter().emit("channel_peek_%s(this->%s_channel, %d, 1, &%s);", inputPortTypeSize(input.getPort()), input.getPort().getName(), input.getOffset(), tmp);
+                emitter().emit("%s_channel->peek(%d, 1, &%s);", input.getPort().getName(), input.getOffset(), tmp);
             }
         }
         return tmp;
@@ -469,7 +471,7 @@ public interface Code {
             String temp = variables().generateTemp();
             emitter().emit("for (size_t %1$s = 0; %1$s < %2$s; %1$s++) {", temp, repeat);
             emitter().increaseIndentation();
-            emitter().emit("%2$s_channels->write_one(%3$s.data[%4$s]);", portName, value, temp);
+            emitter().emit("%s_channels->write_one(%2$s.data[%3$s]);", portName, value, temp);
 
             emitter().decreaseIndentation();
             emitter().emit("}");
