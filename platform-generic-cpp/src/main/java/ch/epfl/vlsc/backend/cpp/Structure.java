@@ -107,18 +107,18 @@ public interface Structure {
 
     default void actorMachineControllerHeader(String name, ActorMachine actorMachine) {
         backend().controllers().emitControllerHeader(name, actorMachine);
-        emitter().emit("");
+        emitter().emitNewLine();
     }
 
     default void actorMachineController(String name, ActorMachine actorMachine) {
         backend().controllers().emitController(name, actorMachine);
-        emitter().emit("");
-        emitter().emit("");
+        emitter().emitNewLine();
+        emitter().emitNewLine();
     }
 
     default void actorMachineInitHeader(String name, ActorMachine actorMachine) {
         emitter().emit("void init_actor();");
-        emitter().emit("");
+        emitter().emitNewLine();
     }
 
     default void actorMachineConstructor(String name, ActorMachine actorMachine) {
@@ -126,25 +126,25 @@ public interface Structure {
         emitter().emit("%s(%s) {", name, String.join(", ", parameters));
         emitter().increaseIndentation();
         emitter().emit("this->program_counter = 0;");
-        emitter().emit("");
+        emitter().emitNewLine();
 
         emitter().emit("// -- parameters");
         actorMachine.getValueParameters().forEach(d -> {
             emitter().emit("this->%s = %1$s;", backend().variables().declarationName(d));
         });
-        emitter().emit("");
+        emitter().emitNewLine();
 
         emitter().emit("// -- input ports");
         actorMachine.getInputPorts().forEach(p -> {
             emitter().emit("this->%s_channel = %1$s_channel;", p.getName());
         });
-        emitter().emit("");
+        emitter().emitNewLine();
 
         emitter().emit("// -- output ports");
         actorMachine.getOutputPorts().forEach(p -> {
             emitter().emit("this->%s_channels = %1$s_channels;", p.getName());
         });
-        emitter().emit("");
+        emitter().emitNewLine();
 
         emitter().emit("// -- init persistent scopes");
         int i = 0;
@@ -156,8 +156,8 @@ public interface Structure {
         }
         emitter().decreaseIndentation();
         emitter().emit("}");
-        emitter().emit("");
-        emitter().emit("");
+        emitter().emitNewLine();
+        emitter().emitNewLine();
     }
 
     default List<String> getEntityInitParameters(Entity actorMachine) {
@@ -185,8 +185,8 @@ public interface Structure {
             transition.getBody().forEach(code()::execute);
             emitter().decreaseIndentation();
             emitter().emit("}");
-            emitter().emit("");
-            emitter().emit("");
+            emitter().emitNewLine();
+            emitter().emitNewLine();
             i++;
         }
     }
@@ -195,7 +195,7 @@ public interface Structure {
         int i = 0;
         for (Transition transition : actorMachine.getTransitions()) {
             emitter().emit("void transition_%d();", i);
-            emitter().emit("");
+            emitter().emitNewLine();
             i++;
         }
     }
@@ -208,8 +208,8 @@ public interface Structure {
             emitter().emit("return %s;", evaluateCondition(condition));
             emitter().decreaseIndentation();
             emitter().emit("}");
-            emitter().emit("");
-            emitter().emit("");
+            emitter().emitNewLine();
+            emitter().emitNewLine();
             i++;
         }
     }
@@ -218,7 +218,7 @@ public interface Structure {
         int i = 0;
         for (Condition condition : actorMachine.getConditions()) {
             emitter().emit("bool condition_%d();", i);
-            emitter().emit("");
+            emitter().emitNewLine();
             i++;
         }
     }
@@ -231,10 +231,8 @@ public interface Structure {
 
     default String evaluateCondition(PortCondition condition) {
         if (condition.isInputCondition()) {
-            //return String.format("channel_has_data_%s(this->%s_channel, %d)", code().inputPortTypeSize(condition.getPortName()), condition.getPortName().getName(), condition.N());
             return String.format("%s_channel->has_data(%d)", condition.getPortName().getName(), condition.N());
         } else {
-            // return String.format("channel_has_space_%s(this->%s_channels, %d)", code().outputPortTypeSize(condition.getPortName()), condition.getPortName().getName(), condition.N());
             return String.format("%s_channels->has_space(%d)", condition.getPortName().getName(), condition.N());
         }
     }
@@ -245,8 +243,9 @@ public interface Structure {
             for(VarDecl var : scope.getDeclarations()){
                 Type type = types().declaredType(var);
                 if(type instanceof CallableType){
-                    backend().callables().callableDefinition(var.getValue());
+                    backend().callables().callableDefinition(name, var.getValue());
                 }
+                emitter().emitNewLine();
             }
         }
     }
@@ -269,8 +268,8 @@ public interface Structure {
             }
             emitter().decreaseIndentation();
             emitter().emit("}");
-            emitter().emit("");
-            emitter().emit("");
+            emitter().emitNewLine();
+            emitter().emitNewLine();
             i++;
         }
     }
@@ -279,7 +278,7 @@ public interface Structure {
         int i = 0;
         for (Scope scope : actorMachine.getScopes()) {
             emitter().emit("void init_scope_%d();", i);
-            emitter().emit("");
+            emitter().emitNewLine();
             i++;
         }
     }
@@ -295,7 +294,7 @@ public interface Structure {
                 String decl = code().declaration(types().declaredType(param), backend().variables().declarationName(param));
                 emitter().emit("%s;", decl);
             }
-            emitter().emit("");
+            emitter().emitNewLine();
         }
 
         if (!actorMachine.getInputPorts().isEmpty()) {
@@ -304,7 +303,7 @@ public interface Structure {
                 String type = backend().channels().targetEndTypeSize(new Connection.End(Optional.of(backend().instance().get().getInstanceName()), input.getName()));
                 emitter().emit("Fifo<%s > *%s_channel;", type, input.getName());
             }
-            emitter().emit("");
+            emitter().emitNewLine();
         }
 
         if (!actorMachine.getOutputPorts().isEmpty()) {
@@ -314,7 +313,7 @@ public interface Structure {
                 String type = backend().channels().sourceEndTypeSize(source);
                 emitter().emit("FifoList<%s > *%s_channels;", type, output.getName());
             }
-            emitter().emit("");
+            emitter().emitNewLine();
         }
 
         int i = 0;
@@ -329,7 +328,7 @@ public interface Structure {
                     emitter().emit("%s;", decl);
                 }
             }
-            emitter().emit("");
+            emitter().emitNewLine();
             i++;
         }
     }

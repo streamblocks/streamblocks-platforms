@@ -43,8 +43,6 @@ public interface MainNetwork {
         emitter().emit("static void run(int argc, char **argv) {");
         emitter().increaseIndentation();
 
-        emitter().emit("init_global_variables();");
-
         int nbrOfPorts = network.getInputPorts().size() + network.getOutputPorts().size();
         emitter().emit("if (argc != %d) {", nbrOfPorts + 1);
         emitter().increaseIndentation();

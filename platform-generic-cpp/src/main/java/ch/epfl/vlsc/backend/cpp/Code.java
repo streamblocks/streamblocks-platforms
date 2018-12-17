@@ -390,11 +390,10 @@ public interface Code {
         List<String> parameters = new ArrayList<>();
         if (directlyCallable.isPresent()) {
             fn = directlyCallable.get();
-            parameters.add("NULL");
+
         } else {
             String name = evaluate(apply.getFunction());
-            fn = name + ".f";
-            parameters.add(name+".env");
+            fn = name;
         }
         for (Expression parameter : apply.getArgs()) {
             parameters.add(evaluate(parameter));
@@ -538,11 +537,9 @@ public interface Code {
         List<String> parameters = new ArrayList<>();
         if (directlyCallable.isPresent()) {
             proc = directlyCallable.get();
-            parameters.add("NULL");
         } else {
             String name = evaluate(call.getProcedure());
-            proc = name + ".f";
-            parameters.add(name + ".env");
+            proc = name;
         }
         for (Expression parameter : call.getArgs()) {
             parameters.add(evaluate(parameter));

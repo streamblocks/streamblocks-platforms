@@ -49,14 +49,7 @@ public interface Callables {
 		backend().emitter().emit("");
 	}
 
-	default void defineCallables() {
-		backend().emitter().emit("// EXTERNAL FUNCTION AND PROCEDURE DEFINITIONS");
-		backend().task().walk().forEach(this::externalCallableDefinition);
-		backend().emitter().emit("");
-		backend().emitter().emit("// FUNCTION AND PROCEDURE DEFINITIONS");
-		backend().task().walk().forEach(this::callableDefinition);
-		backend().emitter().emit("");
-	}
+    // -----------------------------------------------------------------------------------------------------------------
 	// typedef for fat function pointer with environment pointer
 	default void declareCallableFatPointerTypes() {
 		Set<CallableType> visited = new LinkedHashSet<>();
@@ -126,6 +119,10 @@ public interface Callables {
 		backend().emitter().emit("");
 	}
 
+	// -----------------------------------------------------------------------------------------------------------------
+    // -- Mangle
+
+
 	NameExpression mangle(Type t);
 
 	default NameExpression mangle(RefType type) {
@@ -179,7 +176,9 @@ public interface Callables {
 		return NameExpression.seq(NameExpression.name("real"), NameExpression.name(Integer.toString(type.getSize())));
 	}
 
-	// function prototype
+
+    // -----------------------------------------------------------------------------------------------------------------
+    // -- function prototype
 
 	default ImmutableList<VarDecl> closure(IRNode node) {
 		return backend().freeVariables().freeVariables(node).stream()
@@ -214,24 +213,22 @@ public interface Callables {
 	}
 
 
+    // -----------------------------------------------------------------------------------------------------------------
 	// function definition (matching function prototype)
 	// with environment typedef
-	default void callableDefinition(IRNode callable) {}
+	default void callableDefinition(String name, IRNode callable) {}
 
-	default void callableDefinition(ExprLambda lambda) {
-		String name = functionName(lambda);
-		backend().emitter().emit("%s {", lambdaHeader(lambda));
-		backend().emitter().increaseIndentation();
+	default void callableDefinition(String name, ExprLambda lambda) {
+        backend().emitter().emit("%s {", classLambdaHeader(name, lambda));
+        backend().emitter().increaseIndentation();
 		lambda.forEachChild(this::declareEnvironmentForCallablesInScope);
-		backend().emitter().emit("envt_%s *env = (envt_%s*) e;", name, name);
 		backend().emitter().emit("return %s;", backend().code().evaluate(lambda.getBody()));
 		backend().emitter().decreaseIndentation();
 		backend().emitter().emit("}");
 	}
 
-	default void callableDefinition(ExprProc proc) {
-		String name = functionNameDefinition(proc);
-		backend().emitter().emit("%s {", procHeader(proc));
+	default void callableDefinition(String name, ExprProc proc) {
+		backend().emitter().emit("%s {", classProcHeader(name, proc));
 		backend().emitter().increaseIndentation();
 		proc.getBody().forEach(backend().code()::execute);
 		backend().emitter().decreaseIndentation();
@@ -244,6 +241,7 @@ public interface Callables {
 		return backend().code().declaration(originalType, name) + ";";
 	}
 
+    // -----------------------------------------------------------------------------------------------------------------
 	// closure creation
 	String evaluate(Expression callable);
 
@@ -268,11 +266,6 @@ public interface Callables {
 			} else {
 				candidate = "f_anon";
 			}
-			int i = 0;
-			while (usedNames().contains(candidate + "_" + i)) {
-				i++;
-			}
-			candidate = candidate + "_" + i;
 			usedNames().add(candidate);
 			callablesNames().put(callable, candidate);
 		}
@@ -288,6 +281,8 @@ public interface Callables {
 		return name;
 	}
 
+    // -----------------------------------------------------------------------------------------------------------------
+    // -- Environment Scope
 
 	default IRNode environmentScope(IRNode callable) {
 		return backend().tree().parent(callable);
@@ -316,6 +311,9 @@ public interface Callables {
 			return "env_" + functionName;
 		}
 	}
+
+    // -----------------------------------------------------------------------------------------------------------------
+    // -- Externals
 
 	default String externalWrapperFunctionName(VarDecl external) {
 		assert external.isExternal();
@@ -374,6 +372,9 @@ public interface Callables {
 		}
 	}
 
+    // -----------------------------------------------------------------------------------------------------------------
+    // -- Headers
+
 	default String lambdaHeader(ExprLambda lambda) {
 		String name = functionName(lambda);
 		LambdaType type = (LambdaType) backend().types().type(lambda);
@@ -381,8 +382,24 @@ public interface Callables {
 		return callableHeader(name, type, parameterNames, false);
 	}
 
+    default String classLambdaHeader(String className, ExprLambda lambda) {
+        String name = functionName(lambda);
+        name = className + "::" + name;
+        LambdaType type = (LambdaType) backend().types().type(lambda);
+        ImmutableList<String> parameterNames = lambda.getValueParameters().map(backend().variables()::declarationName);
+        return callableHeader(name, type, parameterNames, false);
+    }
+
 	default String procHeader(ExprProc proc) {
 		String name = functionName(proc);
+		ProcType type = (ProcType) backend().types().type(proc);
+		ImmutableList<String> parameterNames = proc.getValueParameters().map(backend().variables()::declarationName);
+		return callableHeader(name, type, parameterNames, false);
+	}
+
+	default String classProcHeader(String className, ExprProc proc) {
+		String name = functionName(proc);
+		name = className + "::" + name;
 		ProcType type = (ProcType) backend().types().type(proc);
 		ImmutableList<String> parameterNames = proc.getValueParameters().map(backend().variables()::declarationName);
 		return callableHeader(name, type, parameterNames, false);

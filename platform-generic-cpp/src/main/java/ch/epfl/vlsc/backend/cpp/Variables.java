@@ -11,6 +11,7 @@ import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.am.ActorMachine;
 import se.lth.cs.tycho.ir.entity.am.Scope;
 import se.lth.cs.tycho.ir.expr.ExprGlobalVariable;
+import se.lth.cs.tycho.ir.type.ProcedureTypeExpr;
 
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -31,7 +32,11 @@ public interface Variables {
     default String declarationName(VarDecl decl) {
         IRNode parent = backend().tree().parent(decl);
         if (parent instanceof Scope) {
-            return "a_" + escape(decl.getName());
+            if (decl.getType() instanceof ProcedureTypeExpr) {
+                return "f_" + decl.getName();
+            } else {
+                return "a_" + escape(decl.getName());
+            }
         } else if (parent instanceof ActorMachine) {
             return "a_" + escape(decl.getName());
         } else if (parent instanceof NamespaceDecl) {
@@ -65,7 +70,11 @@ public interface Variables {
         if (backend().closures().isDeclaredInClosure(var)) {
             return declarationName(decl);
         } else if (parent instanceof Scope || parent instanceof ActorMachine) {
-            return "(this->" + declarationName(decl) + ")";
+            if (decl.getType() instanceof ProcedureTypeExpr) {
+                return "this->" + declarationName(decl);
+            } else {
+                return "(this->" + declarationName(decl) + ")";
+            }
         } else {
             return declarationName(decl);
         }
