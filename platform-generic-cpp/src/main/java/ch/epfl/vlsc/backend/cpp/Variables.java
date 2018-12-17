@@ -52,7 +52,7 @@ public interface Variables {
     default String globalName(ExprGlobalVariable var) {
         return var.getGlobalName().parts().stream()
                 .map(this::escape)
-                .collect(Collectors.joining("_", "g_", ""));
+                .collect(Collectors.joining("::", "", ""));
     }
 
     default String reference(VarDecl decl) {
