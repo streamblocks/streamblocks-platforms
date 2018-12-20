@@ -57,12 +57,12 @@ public interface Code {
         if (lvalueType.equals(rvalueType)) {
             emitter().emit("%s = %s;", lvalue, rvalue);
         } else {
-            String index = variables().generateTemp();
-            emitter().emit("for (size_t %1$s = 0; %1$s < %2$s; %1$s++) {", index, lvalueType.getSize().getAsInt());
-            emitter().increaseIndentation();
-            copy(lvalueType.getElementType(), String.format("%s.data[%s]", lvalue, index), rvalueType.getElementType(), String.format("%s.data[%s]", rvalue, index));
-            emitter().decreaseIndentation();
-            emitter().emit("}");
+            //String index = variables().generateTemp();
+            //emitter().emit("for (size_t %1$s = 0; %1$s < %2$s; %1$s++) {", index, lvalueType.getSize().getAsInt());
+            //emitter().increaseIndentation();
+            copy(lvalueType.getElementType(), String.format("%s", lvalue), rvalueType.getElementType(), String.format("%s", rvalue));
+            //emitter().decreaseIndentation();
+            //emitter().emit("}");
         }
     }
 
@@ -320,13 +320,10 @@ public interface Code {
     default String evaluate(ExprList list) {
         ListType t = (ListType) types().type(list);
         if (t.getSize().isPresent()) {
-            String name = variables().generateTemp();
-            String decl = declaration(t, name);
             String value = list.getElements().stream().sequential()
                     .map(this::evaluate)
                     .collect(Collectors.joining(", ", "{ .data = {", "}}"));
-            emitter().emit("%s = %s;", decl, value);
-            return name;
+            return value;
         } else {
 
             return "NULL /* TODO: implement dynamically sized lists */";

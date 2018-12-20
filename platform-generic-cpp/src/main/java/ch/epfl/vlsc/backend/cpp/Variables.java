@@ -40,10 +40,7 @@ public interface Variables {
         } else if (parent instanceof ActorMachine) {
             return "a_" + escape(decl.getName());
         } else if (parent instanceof NamespaceDecl) {
-            QID ns = ((NamespaceDecl) parent).getQID();
-            return Stream.concat(ns.parts().stream(), Stream.of(decl.getName()))
-                    .map(this::escape)
-                    .collect(Collectors.joining("_", "g_", ""));
+            return escape(decl.getName());
         } else {
             return "l_" + escape(decl.getName());
         }

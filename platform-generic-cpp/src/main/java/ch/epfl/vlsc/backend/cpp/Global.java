@@ -66,6 +66,11 @@ public interface Global {
         */
         backend().lists().declareListTypes();
         emitter().emit("");
+
+
+        namespaceDeclaration(sourceunitbyQID);
+
+
         /*
         backend().callables().declareCallables();
         emitter().emit("");
@@ -76,6 +81,27 @@ public interface Global {
         */
         emitter().emit("#endif");
         emitter().close();
+    }
+
+
+    default void namespaceDeclaration(Map<QID, List<SourceUnit>> sourceUnitByQID) {
+        for (QID qid : sourceUnitByQID.keySet()) {
+            // -- Starting namespace
+            for (String n : qid.parts()) {
+                emitter().emit("namespace %s {", n);
+                emitter().increaseIndentation();
+            }
+
+            // -- Global var declaration
+            globalVariableDeclarations(sourceUnitByQID.get(qid).stream().flatMap(unit -> unit.getTree().getVarDecls().stream()));
+
+            //-- Ending namespace
+            for (int i = 0; i < qid.getNameCount(); i++) {
+                emitter().decreaseIndentation();
+                emitter().emit("}");
+            }
+
+        }
     }
 
     default Stream<VarDecl> getGlobalVarDecls() {
@@ -104,9 +130,19 @@ public interface Global {
 
     default void globalVariableDeclarations(Stream<VarDecl> varDecls) {
         varDecls.forEach(decl -> {
-            Type type = types().declaredType(decl);
-            String d = code().declaration(type, backend().variables().declarationName(decl));
-            emitter().emit("%s;", d);
+            if (decl.getType() instanceof CallableType) {
+
+            } else {
+                Type type = types().declaredType(decl);
+                String d = code().declaration(type, backend().variables().declarationName(decl));
+                String v = code().evaluate(decl.getValue());
+
+                if (decl.isConstant()) {
+                    emitter().emit("const %s = %s;", d, v);
+                } else {
+                    emitter().emit("%s;", d);
+                }
+            }
         });
     }
 
