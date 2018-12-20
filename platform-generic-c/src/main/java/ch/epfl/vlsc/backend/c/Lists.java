@@ -9,6 +9,10 @@ import se.lth.cs.tycho.ir.expr.Expression;
 import se.lth.cs.tycho.type.ListType;
 import se.lth.cs.tycho.type.Type;
 
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Module
@@ -37,9 +41,24 @@ public interface Lists {
     }
 
     default Stream<ListType> listTypes() {
-        return backend().task().walk()
+        Stream<ListType> listTypes = backend().task().walk()
                 .flatMap(this::listType)
                 .distinct();
+
+        List<ListType> collect = listTypes.collect(Collectors.toList());
+
+        Comparator<ListType> comp = (ListType a, ListType b) ->{
+            String elementType = backend().code().type(a.getElementType());
+            String typeName = backend().code().type(b);
+            if(elementType.equals(typeName)){
+                return 1;
+            }
+            return -1;
+        };
+
+        Collections.sort(collect,comp);
+
+        return collect.stream();
     }
 
     default Stream<ListType> listType(IRNode node) {

@@ -63,8 +63,10 @@ public interface Global {
         /*
         emitter().emit("void init_global_variables(void);");
         emitter().emit("");
+        */
         backend().lists().declareListTypes();
         emitter().emit("");
+        /*
         backend().callables().declareCallables();
         emitter().emit("");
         backend().callables().declareEnvironmentForCallablesInScope(backend().task());
