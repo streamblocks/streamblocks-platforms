@@ -8,6 +8,9 @@ import se.lth.cs.tycho.compiler.SourceFile;
 import se.lth.cs.tycho.compiler.SourceUnit;
 import se.lth.cs.tycho.ir.QID;
 import se.lth.cs.tycho.ir.decl.VarDecl;
+import se.lth.cs.tycho.ir.type.FunctionTypeExpr;
+import se.lth.cs.tycho.ir.type.NominalTypeExpr;
+import se.lth.cs.tycho.ir.type.ProcedureTypeExpr;
 import se.lth.cs.tycho.type.CallableType;
 import se.lth.cs.tycho.type.Type;
 
@@ -42,11 +45,7 @@ public interface Global {
         backend().main().emitDefaultHeaders();
         emitter().emit("#include \"global.h\"");
         emitter().emit("");
-        /*
-        backend().callables().defineCallables();
-        emitter().emit("");
-        globalVariableInitializer(getGlobalVarDecls());
-        */
+
         emitter().close();
     }
 
@@ -60,25 +59,12 @@ public interface Global {
         emitter().emit("#include <stdint.h>");
         emitter().emit("#include <stdbool.h>");
         emitter().emit("");
-        /*
-        emitter().emit("void init_global_variables(void);");
-        emitter().emit("");
-        */
+
         backend().lists().declareListTypes();
         emitter().emit("");
 
-
         namespaceDeclaration(sourceunitbyQID);
 
-
-        /*
-        backend().callables().declareCallables();
-        emitter().emit("");
-        backend().callables().declareEnvironmentForCallablesInScope(backend().task());
-        emitter().emit("");
-        globalVariableDeclarations(getGlobalVarDecls());
-        emitter().emit("");
-        */
         emitter().emit("#endif");
         emitter().close();
     }
@@ -130,17 +116,22 @@ public interface Global {
 
     default void globalVariableDeclarations(Stream<VarDecl> varDecls) {
         varDecls.forEach(decl -> {
-            if (decl.getType() instanceof CallableType) {
-
-            } else {
+            if(decl.isExternal()){
+                backend().callables().externalCallableDeclaration(decl);
+            }else{
                 Type type = types().declaredType(decl);
-                String d = code().declaration(type, backend().variables().declarationName(decl));
-                String v = code().evaluate(decl.getValue());
-
-                if (decl.isConstant()) {
-                    emitter().emit("const %s = %s;", d, v);
+                if (type instanceof CallableType) {
+                    backend().callables().callableDefinition("", decl.getValue());
+                    //emitter().emitNewLine();
                 } else {
-                    emitter().emit("%s;", d);
+                    String d = code().declaration(type, backend().variables().declarationName(decl));
+                    String v = code().evaluate(decl.getValue());
+                    if (decl.isConstant()) {
+                        emitter().emit("const %s = %s;", d, v);
+                    } else {
+                        emitter().emit("%s;", d);
+                    }
+                    //emitter().emitNewLine();
                 }
             }
         });

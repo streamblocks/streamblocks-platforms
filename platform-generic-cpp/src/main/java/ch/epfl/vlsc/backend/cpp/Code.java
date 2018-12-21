@@ -4,6 +4,7 @@ import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.Types;
+import se.lth.cs.tycho.ir.IRNode;
 import se.lth.cs.tycho.ir.Port;
 import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
@@ -70,7 +71,9 @@ public interface Code {
         return type(type) + " " + name;
     }
 
-    default String declaration(UnitType type, String name) { return "char " + name; }
+    default String declaration(UnitType type, String name) {
+        return "char " + name;
+    }
 
     default String declaration(RefType type, String name) {
         return declaration(type.getType(), String.format("(*%s)", name));
@@ -86,9 +89,13 @@ public interface Code {
         return t + " " + name;
     }
 
-    default String declaration(BoolType type, String name) { return "bool " + name; }
+    default String declaration(BoolType type, String name) {
+        return "bool " + name;
+    }
 
-    default String declaration(StringType type, String name) { return "std::string" + name; }
+    default String declaration(StringType type, String name) {
+        return "std::string" + name;
+    }
 
     String type(Type type);
 
@@ -107,9 +114,12 @@ public interface Code {
 
     default String type(RealType type) {
         switch (type.getSize()) {
-            case 32: return "float";
-            case 64: return "double";
-            default: throw new UnsupportedOperationException("Unknown real type.");
+            case 32:
+                return "float";
+            case 64:
+                return "double";
+            default:
+                throw new UnsupportedOperationException("Unknown real type.");
         }
     }
 
@@ -125,24 +135,31 @@ public interface Code {
         return "std::string";
     }
 
-    default String type(BoolType type) { return "bool"; }
+    default String type(BoolType type) {
+        return "bool";
+    }
 
-    default String type(CallableType type){ return type(type.getReturnType()); }
+    default String type(CallableType type) {
+        return type(type.getReturnType());
+    }
 
-    default String type(RefType type) { return type(type.getType()) + "*"; }
+    default String type(RefType type) {
+        return type(type.getType()) + "*";
+    }
 
     String evaluate(Expression expr);
 
     default String evaluate(ExprVariable variable) {
         return variables().name(variable.getVariable());
+
     }
 
     default String evaluate(ExprRef ref) {
-        return "(&"+variables().name(ref.getVariable())+")";
+        return "(&" + variables().name(ref.getVariable()) + ")";
     }
 
     default String evaluate(ExprDeref deref) {
-        return "(*"+evaluate(deref.getReference())+")";
+        return "(*" + evaluate(deref.getReference()) + ")";
     }
 
     default String evaluate(ExprGlobalVariable variable) {
@@ -171,15 +188,14 @@ public interface Code {
         emitter().emit("%s;", declaration(types().type(input), tmp));
         if (input.hasRepeat()) {
             if (input.getOffset() == 0) {
-                emitter().emit("%s_channel->peek(0, %d, %s.data)", input.getPort().getName(), input.getRepeat(), tmp);
+                emitter().emit("%s_channel->peek(0, %d, %s.data);", input.getPort().getName(), input.getRepeat(), tmp);
             } else {
                 throw new RuntimeException("not implemented");
             }
         } else {
             if (input.getOffset() == 0) {
                 emitter().emit("%s = %s_channel->peek_first();", tmp, input.getPort().getName());
-            }
-            else {
+            } else {
                 emitter().emit("%s_channel->peek(%d, 1, &%s);", input.getPort().getName(), input.getOffset(), tmp);
             }
         }
@@ -275,6 +291,7 @@ public interface Code {
     }
 
     void evaluateListComprehension(Expression comprehension, String result, String index);
+
     default void evaluateListComprehension(ExprComprehension comprehension, String result, String index) {
         if (!comprehension.getFilters().isEmpty()) {
             throw new UnsupportedOperationException("Filters in comprehensions not supported.");
@@ -561,7 +578,7 @@ public interface Code {
     }
 
     default String lvalue(LValueDeref deref) {
-        return "(*"+lvalue(deref.getVariable())+")";
+        return "(*" + lvalue(deref.getVariable()) + ")";
     }
 
     default String lvalue(LValueIndexer indexer) {

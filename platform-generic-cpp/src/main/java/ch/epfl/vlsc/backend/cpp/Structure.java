@@ -257,14 +257,16 @@ public interface Structure {
             emitter().emit("void %s::init_scope_%d() {", name, i);
             emitter().increaseIndentation();
             for (VarDecl var : scope.getDeclarations()) {
-                Type type = types().declaredType(var);
-                if (var.getValue() != null && !(type instanceof CallableType)) {
-                    emitter().emit("{");
-                    emitter().increaseIndentation();
-                    code().copy(types().declaredType(var), "this->" + backend().variables().declarationName(var), types().type(var.getValue()), code().evaluate(var.getValue()));
-                    emitter().decreaseIndentation();
-                    emitter().emit("}");
-                }
+                //if(!var.isConstant()) {
+                    Type type = types().declaredType(var);
+                    if (var.getValue() != null && !(type instanceof CallableType)) {
+                        emitter().emit("{");
+                        emitter().increaseIndentation();
+                        code().copy(types().declaredType(var), "this->" + backend().variables().declarationName(var), types().type(var.getValue()), code().evaluate(var.getValue()));
+                        emitter().decreaseIndentation();
+                        emitter().emit("}");
+                    }
+                //}
             }
             emitter().decreaseIndentation();
             emitter().emit("}");
@@ -324,8 +326,15 @@ public interface Structure {
                 if (type instanceof CallableType) {
                     backend().callables().callablePrototype(var.getValue());
                 } else {
-                    String decl = code().declaration(types().declaredType(var), backend().variables().declarationName(var));
-                    emitter().emit("%s;", decl);
+                    //if(var.isConstant() && (var.getValue() != null) && var.getType() != null){
+                    //    String d = code().declaration(type, backend().variables().declarationName(var));
+                    //    String v = code().evaluate(var.getValue());
+                    //    emitter().emit("const %s = %s;", d, v);
+                    //}else{
+                        String decl = code().declaration(type, backend().variables().declarationName(var));
+                        emitter().emit("%s;", decl);
+                    //}
+
                 }
             }
             emitter().emitNewLine();

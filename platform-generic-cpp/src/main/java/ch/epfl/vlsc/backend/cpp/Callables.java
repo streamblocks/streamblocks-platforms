@@ -6,6 +6,7 @@ import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.ir.IRNode;
 import se.lth.cs.tycho.ir.Variable;
+import se.lth.cs.tycho.ir.decl.GlobalVarDecl;
 import se.lth.cs.tycho.ir.decl.ParameterVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
@@ -260,7 +261,10 @@ public interface Callables {
 		if (!callablesNames().containsKey(callable)) {
 			IRNode parent = backend().tree().parent(callable);
 			String candidate;
-			if (parent instanceof VarDecl) {
+
+			if(parent instanceof GlobalVarDecl){
+				candidate = ((GlobalVarDecl) parent).getName();
+			}else if (parent instanceof VarDecl) {
 				VarDecl decl = (VarDecl) parent;
 				candidate = "f_" + decl.getName();
 			} else {
@@ -342,8 +346,6 @@ public interface Callables {
 				parameterNames.add("p_" + i);
 			}
 			backend().emitter().emit("%s;", callableHeader(varDecl.getOriginalName(), callable, parameterNames, false));
-			String name = externalWrapperFunctionName(varDecl);
-			backend().emitter().emit("%s;", callableHeader(name, callable, parameterNames, true));
 		}
 	}
 
@@ -384,10 +386,15 @@ public interface Callables {
 
     default String classLambdaHeader(String className, ExprLambda lambda) {
         String name = functionName(lambda);
-        name = className + "::" + name;
+
+		IRNode parent = backend().tree().parent(lambda);
+		boolean isGlobal = parent instanceof GlobalVarDecl;
+		if(!isGlobal){
+			name = className + "::" + name;
+		}
         LambdaType type = (LambdaType) backend().types().type(lambda);
         ImmutableList<String> parameterNames = lambda.getValueParameters().map(backend().variables()::declarationName);
-        return callableHeader(name, type, parameterNames, false);
+        return callableHeader(name, type, parameterNames, isGlobal);
     }
 
 	default String procHeader(ExprProc proc) {
@@ -399,22 +406,28 @@ public interface Callables {
 
 	default String classProcHeader(String className, ExprProc proc) {
 		String name = functionName(proc);
-		name = className + "::" + name;
+		IRNode parent = backend().tree().parent(proc);
+		boolean isGlobal = parent instanceof GlobalVarDecl;
+		if(!isGlobal){
+			name = className + "::" + name;
+		}
 		ProcType type = (ProcType) backend().types().type(proc);
 		ImmutableList<String> parameterNames = proc.getValueParameters().map(backend().variables()::declarationName);
-		return callableHeader(name, type, parameterNames, false);
+		return callableHeader(name, type, parameterNames, isGlobal);
 	}
 
-	default String callableHeader(String name, CallableType type, List<String> parameterNames, boolean withEnv) {
+	default String callableHeader(String name, CallableType type, List<String> parameterNames, boolean inline) {
 		List<String> parameters = new ArrayList<>();
-		if (withEnv) {
-			parameters.add("void *e");
-		}
+
 		assert parameterNames.size() == type.getParameterTypes().size();
 		for (int i = 0; i < parameterNames.size(); i++) {
 			parameters.add(backend().code().declaration(type.getParameterTypes().get(i), parameterNames.get(i)));
 		}
-		String result = backend().code().type(type.getReturnType());
+		String result = "";
+		if (inline) {
+			result += "inline ";
+		}
+		result += backend().code().type(type.getReturnType());
 		result += " ";
 		result += name;
 		result += "(";

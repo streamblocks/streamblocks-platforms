@@ -50,10 +50,14 @@ public interface Lists {
         Comparator<ListType> comp = (ListType a, ListType b) ->{
             String elementType = backend().code().type(a.getElementType());
             String typeName = backend().code().type(b);
-            if(elementType.equals(typeName)){
+            if(elementType.length() > typeName.length()){
                 return 1;
+            }else if(elementType.length() < typeName.length()){
+                return -1;
+            }else{
+                return 0;
             }
-            return -1;
+
         };
 
         Collections.sort(collect,comp);
