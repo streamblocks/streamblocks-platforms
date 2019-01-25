@@ -21,7 +21,7 @@ public:
         this->stream = stream;
     }
 
-    bool run() {
+    bool run() override{
         size_t space_before = channel->space();
         size_t space = space_before;
         while (space > 0 && !feof(stream)) {

@@ -21,7 +21,7 @@ public:
         this->stream = stream;
     }
 
-    bool run() {
+    bool run() override{
         size_t space = channel->space();
 
         if (space > 0) {
