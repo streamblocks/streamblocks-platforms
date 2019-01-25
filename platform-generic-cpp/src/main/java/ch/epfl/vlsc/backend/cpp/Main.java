@@ -50,10 +50,14 @@ public interface Main {
         includeUser("fifo.h");
         includeUser("prelude.h");
         includeUser("global.h");
+        if(task.getNetwork().getInputPorts().size() > 0){
+            includeUser("actor_input.h");
+        }
+        if(task.getNetwork().getOutputPorts().size() > 0){
+            includeUser("actor_output.h");
+        }
         actorHeaders();
         include();
-        channels().inputActorCode();
-        channels().outputActorCode();
         mainNetwork().main(task.getNetwork());
         emitter().close();
     }

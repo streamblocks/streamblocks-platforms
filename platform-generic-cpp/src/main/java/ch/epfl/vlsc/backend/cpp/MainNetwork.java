@@ -134,9 +134,9 @@ public interface MainNetwork {
             String channels = outgoing.stream().map(connectionNames::get).collect(Collectors.joining(", "));
             emitter().emit("FILE *%s_input_file = fopen(argv[%d], \"r\");", port.getName(), argi);
             String tokenType = backend().channels().sourceEndTypeSize(new Connection.End(Optional.empty(), port.getName()));
-            emitter().emit("channel_list_%s %s_channels = { &%s };", tokenType, port.getName(), channels);
+            emitter().emit("auto *channel_list_%s = new FifoList< %s >(%s);", port.getName(), tokenType, channels);
             String type = backend().channels().sourceEndTypeSize(end);
-            emitter().emit("input_actor_%s *%s_input_actor = input_actor_create_%1$s(%2$s_input_file, %2$s_channels);", type, port.getName());
+            emitter().emit("auto *actor_input_%s = new ActorInput< %s >(%1$s_input_file, channel_list_%1$s);", port.getName(), type);
             emitter().emit("");
             argi = argi + 1;
         }
@@ -145,7 +145,7 @@ public interface MainNetwork {
             String channel = connectionNames.get(end);
             emitter().emit("FILE *%s_output_file = fopen(argv[%d], \"w\");", port.getName(), argi);
             String type = backend().channels().targetEndTypeSize(end);
-            emitter().emit("output_actor_%s *%s_output_actor = output_actor_create_%1$s(%2$s_output_file, &%s);", type, port.getName(), channel);
+            emitter().emit("auto *actor_output_%s = new ActorOutput< %s >( %1$s_output_file, %s);", port.getName(), type, channel);
             emitter().emit("");
             argi = argi + 1;
         }
@@ -154,13 +154,13 @@ public interface MainNetwork {
         emitter().increaseIndentation();
         emitter().emit("progress = false;");
         for (PortDecl inputPort : network.getInputPorts()) {
-            emitter().emit("progress |= input_actor_run_%s(%s_input_actor);", backend().channels().sourceEndTypeSize(new Connection.End(Optional.empty(), inputPort.getName())), inputPort.getName());
+            emitter().emit("progress |= actor_input_%s->run();", inputPort.getName());
         }
         for (Instance instance : instances) {
             emitter().emit("progress |= actor_%s->run();", instance.getInstanceName());
         }
         for (PortDecl outputPort : network.getOutputPorts()) {
-            emitter().emit("progress |= output_actor_run_%s(%s_output_actor);", backend().channels().targetEndTypeSize(new Connection.End(Optional.empty(), outputPort.getName())), outputPort.getName());
+            emitter().emit("progress |= actor_output_%s->run();", outputPort.getName());
         }
         emitter().decreaseIndentation();
         emitter().emit("} while (progress && !interrupted);");
@@ -173,22 +173,6 @@ public interface MainNetwork {
             emitter().emit("delete %s;", name);
         }
 
-
-        for (PortDecl port : network.getInputPorts()) {
-            emitter().emit("fclose(%s_input_file);", port.getName());
-        }
-
-        for (PortDecl port : network.getOutputPorts()) {
-            emitter().emit("fclose(%s_output_file);", port.getName());
-        }
-
-        for (PortDecl port : network.getInputPorts()) {
-            emitter().emit("input_actor_destroy_%s(%s_input_actor);", backend().channels().sourceEndTypeSize(new Connection.End(Optional.empty(), port.getName())), port.getName());
-        }
-
-        for (PortDecl port : network.getOutputPorts()) {
-            emitter().emit("output_actor_destroy_%s(%s_output_actor);", backend().channels().targetEndTypeSize(new Connection.End(Optional.empty(), port.getName())), port.getName());
-        }
 
         emitter().decreaseIndentation();
         emitter().emit("}");
