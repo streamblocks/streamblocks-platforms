@@ -31,6 +31,8 @@ public interface CMakeLists {
 
         emitter().emit("set (CMAKE_CXX_STANDARD 11)");
         emitter().emitNewLine();
+        emitter().emit("set(CMAKE_CXX_FLAGS \"-Wno-narrowing\")");
+        emitter().emitNewLine();
 
         emitter().emit("# Place the executable on bin directory");
         emitter().emit("set(EXECUTABLE_OUTPUT_PATH ${CMAKE_SOURCE_DIR}/bin)");
@@ -67,6 +69,8 @@ public interface CMakeLists {
         emitter().emit("include/actor.h");
         emitter().emit("include/fifo.h");
         emitter().emit("include/fifo_list.h");
+        emitter().emit("include/actor_input.h");
+        emitter().emit("include/actor_output.h");
         emitter().decreaseIndentation();
         emitter().emit(")");
         emitter().emit("");

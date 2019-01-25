@@ -99,7 +99,7 @@ public interface Structure {
         preprocessor().userIncludeActor(name);
         emitter().emitNewLine();
         actorMachineLocalCallables(name, actorMachine);
-        actorMachineStateInit(name, actorMachine);
+        actorMachineScopeInit(name, actorMachine);
         actorMachineTransitions(name, actorMachine);
         actorMachineConditions(name, actorMachine);
         actorMachineController(name, actorMachine);
@@ -251,7 +251,7 @@ public interface Structure {
     }
 
 
-    default void actorMachineStateInit(String name, ActorMachine actorMachine) {
+    default void actorMachineScopeInit(String name, ActorMachine actorMachine) {
         int i = 0;
         for (Scope scope : actorMachine.getScopes()) {
             emitter().emit("void %s::init_scope_%d() {", name, i);
@@ -266,7 +266,7 @@ public interface Structure {
                         emitter().decreaseIndentation();
                         emitter().emit("}");
                     }
-                //}
+                //}x
             }
             emitter().decreaseIndentation();
             emitter().emit("}");

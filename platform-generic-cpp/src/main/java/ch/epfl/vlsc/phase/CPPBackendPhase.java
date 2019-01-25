@@ -224,6 +224,8 @@ public class CPPBackendPhase implements Phase {
             Files.copy(getClass().getResourceAsStream("/cpp_backend_code/lib/include/actor.h"), PathUtils.getTargetLibInclude(backend.context()).resolve("actor.h"), StandardCopyOption.REPLACE_EXISTING);
             Files.copy(getClass().getResourceAsStream("/cpp_backend_code/lib/include/fifo.h"), PathUtils.getTargetLibInclude(backend.context()).resolve("fifo.h"), StandardCopyOption.REPLACE_EXISTING);
             Files.copy(getClass().getResourceAsStream("/cpp_backend_code/lib/include/fifo_list.h"), PathUtils.getTargetLibInclude(backend.context()).resolve("fifo_list.h"), StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(getClass().getResourceAsStream("/cpp_backend_code/lib/include/actor_input.h"), PathUtils.getTargetLibInclude(backend.context()).resolve("actor_input.h"), StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(getClass().getResourceAsStream("/cpp_backend_code/lib/include/actor_output.h"), PathUtils.getTargetLibInclude(backend.context()).resolve("actor_output.h"), StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException e) {
             throw new CompilationException(new Diagnostic(Diagnostic.Kind.ERROR, "Could not copy backend resources"));
         } catch (NullPointerException e) {
