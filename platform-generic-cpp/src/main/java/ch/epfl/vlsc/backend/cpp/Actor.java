@@ -1,5 +1,7 @@
 package ch.epfl.vlsc.backend.cpp;
 
+import ch.epfl.vlsc.platformutils.ControllerToGraphviz;
+import ch.epfl.vlsc.platformutils.Emitter;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
@@ -67,8 +69,11 @@ public interface Actor {
                 .flatMap(ns -> ns.getEntityDecls().stream())
                 .filter(decl -> decl.getName().equals(instance.getEntityName().getLast().toString()))
                 .findFirst().get();
+
         String fileNameBase = actorFileName(instance.getInstanceName());
         String headerFileName = fileNameBase + ".h";
+        ControllerToGraphviz dot = new ControllerToGraphviz(actor, fileNameBase, PathUtils.getAuxiliary(backend().context()).resolve(fileNameBase + ".dot"));
+        dot.print();
         emitter().open(PathUtils.getTargetCodeGenInclude(backend().context()).resolve(headerFileName));
         String headerGuard = headerGuard(headerFileName);
         emitter().emit("#ifndef %s", headerGuard);

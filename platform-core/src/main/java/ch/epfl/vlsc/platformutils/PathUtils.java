@@ -113,4 +113,9 @@ public class PathUtils {
         return directory.toPath();
     }
 
+    public static Path getAuxiliary(Context context){
+        File directory = new File(getTargetCodeGen(context).toFile(), "auxiliary");
+        return directory.toPath();
+    }
+
 }

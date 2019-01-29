@@ -1,5 +1,6 @@
 package ch.epfl.vlsc.backend.cpp;
 
+import ch.epfl.vlsc.platformutils.Emitter;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
@@ -244,8 +245,8 @@ public interface Structure {
                 Type type = types().declaredType(var);
                 if(type instanceof CallableType){
                     backend().callables().callableDefinition(name, var.getValue());
+                    emitter().emitNewLine();
                 }
-                emitter().emitNewLine();
             }
         }
     }
@@ -270,7 +271,6 @@ public interface Structure {
             }
             emitter().decreaseIndentation();
             emitter().emit("}");
-            emitter().emitNewLine();
             emitter().emitNewLine();
             i++;
         }

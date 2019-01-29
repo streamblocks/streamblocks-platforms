@@ -84,6 +84,10 @@ public class CPPBackendPhase implements Phase {
      */
     private Path targetPath;
 
+    /**
+     * Auxilary Path
+     */
+    private Path auxiliaryPath;
 
     @Override
     public String getDescription() {
@@ -114,6 +118,9 @@ public class CPPBackendPhase implements Phase {
 
         // -- Binary path
         binPath = PathUtils.createDirectory(targetPath, "bin");
+
+        // -- Auxilary path
+        auxiliaryPath = PathUtils.createDirectory(codeGenPath, "auxiliary");
 
     }
 

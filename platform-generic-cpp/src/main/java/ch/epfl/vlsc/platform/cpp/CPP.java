@@ -21,8 +21,7 @@ package ch.epfl.vlsc.platform.cpp;
 import ch.epfl.vlsc.phase.CPPBackendPhase;
 import se.lth.cs.tycho.compiler.Compiler;
 import se.lth.cs.tycho.ir.util.ImmutableList;
-import se.lth.cs.tycho.phase.Phase;
-import se.lth.cs.tycho.phase.RemoveUnusedEntityDeclsPhase;
+import se.lth.cs.tycho.phase.*;
 import se.lth.cs.tycho.platform.Platform;
 
 import java.util.List;
@@ -38,10 +37,30 @@ public class CPP implements Platform {
         return "A backend for CPP code.";
     }
 
+    public static List<Phase> actorMachinePhases() {
+        return ImmutableList.of(
+                new RenameActorVariablesPhase(),
+                new LiftProcessVarDeclsPhase(),
+                new ProcessToCalPhase(),
+                new AddSchedulePhase(),
+                new ScheduleUntaggedPhase(),
+                new ScheduleInitializersPhase(),
+                new MergeManyGuardsPhase(),
+                new CalToAmPhase(),
+                new RemoveEmptyTransitionsPhase(),
+                new ReduceActorMachinePhase(),
+                new CompositionEntitiesUniquePhase(),
+                new CompositionPhase(),
+                new InternalizeBuffersPhase(),
+                new RemoveUnusedConditionsPhase(),
+                new LiftScopesPhase()
+        );
+    }
+
     private static final List<Phase> phases = ImmutableList.<Phase>builder()
             .addAll(Compiler.frontendPhases())
             .addAll(Compiler.networkElaborationPhases())
-            .addAll(Compiler.actorMachinePhases())
+            .addAll(actorMachinePhases())
             .add(new RemoveUnusedEntityDeclsPhase())
             .add(new CPPBackendPhase())
             .build();

@@ -1,5 +1,6 @@
 package ch.epfl.vlsc.backend.cpp;
 
+import ch.epfl.vlsc.platformutils.Emitter;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;

@@ -1,4 +1,4 @@
-package ch.epfl.vlsc.backend.cpp;
+package ch.epfl.vlsc.platformutils;
 
 import se.lth.cs.tycho.reporting.CompilationException;
 
