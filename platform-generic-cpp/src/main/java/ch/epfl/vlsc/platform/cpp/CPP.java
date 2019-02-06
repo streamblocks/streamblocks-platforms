@@ -52,8 +52,7 @@ public class CPP implements Platform {
                 new CompositionEntitiesUniquePhase(),
                 new CompositionPhase(),
                 new InternalizeBuffersPhase(),
-                new RemoveUnusedConditionsPhase(),
-                new LiftScopesPhase()
+                new RemoveUnusedConditionsPhase()
         );
     }
 

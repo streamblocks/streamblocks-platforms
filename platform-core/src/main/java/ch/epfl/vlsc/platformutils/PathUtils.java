@@ -4,7 +4,9 @@ import se.lth.cs.tycho.compiler.Compiler;
 import se.lth.cs.tycho.compiler.Context;
 
 import java.io.File;
-import java.nio.file.Path;
+import java.io.IOException;
+import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
 
 /**
  * PathUtils class for platforms
@@ -113,9 +115,69 @@ public class PathUtils {
         return directory.toPath();
     }
 
-    public static Path getAuxiliary(Context context){
+    public static Path getAuxiliary(Context context) {
         File directory = new File(getTargetCodeGen(context).toFile(), "auxiliary");
         return directory.toPath();
     }
+
+    public static void copyDirTree(Path fromDir, Path toDir, CopyOption... opts) throws IOException {
+        boolean fromDirExistsAndIsDir = fromDir.toFile().isDirectory();
+        boolean toIsBelowFrom = toDir.toAbsolutePath().startsWith(fromDir.toAbsolutePath());
+        boolean result = fromDirExistsAndIsDir && !toIsBelowFrom;
+
+        if (result) {
+            Files.walkFileTree(fromDir, new CopyVisitor(fromDir, toDir, opts));
+        } else {
+            log("Won't copy from " + fromDir + " to " + toDir);
+            log(fromDirExistsAndIsDir, toIsBelowFrom);
+        }
+    }
+
+    private static class CopyVisitor extends SimpleFileVisitor<Path> {
+        CopyVisitor(Path fromDir, Path toDir, CopyOption... opts) {
+            this.fromDir = fromDir;
+            this.toDir = toDir;
+            this.opts = opts;
+        }
+
+        /**
+         * First create the dir.
+         * Create any non-existent parent dir's, if needed.
+         * If {@code dir} already exists, then do nothing; no exception is thrown if
+         * the dir already exists.
+         */
+        @Override
+        public FileVisitResult preVisitDirectory(
+                Path dir, BasicFileAttributes attrs
+        ) throws IOException {
+            //log("Creating dir: " + dir);
+            Files.createDirectories(toDir.resolve(fromDir.relativize(dir)));
+            return FileVisitResult.CONTINUE;
+        }
+
+        /**
+         * Then copy the files into the dir.
+         * Note that the {@code opts} only apply to this method.
+         */
+        @Override
+        public FileVisitResult visitFile(
+                Path file, BasicFileAttributes attrs
+        ) throws IOException {
+            //log("Copying file: " + file);
+            Files.copy(file, toDir.resolve(fromDir.relativize(file)), opts);
+            return FileVisitResult.CONTINUE;
+        }
+
+        private Path fromDir;
+        private Path toDir;
+        private CopyOption[] opts;
+    }
+
+    private static void log(Object... things) {
+        for (Object thing : things) {
+            System.out.println(thing);
+        }
+    }
+
 
 }
