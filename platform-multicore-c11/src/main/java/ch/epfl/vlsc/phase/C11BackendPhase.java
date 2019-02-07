@@ -6,6 +6,7 @@ import org.multij.MultiJ;
 import se.lth.cs.tycho.compiler.CompilationTask;
 import se.lth.cs.tycho.compiler.Compiler;
 import se.lth.cs.tycho.compiler.Context;
+import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.phase.Phase;
 import se.lth.cs.tycho.reporting.CompilationException;
 import se.lth.cs.tycho.reporting.Diagnostic;
@@ -112,6 +113,9 @@ public class C11BackendPhase implements Phase {
         // -- Generate main
         generateMain(backend);
 
+        // -- Generate Instances
+        generateInstrances(backend);
+
         // -- Generate CMakeLists
         generateCmakeLists(backend);
 
@@ -127,6 +131,14 @@ public class C11BackendPhase implements Phase {
     private void generateMain(Backend backend) {
         backend.main().main();
     }
+
+
+    private void generateInstrances(Backend backend) {
+        for (Instance instance : backend.task().getNetwork().getInstances()) {
+            backend.instance().generateInstance(instance);
+        }
+    }
+
 
     /**
      * Generates the various CMakeLists.txt for building the generated code
@@ -146,9 +158,15 @@ public class C11BackendPhase implements Phase {
      */
     private void copyBackendResources(Backend backend) {
         try {
+            // -- Copy Runtime
             URL url = getClass().getResource("/lib/");
             Path libResourcePath = Paths.get(url.toURI());
             PathUtils.copyDirTree(libResourcePath, libPath, StandardCopyOption.REPLACE_EXISTING);
+
+            // -- Copy __arrayCopy.h
+            Files.copy(getClass().getResourceAsStream("/arraycopy/__arrayCopy.h"), PathUtils.getTargetCodeGenInclude(backend.context()).resolve("__arrayCopy.h"), StandardCopyOption.REPLACE_EXISTING);
+
+
         } catch (IOException e) {
             throw new CompilationException(new Diagnostic(Diagnostic.Kind.ERROR, "Could not copy backend resources"));
         } catch (URISyntaxException e) {
