@@ -65,12 +65,10 @@ public interface Main {
         emitter().increaseIndentation();
         // -- Network
         Network network = backend().task().getNetwork();
+        QID qid = backend().task().getIdentifier().getButLast();
 
         // -- Connections
         List<Connection> connections = network.getConnections();
-        Map<Connection.End, String> connectionNames = new HashMap<>();
-        Map<Connection.End, String> connectionTypes = new HashMap<>();
-        Map<Connection.End, PortDecl> targetPorts = new LinkedHashMap<>();
         Map<Connection.End, List<Connection.End>> srcToTgt = new HashMap<>();
 
         for (Connection connection : connections) {
@@ -91,9 +89,9 @@ public interface Main {
         for (Instance instance : network.getInstances()) {
             // -- Get global entity declaration
             GlobalEntityDecl entityDecl = globalnames().entityDecl(instance.getEntityName(), true);
-            String joinQID = joinQID(instance.getEntityName(), "_");
+            String joinQID = joinQID(qid, instance.getInstanceName(), "_");
 
-            emitter().emit("extern ActorClass ActorClass_%s;", instance.getInstanceName());
+            emitter().emit("extern ActorClass ActorClass_%s;", joinQID);
             emitter().emit("AbstractActorInstance *%s;", joinQID);
 
 
@@ -109,8 +107,8 @@ public interface Main {
         emitter().emit("// -- Instances instantiation");
         for (Instance instance : network.getInstances()) {
             GlobalEntityDecl entityDecl = globalnames().entityDecl(instance.getEntityName(), true);
-            String joinQID = joinQID(instance.getEntityName(), "_");
-            emitter().emit("%s = createActorInstance(&ActorClass_%s);", joinQID, instance.getEntityName().getLast());
+            String joinQID = joinQID(qid, instance.getInstanceName(), "_");
+            emitter().emit("%s = createActorInstance(&ActorClass_%1$s);", joinQID);
             // -- Instantiate Parameters
             for (ValueParameter parameter : instance.getValueParameters()) {
                 emitter().emit("setParameter(%s, \"%s\", \"%s\");", joinQID, parameter.getName(), evaluator().evaluate(parameter.getValue()).replaceAll("^\"|\"$", ""));
@@ -138,14 +136,14 @@ public interface Main {
             Instance srcInstance = network.getInstances().stream().
                     filter(p -> p.getInstanceName().equals(srcInstanceName)).
                     findAny().orElse(null);
-            String srcJoinQID = joinQID(srcInstance.getEntityName(), "_");
+            String srcJoinQID = joinQID(qid, srcInstanceName, "_");
 
             // -- Target instance
             String tgtInstanceName = connection.getTarget().getInstance().get();
             Instance tgtInstance = network.getInstances().stream().
                     filter(p -> p.getInstanceName().equals(tgtInstanceName)).
                     findAny().orElse(null);
-            String tgtJoinQID = joinQID(tgtInstance.getEntityName(), "_");
+            String tgtJoinQID = joinQID(qid, tgtInstanceName, "_");
 
 
             emitter().emit("connectPorts(%s_%s, %s_%s);", srcJoinQID, connection.getSource().getPort(), tgtJoinQID, connection.getTarget().getPort());
@@ -160,8 +158,8 @@ public interface Main {
         emitter().emit("#include \"%s\"", h);
     }
 
-    default String joinQID(QID qid, String delimiter) {
-        return String.join(delimiter, qid.parts());
+    default String joinQID(QID qid, String instanceName, String delimiter) {
+        return String.join(delimiter, qid.parts()) + "_" + instanceName;
     }
 
 }
