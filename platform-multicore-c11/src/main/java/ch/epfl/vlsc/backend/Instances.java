@@ -2,7 +2,6 @@ package ch.epfl.vlsc.backend;
 
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.PathUtils;
-import com.sun.tools.corba.se.idl.InterfaceGen;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
@@ -11,20 +10,19 @@ import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.ir.Port;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
+import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.entity.am.ActorMachine;
 import se.lth.cs.tycho.ir.entity.am.Scope;
 import se.lth.cs.tycho.ir.entity.am.Transition;
 import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Instance;
-import se.lth.cs.tycho.ir.network.Network;
-import se.lth.cs.tycho.type.Type;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Module
 public interface Instances {
@@ -52,8 +50,28 @@ public interface Instances {
         return backend().typeseval();
     }
 
+    default Statements statements(){
+        return backend().statements();
+    }
+
+    default ChannelsUtils channelutils(){
+        return backend().channelsutils();
+    }
 
     default void generateInstance(Instance instance) {
+        // -- Add instance to box
+        backend().instancebox().set(instance);
+
+        // -- Get Entity
+        GlobalEntityDecl entityDecl = globalnames().entityDecl(instance.getEntityName(), true);
+        Entity entity = entityDecl.getEntity();
+
+        // -- Add entity to box
+        backend().entitybox().set(entity);
+
+        // -- Instance Name
+        String instanceName = instance.getInstanceName();
+
         // -- Target file Path
         Path instanceTarget = PathUtils.getTargetCodeGenSource(backend().context()).resolve(backend().instaceQID(instance.getInstanceName(), "_") + ".c");
         emitter().open(instanceTarget);
@@ -62,35 +80,41 @@ public interface Instances {
         defineIncludes();
 
         // -- Ports IO
-        portsIO(instance);
+        portsIO(entity);
 
         // -- Constants
 
         // -- State
-        instanceState(instance);
+        instanceState(instanceName, entity);
 
         // -- Callables
 
         // -- Prototypes
-        prototypes(instance);
+        prototypes(instanceName, entity);
 
         // -- Port Description
-        portDescription(instance);
+        portDescription(instanceName, entity);
 
         // -- Port Rate
-        portRate(instance);
+        portRate(instanceName, entity);
 
-        // -- Transition Description
+        // -- Action/Transitions Description
+        acttransDescription(instanceName, entity);
 
-        // -- ActorClass
+        // -- ART ActorClass
+        actorClass(instanceName, entity);
 
-        // -- Transitions
-
+        // -- Actions/Transitions
+        acttransDefinitions(instanceName, entity);
         // -- Constructor
 
         // -- Scheduler (aka Actor Machine )
 
         emitter().close();
+
+        // -- Clear boxes
+        backend().instancebox().clear();
+        backend().entitybox().clear();
     }
 
     /*
@@ -106,18 +130,17 @@ public interface Instances {
     /*
      * Ports IO
      */
-    default void portsIO(Instance instance) {
-        // -- Get Entity
-        GlobalEntityDecl entityDecl = globalnames().entityDecl(instance.getEntityName(), true);
+    default void portsIO(Entity entity) {
+
 
         // -- Inputs
-        for (PortDecl inputPort : entityDecl.getEntity().getInputPorts()) {
-            emitter().emit("#define IN%d_%s ART_INPUT(%1$d)", entityDecl.getEntity().getInputPorts().indexOf(inputPort), inputPort.getName());
+        for (PortDecl inputPort : entity.getInputPorts()) {
+            emitter().emit("#define IN%d_%s ART_INPUT(%1$d)", entity.getInputPorts().indexOf(inputPort), inputPort.getName());
         }
 
         // -- Outputs
-        for (PortDecl outputPort : entityDecl.getEntity().getOutputPorts()) {
-            emitter().emit("#define OUT%d_%s ART_OUTPUT(%1$d)", entityDecl.getEntity().getOutputPorts().indexOf(outputPort), outputPort.getName());
+        for (PortDecl outputPort : entity.getOutputPorts()) {
+            emitter().emit("#define OUT%d_%s ART_OUTPUT(%1$d)", entity.getOutputPorts().indexOf(outputPort), outputPort.getName());
         }
         emitter().emitNewLine();
     }
@@ -125,10 +148,10 @@ public interface Instances {
     /*
      * Instance State
      */
-    default void instanceState(Instance instance) {
-        // -- Get Entity
-        GlobalEntityDecl entityDecl = globalnames().entityDecl(instance.getEntityName(), true);
 
+    void instanceState(String instanceName, Entity entity);
+
+    default void instanceState(String instanceName, ActorMachine am) {
         emitter().emit("// -- Instance state");
         emitter().emit("typedef struct{");
         emitter().increaseIndentation();
@@ -137,13 +160,6 @@ public interface Instances {
 
         emitter().emit("int32_t program_counter;");
 
-        // -- Check if Entity is an Actor Machine
-        if (!(entityDecl.getEntity() instanceof ActorMachine)) {
-            throw new UnsupportedOperationException("Entity is not an Actor Machine");
-        }
-
-        // -- Get Actor Machine
-        ActorMachine am = (ActorMachine) entityDecl.getEntity();
 
         // -- Scopes
         for (Scope scope : am.getScopes()) {
@@ -154,9 +170,10 @@ public interface Instances {
             }
         }
         emitter().decreaseIndentation();
-        emitter().emit("} ActorInstance_%s;", backend().instaceQID(instance.getInstanceName(), "_"));
+        emitter().emit("} ActorInstance_%s;", backend().instaceQID(instanceName, "_"));
         emitter().emitNewLine();
     }
+
 
     /*
      * Callables
@@ -167,17 +184,11 @@ public interface Instances {
     /*
      * Context/Transition/Scheduler Prototypes
      */
-    default void prototypes(Instance instance) {
-        // -- Get Entity
-        GlobalEntityDecl entityDecl = globalnames().entityDecl(instance.getEntityName(), true);
+    void prototypes(String instanceName, Entity entity);
 
-        // -- Check if Entity is an Actor Machine
-        if (!(entityDecl.getEntity() instanceof ActorMachine)) {
-            throw new UnsupportedOperationException("Entity is not an Actor Machine");
-        }
 
-        // -- Get Actor Machine
-        ActorMachine am = (ActorMachine) entityDecl.getEntity();
+    default void prototypes(String instanceName, ActorMachine am) {
+
 
         // -- ART Context
         emitter().emit("// -- Action Context structure");
@@ -187,11 +198,11 @@ public interface Instances {
         // -- ART Action Prototypes (aka AM Transitions)
         emitter().emit("// -- Transition prototypes");
         for (Transition transition : am.getTransitions()) {
-            String transitionName = instance.getInstanceName() + "_transition_" + am.getTransitions().indexOf(transition);
-            String actorInstanceName = "ActorInstance_" + backend().instaceQID(instance.getInstanceName(), "_");
+            String transitionName = instanceName + "_transition_" + am.getTransitions().indexOf(transition);
+            String actorInstanceName = "ActorInstance_" + backend().instaceQID(instanceName, "_");
             emitter().emit("ART_ACTION(%s, %s);", transitionName, actorInstanceName);
         }
-        emitter().emit("ART_ACTION_SCHEDULER(%s_scheduler);", backend().instaceQID(instance.getInstanceName(), "_"));
+        emitter().emit("ART_ACTION_SCHEDULER(%s_scheduler);", backend().instaceQID(instanceName, "_"));
         emitter().emitNewLine();
     }
 
@@ -199,26 +210,16 @@ public interface Instances {
      * Port Descriptions
      */
 
-    default void portDescription(Instance instance) {
-        // -- Get Entity
-        GlobalEntityDecl entityDecl = globalnames().entityDecl(instance.getEntityName(), true);
-
-        // -- Check if Entity is an Actor Machine
-        if (!(entityDecl.getEntity() instanceof ActorMachine)) {
-            throw new UnsupportedOperationException("Entity is not an Actor Machine");
-        }
-
-        // -- Get Actor Machine
-        ActorMachine am = (ActorMachine) entityDecl.getEntity();
-
+    default void portDescription(String instanceName, Entity entity) {
+        emitter().emit("// -- Input & Output Port Description");
 
         // -- Input Port Descriptions
-        if (!entityDecl.getEntity().getInputPorts().isEmpty()) {
+        if (!entity.getInputPorts().isEmpty()) {
             emitter().emit("static const PortDescription inputPortDescriptions[]={");
             emitter().increaseIndentation();
 
-            for (PortDecl inputPort : entityDecl.getEntity().getInputPorts()) {
-                String type = targetEndTypeSize(new Connection.End(Optional.of(instance.getInstanceName()), inputPort.getName()));
+            for (PortDecl inputPort : entity.getInputPorts()) {
+                String type = channelutils().targetEndTypeSize(new Connection.End(Optional.of(instanceName), inputPort.getName()));
                 portDescriptionByPort(inputPort.getName(), type);
             }
 
@@ -227,13 +228,13 @@ public interface Instances {
             emitter().emitNewLine();
         }
         // -- Output Port Description
-        if (!entityDecl.getEntity().getOutputPorts().isEmpty()) {
+        if (!entity.getOutputPorts().isEmpty()) {
             emitter().emit("static const PortDescription outputPortDescriptions[]={");
             emitter().increaseIndentation();
 
-            for (PortDecl outputPort : entityDecl.getEntity().getOutputPorts()) {
-                Connection.End source = new Connection.End(Optional.of(instance.getInstanceName()), outputPort.getName());
-                String type = sourceEndTypeSize(source);
+            for (PortDecl outputPort : entity.getOutputPorts()) {
+                Connection.End source = new Connection.End(Optional.of(instanceName), outputPort.getName());
+                String type = channelutils().sourceEndTypeSize(source);
                 portDescriptionByPort(outputPort.getName(), type);
             }
 
@@ -255,57 +256,130 @@ public interface Instances {
     /*
      * Port Rate
      */
+    void portRate(String instanceName, Entity entity);
 
-    default void portRate(Instance instance) {
-        // -- Get Entity
-        GlobalEntityDecl entityDecl = globalnames().entityDecl(instance.getEntityName(), true);
-
-        // -- Check if Entity is an Actor Machine
-        if (!(entityDecl.getEntity() instanceof ActorMachine)) {
-            throw new UnsupportedOperationException("Entity is not an Actor Machine");
-        }
-
-        // -- Get Actor Machine
-        ActorMachine am = (ActorMachine) entityDecl.getEntity();
-
-
+    default void portRate(String instanceName, ActorMachine am) {
+        emitter().emit("// -- Input/ Output Port Rate by Transition");
         for (Transition transition : am.getTransitions()) {
+            List<String> inputRates = new ArrayList<>(am.getInputPorts().size());
+            List<String> outputRates = new ArrayList<>(am.getOutputPorts().size());
             // --Inputs
-            for (PortDecl inputPort : entityDecl.getEntity().getInputPorts()) {
+            for (PortDecl inputPort : am.getInputPorts()) {
                 Port port = transition.getInputRates().entrySet().stream().filter(e -> e.getKey().getName().equals(inputPort.getName()))
                         .map(Map.Entry::getKey)
                         .findFirst()
                         .orElse(null);
-                Integer rate = transition.getInputRate(port);
+
+                if (port != null) {
+                    Integer rate = transition.getInputRate(port);
+                    inputRates.add(String.valueOf(rate));
+                } else {
+                    inputRates.add("0");
+                }
             }
 
+            // --Outputs
+            for (PortDecl outputPort : am.getOutputPorts()) {
+                Port port = transition.getOutputRates().entrySet().stream().filter(e -> e.getKey().getName().equals(outputPort.getName()))
+                        .map(Map.Entry::getKey)
+                        .findFirst()
+                        .orElse(null);
+
+                if (port != null) {
+                    Integer rate = transition.getOutputRate(port);
+                    outputRates.add(String.valueOf(rate));
+                } else {
+                    outputRates.add("0");
+                }
+            }
+
+            String transitionName = instanceName + "_transition_" + am.getTransitions().indexOf(transition);
+            emitter().emit("static const int portRate_in_%s[] = {%s};", transitionName, String.join(", ", inputRates));
+            emitter().emitNewLine();
+            emitter().emit("static const int portRate_out_%s[] = {%s};", transitionName, String.join(", ", outputRates));
+            emitter().emitNewLine();
         }
-
-
     }
 
     /*
-     * Utils
+     * Transitions Description
      */
-    // TODO: Put me in a different module
-    default String sourceEndTypeSize(Connection.End source) {
-        Network network = backend().task().getNetwork();
-        List<Connection> connections = network.getConnections().stream()
-                .filter(conn -> conn.getSource().equals(source))
-                .collect(Collectors.toList());
-        Type type = backend().types().connectionType(network, connections.get(0));
 
-        return typeseval().type(type);
+    void acttransDescription(String instanceName, Entity entity);
+
+    default void acttransDescription(String instanceName, ActorMachine am) {
+        emitter().emit("// -- Transitions Description");
+        emitter().emit("static const ActionDescription actionDescriptions[] = {");
+        emitter().increaseIndentation();
+
+        for (Transition transition : am.getTransitions()) {
+            String transitionName = instanceName + "_transition_" + am.getTransitions().indexOf(transition);
+            emitter().emit("{\"%s\", portRate_in_%1$s, portRate_out_%1$s},", transitionName);
+        }
+
+        emitter().decreaseIndentation();
+        emitter().emit("}");
+        emitter().emitNewLine();
     }
 
-    default String targetEndTypeSize(Connection.End target) {
-        Network network = backend().task().getNetwork();
-        Connection connection = network.getConnections().stream()
-                .filter(conn -> conn.getTarget().equals(target))
-                .findFirst().get();
-        Type type = backend().types().connectionType(network, connection);
-        return typeseval().type(type);
+    /*
+     * ART Actor Class
+     */
+
+    void actorClass(String instanceName, Entity entity);
+
+    default void actorClass(String instanceName, ActorMachine am) {
+        String instanceQID = backend().instaceQID(instanceName, "_");
+        emitter().emit("// -- Actor Class");
+
+        emitter().emit("#ifdef CAL_RT_CALVIN");
+        emitter().emit("ActorClass klass");
+        emitter().emit("#else");
+        emitter().emit("ActorClass ActorClass_%s", instanceQID);
+        emitter().emit("#endif");
+        emitter().increaseIndentation();
+        emitter().emit("= INIT_ActorClass(");
+        emitter().increaseIndentation();
+        emitter().emit("\"%s\",", instanceQID);
+        emitter().emit("ActorInstance_%s,", instanceQID);
+        emitter().emit("ActorInstance_%s_constructor,", instanceQID);
+        emitter().emit("0, // -- setParam not needed anymore (we instantiate with params)");
+        emitter().emit("%s_scheduler,", instanceQID);
+        emitter().emit("0, // -- no destructor");
+        emitter().emit("%d, inputPortDescriptions,", am.getInputPorts().size());
+        emitter().emit("%d, outputPortDescriptions,", am.getOutputPorts().size());
+        emitter().emit("%d, actionDescriptions", am.getTransitions().size());
+
+        emitter().decreaseIndentation();
+        emitter().emit(");");
+        emitter().decreaseIndentation();
+        emitter().emitNewLine();
     }
 
+
+    /*
+     * Action / Transition Definitions
+     */
+
+    void acttransDefinitions(String instanceName, Entity entity);
+
+    default void acttransDefinitions(String instanceName, ActorMachine am) {
+        emitter().emit("// -- Transitions Definitions");
+        for (Transition transition : am.getTransitions()) {
+            String instanceQID = backend().instaceQID(instanceName, "_");
+            emitter().emit("ART_ACTION(%s_transition_%d, ActorInstance_%s){", instanceName, am.getTransitions().indexOf(transition), instanceQID);
+            emitter().increaseIndentation();
+
+            emitter().emit("ART_ACTION_ENTER(%s_transition_%d, %2$d);", instanceName, am.getTransitions().indexOf(transition));
+
+            transition.getBody().forEach(statements()::execute);
+
+            emitter().emit("ART_ACTION_EXIT(%s_transition_%d, %2$d);", instanceName, am.getTransitions().indexOf(transition));
+
+            emitter().decreaseIndentation();
+            emitter().emit("}");
+            emitter().emitNewLine();
+        }
+    }
 
 }

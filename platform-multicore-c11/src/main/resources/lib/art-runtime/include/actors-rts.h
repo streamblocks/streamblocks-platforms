@@ -420,11 +420,16 @@ extern void setParameterBytes(AbstractActorInstance *pInstance,
 #define pinReadRepeat_uint32_t(port, buf, n)  \
                                  pinReadRepeat_int32_t(port,(int32_t*)buf,n)
 
+#define pinPeekRepeat_uint32_t(port, buf, n) \
+                                 pinPeekRepeat_int32_t(port,(int32_t*)buf,n)
 #define pinPeekFront_uint32_t(port)   ((uint32_t) pinPeekFront_int32_t(port))
 #define pinPeek_uint32_t(port, offset) ((uint32_t) pinPeek_int32_t(port,offset))
 
+#define pinConsume_uint32_t(port)   pinConsume_int32_t(port)
+#define pinConsumeRepeat_uint32_t(port, n)   pinConsumeRepeat_int32_t(port, n)
 
-// Define uint8_t FIFO operations in terms of int16_t operations
+
+// Define uint16_t FIFO operations in terms of int16_t operations
 #define pinAvailIn_uint16_t(port)   pinAvailIn_int16_t(port)
 #define pinAvailOut_uint16_t(port)  pinAvailOut_int16_t(port)
 #define pinWrite_uint16_t(port, token) pinWrite_int16_t(port,(int16_t)(token))
@@ -435,9 +440,13 @@ extern void setParameterBytes(AbstractActorInstance *pInstance,
 #define pinReadRepeat_uint16_t(port, buf, n)  \
                                  pinReadRepeat_int16_t(port,(int16_t*)buf,n)
 
+#define pinPeekRepeat_uint16_t(port, buf, n) \
+                                 pinPeekRepeat_int16_t(port,(int16_t*)buf,n)
 #define pinPeekFront_uint16_t(port)   ((uint16_t) pinPeekFront_int16_t(port))
 #define pinPeek_uint16_t(port, offset) ((uint16_t) pinPeek_int16_t(port,offset))
 
+#define pinConsume_uint16_t(port)   pinConsume_int16_t(port)
+#define pinConsumeRepeat_uint16_t(port, n)   pinConsumeRepeat_int16_t(port, n)
 
 // Define uint8_t FIFO operations in terms of int8_t operations
 #define pinAvailIn_uint8_t(port)   pinAvailIn_int8_t(port)
@@ -450,8 +459,13 @@ extern void setParameterBytes(AbstractActorInstance *pInstance,
 #define pinReadRepeat_uint8_t(port, buf, n)  \
                                  pinReadRepeat_int8_t(port,(int8_t*)buf,n)
 
+#define pinPeekRepeat_uint8_t(port, buf, n) \
+                                 pinPeekRepeat_int8_t(port,(int8_t*)buf,n)
 #define pinPeekFront_uint8_t(port)   ((uint8_t) pinPeekFront_int8_t(port))
 #define pinPeek_uint8_t(port, offset) ((uint8_t) pinPeek_int8_t(port,offset))
+
+#define pinConsume_uint8_t(port)   pinConsume_int8_t(port)
+#define pinConsumeRepeat_uint8_t(port, n)   pinConsumeRepeat_int8_t(port, n)
 
 #ifdef __cplusplus
 }

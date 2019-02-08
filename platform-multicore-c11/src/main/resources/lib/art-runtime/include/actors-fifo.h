@@ -77,6 +77,46 @@ static inline void FIFO_NAME(pinReadRepeat)(LocalInputPort *p,
     }
 }
 
+static inline void FIFO_NAME(pinConsume)(LocalInputPort *p) {
+    assert(FIFO_NAME(pinAvailIn)(p) > 0);
+    p->pos++;
+    if (p->pos >= 0) { p->pos = -(p->capacity); }
+    p->available--;
+}
+
+static inline void FIFO_NAME(pinConsumeRepeat)(LocalInputPort *p,
+                                               int n) {
+    assert(FIFO_NAME(pinAvailIn)(p) >= n);
+    p->available -= n;
+    if (p->pos + n >= 0) {
+        // Buffer wrap
+        n -= -(p->pos);
+        p->pos = -(p->capacity);
+    }
+    if (n) {
+        p->pos += n;
+    }
+}
+
+static inline void FIFO_NAME(pinPeekRepeat)(LocalInputPort *p,
+                                            FIFO_TYPE *buf,
+                                            int n) {
+    assert(FIFO_NAME(pinAvailIn)(p) >= n);
+    int tmp_pos = p->pos;
+    if (tmp_pos + n >= 0) {
+        memcpy(buf, &((FIFO_TYPE *) p->buffer)[tmp_pos],
+               -(tmp_pos * sizeof(FIFO_TYPE)));
+        buf += -(tmp_pos);
+        n -= -(tmp_pos);
+        tmp_pos = -(p->capacity);
+    }
+    if (n) {
+        memcpy(buf, &((FIFO_TYPE *) p->buffer)[tmp_pos],
+               n * sizeof(FIFO_TYPE));
+    }
+
+}
+
 static inline FIFO_TYPE FIFO_NAME(pinPeekFront)(const LocalInputPort *p) {
     assert(FIFO_NAME(pinAvailIn)(p) > 0);
     return ((FIFO_TYPE *) p->buffer)[p->pos];
@@ -93,6 +133,7 @@ static inline FIFO_TYPE FIFO_NAME(pinPeek)(const LocalInputPort *p,
     }
     return ((FIFO_TYPE *) p->buffer)[offset];
 }
+
 
 #ifdef BYTES
 static inline unsigned pinAvailIn_bytes(const LocalInputPort *p, int bytes)
