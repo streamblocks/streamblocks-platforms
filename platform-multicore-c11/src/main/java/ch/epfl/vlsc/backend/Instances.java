@@ -2,11 +2,13 @@ package ch.epfl.vlsc.backend;
 
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.PathUtils;
+import com.sun.tools.corba.se.idl.InterfaceGen;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.GlobalNames;
 import se.lth.cs.tycho.attribute.Types;
+import se.lth.cs.tycho.ir.Port;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.PortDecl;
@@ -20,6 +22,7 @@ import se.lth.cs.tycho.type.Type;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -45,7 +48,7 @@ public interface Instances {
         return backend().types();
     }
 
-    default TypesEvaluator typeseval(){
+    default TypesEvaluator typeseval() {
         return backend().typeseval();
     }
 
@@ -75,6 +78,7 @@ public interface Instances {
         portDescription(instance);
 
         // -- Port Rate
+        portRate(instance);
 
         // -- Transition Description
 
@@ -182,12 +186,12 @@ public interface Instances {
 
         // -- ART Action Prototypes (aka AM Transitions)
         emitter().emit("// -- Transition prototypes");
-        for(Transition transition : am.getTransitions()){
+        for (Transition transition : am.getTransitions()) {
             String transitionName = instance.getInstanceName() + "_transition_" + am.getTransitions().indexOf(transition);
             String actorInstanceName = "ActorInstance_" + backend().instaceQID(instance.getInstanceName(), "_");
             emitter().emit("ART_ACTION(%s, %s);", transitionName, actorInstanceName);
         }
-        emitter().emit("ART_ACTION_SCHEDULER(%s_scheduler);",backend().instaceQID(instance.getInstanceName(),"_"));
+        emitter().emit("ART_ACTION_SCHEDULER(%s_scheduler);", backend().instaceQID(instance.getInstanceName(), "_"));
         emitter().emitNewLine();
     }
 
@@ -195,7 +199,7 @@ public interface Instances {
      * Port Descriptions
      */
 
-    default void portDescription(Instance instance){
+    default void portDescription(Instance instance) {
         // -- Get Entity
         GlobalEntityDecl entityDecl = globalnames().entityDecl(instance.getEntityName(), true);
 
@@ -209,13 +213,13 @@ public interface Instances {
 
 
         // -- Input Port Descriptions
-        if(!entityDecl.getEntity().getInputPorts().isEmpty()) {
+        if (!entityDecl.getEntity().getInputPorts().isEmpty()) {
             emitter().emit("static const PortDescription inputPortDescriptions[]={");
             emitter().increaseIndentation();
 
             for (PortDecl inputPort : entityDecl.getEntity().getInputPorts()) {
                 String type = targetEndTypeSize(new Connection.End(Optional.of(instance.getInstanceName()), inputPort.getName()));
-                portDescriptionByPort(inputPort.getName(),type);
+                portDescriptionByPort(inputPort.getName(), type);
             }
 
             emitter().decreaseIndentation();
@@ -223,14 +227,14 @@ public interface Instances {
             emitter().emitNewLine();
         }
         // -- Output Port Description
-        if(!entityDecl.getEntity().getOutputPorts().isEmpty()) {
+        if (!entityDecl.getEntity().getOutputPorts().isEmpty()) {
             emitter().emit("static const PortDescription outputPortDescriptions[]={");
             emitter().increaseIndentation();
 
             for (PortDecl outputPort : entityDecl.getEntity().getOutputPorts()) {
                 Connection.End source = new Connection.End(Optional.of(instance.getInstanceName()), outputPort.getName());
                 String type = sourceEndTypeSize(source);
-                portDescriptionByPort(outputPort.getName(),type);
+                portDescriptionByPort(outputPort.getName(), type);
             }
 
             emitter().decreaseIndentation();
@@ -240,12 +244,44 @@ public interface Instances {
 
     }
 
-    default void portDescriptionByPort(String name, String type){
+    default void portDescriptionByPort(String name, String type) {
         emitter().emit("{0, \"%s\", (sizeof(%s))", name, type);
         emitter().emit("#ifdef CAL_RT_CALVIN");
         emitter().emit(", NULL");
         emitter().emit("#endif");
         emitter().emit("},");
+    }
+
+    /*
+     * Port Rate
+     */
+
+    default void portRate(Instance instance) {
+        // -- Get Entity
+        GlobalEntityDecl entityDecl = globalnames().entityDecl(instance.getEntityName(), true);
+
+        // -- Check if Entity is an Actor Machine
+        if (!(entityDecl.getEntity() instanceof ActorMachine)) {
+            throw new UnsupportedOperationException("Entity is not an Actor Machine");
+        }
+
+        // -- Get Actor Machine
+        ActorMachine am = (ActorMachine) entityDecl.getEntity();
+
+
+        for (Transition transition : am.getTransitions()) {
+            // --Inputs
+            for (PortDecl inputPort : entityDecl.getEntity().getInputPorts()) {
+                Port port = transition.getInputRates().entrySet().stream().filter(e -> e.getKey().getName().equals(inputPort.getName()))
+                        .map(Map.Entry::getKey)
+                        .findFirst()
+                        .orElse(null);
+                Integer rate = transition.getInputRate(port);
+            }
+
+        }
+
+
     }
 
     /*
@@ -270,7 +306,6 @@ public interface Instances {
         Type type = backend().types().connectionType(network, connection);
         return typeseval().type(type);
     }
-
 
 
 }
