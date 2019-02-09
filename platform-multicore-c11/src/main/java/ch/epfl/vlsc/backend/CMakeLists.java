@@ -5,6 +5,7 @@ import ch.epfl.vlsc.platformutils.PathUtils;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
+import se.lth.cs.tycho.ir.network.Instance;
 
 @Module
 public interface CMakeLists {
@@ -68,7 +69,37 @@ public interface CMakeLists {
     }
 
     default void codegenCMakeLists(){
+        emitter().open(PathUtils.getTargetCodeGen(backend().context()).resolve("CMakeLists.txt"));
+        emitter().emit("# -- Generated from %s", backend().task().getIdentifier());
 
+        // -- CodeGen sources
+        emitter().emit("set(filenames");
+        emitter().increaseIndentation();
+
+        for(Instance instance: backend().task().getNetwork().getInstances()){
+            String filename = backend().instaceQID(instance.getInstanceName(), "_") + ".c";
+            emitter().emit("src/%s",filename);
+        }
+
+        // -- Add main
+        emitter().emit("src/main.c");
+
+
+        emitter().decreaseIndentation();
+        emitter().emit(")");
+        emitter().emitNewLine();
+
+        // -- Add executable
+        emitter().emit("add_executable(%s ${filenames})", backend().task().getIdentifier().getLast().toString());
+
+        // -- Libraries
+        emitter().emit("set(libraries art-runtime)");
+
+        // -- Target link libraries
+        emitter().emit("target_link_libraries(%s ${libraries})", backend().task().getIdentifier().getLast().toString());
+
+        // -- EOF
+        emitter().close();
     }
 
 }

@@ -165,7 +165,7 @@ public interface Instances {
         for (Scope scope : am.getScopes()) {
             emitter().emit("// -- Scope %d", am.getScopes().indexOf(scope));
             for (VarDecl var : scope.getDeclarations()) {
-                String decl = declarations().declaration(types().declaredType(var), var.getName());
+                String decl = declarations().declaration(types().declaredType(var), backend().variables().declarationName(var));
                 emitter().emit("%s;", decl);
             }
         }
@@ -318,7 +318,7 @@ public interface Instances {
         }
 
         emitter().decreaseIndentation();
-        emitter().emit("}");
+        emitter().emit("};");
         emitter().emitNewLine();
     }
 

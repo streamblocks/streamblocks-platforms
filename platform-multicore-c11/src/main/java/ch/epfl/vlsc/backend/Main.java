@@ -39,7 +39,7 @@ public interface Main {
     default void main() {
         Path mainTarget = PathUtils.getTargetCodeGenSource(backend().context()).resolve("main.c");
         emitter().open(mainTarget);
-        backend().includeUser("actors-rts");
+        backend().includeUser("actors-rts.h");
         backend().includeUser("natives.h");
         emitter().emitNewLine();
         // -- Init Network function

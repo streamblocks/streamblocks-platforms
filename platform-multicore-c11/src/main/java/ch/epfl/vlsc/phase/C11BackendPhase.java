@@ -148,6 +148,9 @@ public class C11BackendPhase implements Phase {
     private void generateCmakeLists(Backend backend) {
         // -- Project CMakeLists
         backend.cmakelists().projectCMakeLists();
+
+        // -- CodeGen CMakeLists
+        backend.cmakelists().codegenCMakeLists();
     }
 
 
