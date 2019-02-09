@@ -27,17 +27,7 @@ static void *EXECUTE_NETWORK(cpu_runtime_data_t *runtime,
     DECLARE_TIMEBASE(t1);
     DECLARE_TIMEBASE(t2);
     DECLARE_TIMEBASE(t3);
-    statistics_t statistics = {.prefire = {0},
-                               .read_barrier = {0},
-                               .fire = {0},
-                               .write_barrier = {0},
-                               .postfire = {0},
-                               .sync_blocked = {0},
-                               .sync_unblocked = {0},
-                               .sync_sleep = {0},
-                               .total = {0},
-                               .nsleep = {0},
-                               .nloops = {0}};
+    statistics_t statistics;
 
     if (cb_register_thread)
         cb_register_thread(this_cpu);
