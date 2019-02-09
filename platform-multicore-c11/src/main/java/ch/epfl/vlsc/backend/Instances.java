@@ -346,8 +346,8 @@ public interface Instances {
         emitter().emit("0, // -- setParam not needed anymore (we instantiate with params)");
         emitter().emit("%s_scheduler,", instanceQID);
         emitter().emit("0, // -- no destructor");
-        emitter().emit("%d, inputPortDescriptions,", am.getInputPorts().size());
-        emitter().emit("%d, outputPortDescriptions,", am.getOutputPorts().size());
+        emitter().emit("%d, %s,", am.getInputPorts().size(), am.getInputPorts().size() == 0 ? "0" : "inputPortDescriptions");
+        emitter().emit("%d, %s,", am.getOutputPorts().size(), am.getOutputPorts().size() == 0 ? "0" : "outputPortDescriptions");
         emitter().emit("%d, actionDescriptions", am.getTransitions().size());
 
         emitter().decreaseIndentation();
