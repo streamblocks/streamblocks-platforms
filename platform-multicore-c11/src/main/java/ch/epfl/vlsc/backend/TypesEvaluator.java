@@ -6,6 +6,9 @@ import org.multij.Module;
 import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.type.*;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Module
 public interface TypesEvaluator {
 
@@ -47,8 +50,11 @@ public interface TypesEvaluator {
     }
 
     default String type(ListType type) {
-        return "// TODO list";
-    } // TODO: Implement
+
+        Type innerType = innerType(type.getElementType());
+
+        return "__array4" + type(innerType);
+    }
 
     default String type(StringType type) {
         return "// TODO string";
@@ -66,5 +72,44 @@ public interface TypesEvaluator {
         return type(type.getType()) + "*";
     }
 
+
+    /**
+     * Get The most inner type of a type
+     *
+     * @param type
+     * @return
+     */
+    default Type innerType(Type type) {
+        Type inner = null;
+        if (type instanceof ListType) {
+            inner = innerType((((ListType) type).getElementType()));
+        } else {
+            inner = type;
+        }
+        return inner;
+    }
+
+    default Integer listDimensions(ListType type){
+        Integer dim = 0;
+        if(type.getElementType() instanceof ListType){
+            dim += listDimensions(((ListType) type.getElementType()));
+        }else{
+            dim = 1;
+        }
+
+        return dim;
+    }
+
+    default List<Integer> sizeByDimension(ListType type){
+        List<Integer> sizeByDim = new ArrayList<>();
+        if(type.getElementType() instanceof ListType){
+            sizeByDim.add(type.getSize().getAsInt());
+            sizeByDimension(((ListType) type.getElementType())).stream().forEachOrdered(sizeByDim::add);
+        }else{
+            sizeByDim.add(type.getSize().getAsInt());
+        }
+
+        return sizeByDim;
+    }
 
 }

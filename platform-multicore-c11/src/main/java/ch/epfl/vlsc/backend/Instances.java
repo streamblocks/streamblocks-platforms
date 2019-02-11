@@ -12,11 +12,11 @@ import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
-import se.lth.cs.tycho.ir.entity.am.ActorMachine;
-import se.lth.cs.tycho.ir.entity.am.Scope;
-import se.lth.cs.tycho.ir.entity.am.Transition;
+import se.lth.cs.tycho.ir.entity.am.*;
 import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Instance;
+import se.lth.cs.tycho.type.CallableType;
+import se.lth.cs.tycho.type.Type;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -50,12 +50,16 @@ public interface Instances {
         return backend().typeseval();
     }
 
-    default Statements statements(){
+    default Statements statements() {
         return backend().statements();
     }
 
-    default ChannelsUtils channelutils(){
+    default ChannelsUtils channelutils() {
         return backend().channelsutils();
+    }
+
+    default ExpressionEvaluator expressioneval() {
+        return backend().expressioneval();
     }
 
     default void generateInstance(Instance instance) {
@@ -88,6 +92,7 @@ public interface Instances {
         instanceState(instanceName, entity);
 
         // -- Callables
+        // -- TODO: Implement
 
         // -- Prototypes
         prototypes(instanceName, entity);
@@ -101,15 +106,29 @@ public interface Instances {
         // -- Action/Transitions Description
         acttransDescription(instanceName, entity);
 
+        // -- Scopes
+        if (entity instanceof ActorMachine) {
+            scopes(instanceName, (ActorMachine) entity);
+        }
+
+        // -- Conditions
+        if (entity instanceof ActorMachine) {
+            conditions(instanceName, (ActorMachine) entity);
+        }
+
         // -- ART ActorClass
         actorClass(instanceName, entity);
 
         // -- Actions/Transitions
         acttransDefinitions(instanceName, entity);
+
         // -- Constructor
+        constructorDefinition(instanceName, entity);
 
         // -- Scheduler (aka Actor Machine )
+        scheduler(instanceName, entity);
 
+        // -- EOF
         emitter().close();
 
         // -- Clear boxes
@@ -174,7 +193,6 @@ public interface Instances {
         emitter().emitNewLine();
     }
 
-
     /*
      * Callables
      */
@@ -195,14 +213,17 @@ public interface Instances {
         emitter().emit("ART_ACTION_CONTEXT(%d,%d)", am.getInputPorts().size(), am.getOutputPorts().size());
         emitter().emitNewLine();
 
+        // -- Actor Instance Name
+        String actorInstanceName = "ActorInstance_" + backend().instaceQID(instanceName, "_");
+
         // -- ART Action Prototypes (aka AM Transitions)
         emitter().emit("// -- Transition prototypes");
         for (Transition transition : am.getTransitions()) {
             String transitionName = instanceName + "_transition_" + am.getTransitions().indexOf(transition);
-            String actorInstanceName = "ActorInstance_" + backend().instaceQID(instanceName, "_");
             emitter().emit("ART_ACTION(%s, %s);", transitionName, actorInstanceName);
         }
         emitter().emit("ART_ACTION_SCHEDULER(%s_scheduler);", backend().instaceQID(instanceName, "_"));
+        emitter().emit("static void %s_constructor(AbstractActorInstance *);", actorInstanceName);
         emitter().emitNewLine();
     }
 
@@ -323,6 +344,77 @@ public interface Instances {
     }
 
     /*
+     * Scopes
+     */
+
+    default void scopes(String instanceName, ActorMachine am) {
+        // -- Actor Instance Name
+        String actorInstanceName = "ActorInstance_" + backend().instaceQID(instanceName, "_");
+
+        emitter().emit("// -- Scopes");
+        for (Scope scope : am.getScopes()) {
+            if (scope.getDeclarations().size() > 0) {
+                String scopeName = instanceName + "_init_scope_" + am.getScopes().indexOf(scope);
+                emitter().emit("ART_SCOPE(%s, %s){", scopeName, actorInstanceName);
+                emitter().increaseIndentation();
+
+                for (VarDecl var : scope.getDeclarations()) {
+                    Type type = types().declaredType(var);
+                    if (var.isExternal() && type instanceof CallableType) {
+                        // -- TODO: Implement me
+                    } else if (var.getValue() != null) {
+                        emitter().emit("{");
+                        emitter().increaseIndentation();
+                        statements().copy(types().declaredType(var), "thisActor->" + backend().variables().declarationName(var), types().type(var.getValue()), expressioneval().evaluate(var.getValue()));
+                        emitter().decreaseIndentation();
+                        emitter().emit("}");
+                    }
+                }
+                emitter().decreaseIndentation();
+                emitter().emit("}");
+                emitter().emitNewLine();
+            }
+        }
+    }
+
+    /*
+     * Conditions
+     */
+
+    default void conditions(String instanceName, ActorMachine am) {
+        // -- Actor Instance Name
+        String actorInstanceName = "ActorInstance_" + backend().instaceQID(instanceName, "_");
+
+        emitter().emit("// -- Conditions");
+        for (Condition condition : am.getConditions()) {
+            String conditionName = instanceName + "_condition_" + am.getConditions().indexOf(condition);
+            emitter().emit("ART_CONDITION(%s, %s){", conditionName, actorInstanceName);
+            emitter().increaseIndentation();
+
+            emitter().emit("return %s;", evaluateCondition(condition));
+
+            emitter().decreaseIndentation();
+            emitter().emit("}");
+            emitter().emitNewLine();
+        }
+    }
+
+    String evaluateCondition(Condition condition);
+
+    default String evaluateCondition(PredicateCondition condition) {
+        return expressioneval().evaluate(condition.getExpression());
+    }
+
+    default String evaluateCondition(PortCondition condition) {
+        if (condition.isInputCondition()) {
+            return String.format("pinAvailIn_%s(%s) >=  %d", channelutils().inputPortTypeSize(condition.getPortName()), channelutils().definedInputPort(condition.getPortName()), condition.N());
+        } else {
+            return String.format("pinAvailOut_%s(%s) >= %d", channelutils().outputPortTypeSize(condition.getPortName()), channelutils().definedOutputPort(condition.getPortName()), condition.N());
+        }
+    }
+
+
+    /*
      * ART Actor Class
      */
 
@@ -380,6 +472,45 @@ public interface Instances {
             emitter().emit("}");
             emitter().emitNewLine();
         }
+    }
+
+    /*
+     * Constructor
+     */
+
+    void constructorDefinition(String instanceName, Entity entity);
+
+    default void constructorDefinition(String instanceName, ActorMachine am) {
+        emitter().emit("// -- Constructor Definitions");
+
+        String actorInstanceName = "ActorInstance_" + backend().instaceQID(instanceName, "_");
+        emitter().emit("static void %s_constructor(AbstractActorInstance *pBase){", actorInstanceName);
+        emitter().increaseIndentation();
+
+        emitter().emit("%s *thisActor = (%1$s*) pBase;", actorInstanceName);
+        emitter().emit("// -- Actor Machine Initial Program Counter");
+        emitter().emit("thisActor->program_counter = %d;", 0);
+        emitter().emit("// -- Initialize persistent scopes");
+        for (Scope scope : am.getScopes()) {
+            if (scope.isPersistent()) {
+                String scopeName = instanceName + "_init_scope_" + am.getScopes().indexOf(scope);
+                emitter().emit("%s(thisActor);", scopeName, actorInstanceName);
+            }
+        }
+        emitter().decreaseIndentation();
+        emitter().emit("}");
+        emitter().emitNewLine();
+    }
+
+
+    /*
+     * Scheduler
+     */
+
+    void scheduler(String instanceName, Entity entity);
+
+    default void scheduler(String instanceName, ActorMachine am) {
+        backend().controllers().emitController(instanceName, am);
     }
 
 }

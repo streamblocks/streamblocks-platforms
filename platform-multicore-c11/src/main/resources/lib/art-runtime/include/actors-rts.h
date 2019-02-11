@@ -40,6 +40,7 @@
 
 #include <string.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <pthread.h>
 #include <stdatomic.h>
@@ -294,6 +295,13 @@ extern void setParameterBytes(AbstractActorInstance *pInstance,
     LocalOutputPort output[numOutputs];            \
   } art_action_context_t;
 
+
+#define ART_SCOPE(name, thistype)                    \
+    static void name(thistype *thisActor)
+
+#define ART_CONDITION(name, thistype)            \
+  static _Bool name(art_action_context_t *context, thistype *thisActor)
+
 #define ART_ACTION(name, thistype)                    \
   static void name(art_action_context_t *context, thistype *thisActor)
 
@@ -361,6 +369,12 @@ extern void setParameterBytes(AbstractActorInstance *pInstance,
   }
 
 #define ART_FIRE_ACTION(name)            \
+  name(context, thisActor)
+
+#define ART_EXEC_TRANSITION(name)        \
+  name(context, thisActor)
+
+#define ART_TEST_CONDITION(name)         \
   name(context, thisActor)
 
 #ifdef TRACE

@@ -59,10 +59,27 @@ public interface ChannelsUtils {
         return definedInput;
     }
 
+    default String definedInputPort(String portName) {
+        Entity entity = backend().entitybox().get();
+        PortDecl portDecl = entity.getInputPorts().stream().filter(p -> p.getName().equals(portName)).findAny().orElse(null);
+        String definedInput = "IN" + entity.getInputPorts().indexOf(portDecl) + "_" + portName;
+
+        return definedInput;
+    }
+
+
     default String definedOutputPort(Port port) {
         Entity entity = backend().entitybox().get();
         PortDecl portDecl = entity.getOutputPorts().stream().filter(p -> p.getName().equals(port.getName())).findAny().orElse(null);
-        String definedOutput = "OUT" + entity.getInputPorts().indexOf(portDecl) + "_" + port.getName();
+        String definedOutput = "OUT" + entity.getOutputPorts().indexOf(portDecl) + "_" + port.getName();
+
+        return definedOutput;
+    }
+
+    default String definedOutputPort(String portName) {
+        Entity entity = backend().entitybox().get();
+        PortDecl portDecl = entity.getOutputPorts().stream().filter(p -> p.getName().equals(portName)).findAny().orElse(null);
+        String definedOutput = "OUT" + entity.getOutputPorts().indexOf(portDecl) + "_" + portName;
 
         return definedOutput;
     }

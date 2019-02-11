@@ -17,7 +17,7 @@ public interface CMakeLists {
         return backend().emitter();
     }
 
-    default void projectCMakeLists(){
+    default void projectCMakeLists() {
         emitter().open(PathUtils.getTarget(backend().context()).resolve("CMakeLists.txt"));
         // -- CMake Minimal version
         emitter().emit("# -- Generated from %s", backend().task().getIdentifier());
@@ -68,36 +68,62 @@ public interface CMakeLists {
         emitter().close();
     }
 
-    default void codegenCMakeLists(){
+    default void codegenCMakeLists() {
         emitter().open(PathUtils.getTargetCodeGen(backend().context()).resolve("CMakeLists.txt"));
         emitter().emit("# -- Generated from %s", backend().task().getIdentifier());
+        emitter().emitNewLine();
 
         // -- CodeGen sources
+        emitter().emit("# -- Generated code source files");
         emitter().emit("set(filenames");
         emitter().increaseIndentation();
 
-        for(Instance instance: backend().task().getNetwork().getInstances()){
+        for (Instance instance : backend().task().getNetwork().getInstances()) {
             String filename = backend().instaceQID(instance.getInstanceName(), "_") + ".c";
-            emitter().emit("src/%s",filename);
+            emitter().emit("src/%s", filename);
         }
 
         // -- Add main
+        emitter().emit("src/globals.c");
         emitter().emit("src/main.c");
-
 
         emitter().decreaseIndentation();
         emitter().emit(")");
         emitter().emitNewLine();
 
-        // -- Add executable
-        emitter().emit("add_executable(%s ${filenames})", backend().task().getIdentifier().getLast().toString());
+        // -- Generated code headers
+        emitter().emit("# -- Generated code headers");
+        emitter().emit("set(code_gen_header");
+        emitter().increaseIndentation();
+        emitter().emit("include/__arrayCopy.h");
+        emitter().emit("include/globals.h");
+        emitter().decreaseIndentation();
+        emitter().emit(")");
+        emitter().emitNewLine();
 
-        // -- Libraries
-        emitter().emit("set(libraries art-runtime)");
+        // -- Include directories
+        emitter().emit("# -- Include directories");
+        emitter().emit("include_directories(${extra_includes} ./include)");
+        emitter().emitNewLine();
+
+        // -- Add definitions
+        emitter().emit("add_definitions(${extra_definitions})");
+        emitter().emitNewLine();
+
+        // -- Add executable
+        emitter().emit("# -- Add executable");
+        emitter().emit("add_executable(%s ${filenames})", backend().task().getIdentifier().getLast().toString());
+        emitter().emitNewLine();
+
+        // -- Target Include directories
+        emitter().emit("# -- Target include directories");
+        emitter().emit("target_include_directories(%s PRIVATE ./include)", backend().task().getIdentifier().getLast().toString());
+        emitter().emitNewLine();
 
         // -- Target link libraries
-        emitter().emit("target_link_libraries(%s ${libraries})", backend().task().getIdentifier().getLast().toString());
-
+        emitter().emit("# -- Target link libraries");
+        emitter().emit("target_link_libraries(%s art-native art-runtime ${extra_libraries})", backend().task().getIdentifier().getLast().toString());
+        emitter().emitNewLine();
         // -- EOF
         emitter().close();
     }

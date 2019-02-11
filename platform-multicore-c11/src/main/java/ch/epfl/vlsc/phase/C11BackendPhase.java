@@ -116,6 +116,9 @@ public class C11BackendPhase implements Phase {
         // -- Generate Instances
         generateInstrances(backend);
 
+        // -- Generate Globals
+        generateGlobals(backend);
+
         // -- Generate CMakeLists
         generateCmakeLists(backend);
 
@@ -132,13 +135,16 @@ public class C11BackendPhase implements Phase {
         backend.main().main();
     }
 
-
+    /**
+     * Generate Instances
+     *
+     * @param backend
+     */
     private void generateInstrances(Backend backend) {
         for (Instance instance : backend.task().getNetwork().getInstances()) {
             backend.instance().generateInstance(instance);
         }
     }
-
 
     /**
      * Generates the various CMakeLists.txt for building the generated code
@@ -153,6 +159,18 @@ public class C11BackendPhase implements Phase {
         backend.cmakelists().codegenCMakeLists();
     }
 
+    /**
+     * Generate Globals
+     *
+     * @param backend
+     */
+    private void generateGlobals(Backend backend) {
+        // -- Globals Source
+        backend.globals().globalSource();
+
+        // -- Globals Header
+        backend.globals().globalHeader();
+    }
 
     /**
      * Copy the Backend resources to the target directory

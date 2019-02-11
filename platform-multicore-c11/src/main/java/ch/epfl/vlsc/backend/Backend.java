@@ -33,7 +33,7 @@ public interface Backend {
     // -- Entity Box
     @Binding(LAZY) default Box<Entity> entitybox() { return Box.empty(); }
 
-    // -- Global names
+    // -- Globals names
     @Binding(LAZY)
     default GlobalNames globalnames() {
         return task().getModule(GlobalNames.key);
@@ -142,6 +142,17 @@ public interface Backend {
         return MultiJ.from(Statements.class).bind("backend").to(this).instance();
     }
 
+    // -- Controllers
+    default Controllers controllers(){
+        return MultiJ.from(Controllers.class).bind("backend").to(this).instance();
+    }
+
+    // -- Globals
+    default Globals globals(){
+        return MultiJ.from(Globals.class).bind("backend").to(this).instance();
+    }
+
+
     // -- Instance generator
     @Binding(LAZY)
     default Instances instance() {
@@ -172,6 +183,10 @@ public interface Backend {
 
     default void includeUser(String h) {
         emitter().emit("#include \"%s\"", h);
+    }
+
+    default void includeSystem(String h) {
+        emitter().emit("#include <%s>", h);
     }
 
 }

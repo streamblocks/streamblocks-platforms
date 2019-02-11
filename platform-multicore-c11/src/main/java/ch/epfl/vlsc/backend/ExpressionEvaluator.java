@@ -69,7 +69,7 @@ public interface ExpressionEvaluator {
     }
 
     /**
-     * Evaluate an expression Global variable
+     * Evaluate an expression Globals variable
      *
      * @param variable
      * @return
@@ -110,10 +110,11 @@ public interface ExpressionEvaluator {
      */
     default String evaluate(ExprInput input) {
         String tmp = variables().generateTemp();
+        // -- TODO : initialize array
         emitter().emit("%s;", declarations().declaration(types().type(input), tmp));
         if (input.hasRepeat()) {
             if (input.getOffset() == 0) {
-                emitter().emit("pinPeekRepeat_%s(%s,/* list buf*/, %d);", tmp, channelsutils().inputPortTypeSize(input.getPort()), channelsutils().definedInputPort(input.getPort()), input.getRepeat());
+                emitter().emit("pinPeekRepeat_%s(%s, %s.p, %d);", channelsutils().inputPortTypeSize(input.getPort()), channelsutils().definedInputPort(input.getPort()), tmp, input.getRepeat());
             } else {
                 throw new RuntimeException("not implemented");
             }
