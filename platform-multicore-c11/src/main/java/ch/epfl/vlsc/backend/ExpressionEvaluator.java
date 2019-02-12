@@ -5,7 +5,13 @@ import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.Types;
+import se.lth.cs.tycho.ir.Variable;
+import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.expr.*;
+import se.lth.cs.tycho.type.ListType;
+import se.lth.cs.tycho.type.Type;
+
+import java.util.List;
 
 @Module
 public interface ExpressionEvaluator {
@@ -242,8 +248,54 @@ public interface ExpressionEvaluator {
      * @return
      */
     default String evaluate(ExprIndexer indexer) {
-        return String.format("%s.p[%s]", evaluate(indexer.getStructure()), evaluate(indexer.getIndex()));
+        Variable var = evalExprIndexVar(indexer);
+        //VarDecl varDecl = backend().varDecls().declaration(var);
+        //Type type = backend().types().declaredType(varDecl);
+
+/*
+        if(indexer.getStructure() instanceof ExprIndexer){
+            String s = evaluate(exp)
+        }else{
+            return String.format("%s.p[%s]", evaluate(indexer.getStructure()), evaluate(indexer.getIndex()));
+        }
+*/
+
+
+        return String.format("%s.p[%s]", variables().name(var), evalExprIndex(indexer, 0));
     }
+
+
+    Variable evalExprIndexVar(Expression expr);
+
+
+    default Variable evalExprIndexVar(ExprVariable expr) {
+        return expr.getVariable();
+    }
+
+    default Variable evalExprIndexVar(ExprIndexer expr) {
+        return evalExprIndexVar(expr.getStructure());
+    }
+
+
+    default String evalExprIndex(Expression expr, int index) {
+        return evaluate(expr);
+    }
+
+    default String evalExprIndex(ExprIndexer expr, int index) {
+
+        if (expr.getStructure() instanceof ExprIndexer) {
+            Variable var = evalExprIndexVar(expr);
+            VarDecl varDecl = backend().varDecls().declaration(var);
+            Type type = backend().types().declaredType(varDecl);
+            List<Integer> sizeByDimension = backend().typeseval().sizeByDimension((ListType) type);
+            int factor = sizeByDimension.get(index);
+            index++;
+            return "(" + evalExprIndex(expr.getIndex(), index) + " + (" + evalExprIndex(expr.getStructure(), index) + " * " + factor + "))";
+        } else {
+            return evalExprIndex(expr.getIndex(), index);
+        }
+    }
+
 
     /**
      * Evaluate expression if
@@ -300,6 +352,10 @@ public interface ExpressionEvaluator {
         // TODO: Implement me
         return "/* TODO:ExprLet */";
     }
+
+
+
+
 
 
 }

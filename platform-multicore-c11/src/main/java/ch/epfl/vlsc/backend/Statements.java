@@ -44,6 +44,10 @@ public interface Statements {
         return backend().declarations();
     }
 
+    default TypesEvaluator typeseval() {
+        return backend().typeseval();
+    }
+
     default ChannelsUtils channelsutils() {
         return backend().channelsutils();
     }
@@ -67,7 +71,26 @@ public interface Statements {
      */
 
     default void execute(StmtWrite write) {
-
+        if (write.getRepeatExpression() == null) {
+            String portType = typeseval().type(types().portType(write.getPort()));
+            String tmp = variables().generateTemp();
+            emitter().emit("%s;", declarartions().declaration(types().portType(write.getPort()), tmp));
+            for (Expression expr : write.getValues()) {
+                emitter().emit("%s = %s;", tmp, expressioneval().evaluate(expr));
+                emitter().emit("pinWrite_%s(%s, %s);", portType, channelsutils().definedOutputPort(write.getPort()), tmp);
+            }
+        } else if (write.getValues().size() == 1) {
+            String value = expressioneval().evaluate(write.getValues().get(0));
+            String repeat = expressioneval().evaluate(write.getRepeatExpression());
+            String temp = variables().generateTemp();
+            emitter().emit("for (size_t %1$s = 0; %1$s < %2$s; %1$s++) {", temp, repeat);
+            emitter().increaseIndentation();
+            emitter().emit("pinWrite_%s(%s, %s.p[%s]);", channelsutils().outputPortTypeSize(write.getPort()), channelsutils().definedOutputPort(write.getPort()),value, temp);
+            emitter().decreaseIndentation();
+            emitter().emit("}");
+        } else {
+            throw new Error("not implemented");
+        }
     }
 
     /*
@@ -170,7 +193,28 @@ public interface Statements {
     void forEach(Expression collection, List<GeneratorVarDecl> varDecls, Runnable action);
 
     default void forEach(ExprBinaryOp binOp, List<GeneratorVarDecl> varDecls, Runnable action) {
-        // -- TODO: Implememnt me
+        emitter().emit("{");
+        emitter().increaseIndentation();
+        if (binOp.getOperations().equals(Collections.singletonList(".."))) {
+            Type type = types().declaredType(varDecls.get(0));
+            for (VarDecl d : varDecls) {
+                emitter().emit("%s;", declarartions().declaration(type, variables().declarationName(d)));
+            }
+            String temp = variables().generateTemp();
+            emitter().emit("%s = %s;", declarartions().declaration(type, temp), expressioneval().evaluate(binOp.getOperands().get(0)));
+            emitter().emit("while (%s <= %s) {", temp, expressioneval().evaluate(binOp.getOperands().get(1)));
+            emitter().increaseIndentation();
+            for (VarDecl d : varDecls) {
+                emitter().emit("%s = %s++;", variables().declarationName(d), temp);
+            }
+            action.run();
+            emitter().decreaseIndentation();
+            emitter().emit("}");
+        } else {
+            throw new UnsupportedOperationException(binOp.getOperations().get(0));
+        }
+        emitter().decreaseIndentation();
+        emitter().emit("}");
     }
 
 }
