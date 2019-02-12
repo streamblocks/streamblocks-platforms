@@ -249,18 +249,6 @@ public interface ExpressionEvaluator {
      */
     default String evaluate(ExprIndexer indexer) {
         Variable var = evalExprIndexVar(indexer);
-        //VarDecl varDecl = backend().varDecls().declaration(var);
-        //Type type = backend().types().declaredType(varDecl);
-
-/*
-        if(indexer.getStructure() instanceof ExprIndexer){
-            String s = evaluate(exp)
-        }else{
-            return String.format("%s.p[%s]", evaluate(indexer.getStructure()), evaluate(indexer.getIndex()));
-        }
-*/
-
-
         return String.format("%s.p[%s]", variables().name(var), evalExprIndex(indexer, 0));
     }
 
