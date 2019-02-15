@@ -10,10 +10,12 @@ import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.expr.ExprBinaryOp;
 import se.lth.cs.tycho.ir.expr.Expression;
 import se.lth.cs.tycho.ir.stmt.*;
+import se.lth.cs.tycho.type.ListType;
 import se.lth.cs.tycho.type.Type;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Module
 public interface Statements {
@@ -85,7 +87,7 @@ public interface Statements {
             String temp = variables().generateTemp();
             emitter().emit("for (size_t %1$s = 0; %1$s < %2$s; %1$s++) {", temp, repeat);
             emitter().increaseIndentation();
-            emitter().emit("pinWrite_%s(%s, %s.p[%s]);", channelsutils().outputPortTypeSize(write.getPort()), channelsutils().definedOutputPort(write.getPort()),value, temp);
+            emitter().emit("pinWrite_%s(%s, %s.p[%s]);", channelsutils().outputPortTypeSize(write.getPort()), channelsutils().definedOutputPort(write.getPort()), value, temp);
             emitter().decreaseIndentation();
             emitter().emit("}");
         } else {
@@ -105,6 +107,20 @@ public interface Statements {
 
     default void copy(Type lvalueType, String lvalue, Type rvalueType, String rvalue) {
         emitter().emit("%s = %s;", lvalue, rvalue);
+    }
+
+    default void copy(ListType lvalueType, String lvalue, ListType rvalueType, String rvalue) {
+        if (lvalueType.equals(rvalueType)) {
+            emitter().emit("%s = %s;", lvalue, rvalue);
+        } else {
+            String maxIndex = typeseval().sizeByDimension(lvalueType).stream().map(Object::toString).collect(Collectors.joining(" * "));
+            String index = variables().generateTemp();
+            emitter().emit("for (size_t %1$s = 0; %1$s < (%2$s); %1$s++) {", index, maxIndex);
+            emitter().increaseIndentation();
+            emitter().emit("%s.p[%s] = %s.p[%2$s];", lvalue, index, rvalue);
+            emitter().decreaseIndentation();
+            emitter().emit("}");
+        }
     }
 
 

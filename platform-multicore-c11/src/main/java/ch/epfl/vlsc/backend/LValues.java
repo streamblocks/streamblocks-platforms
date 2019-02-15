@@ -45,7 +45,7 @@ public interface LValues {
 
     default String lvalue(LValueIndexer indexer) {
         Variable var = evalLValueIndexerVar(indexer);
-        return String.format("%s.p[%s]", variables().name(var), evalLValueIndexer(indexer, 0));
+            return String.format("%s.p[%s]", variables().name(var), evalLValueIndexer(indexer, 0));
     }
 
 

@@ -5,13 +5,19 @@ import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.Types;
+import se.lth.cs.tycho.ir.IRNode;
 import se.lth.cs.tycho.ir.Variable;
+import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.expr.*;
+import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.type.ListType;
 import se.lth.cs.tycho.type.Type;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Module
 public interface ExpressionEvaluator {
@@ -226,8 +232,62 @@ public interface ExpressionEvaluator {
      * @return
      */
     default String evaluate(ExprComprehension comprehension) {
-        // TODO: Implement me
-        return "/* TODO:ExprComprehension */";
+        return evaluateComprehension(comprehension, types().type(comprehension));
+    }
+
+    String evaluateComprehension(ExprComprehension comprehension, Type t);
+
+    default String evaluateComprehension(ExprComprehension comprehension, ListType t) {
+        String name = variables().generateTemp();
+        String decl = declarations().declaration(t, name);
+        emitter().emit("%s;", decl);
+        String index = variables().generateTemp();
+        emitter().emit("size_t %s = 0;", index);
+        evaluateListComprehension(comprehension, name, index);
+        return name;
+    }
+
+    void evaluateListComprehension(Expression comprehension, String result, String index);
+
+    default void evaluateListComprehension(ExprComprehension comprehension, String result, String index) {
+        if (!comprehension.getFilters().isEmpty()) {
+            throw new UnsupportedOperationException("Filters in comprehensions not supported.");
+        }
+        withGenerator(comprehension.getGenerator().getCollection(), comprehension.getGenerator().getVarDecls(), () -> {
+            evaluateListComprehension(comprehension.getCollection(), result, index);
+        });
+    }
+
+    default void evaluateListComprehension(ExprList list, String result, String index) {
+        list.getElements().forEach(element ->
+                emitter().emit("%s.p[%s++] = %s;", result, index, evaluate(element))
+        );
+    }
+
+    void withGenerator(Expression collection, ImmutableList<GeneratorVarDecl> varDecls, Runnable body);
+
+    default void withGenerator(ExprBinaryOp binOp, ImmutableList<GeneratorVarDecl> varDecls, Runnable action) {
+        if (binOp.getOperations().equals(Collections.singletonList(".."))) {
+            String from = evaluate(binOp.getOperands().get(0));
+            String to = evaluate(binOp.getOperands().get(1));
+            for (VarDecl d : varDecls) {
+                Type type = types().declaredType(d);
+                String name = variables().declarationName(d);
+                emitter().emit("%s = %s;", declarations().declaration(type, name), from);
+                emitter().emit("while (%s <= %s) {", name, to);
+                emitter().increaseIndentation();
+            }
+            action.run();
+            List<VarDecl> reversed = new ArrayList<>(varDecls);
+            Collections.reverse(reversed);
+            for (VarDecl d : reversed) {
+                emitter().emit("%s++;", variables().declarationName(d));
+                emitter().decreaseIndentation();
+                emitter().emit("}");
+            }
+        } else {
+            throw new UnsupportedOperationException(binOp.getOperations().get(0));
+        }
     }
 
     /**
@@ -237,9 +297,39 @@ public interface ExpressionEvaluator {
      * @return
      */
     default String evaluate(ExprList list) {
-        // TODO: Implement me
-        return "/* TODO:ExprList */";
+        ListType t = (ListType) types().type(list);
+        if (t.getSize().isPresent()) {
+
+            String name = variables().generateTemp();
+            String decl = declarations().declaration(t, name);
+            String value = evaluateExprList(list);
+
+            String innerType = backend().typeseval().type(backend().typeseval().innerType(t));
+            String type = "(" + innerType + "[]) ";
+
+            String access = "0x3";
+            String dim = backend().typeseval().listDimensions(t).toString();
+            String sizeByDim = backend().typeseval().sizeByDimension(t).stream().map(Object::toString).collect(Collectors.joining(", "));
+            String init = "{" + type + "{" + value + " }" + ", " + access + ", " + dim + ", {" + sizeByDim + "}}";
+            emitter().emit("%s = %s;", decl, init);
+            return name;
+        } else {
+            return "NULL /* TODO: implement dynamically sized lists */";
+        }
     }
+
+
+    default String evaluateExprList(Expression expr) {
+        return evaluate(expr);
+    }
+
+    default String evaluateExprList(ExprList list) {
+        String value = list.getElements().stream().sequential()
+                .map(this::evaluateExprList)
+                .collect(Collectors.joining(", "));
+        return value;
+    }
+
 
     /**
      * Evaluate an indexer expression
@@ -292,8 +382,24 @@ public interface ExpressionEvaluator {
      * @return
      */
     default String evaluate(ExprIf expr) {
-        // TODO: Implement me
-        return "/* TODO:ExprIf */";
+        Type type = types().type(expr);
+        String temp = variables().generateTemp();
+        String decl = declarations().declaration(type, temp);
+        emitter().emit("%s;", decl);
+        emitter().emit("if (%s) {", evaluate(expr.getCondition()));
+        emitter().increaseIndentation();
+        Type thenType = types().type(expr.getThenExpr());
+        String thenValue = evaluate(expr.getThenExpr());
+        backend().statements().copy(type, temp, thenType, thenValue);
+        emitter().decreaseIndentation();
+        emitter().emit("} else {");
+        emitter().increaseIndentation();
+        Type elseType = types().type(expr.getElseExpr());
+        String elseValue = evaluate(expr.getElseExpr());
+        backend().statements().copy(type, temp, elseType, elseValue);
+        emitter().decreaseIndentation();
+        emitter().emit("}");
+        return temp;
     }
 
 
@@ -340,10 +446,6 @@ public interface ExpressionEvaluator {
         // TODO: Implement me
         return "/* TODO:ExprLet */";
     }
-
-
-
-
 
 
 }

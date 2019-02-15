@@ -16,6 +16,7 @@ import se.lth.cs.tycho.ir.entity.am.*;
 import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.type.CallableType;
+import se.lth.cs.tycho.type.ListType;
 import se.lth.cs.tycho.type.Type;
 
 import java.nio.file.Path;
@@ -23,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Module
 public interface Instances {
@@ -353,13 +355,21 @@ public interface Instances {
 
         emitter().emit("// -- Scopes");
         for (Scope scope : am.getScopes()) {
-            if (scope.getDeclarations().size() > 0) {
+            if (scope.getDeclarations().size() > 0 || scope.isPersistent()) {
                 String scopeName = instanceName + "_init_scope_" + am.getScopes().indexOf(scope);
                 emitter().emit("ART_SCOPE(%s, %s){", scopeName, actorInstanceName);
                 emitter().increaseIndentation();
 
                 for (VarDecl var : scope.getDeclarations()) {
                     Type type = types().declaredType(var);
+                    if (type instanceof ListType) {
+                        emitter().emit("{");
+                        emitter().increaseIndentation();
+                        String maxIndex = typeseval().sizeByDimension((ListType) type).stream().map(Object::toString).collect(Collectors.joining("*"));
+                        emitter().emit("thisActor->%s = (%s) { malloc(sizeof(%s) * (%s)), 0x7, %d, {%s}};", backend().variables().declarationName(var), typeseval().type(type), typeseval().type(typeseval().innerType(type)), maxIndex, backend().typeseval().listDimensions((ListType) type), typeseval().sizeByDimension((ListType) type).stream().map(Object::toString).collect(Collectors.joining(", ")));
+                        emitter().decreaseIndentation();
+                        emitter().emit("}");
+                    }
                     if (var.isExternal() && type instanceof CallableType) {
                         // -- TODO: Implement me
                     } else if (var.getValue() != null) {
@@ -463,6 +473,7 @@ public interface Instances {
             emitter().increaseIndentation();
 
             emitter().emit("ART_ACTION_ENTER(%s_transition_%d, %2$d);", instanceName, am.getTransitions().indexOf(transition));
+
 
             transition.getBody().forEach(statements()::execute);
 
