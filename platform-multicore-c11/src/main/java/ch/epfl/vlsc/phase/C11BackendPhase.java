@@ -6,6 +6,7 @@ import org.multij.MultiJ;
 import se.lth.cs.tycho.compiler.CompilationTask;
 import se.lth.cs.tycho.compiler.Compiler;
 import se.lth.cs.tycho.compiler.Context;
+import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.phase.Phase;
 import se.lth.cs.tycho.reporting.CompilationException;
@@ -142,7 +143,9 @@ public class C11BackendPhase implements Phase {
      */
     private void generateInstrances(Backend backend) {
         for (Instance instance : backend.task().getNetwork().getInstances()) {
-            backend.instance().generateInstance(instance);
+            GlobalEntityDecl entityDecl = backend.globalnames().entityDecl(instance.getEntityName(), true);
+            if (!entityDecl.getExternal())
+                backend.instance().generateInstance(instance);
         }
     }
 

@@ -77,6 +77,22 @@ public interface Main {
                     .add(tgt);
         }
 
+        // -- JoinQID & ActorClass names
+        Map<Instance, String> instanceQIDs = new HashMap<>();
+        Map<Instance, String> instanceActorClasses = new HashMap<>();
+        for (Instance instance : network.getInstances()) {
+            GlobalEntityDecl entityDecl = globalnames().entityDecl(instance.getEntityName(), true);
+            String joinQID = backend().instaceQID(instance.getInstanceName(), "_");
+            instanceQIDs.put(instance, joinQID);
+
+            if (!entityDecl.getExternal()) {
+                instanceActorClasses.put(instance, joinQID);
+            } else {
+                instanceActorClasses.put(instance, instance.getEntityName().getLast().toString());
+            }
+        }
+
+
         emitter().emit("int numberOfInstances = %d;", network.getInstances().size());
         emitter().emitNewLine();
         emitter().emit("AbstractActorInstance **actorInstances = (AbstractActorInstance **) malloc(numberOfInstances * sizeof(AbstractActorInstance *));");
@@ -88,9 +104,10 @@ public interface Main {
         for (Instance instance : network.getInstances()) {
             // -- Get global entity declaration
             GlobalEntityDecl entityDecl = globalnames().entityDecl(instance.getEntityName(), true);
-            String joinQID = backend().instaceQID(instance.getInstanceName(), "_");
+            String joinQID = instanceQIDs.get(instance);
+            String actorClassName = instanceActorClasses.get(instance);
 
-            emitter().emit("extern ActorClass ActorClass_%s;", joinQID);
+            emitter().emit("extern ActorClass ActorClass_%s;", actorClassName);
             emitter().emit("AbstractActorInstance *%s;", joinQID);
 
 
@@ -106,8 +123,9 @@ public interface Main {
         emitter().emit("// -- Instances instantiation");
         for (Instance instance : network.getInstances()) {
             GlobalEntityDecl entityDecl = globalnames().entityDecl(instance.getEntityName(), true);
-            String joinQID = backend().instaceQID(instance.getInstanceName(), "_");
-            emitter().emit("%s = createActorInstance(&ActorClass_%1$s);", joinQID);
+            String joinQID = instanceQIDs.get(instance);
+            String actorClass = instanceActorClasses.get(instance);
+            emitter().emit("%s = createActorInstance(&ActorClass_%s);", joinQID, actorClass);
             // -- Instantiate Parameters
             for (ValueParameter parameter : instance.getValueParameters()) {
                 emitter().emit("setParameter(%s, \"%s\", \"%s\");", joinQID, parameter.getName(), evaluator().evaluate(parameter.getValue()).replaceAll("^\"|\"$", ""));
@@ -152,7 +170,6 @@ public interface Main {
         emitter().emit("}");
 
     }
-
 
 
 }

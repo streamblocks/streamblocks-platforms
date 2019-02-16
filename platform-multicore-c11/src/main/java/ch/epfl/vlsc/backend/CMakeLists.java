@@ -5,6 +5,7 @@ import ch.epfl.vlsc.platformutils.PathUtils;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
+import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.network.Instance;
 
 @Module
@@ -79,8 +80,11 @@ public interface CMakeLists {
         emitter().increaseIndentation();
 
         for (Instance instance : backend().task().getNetwork().getInstances()) {
-            String filename = backend().instaceQID(instance.getInstanceName(), "_") + ".c";
-            emitter().emit("src/%s", filename);
+            GlobalEntityDecl entityDecl = backend().globalnames().entityDecl(instance.getEntityName(), true);
+            if (!entityDecl.getExternal()) {
+                String filename = backend().instaceQID(instance.getInstanceName(), "_") + ".c";
+                emitter().emit("src/%s", filename);
+            }
         }
 
         // -- Add main
