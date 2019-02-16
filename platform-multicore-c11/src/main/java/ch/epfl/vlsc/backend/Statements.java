@@ -13,8 +13,10 @@ import se.lth.cs.tycho.ir.stmt.*;
 import se.lth.cs.tycho.type.ListType;
 import se.lth.cs.tycho.type.Type;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Module
@@ -129,7 +131,21 @@ public interface Statements {
      */
 
     default void execute(StmtCall call) {
-
+        Optional<String> directlyCallable = backend().callables().directlyCallableName(call.getProcedure());
+        String proc;
+        List<String> parameters = new ArrayList<>();
+        if (directlyCallable.isPresent()) {
+            proc = directlyCallable.get();
+            parameters.add("NULL");
+        } else {
+            String name = expressioneval().evaluate(call.getProcedure());
+            proc = name + ".f";
+            parameters.add(name + ".env");
+        }
+        for (Expression parameter : call.getArgs()) {
+            parameters.add(expressioneval().evaluate(parameter));
+        }
+        emitter().emit("%s(%s);", proc, String.join(", ", parameters));
     }
 
     /*
@@ -144,13 +160,26 @@ public interface Statements {
             Type t = types().declaredType(decl);
             String declarationName = variables().declarationName(decl);
             String d = declarartions().declaration(t, declarationName);
-            emitter().emit("%s;", d);
+            if(t instanceof ListType){
+                String maxIndex = typeseval().sizeByDimension((ListType) t).stream().map(Object::toString).collect(Collectors.joining("*"));
+                emitter().emit("%s = (%s) { malloc(sizeof(%s) * (%s)), 0x7, %d, {%s}};", d, typeseval().type(t), typeseval().type(typeseval().innerType(t)), maxIndex, backend().typeseval().listDimensions((ListType) t), typeseval().sizeByDimension((ListType) t).stream().map(Object::toString).collect(Collectors.joining(", ")));
+            }else{
+                emitter().emit("%s;", d);
+            }
             if (decl.getValue() != null) {
                 copy(t, declarationName, types().type(decl.getValue()), expressioneval().evaluate(decl.getValue()));
             }
 
         }
         block.getStatements().forEach(this::execute);
+        for (VarDecl decl : block.getVarDecls()) {
+            Type t = types().declaredType(decl);
+            if(t instanceof ListType){
+                Type listType = (ListType) t;
+                String declarationName = variables().declarationName(decl);
+                emitter().emit("free%s(&%s, TRUE);", typeseval().type(typeseval().innerType(listType)), declarationName);
+            }
+        }
         emitter().decreaseIndentation();
         emitter().emit("}");
     }

@@ -22,17 +22,13 @@ public interface Declarations {
     }
 
     default String declaration(LambdaType type, String name) {
-        //String t = backend().callables().mangle(type).encode();
-        //return t + " " + name;
-
-        return "//TODO: implement me : " + name;
+        String t = backend().callables().mangle(type).encode();
+        return t + " " + name;
     }
 
     default String declaration(ProcType type, String name) {
-        //String t = backend().callables().mangle(type).encode();
-        //return t + " " + name;
-
-        return "//TODO: implement me : " + name;
+        String t = backend().callables().mangle(type).encode();
+        return t + " " + name;
     }
 
     default String declaration(BoolType type, String name) { return "_Bool " + name; }

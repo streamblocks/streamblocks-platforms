@@ -25,6 +25,9 @@ public interface Globals {
 
         backend().includeUser("globals.h");
 
+        emitter().emit("// -- Define Callables");
+        backend().callables().defineCallables();
+
         emitter().close();
 
 
@@ -155,11 +158,20 @@ public interface Globals {
             emitter().emitNewLine();
             emitter().emit("#include \"__arrayCopy.h\"");
             emitter().emitNewLine();
-            emitter().emit("#undef TYPE_DIRECT");
         }
 
 
+        emitter().emit("#undef TYPE_DIRECT");
+        emitter().emitNewLine();
+
+        emitter().emit("// -- Declare Callables");
+        backend().callables().declareCallables();
+        emitter().emitNewLine();
+        emitter().emit("// -- Declare Environment for Callables In Scope ");
+        backend().callables().declareEnvironmentForCallablesInScope(backend().task());
         emitter().emit("#endif // __GLOBALS_%s__", backend().task().getIdentifier().getLast().toString().toUpperCase());
+
+
 
         emitter().close();
     }

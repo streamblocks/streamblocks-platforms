@@ -296,8 +296,11 @@ extern void setParameterBytes(AbstractActorInstance *pInstance,
   } art_action_context_t;
 
 
-#define ART_SCOPE(name, thistype)                    \
+#define ART_INIT_SCOPE(name, thistype)                    \
     static void name(thistype *thisActor)
+
+#define ART_SCOPE(name, thistype)                    \
+    static void name(art_action_context_t *context, thistype *thisActor)
 
 #define ART_CONDITION(name, thistype)            \
   static _Bool name(art_action_context_t *context, thistype *thisActor)

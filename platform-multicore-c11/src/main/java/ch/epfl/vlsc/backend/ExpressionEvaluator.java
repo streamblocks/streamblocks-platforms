@@ -17,6 +17,7 @@ import se.lth.cs.tycho.type.Type;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Module
@@ -43,6 +44,10 @@ public interface ExpressionEvaluator {
 
     default ChannelsUtils channelsutils() {
         return backend().channelsutils();
+    }
+
+    default TypesEvaluator typeseval() {
+        return backend().typeseval();
     }
 
     // -- Evaluate Expressions
@@ -122,8 +127,15 @@ public interface ExpressionEvaluator {
      */
     default String evaluate(ExprInput input) {
         String tmp = variables().generateTemp();
-        // -- TODO : initialize array
-        emitter().emit("%s;", declarations().declaration(types().type(input), tmp));
+        Type type = types().type(input);
+        if (input.hasRepeat()) {
+            String maxIndex = typeseval().sizeByDimension((ListType) type).stream().map(Object::toString).collect(Collectors.joining("*"));
+            emitter().emit("%s = (%s) { malloc(sizeof(%s) * (%s)), 0x7, %d, {%s}};", declarations().declaration(types().type(input), tmp), typeseval().type(type), typeseval().type(typeseval().innerType(type)), maxIndex, backend().typeseval().listDimensions((ListType) type), typeseval().sizeByDimension((ListType) type).stream().map(Object::toString).collect(Collectors.joining(", ")));
+        } else {
+            emitter().emit("%s;", declarations().declaration(types().type(input), tmp));
+        }
+
+
         if (input.hasRepeat()) {
             if (input.getOffset() == 0) {
                 emitter().emit("pinPeekRepeat_%s(%s, %s.p, %d);", channelsutils().inputPortTypeSize(input.getPort()), channelsutils().definedInputPort(input.getPort()), tmp, input.getRepeat());
@@ -240,7 +252,8 @@ public interface ExpressionEvaluator {
     default String evaluateComprehension(ExprComprehension comprehension, ListType t) {
         String name = variables().generateTemp();
         String decl = declarations().declaration(t, name);
-        emitter().emit("%s;", decl);
+        String maxIndex = typeseval().sizeByDimension((ListType) t).stream().map(Object::toString).collect(Collectors.joining("*"));
+        emitter().emit("%s = (%s) { malloc(sizeof(%s) * (%s)), 0x7, %d, {%s}};", decl, typeseval().type(t), typeseval().type(typeseval().innerType(t)), maxIndex, backend().typeseval().listDimensions((ListType) t), typeseval().sizeByDimension((ListType) t).stream().map(Object::toString).collect(Collectors.joining(", ")));
         String index = variables().generateTemp();
         emitter().emit("size_t %s = 0;", index);
         evaluateListComprehension(comprehension, name, index);
@@ -410,8 +423,24 @@ public interface ExpressionEvaluator {
      * @return
      */
     default String evaluate(ExprApplication apply) {
-        // TODO: Implement me
-        return "/* TODO:ExprApplication */";
+        Optional<String> directlyCallable = backend().callables().directlyCallableName(apply.getFunction());
+        String fn;
+        List<String> parameters = new ArrayList<>();
+        if (directlyCallable.isPresent()) {
+            fn = directlyCallable.get();
+            parameters.add("NULL");
+        } else {
+            String name = evaluate(apply.getFunction());
+            fn = name + ".f";
+            parameters.add(name + ".env");
+        }
+        for (Expression parameter : apply.getArgs()) {
+            parameters.add(evaluate(parameter));
+        }
+        String result = variables().generateTemp();
+        String decl = declarations().declaration(types().type(apply), result);
+        emitter().emit("%s = %s(%s);", decl, fn, String.join(", ", parameters));
+        return result;
     }
 
     /**
@@ -421,8 +450,20 @@ public interface ExpressionEvaluator {
      * @return
      */
     default String evaluate(ExprLambda lambda) {
-        // TODO: Implement me
-        return "/* TODO:ExprLambda */";
+        backend().emitter().emit("// begin evaluate(ExprLambda)");
+        String functionName = backend().callables().functionName(lambda);
+        String env = backend().callables().environmentName(lambda);
+        for (VarDecl var : backend().callables().closure(lambda)) {
+            emitter().emit("%s.%s = %s;", env, variables().declarationName(var), variables().reference(var));
+        }
+
+        Type type = backend().types().type(lambda);
+        String typeName = backend().callables().mangle(type).encode();
+        String funPtr = backend().variables().generateTemp();
+        backend().emitter().emit("%s %s = { &%s, &%s };", typeName, funPtr, functionName, env);
+
+        backend().emitter().emit("// end evaluate(ExprLambda)");
+        return funPtr;
     }
 
     /**
@@ -432,8 +473,20 @@ public interface ExpressionEvaluator {
      * @return
      */
     default String evaluate(ExprProc proc) {
-        // TODO: Implement me
-        return "/* TODO:ExprProc */";
+        backend().emitter().emit("// begin evaluate(ExprProc)");
+        String functionName = backend().callables().functionName(proc);
+        String env = backend().callables().environmentName(proc);
+        for (VarDecl var : backend().callables().closure(proc)) {
+            emitter().emit("%s.%s = %s;", env, variables().declarationName(var), variables().reference(var));
+        }
+
+        Type type = backend().types().type(proc);
+        String typeName = backend().callables().mangle(type).encode();
+        String funPtr = backend().variables().generateTemp();
+        backend().emitter().emit("%s %s = { &%s, &%s };", typeName, funPtr, functionName, env);
+
+        backend().emitter().emit("// end evaluate(ExprProc)");
+        return funPtr;
     }
 
     /**
@@ -443,8 +496,14 @@ public interface ExpressionEvaluator {
      * @return
      */
     default String evaluate(ExprLet let) {
-        // TODO: Implement me
-        return "/* TODO:ExprLet */";
+        let.forEachChild(backend().callables()::declareEnvironmentForCallablesInScope);
+        for (VarDecl decl : let.getVarDecls()) {
+            Type type = types().declaredType(decl);
+            String name = variables().declarationName(decl);
+            emitter().emit("%s;", declarations().declaration(type, name));
+            backend().statements().copy(type, name, types().type(decl.getValue()), evaluate(decl.getValue()));
+        }
+        return evaluate(let.getBody());
     }
 
 

@@ -88,7 +88,8 @@ public interface Instances {
         // -- Ports IO
         portsIO(entity);
 
-        // -- Constants
+        // -- Context
+        actionContext(instanceName, entity);
 
         // -- State
         instanceState(instanceName, entity);
@@ -166,6 +167,20 @@ public interface Instances {
         emitter().emitNewLine();
     }
 
+
+    /*
+     * Action Context
+     */
+
+    void actionContext(String instanceName, Entity entity);
+
+    default void actionContext(String instanceName, ActorMachine am) {
+        // -- ART Context
+        emitter().emit("// -- Action Context structure");
+        emitter().emit("ART_ACTION_CONTEXT(%d,%d)", am.getInputPorts().size(), am.getOutputPorts().size());
+        emitter().emitNewLine();
+    }
+
     /*
      * Instance State
      */
@@ -185,11 +200,13 @@ public interface Instances {
         // -- Scopes
         for (Scope scope : am.getScopes()) {
             emitter().emit("// -- Scope %d", am.getScopes().indexOf(scope));
+            backend().callables().declareEnvironmentForCallablesInScope(scope);
             for (VarDecl var : scope.getDeclarations()) {
                 String decl = declarations().declaration(types().declaredType(var), backend().variables().declarationName(var));
                 emitter().emit("%s;", decl);
             }
         }
+
         emitter().decreaseIndentation();
         emitter().emit("} ActorInstance_%s;", backend().instaceQID(instanceName, "_"));
         emitter().emitNewLine();
@@ -208,13 +225,6 @@ public interface Instances {
 
 
     default void prototypes(String instanceName, ActorMachine am) {
-
-
-        // -- ART Context
-        emitter().emit("// -- Action Context structure");
-        emitter().emit("ART_ACTION_CONTEXT(%d,%d)", am.getInputPorts().size(), am.getOutputPorts().size());
-        emitter().emitNewLine();
-
         // -- Actor Instance Name
         String actorInstanceName = "ActorInstance_" + backend().instaceQID(instanceName, "_");
 
@@ -357,7 +367,11 @@ public interface Instances {
         for (Scope scope : am.getScopes()) {
             if (scope.getDeclarations().size() > 0 || scope.isPersistent()) {
                 String scopeName = instanceName + "_init_scope_" + am.getScopes().indexOf(scope);
-                emitter().emit("ART_SCOPE(%s, %s){", scopeName, actorInstanceName);
+                if(am.getScopes().indexOf(scope) == 0){
+                    emitter().emit("ART_INIT_SCOPE(%s, %s){", scopeName, actorInstanceName);
+                }else{
+                    emitter().emit("ART_SCOPE(%s, %s){", scopeName, actorInstanceName);
+                }
                 emitter().increaseIndentation();
 
                 for (VarDecl var : scope.getDeclarations()) {
@@ -371,7 +385,10 @@ public interface Instances {
                         emitter().emit("}");
                     }
                     if (var.isExternal() && type instanceof CallableType) {
-                        // -- TODO: Implement me
+                        String wrapperName = backend().callables().externalWrapperFunctionName(var);
+                        String variableName = backend().variables().declarationName(var);
+                        String t = backend().callables().mangle(type).encode();
+                        emitter().emit("thisActor->%s = (%s) { *%s, NULL };", variableName, t, wrapperName);
                     } else if (var.getValue() != null) {
                         emitter().emit("{");
                         emitter().increaseIndentation();

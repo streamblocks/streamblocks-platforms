@@ -128,30 +128,38 @@ public interface Backend {
     }
 
     // -- LValues
+    @Binding(LAZY)
     default LValues lvalues() {
         return MultiJ.from(LValues.class).bind("backend").to(this).instance();
     }
 
     // -- Declarations
+    @Binding(LAZY)
     default Declarations declarations() {
         return MultiJ.from(Declarations.class).bind("backend").to(this).instance();
     }
 
     // -- Statements
+    @Binding(LAZY)
     default Statements statements() {
         return MultiJ.from(Statements.class).bind("backend").to(this).instance();
     }
 
     // -- Controllers
+    @Binding(LAZY)
     default Controllers controllers(){
         return MultiJ.from(Controllers.class).bind("backend").to(this).instance();
     }
 
     // -- Globals
+    @Binding(LAZY)
     default Globals globals(){
         return MultiJ.from(Globals.class).bind("backend").to(this).instance();
     }
 
+    // -- Callables
+    @Binding(LAZY)
+    default Callables callables(){ return MultiJ.from(Callables.class).bind("backend").to(this).instance(); }
 
     // -- Instance generator
     @Binding(LAZY)
