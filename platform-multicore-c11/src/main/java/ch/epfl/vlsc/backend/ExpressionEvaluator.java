@@ -13,6 +13,7 @@ import se.lth.cs.tycho.ir.expr.*;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.type.ListType;
 import se.lth.cs.tycho.type.Type;
+import sun.tools.tree.ShiftRightExpression;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -374,17 +375,26 @@ public interface ExpressionEvaluator {
 
     default String evalExprIndex(ExprIndexer expr, int index) {
 
-        if (expr.getStructure() instanceof ExprIndexer) {
-            Variable var = evalExprIndexVar(expr);
-            VarDecl varDecl = backend().varDecls().declaration(var);
-            Type type = backend().types().declaredType(varDecl);
-            List<Integer> sizeByDimension = backend().typeseval().sizeByDimension((ListType) type);
-            int factor = sizeByDimension.get(index);
-            index++;
-            return "(" + evalExprIndex(expr.getIndex(), index) + " + (" + evalExprIndex(expr.getStructure(), index) + " * " + factor + "))";
+
+        if (expr.getIndex() instanceof ExprIndexer) {
+            ExprIndexer ii =  (ExprIndexer) expr.getIndex();
+            return String.format("%s.p[%s]", evalExprIndex(ii.getStructure(), index), evalExprIndex(ii.getIndex(), index));
         } else {
-            return evalExprIndex(expr.getIndex(), index);
+            if (expr.getStructure() instanceof ExprIndexer) {
+                Variable var = evalExprIndexVar(expr);
+                VarDecl varDecl = backend().varDecls().declaration(var);
+                Type type = backend().types().declaredType(varDecl);
+                List<Integer> sizeByDimension = backend().typeseval().sizeByDimension((ListType) type);
+                index++;
+                int factor = sizeByDimension.get(index);
+                String i = evalExprIndex(expr.getIndex(), index);
+                String s = evalExprIndex(expr.getStructure(), index);
+                return String.format("(%s + (%s * %d))", i, s, factor);
+            } else {
+                return evalExprIndex(expr.getIndex(), index);
+            }
         }
+
     }
 
 

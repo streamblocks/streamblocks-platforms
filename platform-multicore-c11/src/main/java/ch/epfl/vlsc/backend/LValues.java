@@ -6,6 +6,7 @@ import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.ir.Variable;
 import se.lth.cs.tycho.ir.decl.VarDecl;
+import se.lth.cs.tycho.ir.expr.ExprIndexer;
 import se.lth.cs.tycho.ir.stmt.lvalue.LValue;
 import se.lth.cs.tycho.ir.stmt.lvalue.LValueDeref;
 import se.lth.cs.tycho.ir.stmt.lvalue.LValueIndexer;
@@ -45,7 +46,7 @@ public interface LValues {
 
     default String lvalue(LValueIndexer indexer) {
         Variable var = evalLValueIndexerVar(indexer);
-            return String.format("%s.p[%s]", variables().name(var), evalLValueIndexer(indexer, 0));
+        return String.format("%s.p[%s]", variables().name(var), evalLValueIndexer(indexer, 0));
     }
 
 
@@ -64,19 +65,32 @@ public interface LValues {
     }
 
     default String evalLValueIndexer(LValueIndexer indexer, int index) {
+
+
         if (indexer.getStructure() instanceof LValueIndexer) {
             Variable var = evalLValueIndexerVar(indexer);
             VarDecl varDecl = backend().varDecls().declaration(var);
             Type type = backend().types().declaredType(varDecl);
             List<Integer> sizeByDimension = backend().typeseval().sizeByDimension((ListType) type);
-            int factor = sizeByDimension.get(index);
             index++;
-            return "(" + expressioneval().evalExprIndex(indexer.getIndex(), index) + " + (" + evalLValueIndexer(indexer.getStructure(), index) + " * " + factor + "))";
-
+            int factor = sizeByDimension.get(index);
+            String i;
+            if (indexer.getIndex() instanceof ExprIndexer) {
+                ExprIndexer ii = (ExprIndexer) indexer.getIndex();
+                i = String.format("%s.p[%s]", expressioneval().evalExprIndex(ii.getStructure(), index), expressioneval().evalExprIndex(ii.getIndex(), index));
+            } else {
+                i = expressioneval().evalExprIndex(indexer.getIndex(), index);
+            }
+            String s = evalLValueIndexer(indexer.getStructure(), index);
+            return String.format("(%s + (%s * %d))", i, s, factor);
         } else {
-            return expressioneval().evalExprIndex(indexer.getIndex(), index);
+            if (indexer.getIndex() instanceof ExprIndexer) {
+                ExprIndexer ii = (ExprIndexer) indexer.getIndex();
+                return String.format("%s.p[%s]", expressioneval().evalExprIndex(ii.getStructure(), index), expressioneval().evalExprIndex(ii.getIndex(), index));
+            } else {
+                return expressioneval().evalExprIndex(indexer.getIndex(), index);
+            }
         }
-
     }
 
 
