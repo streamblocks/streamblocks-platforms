@@ -310,6 +310,7 @@ static void *EXECUTE_NETWORK(cpu_runtime_data_t *runtime,
     }
     cpu[this_cpu].statistics = statistics;
 
+    free(old_sleep);
     return NULL;
 }
 

@@ -5,7 +5,6 @@ import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.Types;
-import se.lth.cs.tycho.ir.IRNode;
 import se.lth.cs.tycho.ir.Variable;
 import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
@@ -13,7 +12,6 @@ import se.lth.cs.tycho.ir.expr.*;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.type.ListType;
 import se.lth.cs.tycho.type.Type;
-import sun.tools.tree.ShiftRightExpression;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -377,7 +375,7 @@ public interface ExpressionEvaluator {
 
 
         if (expr.getIndex() instanceof ExprIndexer) {
-            ExprIndexer ii =  (ExprIndexer) expr.getIndex();
+            ExprIndexer ii = (ExprIndexer) expr.getIndex();
             return String.format("%s.p[%s]", evalExprIndex(ii.getStructure(), index), evalExprIndex(ii.getIndex(), index));
         } else {
             if (expr.getStructure() instanceof ExprIndexer) {

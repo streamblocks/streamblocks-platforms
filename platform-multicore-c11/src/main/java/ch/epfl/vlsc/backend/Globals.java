@@ -65,7 +65,7 @@ public interface Globals {
         emitter().emit("typedef struct {");
         emitter().increaseIndentation();
         emitter().emit("int32_t len;");
-        emitter().emit("int32_t sz[%d]", dimensions[dimensions.length - 1]);
+        emitter().emit("int32_t sz[%d];", dimensions[dimensions.length - 1]);
         emitter().decreaseIndentation();
         emitter().emit("} __arrayArg;");
         emitter().emitNewLine();

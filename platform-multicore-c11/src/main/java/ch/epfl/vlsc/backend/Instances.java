@@ -128,6 +128,9 @@ public interface Instances {
         // -- Constructor
         constructorDefinition(instanceName, entity);
 
+        // -- Destructor
+        destructorDefinition(instanceName, entity);
+
         // -- Scheduler (aka Actor Machine )
         scheduler(instanceName, entity);
 
@@ -236,6 +239,7 @@ public interface Instances {
         }
         emitter().emit("ART_ACTION_SCHEDULER(%s_scheduler);", backend().instaceQID(instanceName, "_"));
         emitter().emit("static void %s_constructor(AbstractActorInstance *);", actorInstanceName);
+        emitter().emit("static void %s_destructor(AbstractActorInstance *);", actorInstanceName);
         emitter().emitNewLine();
     }
 
@@ -464,7 +468,7 @@ public interface Instances {
         emitter().emit("ActorInstance_%s_constructor,", instanceQID);
         emitter().emit("0, // -- setParam not needed anymore (we instantiate with params)");
         emitter().emit("%s_scheduler,", instanceQID);
-        emitter().emit("0, // -- no destructor");
+        emitter().emit("ActorInstance_%s_destructor,", instanceQID);
         emitter().emit("%d, %s,", am.getInputPorts().size(), am.getInputPorts().size() == 0 ? "0" : "inputPortDescriptions");
         emitter().emit("%d, %s,", am.getOutputPorts().size(), am.getOutputPorts().size() == 0 ? "0" : "outputPortDescriptions");
         emitter().emit("%d, actionDescriptions", am.getTransitions().size());
@@ -530,6 +534,36 @@ public interface Instances {
         emitter().emitNewLine();
     }
 
+    /*
+     * Destructor
+     */
+
+
+    void destructorDefinition(String instanceName, Entity entity);
+
+    default void destructorDefinition(String instanceName, ActorMachine am) {
+        emitter().emit("// -- Constructor Definitions");
+
+        String actorInstanceName = "ActorInstance_" + backend().instaceQID(instanceName, "_");
+        emitter().emit("static void %s_destructor(AbstractActorInstance *pBase){", actorInstanceName);
+        emitter().increaseIndentation();
+
+        emitter().emit("%s *thisActor = (%1$s*) pBase;", actorInstanceName);
+        for (Scope scope : am.getScopes()) {
+            if (scope.isPersistent()) {
+                for(VarDecl decl : scope.getDeclarations()){
+                    Type t = types().declaredType(decl);
+                    if(t instanceof ListType){
+                        String declarationName = backend().variables().declarationName(decl);
+                        emitter().emit("free%s(&thisActor->%s, TRUE);", typeseval().type(typeseval().innerType(t)), declarationName);
+                    }
+                }
+            }
+        }
+        emitter().decreaseIndentation();
+        emitter().emit("}");
+        emitter().emitNewLine();
+    }
 
     /*
      * Scheduler

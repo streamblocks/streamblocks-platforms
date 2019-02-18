@@ -86,12 +86,7 @@ public interface Statements {
         } else if (write.getValues().size() == 1) {
             String value = expressioneval().evaluate(write.getValues().get(0));
             String repeat = expressioneval().evaluate(write.getRepeatExpression());
-            String temp = variables().generateTemp();
-            emitter().emit("for (size_t %1$s = 0; %1$s < %2$s; %1$s++) {", temp, repeat);
-            emitter().increaseIndentation();
-            emitter().emit("pinWrite_%s(%s, %s.p[%s]);", channelsutils().outputPortTypeSize(write.getPort()), channelsutils().definedOutputPort(write.getPort()), value, temp);
-            emitter().decreaseIndentation();
-            emitter().emit("}");
+            emitter().emit("pinWriteRepeat_%s(%s, %s.p, %s);", channelsutils().outputPortTypeSize(write.getPort()), channelsutils().definedOutputPort(write.getPort()), value, repeat);
         } else {
             throw new Error("not implemented");
         }
@@ -112,17 +107,15 @@ public interface Statements {
     }
 
     default void copy(ListType lvalueType, String lvalue, ListType rvalueType, String rvalue) {
-        if (lvalueType.equals(rvalueType)) {
-            emitter().emit("%s = %s;", lvalue, rvalue);
-        } else {
-            String maxIndex = typeseval().sizeByDimension(lvalueType).stream().map(Object::toString).collect(Collectors.joining(" * "));
-            String index = variables().generateTemp();
-            emitter().emit("for (size_t %1$s = 0; %1$s < (%2$s); %1$s++) {", index, maxIndex);
-            emitter().increaseIndentation();
-            emitter().emit("%s.p[%s] = %s.p[%2$s];", lvalue, index, rvalue);
-            emitter().decreaseIndentation();
-            emitter().emit("}");
-        }
+
+        String maxIndex = typeseval().sizeByDimension(lvalueType).stream().map(Object::toString).collect(Collectors.joining(" * "));
+        String index = variables().generateTemp();
+        emitter().emit("for (size_t %1$s = 0; %1$s < (%2$s); %1$s++) {", index, maxIndex);
+        emitter().increaseIndentation();
+        emitter().emit("%s.p[%s] = %s.p[%2$s];", lvalue, index, rvalue);
+        emitter().decreaseIndentation();
+        emitter().emit("}");
+
     }
 
 
@@ -160,10 +153,10 @@ public interface Statements {
             Type t = types().declaredType(decl);
             String declarationName = variables().declarationName(decl);
             String d = declarartions().declaration(t, declarationName);
-            if(t instanceof ListType){
+            if (t instanceof ListType) {
                 String maxIndex = typeseval().sizeByDimension((ListType) t).stream().map(Object::toString).collect(Collectors.joining("*"));
                 emitter().emit("%s = (%s) { malloc(sizeof(%s) * (%s)), 0x7, %d, {%s}};", d, typeseval().type(t), typeseval().type(typeseval().innerType(t)), maxIndex, backend().typeseval().listDimensions((ListType) t), typeseval().sizeByDimension((ListType) t).stream().map(Object::toString).collect(Collectors.joining(", ")));
-            }else{
+            } else {
                 emitter().emit("%s;", d);
             }
             if (decl.getValue() != null) {
@@ -174,7 +167,7 @@ public interface Statements {
         block.getStatements().forEach(this::execute);
         for (VarDecl decl : block.getVarDecls()) {
             Type t = types().declaredType(decl);
-            if(t instanceof ListType){
+            if (t instanceof ListType) {
                 Type listType = (ListType) t;
                 String declarationName = variables().declarationName(decl);
                 emitter().emit("free%s(&%s, TRUE);", typeseval().type(typeseval().innerType(listType)), declarationName);
