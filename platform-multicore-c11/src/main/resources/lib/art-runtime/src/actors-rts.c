@@ -1080,7 +1080,7 @@ static void show_result(cpu_runtime_data_t *cpu,
                 printf("total:         %12Lu\n", cpu[i].statistics.total);
             }
             // subtract one from nsleep not to count the last time (termination)
-            printf("nsleep:        %12Lu times\n", cpu[i].statistics.nsleep - 1);
+            printf("nsleep:        %12Lu times\n", cpu[i].statistics.nsleep);
             printf("nloops:        %12Lu\n", cpu[i].statistics.nloops);
 
             if (show_timing)

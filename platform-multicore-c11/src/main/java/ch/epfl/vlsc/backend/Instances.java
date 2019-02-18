@@ -13,6 +13,7 @@ import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.entity.am.*;
+import se.lth.cs.tycho.ir.expr.ExprInput;
 import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.type.CallableType;
@@ -396,7 +397,11 @@ public interface Instances {
                     } else if (var.getValue() != null) {
                         emitter().emit("{");
                         emitter().increaseIndentation();
-                        statements().copy(types().declaredType(var), "thisActor->" + backend().variables().declarationName(var), types().type(var.getValue()), expressioneval().evaluate(var.getValue()));
+                        if(var.getValue() instanceof ExprInput){
+                            expressioneval().evaluateWithLvalue("thisActor->" + backend().variables().declarationName(var), (ExprInput) var.getValue());
+                        }else{
+                            statements().copy(types().declaredType(var), "thisActor->" + backend().variables().declarationName(var), types().type(var.getValue()), expressioneval().evaluate(var.getValue()));
+                        }
                         emitter().decreaseIndentation();
                         emitter().emit("}");
                     }

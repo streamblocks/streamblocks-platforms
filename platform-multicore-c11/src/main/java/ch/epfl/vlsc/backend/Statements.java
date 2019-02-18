@@ -8,6 +8,7 @@ import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.expr.ExprBinaryOp;
+import se.lth.cs.tycho.ir.expr.ExprInput;
 import se.lth.cs.tycho.ir.expr.Expression;
 import se.lth.cs.tycho.ir.stmt.*;
 import se.lth.cs.tycho.type.ListType;
@@ -160,7 +161,11 @@ public interface Statements {
                 emitter().emit("%s;", d);
             }
             if (decl.getValue() != null) {
-                copy(t, declarationName, types().type(decl.getValue()), expressioneval().evaluate(decl.getValue()));
+                if (decl.getValue() instanceof ExprInput) {
+                    expressioneval().evaluateWithLvalue(backend().variables().declarationName(decl), (ExprInput) decl.getValue());
+                } else {
+                    copy(t, declarationName, types().type(decl.getValue()), expressioneval().evaluate(decl.getValue()));
+                }
             }
 
         }

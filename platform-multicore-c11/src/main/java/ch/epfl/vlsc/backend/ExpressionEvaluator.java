@@ -152,6 +152,25 @@ public interface ExpressionEvaluator {
         return tmp;
     }
 
+    void evaluateWithLvalue(String lvalue, Expression expr);
+
+    default void evaluateWithLvalue(String lvalue, ExprInput input) {
+        if (input.hasRepeat()) {
+            if (input.getOffset() == 0) {
+                emitter().emit("pinPeekRepeat_%s(%s, %s.p, %d);", channelsutils().inputPortTypeSize(input.getPort()), channelsutils().definedInputPort(input.getPort()), lvalue, input.getRepeat());
+            } else {
+                throw new RuntimeException("not implemented");
+            }
+        } else {
+            if (input.getOffset() == 0) {
+                emitter().emit("%s = pinPeekFront_%s(%s);", lvalue, channelsutils().inputPortTypeSize(input.getPort()), channelsutils().definedInputPort(input.getPort()));
+            } else {
+                emitter().emit("%s = pinPeek_%s(%s, %d);", lvalue, channelsutils().inputPortTypeSize(input.getPort()), channelsutils().definedInputPort(input.getPort()), input.getOffset());
+            }
+        }
+    }
+
+
     /**
      * Evaluate binary expression
      *
