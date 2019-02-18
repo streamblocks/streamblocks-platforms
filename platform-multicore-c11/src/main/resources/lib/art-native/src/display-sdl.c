@@ -39,11 +39,13 @@
 #include <stdlib.h>
 #include <SDL.h>
 
-#include "../include/display.h"
+#include "display.h"
 
 
 typedef struct {
-    SDL_Surface *screen;
+    SDL_Window *window;
+    SDL_Renderer *renderer;
+    SDL_Texture *texture;
     SDL_Surface *image;
 } sdl_display_t;
 
@@ -66,20 +68,34 @@ int allocate_display(int width,
     }
 
     atexit(SDL_Quit);
-    disp->screen = SDL_SetVideoMode(width, height, 32,
-                                    SDL_HWSURFACE | SDL_DOUBLEBUF);
-    if (!disp->screen) {
+
+    disp->window = SDL_CreateWindow("Display", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height,
+                                    SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL);
+    disp->renderer = SDL_CreateRenderer(disp->window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+
+    disp->image = SDL_CreateRGBSurface(0,
+                                       width, height,
+                                       32,
+                                       0x00FF0000,
+                                       0x0000FF00,
+                                       0x000000FF,
+                                       0xFF000000);
+
+    disp->texture = SDL_CreateTexture(disp->renderer, SDL_PIXELFORMAT_ARGB8888,
+                                      SDL_TEXTUREACCESS_STREAMING, width, height);
+
+
+    SDL_UpdateTexture(disp->texture , NULL, disp->image->pixels, disp->image->pitch);
+    SDL_RenderClear(disp->renderer);
+    SDL_RenderCopy(disp->renderer, disp->texture, NULL, NULL);
+    SDL_RenderPresent(disp->renderer);
+
+    if (disp->window == NULL || disp->renderer == NULL || disp->texture == NULL ) {
         fprintf(stderr, "display-sdl: SDL_SetVideoMode: %s\n", SDL_GetError());
         return 1;
     }
 
-    disp->image = SDL_CreateRGBSurface(SDL_SWSURFACE,
-                                       width, height,
-                                       disp->screen->format->BitsPerPixel,
-                                       disp->screen->format->Rmask,
-                                       disp->screen->format->Gmask,
-                                       disp->screen->format->Bmask,
-                                       disp->screen->format->Amask);
+
 
     bytesPerPixel = disp->image->format->BytesPerPixel;
 
@@ -133,6 +149,19 @@ static void free_display(const struct FrameBuffer *fb) {
 static void frame_done(const struct FrameBuffer *fb) {
     sdl_display_t *disp = (sdl_display_t *) fb->displaySpecific;
 
-    SDL_BlitSurface(disp->image, NULL, disp->screen, NULL);
-    SDL_Flip(disp->screen);
+    SDL_Event event;
+
+    SDL_UpdateTexture(disp->texture, NULL, disp->image->pixels, disp->image->pitch);
+    SDL_RenderClear(disp->renderer);
+    SDL_RenderCopy(disp->renderer, disp->texture, NULL, NULL);
+    SDL_RenderPresent(disp->renderer);
+
+    while (SDL_PollEvent(&event)) {
+        switch (event.type) {
+            case SDL_QUIT:
+                exit(0);
+            default:
+                break;
+        }
+    }
 }

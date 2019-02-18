@@ -13,11 +13,11 @@ set(art_native_source
 set(art_native_header
         include/display.h)
 
-find_package(SDL QUIET)
-if(SDL_FOUND)
+find_package(SDL2 QUIET)
+if(SDL2_FOUND)
     list(APPEND art_native_source src/display-sdl.c)
-    list(APPEND extra_includes ${SDL_INCLUDE_DIR})
-    list(APPEND extra_libraries ${SDL_LIBRARY})
+    list(APPEND extra_includes ${SDL2_INCLUDE_DIRS})
+    list(APPEND extra_libraries ${SDL2_LIBRARIES})
 else()
     list(APPEND art_native_source src/display-null.c)
 endif()
