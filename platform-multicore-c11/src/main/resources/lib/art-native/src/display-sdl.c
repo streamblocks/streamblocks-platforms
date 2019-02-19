@@ -1,6 +1,6 @@
 /* 
- * Copyright (c) Ericsson AB, 2009
- * Author: Charles Chen Xu (charles.chen.xu@ericsson.com)
+ * Copyright (c) EPFL VLSC
+ * Author: Endri Bezati (endri.bezati@epfl.ch)
  * All rights reserved.
  *
  * License terms:
