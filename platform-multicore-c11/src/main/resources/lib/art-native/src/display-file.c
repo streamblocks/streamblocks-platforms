@@ -37,7 +37,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include "../include/display.h"
+#include "display.h"
 
 static void free_display(const struct FrameBuffer *fb);
 

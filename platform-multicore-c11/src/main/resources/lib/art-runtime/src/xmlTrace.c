@@ -35,7 +35,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "../include/xmlTrace.h"
+#include "xmlTrace.h"
 
 static pthread_mutex_t xmlMutex;
 

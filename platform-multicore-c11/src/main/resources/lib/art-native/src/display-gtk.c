@@ -46,7 +46,7 @@
 #include <sys/ioctl.h>
 #include <gtk/gtk.h>
 
-#include "../include/display.h"
+#include "display.h"
 
 
 typedef struct {

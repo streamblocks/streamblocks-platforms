@@ -4,7 +4,7 @@
  * by xlim2c version 0.6 (June 3, 2009)
  */
 
-#include "../../art-runtime/include/actors-rts.h"
+#include "actors-rts.h"
 #include <errno.h>
 
 #define BUF_SIZE 1024

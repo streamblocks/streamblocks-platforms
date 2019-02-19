@@ -6,13 +6,15 @@
 #include <strings.h>
 #include <string.h>
 #include <sched.h>
-#include "../include/actors-rts.h"
+#include "actors-rts.h"
 #include <semaphore.h>
 #include <pthread.h>
 #include <limits.h>
-#include "../include/xmlTrace.h"
-#include "../include/xmlParser.h"
-#include "../include/internal.h"
+#include "xmlTrace.h"
+#include "xmlParser.h"
+#include "internal.h"
+#include <time.h>
+#include <sys/time.h>
 
 #define DEFAULT_FIFO_LENGTH    4096
 
@@ -87,15 +89,17 @@ int rangeError(int x, int y, const char *filename, int line) {
 }
 
 static inline unsigned long long READ_TIMER() {
-    unsigned long long result;
 #if defined(__i386__) || defined(__x86_64__)
-    __asm__ __volatile__ ("rdtsc" : "=A" (result));
+    unsigned a, d;
+     __asm__ __volatile__ ("rdtsc" : "=a" (a), "=d" (d));
+     return ((time_base_t)a) | (((time_base_t)d) << 32);
 #else
+    unsigned long long result;
     struct timeval tim;
     gettimeofday(&tim, NULL);
     result=tim.tv_sec*1000000+tim.tv_usec;
-#endif
     return result;
+ #endif
 }
 
 static void add_timer(art_timer_t *timer,

@@ -35,7 +35,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "../include/display.h"
+#include "display.h"
 
 typedef short int16bpp_t;
 typedef int int32bpp_t;

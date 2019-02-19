@@ -40,8 +40,8 @@
 #include <string.h>
 #include <libxml/parser.h>
 
-#include "../include/xmlParser.h"
-#include "../include/internal.h"
+#include "xmlParser.h"
+#include "internal.h"
 
 
 #define CONFIGURATION                       (const xmlChar*)"Configuration"

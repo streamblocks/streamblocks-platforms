@@ -2,7 +2,7 @@
  * Actor art_Streaming (ActorClass_art_Streaming)
  */
 
-#include "../../art-runtime/include/actors-rts.h"
+#include "actors-rts.h"
 #include <errno.h>
 #include <sys/socket.h>
 #include <unistd.h>

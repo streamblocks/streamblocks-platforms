@@ -43,7 +43,7 @@
 #include <sys/ioctl.h>
 #include <linux/fb.h>
 
-#include "../include/display.h"
+#include "display.h"
 
 
 typedef struct {

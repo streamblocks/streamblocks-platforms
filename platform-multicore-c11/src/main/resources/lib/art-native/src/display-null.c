@@ -35,7 +35,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "../include/display.h"
+#include "display.h"
 
 
 static void free_display(const struct FrameBuffer *fb);

@@ -5,8 +5,8 @@
  */
 
 #include <stdlib.h>
-#include "../../art-runtime/include/actors-rts.h"
-#include "../include/display.h"
+#include "actors-rts.h"
+#include "display.h"
 
 #define IN0_In ART_INPUT(0)
 #define IN1_WIDTH ART_INPUT(1)
