@@ -371,43 +371,34 @@ public interface Instances {
         emitter().emit("// -- Scopes");
         for (Scope scope : am.getScopes()) {
             if (scope.getDeclarations().size() > 0 || scope.isPersistent()) {
-                String scopeName = instanceName + "_init_scope_" + am.getScopes().indexOf(scope);
-                if(am.getScopes().indexOf(scope) == 0){
-                    emitter().emit("ART_INIT_SCOPE(%s, %s){", scopeName, actorInstanceName);
-                }else{
+                if (am.getScopes().indexOf(scope) != 0) {
+                    String scopeName = instanceName + "_init_scope_" + am.getScopes().indexOf(scope);
                     emitter().emit("ART_SCOPE(%s, %s){", scopeName, actorInstanceName);
-                }
-                emitter().increaseIndentation();
+                    emitter().increaseIndentation();
 
-                for (VarDecl var : scope.getDeclarations()) {
-                    Type type = types().declaredType(var);
-                    if (type instanceof ListType) {
-                        emitter().emit("{");
-                        emitter().increaseIndentation();
-                        String maxIndex = typeseval().sizeByDimension((ListType) type).stream().map(Object::toString).collect(Collectors.joining("*"));
-                        emitter().emit("thisActor->%s = (%s) { malloc(sizeof(%s) * (%s)), 0x7, %d, {%s}};", backend().variables().declarationName(var), typeseval().type(type), typeseval().type(typeseval().innerType(type)), maxIndex, backend().typeseval().listDimensions((ListType) type), typeseval().sizeByDimension((ListType) type).stream().map(Object::toString).collect(Collectors.joining(", ")));
-                        emitter().decreaseIndentation();
-                        emitter().emit("}");
-                    }
-                    if (var.isExternal() && type instanceof CallableType) {
-                        String wrapperName = backend().callables().externalWrapperFunctionName(var);
-                        String variableName = backend().variables().declarationName(var);
-                        String t = backend().callables().mangle(type).encode();
-                        emitter().emit("thisActor->%s = (%s) { *%s, NULL };", variableName, t, wrapperName);
-                    } else if (var.getValue() != null) {
-                        emitter().emit("{");
-                        emitter().increaseIndentation();
-                        if(var.getValue() instanceof ExprInput){
-                            expressioneval().evaluateWithLvalue("thisActor->" + backend().variables().declarationName(var), (ExprInput) var.getValue());
-                        }else{
-                            statements().copy(types().declaredType(var), "thisActor->" + backend().variables().declarationName(var), types().type(var.getValue()), expressioneval().evaluate(var.getValue()));
+                    for (VarDecl var : scope.getDeclarations()) {
+                        Type type = types().declaredType(var);
+                        if (var.isExternal() && type instanceof CallableType) {
+                            String wrapperName = backend().callables().externalWrapperFunctionName(var);
+                            String variableName = backend().variables().declarationName(var);
+                            String t = backend().callables().mangle(type).encode();
+                            emitter().emit("thisActor->%s = (%s) { *%s, NULL };", variableName, t, wrapperName);
+                        } else if (var.getValue() != null) {
+                            emitter().emit("{");
+                            emitter().increaseIndentation();
+                            if (var.getValue() instanceof ExprInput) {
+                                expressioneval().evaluateWithLvalue("thisActor->" + backend().variables().declarationName(var), (ExprInput) var.getValue());
+                            } else {
+                                statements().copy(types().declaredType(var), "thisActor->" + backend().variables().declarationName(var), types().type(var.getValue()), expressioneval().evaluate(var.getValue()));
+                            }
+                            emitter().decreaseIndentation();
+                            emitter().emit("}");
                         }
-                        emitter().decreaseIndentation();
-                        emitter().emit("}");
                     }
+                    emitter().decreaseIndentation();
+                    emitter().emit("}");
                 }
-                emitter().decreaseIndentation();
-                emitter().emit("}");
+
                 emitter().emitNewLine();
             }
         }
@@ -529,10 +520,48 @@ public interface Instances {
         emitter().emit("thisActor->program_counter = %d;", 0);
         emitter().emit("// -- Initialize persistent scopes");
         for (Scope scope : am.getScopes()) {
-            if (scope.isPersistent()) {
-                String scopeName = instanceName + "_init_scope_" + am.getScopes().indexOf(scope);
-                emitter().emit("%s(thisActor);", scopeName, actorInstanceName);
+            if (am.getScopes().indexOf(scope) == 0) {
+                for (VarDecl var : scope.getDeclarations()) {
+                    Type type = types().declaredType(var);
+                    if (type instanceof ListType) {
+                        emitter().emit("{");
+                        emitter().increaseIndentation();
+                        String maxIndex = typeseval().sizeByDimension((ListType) type).stream().map(Object::toString).collect(Collectors.joining("*"));
+                        emitter().emit("thisActor->%s = (%s) { malloc(sizeof(%s) * (%s)), 0x7, %d, {%s}};", backend().variables().declarationName(var), typeseval().type(type), typeseval().type(typeseval().innerType(type)), maxIndex, backend().typeseval().listDimensions((ListType) type), typeseval().sizeByDimension((ListType) type).stream().map(Object::toString).collect(Collectors.joining(", ")));
+                        emitter().decreaseIndentation();
+                        emitter().emit("}");
+                    }
+                    if (var.isExternal() && type instanceof CallableType) {
+                        String wrapperName = backend().callables().externalWrapperFunctionName(var);
+                        String variableName = backend().variables().declarationName(var);
+                        String t = backend().callables().mangle(type).encode();
+                        emitter().emit("thisActor->%s = (%s) { *%s, NULL };", variableName, t, wrapperName);
+                    } else if (var.getValue() != null) {
+                        emitter().emit("{");
+                        emitter().increaseIndentation();
+                        if (var.getValue() instanceof ExprInput) {
+                            expressioneval().evaluateWithLvalue("thisActor->" + backend().variables().declarationName(var), (ExprInput) var.getValue());
+                        } else {
+                            statements().copy(types().declaredType(var), "thisActor->" + backend().variables().declarationName(var), types().type(var.getValue()), expressioneval().evaluate(var.getValue()));
+                        }
+                        emitter().decreaseIndentation();
+                        emitter().emit("}");
+                    }
+                }
+            } else {
+                for (VarDecl var : scope.getDeclarations()) {
+                    Type type = types().declaredType(var);
+                    if (type instanceof ListType) {
+                        emitter().emit("{");
+                        emitter().increaseIndentation();
+                        String maxIndex = typeseval().sizeByDimension((ListType) type).stream().map(Object::toString).collect(Collectors.joining("*"));
+                        emitter().emit("thisActor->%s = (%s) { malloc(sizeof(%s) * (%s)), 0x7, %d, {%s}};", backend().variables().declarationName(var), typeseval().type(type), typeseval().type(typeseval().innerType(type)), maxIndex, backend().typeseval().listDimensions((ListType) type), typeseval().sizeByDimension((ListType) type).stream().map(Object::toString).collect(Collectors.joining(", ")));
+                        emitter().decreaseIndentation();
+                        emitter().emit("}");
+                    }
+                }
             }
+
         }
         emitter().decreaseIndentation();
         emitter().emit("}");
@@ -555,13 +584,11 @@ public interface Instances {
 
         emitter().emit("%s *thisActor = (%1$s*) pBase;", actorInstanceName);
         for (Scope scope : am.getScopes()) {
-            if (scope.isPersistent()) {
-                for(VarDecl decl : scope.getDeclarations()){
-                    Type t = types().declaredType(decl);
-                    if(t instanceof ListType){
-                        String declarationName = backend().variables().declarationName(decl);
-                        emitter().emit("free%s(&thisActor->%s, TRUE);", typeseval().type(typeseval().innerType(t)), declarationName);
-                    }
+            for (VarDecl decl : scope.getDeclarations()) {
+                Type t = types().declaredType(decl);
+                if (t instanceof ListType) {
+                    String declarationName = backend().variables().declarationName(decl);
+                    emitter().emit("free%s(&thisActor->%s, TRUE);", typeseval().type(typeseval().innerType(t)), declarationName);
                 }
             }
         }
