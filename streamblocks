@@ -1,0 +1,27 @@
+#!/bin/bash
+
+
+function readlink_rec {
+	res="$(readlink $1 || echo $1)"
+	if [ $res = $1 ]
+	then
+		echo $res
+	else
+		readlink_rec $res
+	fi
+}
+
+root=`dirname "$(readlink_rec $0)"`
+lib="$root/platform-multicore-c11/target/lib"
+libs="$lib/core-1.0-SNAPSHOT.jar:$lib/multij-core-0.1.jar"
+comp="$root/platform-multicore-c11/target/lib/compiler-1.0-SNAPSHOT.jar"
+
+platforms="$root/platform-multicore-c11/target/platform-multicore-c11-1.0-SNAPSHOT.jar"
+
+if [ -f "$comp" ]
+then
+	java -cp "$comp:$platforms:$libs" se.lth.cs.tycho.compiler.Main "$@"
+else
+	echo "Tycho is not compiled. Please, run \"mvn install\" to compile Tycho."
+	exit 1
+fi
