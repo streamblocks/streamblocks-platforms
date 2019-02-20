@@ -8,6 +8,7 @@ set(art_native_source
     src/art_Source_byte.c
     src/art_Source_real.c
     src/art_Source_txt.c
+    src/art_Streaming.c
     src/display.c)
 
 set(art_native_header

@@ -13,7 +13,7 @@ function readlink_rec {
 
 root=`dirname "$(readlink_rec $0)"`
 lib="$root/platform-multicore-c11/target/lib"
-libs="$lib/core-1.0-SNAPSHOT.jar:$lib/multij-core-0.1.jar"
+libs="$lib/core-1.0-SNAPSHOT.jar:$lib/multij-core-0.1.jar:$lib/platform-core-1.0-SNAPSHOT.jar"
 comp="$root/platform-multicore-c11/target/lib/compiler-1.0-SNAPSHOT.jar"
 
 platforms="$root/platform-multicore-c11/target/platform-multicore-c11-1.0-SNAPSHOT.jar"

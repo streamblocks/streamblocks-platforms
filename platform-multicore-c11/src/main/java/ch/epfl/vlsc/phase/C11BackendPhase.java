@@ -14,12 +14,15 @@ import se.lth.cs.tycho.reporting.Diagnostic;
 import se.lth.cs.tycho.reporting.Reporter;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
+import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 public class C11BackendPhase implements Phase {
 
@@ -176,25 +179,68 @@ public class C11BackendPhase implements Phase {
     }
 
     /**
+     * Copy a path from jar
+     *
+     * @param source
+     * @param target
+     * @throws URISyntaxException
+     * @throws IOException
+     */
+    public void copyFromJar(String source, final Path target) throws URISyntaxException, IOException {
+        URI resource = getClass().getResource("").toURI();
+        FileSystem fileSystem = FileSystems.newFileSystem(
+                resource,
+                Collections.<String, String>emptyMap()
+        );
+
+
+        final Path jarPath = fileSystem.getPath(source);
+
+        Files.walkFileTree(jarPath, new SimpleFileVisitor<Path>() {
+
+            private Path currentTarget;
+
+            @Override
+            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+                currentTarget = target.resolve(jarPath.relativize(dir).toString());
+                Files.createDirectories(currentTarget);
+                return FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                Files.copy(file, target.resolve(jarPath.relativize(file).toString()), StandardCopyOption.REPLACE_EXISTING);
+                return FileVisitResult.CONTINUE;
+            }
+
+        });
+    }
+
+    /**
      * Copy the Backend resources to the target directory
      *
      * @param backend
      */
     private void copyBackendResources(Backend backend) {
+
         try {
             // -- Copy Runtime
             URL url = getClass().getResource("/lib/");
-            Path libResourcePath = Paths.get(url.toURI());
-            PathUtils.copyDirTree(libResourcePath, libPath, StandardCopyOption.REPLACE_EXISTING);
-
+            // -- Temporary hack to launch it from command line
+            if (url.toString().contains("jar")) {
+                copyFromJar("/lib", libPath);
+            } else {
+                Path libResourcePath = Paths.get(url.toURI());
+                PathUtils.copyDirTree(libResourcePath, libPath, StandardCopyOption.REPLACE_EXISTING);
+            }
             // -- Copy __arrayCopy.h
             Files.copy(getClass().getResourceAsStream("/arraycopy/__arrayCopy.h"), PathUtils.getTargetCodeGenInclude(backend.context()).resolve("__arrayCopy.h"), StandardCopyOption.REPLACE_EXISTING);
-
-
         } catch (IOException e) {
             throw new CompilationException(new Diagnostic(Diagnostic.Kind.ERROR, "Could not copy backend resources"));
         } catch (URISyntaxException e) {
             e.printStackTrace();
+        } catch (FileSystemNotFoundException e) {
+            throw new CompilationException(new Diagnostic(Diagnostic.Kind.ERROR, String.format("Could not copy backend resources")));
         }
     }
 
