@@ -5,8 +5,11 @@ import se.lth.cs.tycho.compiler.Context;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.Collections;
 
 /**
  * PathUtils class for platforms

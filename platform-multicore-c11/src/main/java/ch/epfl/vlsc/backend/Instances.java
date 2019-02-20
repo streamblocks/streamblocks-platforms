@@ -217,12 +217,6 @@ public interface Instances {
     }
 
     /*
-     * Callables
-     */
-
-    // TODO : Implement callables definition
-
-    /*
      * Context/Transition/Scheduler Prototypes
      */
     void prototypes(String instanceName, Entity entity);

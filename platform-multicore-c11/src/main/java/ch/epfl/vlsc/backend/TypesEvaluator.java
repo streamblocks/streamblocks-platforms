@@ -58,8 +58,8 @@ public interface TypesEvaluator {
     }
 
     default String type(StringType type) {
-        return "// TODO string";
-    } // TODO: Implement
+        return "char *";
+    }
 
     default String type(BoolType type) {
         return "bool";

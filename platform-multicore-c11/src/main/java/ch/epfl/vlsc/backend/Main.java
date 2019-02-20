@@ -41,6 +41,7 @@ public interface Main {
         emitter().open(mainTarget);
         backend().includeUser("actors-rts.h");
         backend().includeUser("natives.h");
+        backend().includeUser("globals.h");
         emitter().emitNewLine();
         // -- Init Network function
         initNetwork();
@@ -165,6 +166,9 @@ public interface Main {
 
             emitter().emit("connectPorts(%s_%s, %s_%s);", srcJoinQID, connection.getSource().getPort(), tgtJoinQID, connection.getTarget().getPort());
         }
+
+        emitter().emit("// -- Initialize Global Variables");
+        emitter().emit("init_global_variables();");
 
         emitter().decreaseIndentation();
         emitter().emit("}");

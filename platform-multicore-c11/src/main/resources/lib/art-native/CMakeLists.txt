@@ -9,6 +9,7 @@ set(art_native_source
     src/art_Source_real.c
     src/art_Source_txt.c
     src/art_Streaming.c
+    src/art_print.c
     src/display.c)
 
 set(art_native_header
