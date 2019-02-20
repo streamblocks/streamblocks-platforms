@@ -39,8 +39,8 @@
 #include <stdio.h>
 #include <limits.h>
 
-#include "../include/actors-rts.h"
-#include "../include/internal.h"
+#include "actors-rts.h"
+#include "internal.h"
 
 typedef struct {
     AbstractActorInstance **stack;    // stack used for post-order traversal

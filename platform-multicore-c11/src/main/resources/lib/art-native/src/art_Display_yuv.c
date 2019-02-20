@@ -39,8 +39,8 @@
 #include <time.h>
 #include <sys/timeb.h>
 
-#include "../../art-runtime/include/actors-rts.h"
-#include "../include/display.h"
+#include "actors-rts.h"
+#include "display.h"
 
 ART_ACTION_CONTEXT(1, 1);
 

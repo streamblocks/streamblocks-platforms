@@ -1,23 +1,27 @@
 set(art_native_source
-        src/art_Display_yuv.c
-        src/art_Display_yuv_width_height.c
-        src/art_Sink_bin.c
-        src/art_Sink_real.c
-        src/art_Sink_txt.c
-        src/art_Source_bin.c
-        src/art_Source_byte.c
-        src/art_Source_real.c
-        src/art_Source_txt.c
-        src/display.c)
+    src/art_Display_yuv.c
+    src/art_Display_yuv_width_height.c
+    src/art_Sink_bin.c
+    src/art_Sink_real.c
+    src/art_Sink_txt.c
+    src/art_Source_bin.c
+    src/art_Source_byte.c
+    src/art_Source_real.c
+    src/art_Source_txt.c
+    src/display.c)
 
 set(art_native_header
         include/display.h)
 
 find_package(SDL2 QUIET)
 if(SDL2_FOUND)
-    list(APPEND art_native_source src/display-sdl.c)
-    list(APPEND extra_includes ${SDL2_INCLUDE_DIRS})
-    list(APPEND extra_libraries ${SDL2_LIBRARIES})
+    if(DISPLAY)
+      list(APPEND art_native_source src/display-sdl.c)
+      list(APPEND extra_includes ${SDL2_INCLUDE_DIRS})
+      list(APPEND extra_libraries ${SDL2_LIBRARIES})
+    else()
+      list(APPEND art_native_source src/display-null.c)
+    endif()
 else()
     list(APPEND art_native_source src/display-null.c)
 endif()
