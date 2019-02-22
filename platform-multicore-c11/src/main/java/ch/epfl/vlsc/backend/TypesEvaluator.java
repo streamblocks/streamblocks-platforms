@@ -62,7 +62,7 @@ public interface TypesEvaluator {
     }
 
     default String type(BoolType type) {
-        return "bool";
+        return "_Bool";
     }
 
     default String type(CallableType type) {

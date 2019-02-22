@@ -381,6 +381,14 @@ public interface ExpressionEvaluator {
         return expr.getVariable();
     }
 
+    default Variable evalExprIndexVar(ExprDeref expr) {
+        if(expr.getReference() instanceof ExprVariable){
+            return ((ExprVariable) expr.getReference()).getVariable();
+        }
+
+        throw new UnsupportedOperationException();
+    }
+
     default Variable evalExprIndexVar(ExprIndexer expr) {
         return evalExprIndexVar(expr.getStructure());
     }

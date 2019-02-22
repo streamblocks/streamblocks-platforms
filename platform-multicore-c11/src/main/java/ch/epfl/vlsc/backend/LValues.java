@@ -60,6 +60,10 @@ public interface LValues {
         return evalLValueIndexerVar(indexer.getStructure());
     }
 
+    default Variable evalLValueIndexerVar(LValueDeref deref) {
+        return evalLValueIndexerVar(deref.getVariable());
+    }
+
     default String evalLValueIndexer(LValue lvalue, int index) {
         return lvalue(lvalue);
     }

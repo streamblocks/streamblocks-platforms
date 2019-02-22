@@ -401,7 +401,7 @@ extern void setParameterBytes(AbstractActorInstance *pInstance,
 #include "actors-fifo.h"
 
 #undef FIFO_TYPE
-#define FIFO_TYPE bool_t
+#define FIFO_TYPE _Bool
 
 #include "actors-fifo.h"
 

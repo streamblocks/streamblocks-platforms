@@ -134,7 +134,7 @@ public interface Globals {
 
 
         //Print array metadata struct and array methods for all builtin types
-        for (String t : Arrays.asList("char", "int8_t", "uint8_t", "int16_t", "uint16_t", "int32_t", "uint32_t", "float", "double", "void", "bool_t")) {
+        for (String t : Arrays.asList("char", "int8_t", "uint8_t", "int16_t", "uint16_t", "int32_t", "uint32_t", "float", "double", "void", "_Bool")) {
             for (int i : dimensions) {
                 emitter().emit("typedef struct {");
                 emitter().increaseIndentation();
