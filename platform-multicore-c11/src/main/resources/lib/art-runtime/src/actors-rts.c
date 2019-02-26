@@ -88,26 +88,12 @@ int rangeError(int x, int y, const char *filename, int line) {
     return 0;
 }
 
-static inline unsigned long long READ_TIMER() {
-#if defined(__i386__) || defined(__x86_64__)
-    unsigned a, d;
-     __asm__ __volatile__ ("rdtsc" : "=a" (a), "=d" (d));
-     return ((time_base_t)a) | (((time_base_t)d) << 32);
-#else
-    unsigned long long result;
-    struct timeval tim;
-    gettimeofday(&tim, NULL);
-    result=tim.tv_sec*1000000+tim.tv_usec;
-    return result;
- #endif
-}
-
 static void add_timer(art_timer_t *timer,
-                      time_base_t *tb) {
+                      art_timer_t *tb) {
     long long tmp;
 
-    tmp = READ_TIMER();
-    *timer += tmp - *tb;
+    tmp = getticks();
+    *timer += elapsed(tmp,*tb);
     *tb = tmp;
 }
 
@@ -124,9 +110,10 @@ unsigned int timestamp() {
     unsigned long long now = 0;
 
     if (!init) {
-        init = READ_TIMER();
+        init = getticks();
     } else {
-        now = READ_TIMER() - init;
+        ticks n = getticks();
+        now = elapsed(n, init);
     }
     return (unsigned int) now;
 }
@@ -178,7 +165,7 @@ static int terminate;
 #define MUTEX_LOCK()
 #define MUTEX_UNLOCK()
 
-#include "../include/actors_execute_network.h"
+#include "actors_execute_network.h"
 
 #undef EXECUTE_NETWORK
 #undef READ_BARRIER
@@ -192,7 +179,7 @@ static int terminate;
 #define MUTEX_LOCK() pthread_mutex_lock(&mutex)
 #define MUTEX_UNLOCK() pthread_mutex_unlock(&mutex)
 
-#include "../include/actors_execute_network.h"
+#include "actors_execute_network.h"
 
 #undef EXECUTE_NETWORK
 #undef READ_BARRIER
@@ -208,7 +195,7 @@ static int terminate;
 #define MUTEX_LOCK()
 #define MUTEX_UNLOCK()
 
-#include "../include/actors_execute_network.h"
+#include "actors_execute_network.h"
 
 #undef EXECUTE_NETWORK
 #undef READ_BARRIER
@@ -222,7 +209,7 @@ static int terminate;
 #define MUTEX_LOCK() pthread_mutex_lock(&mutex)
 #define MUTEX_UNLOCK() pthread_mutex_unlock(&mutex)
 
-#include "../include/actors_execute_network.h"
+#include "actors_execute_network.h"
 
 #undef EXECUTE_NETWORK
 #undef READ_BARRIER

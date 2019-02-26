@@ -1,6 +1,7 @@
 /* 
- * Copyright (c) Ericsson AB, 2009
+ * Copyright (c) Ericsson AB, 2009, EPFL, 2018
  * Author: Charles Chen Xu (charles.chen.xu@ericsson.com)
+ * Author: Endri Bezati (endri.bezati@epfl.ch)
  * All rights reserved.
  *
  * License terms:
@@ -40,6 +41,7 @@
 
 #include <stdio.h>
 #include <semaphore.h>
+#include "cycle.h"
 
 /* make the header usable from C++ */
 #ifdef __cplusplus
@@ -62,8 +64,7 @@ typedef struct _ThreadID {
 } ThreadID;
 
 
-typedef unsigned long long time_base_t;
-typedef unsigned long long art_timer_t;
+typedef ticks art_timer_t;
 typedef struct {
     art_timer_t prefire;
     art_timer_t read_barrier;

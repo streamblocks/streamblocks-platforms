@@ -1,6 +1,7 @@
 /* 
- * Copyright (c) Ericsson AB, 2009
+ * Copyright (c) Ericsson AB, 2009, EPFL, 2018
  * Author: Charles Chen Xu (charles.chen.xu@ericsson.com)
+ * Author: Endri Bezati (endri.bezati@epfl.ch)
  * All rights reserved.
  *
  * License terms:
@@ -44,6 +45,7 @@
 #include <stdio.h>
 #include <pthread.h>
 #include <stdatomic.h>
+#include "cycle.h"
 
 
 #include <assert.h>

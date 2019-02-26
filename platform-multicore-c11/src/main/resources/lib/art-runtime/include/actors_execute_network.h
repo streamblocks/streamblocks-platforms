@@ -2,9 +2,9 @@
 
 #ifdef TIMING_PROBES
 
-#define DECLARE_TIMEBASE(t) time_base_t t;
+#define DECLARE_TIMEBASE(t) ticks t;
 #define CLEAR_TIMER(timer) *timer = 0;
-#define INIT_TIMEBASE(tb) *tb = READ_TIMER();
+#define INIT_TIMEBASE(tb) *tb = getticks();
 #define ADD_TIMER(timer, tb) add_timer(timer, tb);
 
 #else
