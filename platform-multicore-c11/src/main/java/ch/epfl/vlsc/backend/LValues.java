@@ -46,7 +46,7 @@ public interface LValues {
 
     default String lvalue(LValueIndexer indexer) {
         Variable var = evalLValueIndexerVar(indexer);
-        return String.format("%s.p[%s]", variables().name(var), evalLValueIndexer(indexer, 0));
+        return String.format("%s[%s]", variables().name(var), evalLValueIndexer(indexer, 0));
     }
 
 
@@ -81,7 +81,7 @@ public interface LValues {
             String i;
             if (indexer.getIndex() instanceof ExprIndexer) {
                 ExprIndexer ii = (ExprIndexer) indexer.getIndex();
-                i = String.format("%s.p[%s]", expressioneval().evalExprIndex(ii.getStructure(), index), expressioneval().evalExprIndex(ii.getIndex(), index));
+                i = String.format("%s[%s]", expressioneval().evalExprIndex(ii.getStructure(), index), expressioneval().evalExprIndex(ii.getIndex(), index));
             } else {
                 i = expressioneval().evalExprIndex(indexer.getIndex(), index);
             }
@@ -90,7 +90,7 @@ public interface LValues {
         } else {
             if (indexer.getIndex() instanceof ExprIndexer) {
                 ExprIndexer ii = (ExprIndexer) indexer.getIndex();
-                return String.format("%s.p[%s]", expressioneval().evalExprIndex(ii.getStructure(), index), expressioneval().evalExprIndex(ii.getIndex(), index));
+                return String.format("%s[%s]", expressioneval().evalExprIndex(ii.getStructure(), index), expressioneval().evalExprIndex(ii.getIndex(), index));
             } else {
                 return expressioneval().evalExprIndex(indexer.getIndex(), index);
             }

@@ -5,12 +5,14 @@ import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.Types;
+import se.lth.cs.tycho.ir.IRNode;
 import se.lth.cs.tycho.ir.Variable;
 import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.expr.*;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.type.ListType;
+import se.lth.cs.tycho.type.RefType;
 import se.lth.cs.tycho.type.Type;
 
 import java.util.ArrayList;
@@ -71,6 +73,7 @@ public interface ExpressionEvaluator {
      * @return
      */
     default String evaluate(ExprRef ref) {
+
         return "(&" + variables().name(ref.getVariable()) + ")";
     }
 
@@ -81,6 +84,13 @@ public interface ExpressionEvaluator {
      * @return
      */
     default String evaluate(ExprDeref deref) {
+       /*
+        RefType type = (RefType) backend().types().type(deref);
+        if(type.getType() instanceof ListType){
+            return "(" + evaluate(deref.getReference()) + ")";
+        }
+       */
+
         return "(*" + evaluate(deref.getReference()) + ")";
     }
 
@@ -127,17 +137,17 @@ public interface ExpressionEvaluator {
     default String evaluate(ExprInput input) {
         String tmp = variables().generateTemp();
         Type type = types().type(input);
-        if (input.hasRepeat()) {
-            String maxIndex = typeseval().sizeByDimension((ListType) type).stream().map(Object::toString).collect(Collectors.joining("*"));
-            emitter().emit("%s = (%s) { malloc(sizeof(%s) * (%s)), 0x7, %d, {%s}};", declarations().declaration(types().type(input), tmp), typeseval().type(type), typeseval().type(typeseval().innerType(type)), maxIndex, backend().typeseval().listDimensions((ListType) type), typeseval().sizeByDimension((ListType) type).stream().map(Object::toString).collect(Collectors.joining(", ")));
-        } else {
-            emitter().emit("%s;", declarations().declaration(types().type(input), tmp));
-        }
+        //if (input.hasRepeat()) {
+        //    String maxIndex = typeseval().sizeByDimension((ListType) type).stream().map(Object::toString).collect(Collectors.joining("*"));
+        //    emitter().emit("%s = malloc(sizeof(%s) * (%s));", declarations().declaration(types().type(input), tmp), maxIndex);
+        //} else {
+            emitter().emit("%s;", declarations().declarationTemp(types().type(input), tmp));
+        //}
 
 
         if (input.hasRepeat()) {
             if (input.getOffset() == 0) {
-                emitter().emit("pinPeekRepeat_%s(%s, %s.p, %d);", channelsutils().inputPortTypeSize(input.getPort()), channelsutils().definedInputPort(input.getPort()), tmp, input.getRepeat());
+                emitter().emit("pinPeekRepeat_%s(%s, %s, %d);", channelsutils().inputPortTypeSize(input.getPort()), channelsutils().definedInputPort(input.getPort()), tmp, input.getRepeat());
             } else {
                 throw new RuntimeException("not implemented");
             }
@@ -157,7 +167,7 @@ public interface ExpressionEvaluator {
     default void evaluateWithLvalue(String lvalue, ExprInput input) {
         if (input.hasRepeat()) {
             if (input.getOffset() == 0) {
-                emitter().emit("pinPeekRepeat_%s(%s, %s.p, %d);", channelsutils().inputPortTypeSize(input.getPort()), channelsutils().definedInputPort(input.getPort()), lvalue, input.getRepeat());
+                emitter().emit("pinPeekRepeat_%s(%s, %s, %d);", channelsutils().inputPortTypeSize(input.getPort()), channelsutils().definedInputPort(input.getPort()), lvalue, input.getRepeat());
             } else {
                 throw new RuntimeException("not implemented");
             }
@@ -269,9 +279,10 @@ public interface ExpressionEvaluator {
 
     default String evaluateComprehension(ExprComprehension comprehension, ListType t) {
         String name = variables().generateTemp();
-        String decl = declarations().declaration(t, name);
+        String decl = declarations().declarationTemp(t, name);
         String maxIndex = typeseval().sizeByDimension((ListType) t).stream().map(Object::toString).collect(Collectors.joining("*"));
-        emitter().emit("%s = (%s) { malloc(sizeof(%s) * (%s)), 0x7, %d, {%s}};", decl, typeseval().type(t), typeseval().type(typeseval().innerType(t)), maxIndex, backend().typeseval().listDimensions((ListType) t), typeseval().sizeByDimension((ListType) t).stream().map(Object::toString).collect(Collectors.joining(", ")));
+        //emitter().emit("%s = malloc(sizeof(%s) * (%s));", decl, typeseval().type(typeseval().innerType(t)), maxIndex);
+        emitter().emit("%s;", decl);
         String index = variables().generateTemp();
         emitter().emit("size_t %s = 0;", index);
         evaluateListComprehension(comprehension, name, index);
@@ -291,7 +302,7 @@ public interface ExpressionEvaluator {
 
     default void evaluateListComprehension(ExprList list, String result, String index) {
         list.getElements().forEach(element ->
-                emitter().emit("%s.p[%s++] = %s;", result, index, evaluate(element))
+                emitter().emit("%s[%s++] = %s;", result, index, evaluate(element))
         );
     }
 
@@ -332,16 +343,14 @@ public interface ExpressionEvaluator {
         if (t.getSize().isPresent()) {
 
             String name = variables().generateTemp();
-            String decl = declarations().declaration(t, name);
+            String decl = declarations().declarationTemp(t, name);
             String value = evaluateExprList(list);
 
-            String innerType = backend().typeseval().type(backend().typeseval().innerType(t));
-            String type = "(" + innerType + "[]) ";
+            //String innerType = backend().typeseval().type(backend().typeseval().innerType(t));
+            //String type = "(" + innerType + "[]) ";
 
-            String access = "0x3";
-            String dim = backend().typeseval().listDimensions(t).toString();
-            String sizeByDim = backend().typeseval().sizeByDimension(t).stream().map(Object::toString).collect(Collectors.joining(", "));
-            String init = "{" + type + "{" + value + " }" + ", " + access + ", " + dim + ", {" + sizeByDim + "}}";
+            //String init = type + "{" + value + " }";
+            String init = "{" + value + " }";
             emitter().emit("%s = %s;", decl, init);
             return name;
         } else {
@@ -370,7 +379,7 @@ public interface ExpressionEvaluator {
      */
     default String evaluate(ExprIndexer indexer) {
         Variable var = evalExprIndexVar(indexer);
-        return String.format("%s.p[%s]", variables().name(var), evalExprIndex(indexer, 0));
+        return String.format("%s[%s]", variables().name(var), evalExprIndex(indexer, 0));
     }
 
 
@@ -403,7 +412,7 @@ public interface ExpressionEvaluator {
 
         if (expr.getIndex() instanceof ExprIndexer) {
             ExprIndexer ii = (ExprIndexer) expr.getIndex();
-            return String.format("%s.p[%s]", evalExprIndex(ii.getStructure(), index), evalExprIndex(ii.getIndex(), index));
+            return String.format("%s[%s]", evalExprIndex(ii.getStructure(), index), evalExprIndex(ii.getIndex(), index));
         } else {
             if (expr.getStructure() instanceof ExprIndexer) {
                 Variable var = evalExprIndexVar(expr);
@@ -432,7 +441,7 @@ public interface ExpressionEvaluator {
     default String evaluate(ExprIf expr) {
         Type type = types().type(expr);
         String temp = variables().generateTemp();
-        String decl = declarations().declaration(type, temp);
+        String decl = declarations().declarationTemp(type, temp);
         emitter().emit("%s;", decl);
         emitter().emit("if (%s) {", evaluate(expr.getCondition()));
         emitter().increaseIndentation();
@@ -473,7 +482,7 @@ public interface ExpressionEvaluator {
             parameters.add(evaluate(parameter));
         }
         String result = variables().generateTemp();
-        String decl = declarations().declaration(types().type(apply), result);
+        String decl = declarations().declarationTemp(types().type(apply), result);
         emitter().emit("%s = %s(%s);", decl, fn, String.join(", ", parameters));
         return result;
     }

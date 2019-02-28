@@ -521,7 +521,9 @@ public interface Instances {
                         emitter().emit("{");
                         emitter().increaseIndentation();
                         String maxIndex = typeseval().sizeByDimension((ListType) type).stream().map(Object::toString).collect(Collectors.joining("*"));
-                        emitter().emit("thisActor->%s = (%s) { malloc(sizeof(%s) * (%s)), 0x7, %d, {%s}};", backend().variables().declarationName(var), typeseval().type(type), typeseval().type(typeseval().innerType(type)), maxIndex, backend().typeseval().listDimensions((ListType) type), typeseval().sizeByDimension((ListType) type).stream().map(Object::toString).collect(Collectors.joining(", ")));
+                        //emitter().emit("thisActor->%s = malloc(sizeof(%s) * (%s));", backend().variables().declarationName(var), typeseval().type(type), maxIndex);
+                        emitter().emit("thisActor->%s = (%s*) calloc(%s, sizeof(%2$s));", backend().variables().declarationName(var), typeseval().type(type), maxIndex);
+                        //(int16_t*)calloc(7872, sizeof(int16_t));
                         emitter().decreaseIndentation();
                         emitter().emit("}");
                     }
@@ -549,7 +551,8 @@ public interface Instances {
                         emitter().emit("{");
                         emitter().increaseIndentation();
                         String maxIndex = typeseval().sizeByDimension((ListType) type).stream().map(Object::toString).collect(Collectors.joining("*"));
-                        emitter().emit("thisActor->%s = (%s) { malloc(sizeof(%s) * (%s)), 0x7, %d, {%s}};", backend().variables().declarationName(var), typeseval().type(type), typeseval().type(typeseval().innerType(type)), maxIndex, backend().typeseval().listDimensions((ListType) type), typeseval().sizeByDimension((ListType) type).stream().map(Object::toString).collect(Collectors.joining(", ")));
+                        //emitter().emit("thisActor->%s = malloc(sizeof(%s) * (%s));", backend().variables().declarationName(var), typeseval().type(type), maxIndex);
+                        emitter().emit("thisActor->%s = (%s*) calloc(%s, sizeof(%2$s));", backend().variables().declarationName(var), typeseval().type(type), maxIndex);
                         emitter().decreaseIndentation();
                         emitter().emit("}");
                     }
@@ -582,7 +585,7 @@ public interface Instances {
                 Type t = types().declaredType(decl);
                 if (t instanceof ListType) {
                     String declarationName = backend().variables().declarationName(decl);
-                    emitter().emit("free%s(&thisActor->%s, TRUE);", typeseval().type(typeseval().innerType(t)), declarationName);
+                    emitter().emit("free(thisActor->%s);", declarationName);
                 }
             }
         }

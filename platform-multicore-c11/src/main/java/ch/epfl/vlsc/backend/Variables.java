@@ -11,6 +11,8 @@ import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.am.ActorMachine;
 import se.lth.cs.tycho.ir.entity.am.Scope;
 import se.lth.cs.tycho.ir.expr.ExprGlobalVariable;
+import se.lth.cs.tycho.type.ListType;
+import se.lth.cs.tycho.type.Type;
 
 import java.util.stream.Collectors;
 import java.util.stream.Stream;

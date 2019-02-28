@@ -4,7 +4,7 @@
 // -- Print
 
 void print_i(int32_t value){
-    printf("\d", value);
+    printf("%d", value);
 }
 
 void print_f(float value){
@@ -26,7 +26,7 @@ void println(){
 }
 
 void println_i(int32_t value){
-    printf("\d\n", value);
+    printf("%d\n", value);
 }
 
 void println_f(float value){

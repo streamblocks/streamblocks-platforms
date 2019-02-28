@@ -54,7 +54,7 @@ public interface TypesEvaluator {
 
         Type innerType = innerType(type.getElementType());
 
-        return "__array4" + type(innerType);
+        return type(innerType);
     }
 
     default String type(StringType type) {

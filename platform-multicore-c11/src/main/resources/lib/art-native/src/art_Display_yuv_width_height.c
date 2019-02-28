@@ -5,6 +5,9 @@
  */
 
 #include <stdlib.h>
+#include <time.h>
+#include <sys/timeb.h>
+
 #include "actors-rts.h"
 #include "display.h"
 
@@ -28,6 +31,7 @@ typedef struct {
     int32_t mbx;
     int32_t mby;
     int32_t count;
+    int32_t startTime;
     int32_t partialFrames;
     int32_t displayedFrames;
     FrameBuffer frameBuffer;
@@ -120,14 +124,14 @@ ART_ACTION_SCHEDULER(art_Display_yuv_width_height_action_scheduler) {
         ART_ACTION_SCHEDULER_LOOP_TOP;
 
         if (thisActor->mby >= thisActor->currHeight) {
-            if (pinAvailIn_int32_t(IN1_WIDTH) >= 1)
-                if (pinAvailIn_int32_t(IN2_HEIGHT) >= 1) {
+            if (pinAvailIn_int16_t(IN1_WIDTH) >= 1)
+                if (pinAvailIn_int16_t(IN2_HEIGHT) >= 1) {
                     ART_ACTION_ENTER(art_Display_yuv_width_height_a0_startFrame, 0);
                     int32_t lastWidth = thisActor->currWidth;
                     int32_t lastHeight = thisActor->currHeight;
 
-                    thisActor->currWidth = 16 * pinRead_int32_t(IN1_WIDTH);
-                    thisActor->currHeight = 16 * pinRead_int32_t(IN2_HEIGHT);
+                    thisActor->currWidth = 16 * pinRead_int16_t(IN1_WIDTH);
+                    thisActor->currHeight = 16 * pinRead_int16_t(IN2_HEIGHT);
                     // Change of VOP dimension?
                     if (thisActor->currWidth != lastWidth
                         || thisActor->currHeight != lastHeight) {
@@ -231,12 +235,14 @@ static void art_Display_yuv_width_height_constructor(AbstractActorInstance *pBas
     ActorInstance_art_Display_yuv_width_height *thisActor =
             (ActorInstance_art_Display_yuv_width_height *) pBase;
 
+    struct timeb tb;
     int maxWidth = thisActor->maxWidth;
     int maxHeight = thisActor->maxHeight;
 
     if (maxWidth == 0 || maxHeight == 0) {
         runtimeError(pBase, "Width and/or height parameter not set\n");
     }
+    ftime(&tb);
     memset(thisActor->macroBlock, 0, MB_SIZE);
     thisActor->currWidth = 0;
     thisActor->currHeight = 0;
@@ -249,6 +255,7 @@ static void art_Display_yuv_width_height_constructor(AbstractActorInstance *pBas
     thisActor->count = 0;
     thisActor->partialFrames = 0;
     thisActor->displayedFrames = 0;
+    thisActor->startTime = tb.time * 1000 + tb.millitm;
     if (allocate_display(maxWidth,
                          maxHeight,
                          thisActor->title,
@@ -261,12 +268,23 @@ void art_Display_yuv_width_height_destructor(AbstractActorInstance *pBase) {
     ActorInstance_art_Display_yuv_width_height *thisActor =
             (ActorInstance_art_Display_yuv_width_height *) pBase;
 
+    struct timeb tb;
+    int totTime;
+    ftime(&tb);
+    totTime = tb.time * 1000 + tb.millitm - thisActor->startTime;
     thisActor->frameBuffer.free_display(&thisActor->frameBuffer);
-    if (thisActor->partialFrames != thisActor->displayedFrames)
+    if (thisActor->partialFrames != thisActor->displayedFrames) {
         printf("Number of frames: %d (+1 partial frame)\n",
                thisActor->displayedFrames);
-    else
+        printf("%d total frames in %f seconds (%f fps)\n", thisActor->displayedFrames,
+               (double) totTime / 1000,
+               (double) (thisActor->displayedFrames) * 1000 / totTime);
+    } else {
         printf("Number of frames: %d\n", thisActor->displayedFrames);
+        printf("%d total frames in %f seconds (%f fps)\n", thisActor->displayedFrames,
+               (double) totTime / 1000,
+               (double) (thisActor->displayedFrames) * 1000 / totTime);
+    }
 }
 
 
