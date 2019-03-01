@@ -3,7 +3,6 @@ package ch.epfl.vlsc.backend;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
-import se.lth.cs.tycho.ir.IRNode;
 import se.lth.cs.tycho.type.*;
 
 import java.util.stream.Collectors;
@@ -27,12 +26,7 @@ public interface Declarations {
     }
 
     default String declaration(RefType type, String name) {
-        //if(type.getType() instanceof ListType){
-        //    return declaration(type.getType(), String.format("(%s)", name));
-        //}else{
         return declaration(type.getType(), String.format("(*%s)", name));
-        //}
-
     }
 
     default String declaration(LambdaType type, String name) {
@@ -61,5 +55,22 @@ public interface Declarations {
         String maxIndex = backend().typeseval().sizeByDimension((ListType) type).stream().map(Object::toString).collect(Collectors.joining("*"));
         return String.format("%s %s[%s]", backend().typeseval().type(type), name, maxIndex);
     }
+
+    /*
+     * Declaration for parameters
+     */
+
+    default String declarationParameter(Type type, String name) {
+        return declaration(type, name);
+    }
+
+    default String declarationParameter(RefType type, String name) {
+        if (type.getType() instanceof ListType) {
+            return declaration(type.getType(), String.format("%s", name));
+        } else {
+            return declaration(type.getType(), String.format("(*%s)", name));
+        }
+    }
+
 
 }

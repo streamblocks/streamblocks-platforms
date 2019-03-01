@@ -11,8 +11,6 @@ import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.am.ActorMachine;
 import se.lth.cs.tycho.ir.entity.am.Scope;
 import se.lth.cs.tycho.ir.expr.ExprGlobalVariable;
-import se.lth.cs.tycho.type.ListType;
-import se.lth.cs.tycho.type.Type;
 
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -107,6 +105,15 @@ public interface Variables {
             return "(*(env->" + declarationName(decl) + "))";
         } else if (parent instanceof Scope || parent instanceof ActorMachine) {
             return "thisActor->" + declarationName(decl);
+        } else {
+            return declarationName(decl);
+        }
+    }
+
+    default String name(VarDecl decl) {
+        IRNode parent = backend().tree().parent(decl);
+        if (parent instanceof Scope || parent instanceof ActorMachine) {
+            return "thisActor->" + declarationName(decl) + "";
         } else {
             return declarationName(decl);
         }

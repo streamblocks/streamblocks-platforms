@@ -69,8 +69,6 @@ public interface LValues {
     }
 
     default String evalLValueIndexer(LValueIndexer indexer, int index) {
-
-
         if (indexer.getStructure() instanceof LValueIndexer) {
             Variable var = evalLValueIndexerVar(indexer);
             VarDecl varDecl = backend().varDecls().declaration(var);

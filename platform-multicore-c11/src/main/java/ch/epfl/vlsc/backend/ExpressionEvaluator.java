@@ -12,7 +12,6 @@ import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.expr.*;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.type.ListType;
-import se.lth.cs.tycho.type.RefType;
 import se.lth.cs.tycho.type.Type;
 
 import java.util.ArrayList;
@@ -73,8 +72,13 @@ public interface ExpressionEvaluator {
      * @return
      */
     default String evaluate(ExprRef ref) {
-
-        return "(&" + variables().name(ref.getVariable()) + ")";
+        VarDecl decl = backend().varDecls().declaration(ref.getVariable());
+        Type type = backend().types().declaredType(decl);
+        if (type instanceof ListType) {
+            return variables().name(ref.getVariable());
+        } else {
+            return "(&" + variables().name(ref.getVariable()) + ")";
+        }
     }
 
     /**
@@ -84,12 +88,15 @@ public interface ExpressionEvaluator {
      * @return
      */
     default String evaluate(ExprDeref deref) {
-       /*
-        RefType type = (RefType) backend().types().type(deref);
-        if(type.getType() instanceof ListType){
-            return "(" + evaluate(deref.getReference()) + ")";
+        Expression expr = deref.getReference();
+        if(expr instanceof ExprVariable){
+            Variable var = ((ExprVariable) expr).getVariable();
+            VarDecl decl = backend().varDecls().declaration(var);
+            Type type = backend().types().declaredType(decl);
+            if (type instanceof ListType) {
+                return evaluate(deref.getReference());
+            }
         }
-       */
 
         return "(*" + evaluate(deref.getReference()) + ")";
     }
@@ -141,7 +148,7 @@ public interface ExpressionEvaluator {
         //    String maxIndex = typeseval().sizeByDimension((ListType) type).stream().map(Object::toString).collect(Collectors.joining("*"));
         //    emitter().emit("%s = malloc(sizeof(%s) * (%s));", declarations().declaration(types().type(input), tmp), maxIndex);
         //} else {
-            emitter().emit("%s;", declarations().declarationTemp(types().type(input), tmp));
+        emitter().emit("%s;", declarations().declarationTemp(types().type(input), tmp));
         //}
 
 
@@ -278,11 +285,18 @@ public interface ExpressionEvaluator {
     String evaluateComprehension(ExprComprehension comprehension, Type t);
 
     default String evaluateComprehension(ExprComprehension comprehension, ListType t) {
-        String name = variables().generateTemp();
-        String decl = declarations().declarationTemp(t, name);
-        String maxIndex = typeseval().sizeByDimension((ListType) t).stream().map(Object::toString).collect(Collectors.joining("*"));
-        //emitter().emit("%s = malloc(sizeof(%s) * (%s));", decl, typeseval().type(typeseval().innerType(t)), maxIndex);
-        emitter().emit("%s;", decl);
+
+        IRNode parent = backend().tree().parent(comprehension);
+        String name;
+        //if (parent instanceof LocalVarDecl) {
+        //    LocalVarDecl v = (LocalVarDecl) parent;
+        //    name = backend().variables().name(v);
+        //} else {
+            name = variables().generateTemp();
+            String decl = declarations().declarationTemp(t, name);
+            emitter().emit("%s;", decl);
+        //}
+
         String index = variables().generateTemp();
         emitter().emit("size_t %s = 0;", index);
         evaluateListComprehension(comprehension, name, index);
@@ -346,10 +360,6 @@ public interface ExpressionEvaluator {
             String decl = declarations().declarationTemp(t, name);
             String value = evaluateExprList(list);
 
-            //String innerType = backend().typeseval().type(backend().typeseval().innerType(t));
-            //String type = "(" + innerType + "[]) ";
-
-            //String init = type + "{" + value + " }";
             String init = "{" + value + " }";
             emitter().emit("%s = %s;", decl, init);
             return name;
@@ -391,7 +401,7 @@ public interface ExpressionEvaluator {
     }
 
     default Variable evalExprIndexVar(ExprDeref expr) {
-        if(expr.getReference() instanceof ExprVariable){
+        if (expr.getReference() instanceof ExprVariable) {
             return ((ExprVariable) expr.getReference()).getVariable();
         }
 

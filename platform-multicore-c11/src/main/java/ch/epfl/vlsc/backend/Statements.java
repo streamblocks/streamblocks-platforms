@@ -108,15 +108,15 @@ public interface Statements {
     }
 
     default void copy(ListType lvalueType, String lvalue, ListType rvalueType, String rvalue) {
-
-        String maxIndex = typeseval().sizeByDimension(lvalueType).stream().map(Object::toString).collect(Collectors.joining(" * "));
-        String index = variables().generateTemp();
-        emitter().emit("for (size_t %1$s = 0; %1$s < (%2$s); %1$s++) {", index, maxIndex);
-        emitter().increaseIndentation();
-        emitter().emit("%s[%s] = %s[%2$s];", lvalue, index, rvalue);
-        emitter().decreaseIndentation();
-        emitter().emit("}");
-
+        //if (!lvalueType.equals(rvalueType)) {
+            String maxIndex = typeseval().sizeByDimension(lvalueType).stream().map(Object::toString).collect(Collectors.joining(" * "));
+            String index = variables().generateTemp();
+            emitter().emit("for (size_t %1$s = 0; %1$s < (%2$s); %1$s++) {", index, maxIndex);
+            emitter().increaseIndentation();
+            emitter().emit("%s[%s] = %s[%2$s];", lvalue, index, rvalue);
+            emitter().decreaseIndentation();
+            emitter().emit("}");
+        //}
     }
 
 
@@ -148,18 +148,12 @@ public interface Statements {
     default void execute(StmtBlock block) {
         emitter().emit("{");
         emitter().increaseIndentation();
-        //backend().callables().declareEnvironmentForCallablesInScope(block);
         for (VarDecl decl : block.getVarDecls()) {
 
             Type t = types().declaredType(decl);
             String declarationName = variables().declarationName(decl);
             String d = declarartions().declarationTemp(t, declarationName);
-            //if (t instanceof ListType) {
-            //    String maxIndex = typeseval().sizeByDimension((ListType) t).stream().map(Object::toString).collect(Collectors.joining("*"));
-            //    emitter().emit("%s = malloc(sizeof(%s) * (%s));", d, typeseval().type(typeseval().innerType(t)), maxIndex);
-            //} else {
-                emitter().emit("%s;", d);
-            //}
+            emitter().emit("%s;", d);
             if (decl.getValue() != null) {
                 if (decl.getValue() instanceof ExprInput) {
                     expressioneval().evaluateWithLvalue(backend().variables().declarationName(decl), (ExprInput) decl.getValue());
@@ -170,13 +164,6 @@ public interface Statements {
 
         }
         block.getStatements().forEach(this::execute);
-        for (VarDecl decl : block.getVarDecls()) {
-            Type t = types().declaredType(decl);
-            if (t instanceof ListType) {
-                String declarationName = variables().declarationName(decl);
-                //emitter().emit("free(%s);", declarationName);
-            }
-        }
         emitter().decreaseIndentation();
         emitter().emit("}");
     }

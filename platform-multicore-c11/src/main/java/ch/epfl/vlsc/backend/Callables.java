@@ -384,7 +384,7 @@ public interface Callables {
         }
         assert parameterNames.size() == type.getParameterTypes().size();
         for (int i = 0; i < parameterNames.size(); i++) {
-            parameters.add(backend().declarations().declaration(type.getParameterTypes().get(i), parameterNames.get(i)));
+            parameters.add(backend().declarations().declarationParameter(type.getParameterTypes().get(i), parameterNames.get(i)));
         }
         String result = backend().typeseval().type(type.getReturnType());
         result += " ";
