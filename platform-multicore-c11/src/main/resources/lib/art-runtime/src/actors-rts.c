@@ -553,7 +553,7 @@ static int check_network(ActorInstance_1_t **instance,
                          int affinity_is_set) {
     int result = 0;
     int i;
-    cpu_set_t cpu_set = 0;
+    cpu_set_t cpu_set;
 
     CPU_ZERO(&cpu_set);
     for (i = 0; i < numInstances; i++) {
@@ -1084,17 +1084,17 @@ static void show_result(cpu_runtime_data_t *cpu,
             printf("nloops:        %12llu\n", cpu[i].statistics.nloops);
 
             if (show_timing)
-                printf("%-32s  nloops timing (cycles)\n", "actor");
+                printf("%-64s  nloops timing (cycles)\n", "actor");
             else
-                printf("%-32s  nloops\n", "actor");
+                printf("%-64s  nloops\n", "actor");
             for (j = 0; j < cpu[i].actors; j++) {
                 if (show_timing)
-                    printf("%-32s %7lld %12llu\n",
+                    printf("%-64s %7lld %12llu\n",
                            cpu[i].actor[j]->name,
                            cpu[i].actor[j]->nloops,
                            cpu[i].actor[j]->total);
                 else
-                    printf("%-32s %7lld\n",
+                    printf("%-64s %7lld\n",
                            cpu[i].actor[j]->name,
                            cpu[i].actor[j]->nloops);
 
