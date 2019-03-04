@@ -10,14 +10,13 @@ import se.lth.cs.tycho.ir.Variable;
 import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.expr.*;
+import se.lth.cs.tycho.ir.network.Instance;
+import se.lth.cs.tycho.ir.stmt.StmtCall;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.type.ListType;
 import se.lth.cs.tycho.type.Type;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Module
@@ -52,6 +51,24 @@ public interface ExpressionEvaluator {
 
     // -- Evaluate Expressions
 
+    default String evaluateCall(Expression expression) {
+        return evaluate(expression);
+    }
+
+    default String evaluateCall(ExprVariable variable) {
+        IRNode parent = backend().tree().parent(variable);
+
+        if (parent instanceof StmtCall || parent instanceof ExprApplication) {
+            VarDecl decl = backend().varDecls().declaration(variable.getVariable());
+            IRNode parentDecl = backend().tree().parent(decl);
+            Instance instance = backend().instancebox().get();
+            String name = instance.getInstanceName();
+            return name + "_" + variable.getVariable().getName();
+        }
+
+        return variables().name(variable.getVariable());
+    }
+
     String evaluate(Expression expr);
 
 
@@ -62,6 +79,7 @@ public interface ExpressionEvaluator {
      * @return
      */
     default String evaluate(ExprVariable variable) {
+        IRNode parent = backend().tree().parent(variable);
         return variables().name(variable.getVariable());
     }
 
@@ -89,7 +107,7 @@ public interface ExpressionEvaluator {
      */
     default String evaluate(ExprDeref deref) {
         Expression expr = deref.getReference();
-        if(expr instanceof ExprVariable){
+        if (expr instanceof ExprVariable) {
             Variable var = ((ExprVariable) expr).getVariable();
             VarDecl decl = backend().varDecls().declaration(var);
             Type type = backend().types().declaredType(decl);
@@ -218,7 +236,7 @@ public interface ExpressionEvaluator {
             case "^":
                 return String.format("(%s %s %s)", evaluate(left), operation, evaluate(right));
             case "=":
-                return String.format("(%s == %s)", evaluate(left), evaluate(right));
+                return String.format("%s == %s", evaluate(left), evaluate(right));
             case "mod":
                 return String.format("(%s %% %s)", evaluate(left), evaluate(right));
             case "and":
@@ -292,9 +310,9 @@ public interface ExpressionEvaluator {
         //    LocalVarDecl v = (LocalVarDecl) parent;
         //    name = backend().variables().name(v);
         //} else {
-            name = variables().generateTemp();
-            String decl = declarations().declarationTemp(t, name);
-            emitter().emit("%s;", decl);
+        name = variables().generateTemp();
+        String decl = declarations().declarationTemp(t, name);
+        emitter().emit("%s;", decl);
         //}
 
         String index = variables().generateTemp();
@@ -477,20 +495,20 @@ public interface ExpressionEvaluator {
      * @return
      */
     default String evaluate(ExprApplication apply) {
-        Optional<String> directlyCallable = backend().callables().directlyCallableName(apply.getFunction());
+        boolean directlyCallable = backend().callablesInActor().directlyCallable(apply.getFunction());
         String fn;
         List<String> parameters = new ArrayList<>();
-        if (directlyCallable.isPresent()) {
-            fn = directlyCallable.get();
-            parameters.add("NULL");
-        } else {
-            String name = evaluate(apply.getFunction());
-            fn = name + ".f";
-            parameters.add(name + ".env");
+
+        if(!directlyCallable){
+            parameters.add("thisActor");
         }
         for (Expression parameter : apply.getArgs()) {
             parameters.add(evaluate(parameter));
         }
+
+
+        fn = evaluateCall(apply.getFunction());
+
         String result = variables().generateTemp();
         String decl = declarations().declarationTemp(types().type(apply), result);
         emitter().emit("%s = %s(%s);", decl, fn, String.join(", ", parameters));

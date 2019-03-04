@@ -12,7 +12,7 @@ void print_f(float value){
 }
 
 void print_d(double value){
-    printf("%d", value);
+    printf("%f", value);
 }
 
 void print_s(const char * value){
@@ -34,7 +34,7 @@ void println_f(float value){
 }
 
 void println_d(double value){
-    printf("%d\n", value);
+    printf("%f\n", value);
 }
 
 void println_s(const char * value){

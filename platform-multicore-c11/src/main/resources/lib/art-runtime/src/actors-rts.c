@@ -7,7 +7,12 @@
 #include <string.h>
 #include <sched.h>
 #include "actors-rts.h"
+#ifdef __APPLE__
+#include <dispatch/dispatch.h>
+#else
 #include <semaphore.h>
+#endif
+
 #include <pthread.h>
 #include <limits.h>
 #include "xmlTrace.h"
@@ -23,11 +28,11 @@ static int arg_loopmax = INT_MAX;
  * Memory organization for runtime:
  *
  *   We should make sure that data is aligned on CACHE_LINE_SIZE
- *   boundaries. In order to make it possible to migrate ports 
+ *   boundaries. In order to make it possible to migrate ports
  *   between cpus, we allocate space for all ports on all processors.
  *
  *   Producers (OutputPorts):
- *     Global access: numWritten 
+ *     Global access: numWritten
  *                    buffer
  *     Local access:  writePos
  *                    capacity
@@ -36,7 +41,7 @@ static int arg_loopmax = INT_MAX;
  *                    reader
  *
  *   Consumers (InputPorts):
- *     Global access: numRead 
+ *     Global access: numRead
  *                    buffer
  *     Local access:  readPos
  *                    capacity
@@ -232,8 +237,8 @@ int sched_setaffinity(int a, size_t sz, cpu_set_t* aff) {
 }
 #endif
 
-/* 
- * We need to know processor affinity, etc before we allocate the true 
+/*
+ * We need to know processor affinity, etc before we allocate the true
  * datastructures. For now we collect the actor layout in dummy objects
  * and unfolds them when execNetwork is invoked.
  */
@@ -548,14 +553,14 @@ static int check_network(ActorInstance_1_t **instance,
                          int affinity_is_set) {
     int result = 0;
     int i;
-    cpu_set_t cpu_set;
+    cpu_set_t cpu_set = 0;
 
     CPU_ZERO(&cpu_set);
     for (i = 0; i < numInstances; i++) {
         // Check that we have processor affinity, else force single CPU mode
         if (instance[i]->affinity == -1) {
             if (!(*flags & FLAG_SINGLE_CPU)) {
-//	printf("Forcing single CPU mode:%s\n", 
+//	printf("Forcing single CPU mode:%s\n",
 //               affinity_is_set? "" : " no affinity/configuration specified");
                 *flags |= FLAG_SINGLE_CPU;
             }
@@ -881,9 +886,13 @@ static cpu_runtime_data_t *allocate_network(
             result[cpu].cpu_index = cpu;
             result[cpu].physical_id = i;
             result[cpu].sem = malloc(sizeof(*result[cpu].sem));
-            sem_init(result[cpu].sem, 0, 0);
-
             // Data accessed from multiple cpus
+#ifdef __APPLE__
+            *result[cpu].sem = dispatch_semaphore_create(0);
+#else
+            sem_init(result[cpu].sem, 0, 0);
+#endif
+
             result[cpu].sleep = cpu_shared_p;
             cpu_shared_p += cache_bytes(sizeof(*result[cpu].sleep));
             result[cpu].shared = cpu_shared_p;
@@ -1060,19 +1069,19 @@ static void show_result(cpu_runtime_data_t *cpu,
 
             printf("\nCPU%d:\n", i);
             if (show_timing) {
-                printf("prefire:       %12Lu cycles\n", cpu[i].statistics.prefire);
-                printf("read_barrier:  %12Lu\n", cpu[i].statistics.read_barrier);
-                printf("fire:          %12Lu\n", cpu[i].statistics.fire);
-                printf("write_barrier: %12Lu\n", cpu[i].statistics.write_barrier);
-                printf("postfire:      %12Lu\n", cpu[i].statistics.postfire);
-                printf("sync_unblocked:%12Lu\n", cpu[i].statistics.sync_unblocked);
-                printf("sync_blocked:  %12Lu\n", cpu[i].statistics.sync_blocked);
-                printf("sync_sleep:    %12Lu\n", cpu[i].statistics.sync_sleep);
-                printf("total:         %12Lu\n", cpu[i].statistics.total);
+                printf("prefire:       %12llu cycles\n", cpu[i].statistics.prefire);
+                printf("read_barrier:  %12llu\n", cpu[i].statistics.read_barrier);
+                printf("fire:          %12llu\n", cpu[i].statistics.fire);
+                printf("write_barrier: %12llu\n", cpu[i].statistics.write_barrier);
+                printf("postfire:      %12llu\n", cpu[i].statistics.postfire);
+                printf("sync_unblocked:%12llu\n", cpu[i].statistics.sync_unblocked);
+                printf("sync_blocked:  %12llu\n", cpu[i].statistics.sync_blocked);
+                printf("sync_sleep:    %12llu\n", cpu[i].statistics.sync_sleep);
+                printf("total:         %12llu\n", cpu[i].statistics.total);
             }
             // subtract one from nsleep not to count the last time (termination)
-            printf("nsleep:        %12Lu times\n", cpu[i].statistics.nsleep);
-            printf("nloops:        %12Lu\n", cpu[i].statistics.nloops);
+            printf("nsleep:        %12llu times\n", cpu[i].statistics.nsleep);
+            printf("nloops:        %12llu\n", cpu[i].statistics.nloops);
 
             if (show_timing)
                 printf("%-32s  nloops timing (cycles)\n", "actor");
@@ -1080,12 +1089,12 @@ static void show_result(cpu_runtime_data_t *cpu,
                 printf("%-32s  nloops\n", "actor");
             for (j = 0; j < cpu[i].actors; j++) {
                 if (show_timing)
-                    printf("%-32s %7Ld %12Lu\n",
+                    printf("%-32s %7lld %12llu\n",
                            cpu[i].actor[j]->name,
                            cpu[i].actor[j]->nloops,
                            cpu[i].actor[j]->total);
                 else
-                    printf("%-32s %7Ld\n",
+                    printf("%-32s %7lld\n",
                            cpu[i].actor[j]->name,
                            cpu[i].actor[j]->nloops);
 
@@ -1108,7 +1117,7 @@ static void generate_config(FILE *f,
         for (j = 0; j < cpu[i].actors; j++) {
             AbstractActorInstance *actor = cpu[i].actor[j];
             if (with_complexity)
-                fprintf(f, "      <Instance actor-id=\"%s\" complexity=\"%Lu\"/>\n",
+                fprintf(f, "      <Instance actor-id=\"%s\" complexity=\"%llu\"/>\n",
                         actor->name, actor->total);
             else
                 fprintf(f, "      <Instance actor-id=\"%s\"/>\n", actor->name);

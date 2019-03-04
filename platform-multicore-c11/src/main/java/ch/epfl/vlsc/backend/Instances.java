@@ -14,6 +14,9 @@ import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.entity.am.*;
 import se.lth.cs.tycho.ir.expr.ExprInput;
+import se.lth.cs.tycho.ir.expr.ExprLambda;
+import se.lth.cs.tycho.ir.expr.ExprProc;
+import se.lth.cs.tycho.ir.expr.Expression;
 import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.type.CallableType;
@@ -95,11 +98,11 @@ public interface Instances {
         // -- State
         instanceState(instanceName, entity);
 
-        // -- Callables
-        // -- TODO: Implement
-
         // -- Prototypes
         prototypes(instanceName, entity);
+
+        // -- Callables
+        callables(instanceName, entity);
 
         // -- Port Description
         portDescription(instanceName, entity);
@@ -185,6 +188,30 @@ public interface Instances {
         emitter().emitNewLine();
     }
 
+
+    /*
+     * Callables
+     */
+
+    void callables(String instanceName, Entity entity);
+
+    default void callables(String instanceName, ActorMachine am) {
+        emitter().emit("// -- Callables");
+        for (Scope scope : am.getScopes()) {
+            if (scope.isPersistent()) {
+                for (VarDecl decl : scope.getDeclarations()) {
+                    if (decl.getValue() != null) {
+                        Expression expr = decl.getValue();
+                        if (expr instanceof ExprLambda || expr instanceof ExprProc) {
+                            backend().callablesInActor().callableDefinition(instanceName, expr);
+                            emitter().emitNewLine();
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     /*
      * Instance State
      */
@@ -204,10 +231,15 @@ public interface Instances {
         // -- Scopes
         for (Scope scope : am.getScopes()) {
             emitter().emit("// -- Scope %d", am.getScopes().indexOf(scope));
-            backend().callables().declareEnvironmentForCallablesInScope(scope);
+            //backend().callables().declareEnvironmentForCallablesInScope(scope);
             for (VarDecl var : scope.getDeclarations()) {
-                String decl = declarations().declaration(types().declaredType(var), backend().variables().declarationName(var));
-                emitter().emit("%s;", decl);
+                if (var.getValue() instanceof ExprLambda || var.getValue() instanceof ExprProc) {
+                    // -- Do nothing
+                } else {
+                    String decl = declarations().declaration(types().declaredType(var), backend().variables().declarationName(var));
+                    emitter().emit("%s;", decl);
+                }
+
             }
         }
 
@@ -226,6 +258,22 @@ public interface Instances {
         // -- Actor Instance Name
         String actorInstanceName = "ActorInstance_" + backend().instaceQID(instanceName, "_");
 
+        // -- Callables Prototypes
+        emitter().emit("// -- Callables Prototypes");
+        for (Scope scope : am.getScopes()) {
+            if (scope.isPersistent()) {
+                for (VarDecl decl : scope.getDeclarations()) {
+                    if (decl.getValue() != null) {
+                        Expression expr = decl.getValue();
+                        if (expr instanceof ExprLambda || expr instanceof ExprProc) {
+                            backend().callablesInActor().callablePrototypes(instanceName, expr);
+                            emitter().emitNewLine();
+                        }
+                    }
+                }
+            }
+        }
+
         // -- ART Action Prototypes (aka AM Transitions)
         emitter().emit("// -- Transition prototypes");
         for (Transition transition : am.getTransitions()) {
@@ -236,6 +284,7 @@ public interface Instances {
         emitter().emit("static void %s_constructor(AbstractActorInstance *);", actorInstanceName);
         emitter().emit("static void %s_destructor(AbstractActorInstance *);", actorInstanceName);
         emitter().emitNewLine();
+
     }
 
     /*
@@ -523,25 +572,30 @@ public interface Instances {
                         String maxIndex = typeseval().sizeByDimension((ListType) type).stream().map(Object::toString).collect(Collectors.joining("*"));
                         //emitter().emit("thisActor->%s = malloc(sizeof(%s) * (%s));", backend().variables().declarationName(var), typeseval().type(type), maxIndex);
                         emitter().emit("thisActor->%s = (%s*) calloc(%s, sizeof(%2$s));", backend().variables().declarationName(var), typeseval().type(type), maxIndex);
-                        //(int16_t*)calloc(7872, sizeof(int16_t));
                         emitter().decreaseIndentation();
                         emitter().emit("}");
                     }
                     if (var.isExternal() && type instanceof CallableType) {
-                        String wrapperName = backend().callables().externalWrapperFunctionName(var);
-                        String variableName = backend().variables().declarationName(var);
-                        String t = backend().callables().mangle(type).encode();
-                        emitter().emit("thisActor->%s = (%s) { *%s, NULL };", variableName, t, wrapperName);
+                        //String wrapperName = backend().callables().externalWrapperFunctionName(var);
+                        //String variableName = backend().variables().declarationName(var);
+                        //String t = backend().callables().mangle(type).encode();
+                        //emitter().emit("thisActor->%s = (%s) { *%s, NULL };", variableName, t, wrapperName);
                     } else if (var.getValue() != null) {
-                        emitter().emit("{");
-                        emitter().increaseIndentation();
-                        if (var.getValue() instanceof ExprInput) {
+                        if (var.getValue() instanceof ExprLambda || var.getValue() instanceof ExprProc) {
+                            // -- Do nothing
+                        } else if (var.getValue() instanceof ExprInput) {
+                            emitter().emit("{");
+                            emitter().increaseIndentation();
                             expressioneval().evaluateWithLvalue("thisActor->" + backend().variables().declarationName(var), (ExprInput) var.getValue());
+                            emitter().decreaseIndentation();
+                            emitter().emit("}");
                         } else {
+                            emitter().emit("{");
+                            emitter().increaseIndentation();
                             statements().copy(types().declaredType(var), "thisActor->" + backend().variables().declarationName(var), types().type(var.getValue()), expressioneval().evaluate(var.getValue()));
+                            emitter().decreaseIndentation();
+                            emitter().emit("}");
                         }
-                        emitter().decreaseIndentation();
-                        emitter().emit("}");
                     }
                 }
             } else {

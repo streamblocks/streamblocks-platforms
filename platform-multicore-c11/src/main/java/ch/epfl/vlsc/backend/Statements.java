@@ -5,6 +5,7 @@ import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.Types;
+import se.lth.cs.tycho.ir.Variable;
 import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.expr.ExprBinaryOp;
@@ -14,10 +15,7 @@ import se.lth.cs.tycho.ir.stmt.*;
 import se.lth.cs.tycho.type.ListType;
 import se.lth.cs.tycho.type.Type;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Module
@@ -125,9 +123,10 @@ public interface Statements {
      */
 
     default void execute(StmtCall call) {
-        Optional<String> directlyCallable = backend().callables().directlyCallableName(call.getProcedure());
         String proc;
         List<String> parameters = new ArrayList<>();
+        boolean directlyCallable = backend().callablesInActor().directlyCallable(call.getProcedure());
+/*
         if (directlyCallable.isPresent()) {
             proc = directlyCallable.get();
             parameters.add("NULL");
@@ -135,7 +134,13 @@ public interface Statements {
             String name = expressioneval().evaluate(call.getProcedure());
             proc = name + ".f";
             parameters.add(name + ".env");
+        }*/
+
+        if(!directlyCallable){
+            parameters.add("thisActor");
         }
+        proc = expressioneval().evaluateCall(call.getProcedure());
+
         for (Expression parameter : call.getArgs()) {
             parameters.add(expressioneval().evaluate(parameter));
         }

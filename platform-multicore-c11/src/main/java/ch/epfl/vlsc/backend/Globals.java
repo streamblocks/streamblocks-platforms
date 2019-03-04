@@ -6,6 +6,9 @@ import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.ir.decl.VarDecl;
+import se.lth.cs.tycho.ir.expr.ExprLambda;
+import se.lth.cs.tycho.ir.expr.ExprProc;
+import se.lth.cs.tycho.ir.expr.Expression;
 import se.lth.cs.tycho.type.CallableType;
 import se.lth.cs.tycho.type.Type;
 
@@ -29,11 +32,9 @@ public interface Globals {
 
         backend().includeUser("globals.h");
 
-        emitter().emit("// -- Define Callables");
-        backend().callables().defineCallables();
         emitter().emit("// -- Glabal Variable Initilaization");
         globalVariableInitializer(getGlobalVarDecls());
-
+        globalCallables(getGlobalVarDecls());
         emitter().close();
 
 
@@ -170,17 +171,17 @@ public interface Globals {
         emitter().emit("#undef TYPE_DIRECT");
         emitter().emitNewLine();
 
-        emitter().emit("// -- Declare Callables");
-        backend().callables().declareCallables();
+        //emitter().emit("// -- Declare Callables");
+        //backend().callables().declareCallables();
         emitter().emitNewLine();
-        emitter().emit("// -- Declare Environment for Callables In Scope ");
-        backend().callables().declareEnvironmentForCallablesInScope(backend().task());
+        //emitter().emit("// -- Declare Environment for Callables In Scope ");
+        //backend().callables().declareEnvironmentForCallablesInScope(backend().task());
         emitter().emit(" // -- Global Variables Declaration");
         emitter().emit("void init_global_variables(void);");
         globalVariableDeclarations(getGlobalVarDecls());
+
         emitter().emitNewLine();
         emitter().emit("#endif // __GLOBALS_%s__", backend().task().getIdentifier().getLast().toString().toUpperCase());
-
 
 
         emitter().close();
@@ -195,8 +196,34 @@ public interface Globals {
     default void globalVariableDeclarations(Stream<VarDecl> varDecls) {
         varDecls.forEach(decl -> {
             Type type = backend().types().declaredType(decl);
-            String d = backend().declarations().declaration(type, backend().variables().declarationName(decl));
-            emitter().emit("%s;", d);
+            if (type instanceof CallableType) {
+                if (decl.getValue() != null) {
+                    Expression expr = decl.getValue();
+                    if (expr instanceof ExprLambda || expr instanceof ExprProc) {
+                        backend().callablesInActor().callablePrototypes(backend().variables().declarationName(decl), expr);
+                        emitter().emitNewLine();
+                    }
+                }
+            } else {
+                String d = backend().declarations().declaration(type, backend().variables().declarationName(decl));
+                emitter().emit("%s;", d);
+            }
+        });
+    }
+
+
+    default void globalCallables(Stream<VarDecl> varDecls){
+        varDecls.forEach(decl -> {
+            Type type = backend().types().declaredType(decl);
+            if (type instanceof CallableType) {
+                if (decl.getValue() != null) {
+                    Expression expr = decl.getValue();
+                    if (expr instanceof ExprLambda || expr instanceof ExprProc) {
+                        backend().callablesInActor().callableDefinition(backend().variables().declarationName(decl), expr);
+                        emitter().emitNewLine();
+                    }
+                }
+            }
         });
     }
 
@@ -205,12 +232,7 @@ public interface Globals {
         emitter().increaseIndentation();
         varDecls.forEach(decl -> {
             Type type = backend().types().declaredType(decl);
-            if (decl.isExternal() && type instanceof CallableType) {
-                String wrapperName = backend().callables().externalWrapperFunctionName(decl);
-                String variableName = backend().variables().declarationName(decl);
-                String t = backend().callables().mangle(type).encode();
-                emitter().emit("%s = (%s) { *%s, NULL };", variableName, t, wrapperName);
-            } else {
+            if (!(type instanceof CallableType)) {
                 backend().statements().copy(type, backend().variables().declarationName(decl), backend().types().type(decl.getValue()), backend().expressioneval().evaluate(decl.getValue()));
             }
         });

@@ -160,6 +160,8 @@ public interface Backend {
     // -- Callables
     @Binding(LAZY)
     default Callables callables(){ return MultiJ.from(Callables.class).bind("backend").to(this).instance(); }
+    @Binding(LAZY)
+    default CallablesInActors callablesInActor(){ return MultiJ.from(CallablesInActors.class).bind("backend").to(this).instance(); }
 
     // -- Instance generator
     @Binding(LAZY)

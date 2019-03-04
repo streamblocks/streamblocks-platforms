@@ -133,7 +133,7 @@ void parseNode(xmlNode *node, TagID *tagID) {
 void parseConnection(xmlNode *cur_node) {
     char *size;
 
-    if (!xmlStrcmp(cur_node->name, CONNECTION));
+    if (!xmlStrcmp(cur_node->name, CONNECTION))
     {
         if (_numConnects >= MAX_CONNECTS) {
             printf("Number of connections over max allowed (%d)\n", MAX_CONNECTS);
