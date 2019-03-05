@@ -1,6 +1,7 @@
 package ch.epfl.vlsc.phase;
 
 import ch.epfl.vlsc.backend.Backend;
+import ch.epfl.vlsc.platformutils.ControllerToGraphviz;
 import ch.epfl.vlsc.platformutils.PathUtils;
 import org.multij.MultiJ;
 import se.lth.cs.tycho.compiler.CompilationTask;
@@ -61,6 +62,10 @@ public class C11BackendPhase implements Phase {
      */
     private Path targetPath;
 
+    /**
+     * Auxiliary Path
+     */
+    private Path auxiliaryPath;
 
     @Override
     public String getDescription() {
@@ -91,6 +96,9 @@ public class C11BackendPhase implements Phase {
 
         // -- Binary path
         binPath = PathUtils.createDirectory(targetPath, "bin");
+
+        // -- Auxiliary path
+        auxiliaryPath = PathUtils.createDirectory(codeGenPath, "auxiliary");
     }
 
     @Override
@@ -126,7 +134,8 @@ public class C11BackendPhase implements Phase {
         // -- Generate CMakeLists
         generateCmakeLists(backend);
 
-        // -- Generate CMakeLists
+        // -- Generate Auxiliary
+        generateAuxiliary(backend);
         return task;
     }
 
@@ -176,6 +185,25 @@ public class C11BackendPhase implements Phase {
 
         // -- Globals Header
         backend.globals().globalHeader();
+    }
+
+    /**
+     * Generate Auxiliary files for visualization
+     *
+     * @param backend
+     */
+    private void generateAuxiliary(Backend backend) {
+
+        // -- Network to DOT
+        backend.netoworkToDot().generateNetworkDot();
+
+        // -- Actor Machine Controllers to DOT
+        for (Instance instance : backend.task().getNetwork().getInstances()) {
+            String instanceWithQID = backend.instaceQID(instance.getInstanceName(), "_");
+            GlobalEntityDecl entityDecl = backend.globalnames().entityDecl(instance.getEntityName(), true);
+            ControllerToGraphviz dot = new ControllerToGraphviz(entityDecl, instanceWithQID, PathUtils.getAuxiliary(backend.context()).resolve(instanceWithQID + ".dot"));
+            dot.print();
+        }
     }
 
     /**

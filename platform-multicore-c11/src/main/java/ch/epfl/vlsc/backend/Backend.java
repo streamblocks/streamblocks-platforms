@@ -28,10 +28,16 @@ public interface Backend {
     Context context();
 
     // -- Instance Box
-    @Binding(LAZY) default Box<Instance> instancebox() { return Box.empty(); }
+    @Binding(LAZY)
+    default Box<Instance> instancebox() {
+        return Box.empty();
+    }
 
     // -- Entity Box
-    @Binding(LAZY) default Box<Entity> entitybox() { return Box.empty(); }
+    @Binding(LAZY)
+    default Box<Entity> entitybox() {
+        return Box.empty();
+    }
 
     // -- Globals names
     @Binding(LAZY)
@@ -71,7 +77,9 @@ public interface Backend {
 
     // -- Channels Utils
     @Binding(LAZY)
-    default ChannelsUtils channelsutils() { return MultiJ.from(ChannelsUtils.class).bind("backend").to(this).instance(); }
+    default ChannelsUtils channelsutils() {
+        return MultiJ.from(ChannelsUtils.class).bind("backend").to(this).instance();
+    }
 
     // -- Actor Machine scopes
     @Binding(LAZY)
@@ -147,21 +155,26 @@ public interface Backend {
 
     // -- Controllers
     @Binding(LAZY)
-    default Controllers controllers(){
+    default Controllers controllers() {
         return MultiJ.from(Controllers.class).bind("backend").to(this).instance();
     }
 
     // -- Globals
     @Binding(LAZY)
-    default Globals globals(){
+    default Globals globals() {
         return MultiJ.from(Globals.class).bind("backend").to(this).instance();
     }
 
     // -- Callables
     @Binding(LAZY)
-    default Callables callables(){ return MultiJ.from(Callables.class).bind("backend").to(this).instance(); }
+    default Callables callables() {
+        return MultiJ.from(Callables.class).bind("backend").to(this).instance();
+    }
+
     @Binding(LAZY)
-    default CallablesInActors callablesInActor(){ return MultiJ.from(CallablesInActors.class).bind("backend").to(this).instance(); }
+    default CallablesInActors callablesInActor() {
+        return MultiJ.from(CallablesInActors.class).bind("backend").to(this).instance();
+    }
 
     // -- Instance generator
     @Binding(LAZY)
@@ -173,6 +186,12 @@ public interface Backend {
     @Binding(LAZY)
     default Main main() {
         return MultiJ.from(Main.class).bind("backend").to(this).instance();
+    }
+
+    // -- Network to DOT
+    @Binding(LAZY)
+    default NetworkToDot netoworkToDot() {
+        return MultiJ.from(NetworkToDot.class).bind("backend").to(this).instance();
     }
 
     // -- Utils

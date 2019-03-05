@@ -7,6 +7,7 @@ import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.GlobalNames;
 import se.lth.cs.tycho.ir.QID;
+import se.lth.cs.tycho.ir.ToolValueAttribute;
 import se.lth.cs.tycho.ir.ValueParameter;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.decl.ParameterVarDecl;
@@ -173,6 +174,18 @@ public interface Main {
         emitter().decreaseIndentation();
         emitter().emit("}");
 
+    }
+
+    default int connectionBufferSize(Connection connection) {
+        Optional<ToolValueAttribute> attribute = connection.getValueAttribute("buffersize");
+        if (!attribute.isPresent()) {
+            attribute = connection.getValueAttribute("bufferSize");
+        }
+        if (attribute.isPresent()) {
+            return (int) backend().constants().intValue(attribute.get().getValue()).getAsLong();
+        } else {
+            return 4096;
+        }
     }
 
 
