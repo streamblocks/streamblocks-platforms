@@ -12,9 +12,7 @@ import se.lth.cs.tycho.ir.expr.ExprProc;
 import se.lth.cs.tycho.ir.expr.ExprVariable;
 import se.lth.cs.tycho.ir.expr.Expression;
 import se.lth.cs.tycho.ir.util.ImmutableList;
-import se.lth.cs.tycho.type.CallableType;
-import se.lth.cs.tycho.type.LambdaType;
-import se.lth.cs.tycho.type.ProcType;
+import se.lth.cs.tycho.type.*;
 
 import java.util.*;
 
@@ -122,6 +120,23 @@ public interface CallablesInActors {
     }
 
 
+
+    default String externalCallableHeader(String name, CallableType type, List<String> parameterNames) {
+        List<String> parameters = new ArrayList<>();
+        assert parameterNames.size() == type.getParameterTypes().size();
+        for (int i = 0; i < parameterNames.size(); i++) {
+            parameters.add(backend().declarations().declarationParameter(type.getParameterTypes().get(i), parameterNames.get(i)));
+        }
+        String result = backend().typeseval().type(type.getReturnType());
+        result += " ";
+        result += name;
+        result += "(";
+        result += String.join(", ", parameters);
+        result += ")";
+        return result;
+    }
+
+
     /**
      * ExprLambda Header
      *
@@ -192,6 +207,59 @@ public interface CallablesInActors {
         } else {
             return true;
         }
+    }
+
+
+
+    @Binding(BindingKind.LAZY)
+    default Set<String> usedNames() { return new HashSet<>(); }
+
+
+    default void externalCallableDeclaration(IRNode varDecl) { }
+
+    default void externalCallableDeclaration(VarDecl varDecl) {
+        if (varDecl.isExternal()) {
+            Type type = backend().types().declaredType(varDecl);
+            assert type instanceof CallableType : "External declaration must be function or procedure";
+            CallableType callable = (CallableType) type;
+            List<String> parameterNames = new ArrayList<>();
+            for (int i = 0; i < callable.getParameterTypes().size(); i++) {
+                parameterNames.add("p_" + i);
+            }
+            backend().emitter().emit("%s;", externalCallableHeader(varDecl.getOriginalName(), callable, parameterNames));
+            String name = externalWrapperFunctionName(varDecl);
+            backend().emitter().emit("%s;", externalCallableHeader(name, callable, parameterNames));
+        }
+    }
+
+    default void externalCallableDefinition(IRNode node) { }
+
+    default void externalCallableDefinition(VarDecl varDecl) {
+        if (varDecl.isExternal()) {
+            Type type = backend().types().declaredType(varDecl);
+            assert type instanceof CallableType : "External declaration must be function or procedure";
+            CallableType callable = (CallableType) type;
+            List<String> parameterNames = new ArrayList<>();
+            for (int i = 0; i < callable.getParameterTypes().size(); i++) {
+                parameterNames.add("p_" + i);
+            }
+            String name = externalWrapperFunctionName(varDecl);
+            backend().emitter().emit("%s {", externalCallableHeader(name, callable, parameterNames));
+            backend().emitter().increaseIndentation();
+            String call = varDecl.getOriginalName() + "(" + String.join(", ", parameterNames) + ")";
+            if (callable.getReturnType().equals(UnitType.INSTANCE)) {
+                backend().emitter().emit("%s;", call);
+            } else {
+                backend().emitter().emit("return %s;", call);
+            }
+            backend().emitter().decreaseIndentation();
+            backend().emitter().emit("}");
+        }
+    }
+
+    default String externalWrapperFunctionName(VarDecl external) {
+        assert external.isExternal();
+        return backend().variables().declarationName(external);
     }
 
 

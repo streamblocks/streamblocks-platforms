@@ -32,6 +32,10 @@ public interface Globals {
 
         backend().includeUser("globals.h");
 
+        emitter().emit("// -- External Callables Definition");
+        backend().task().walk().forEach(backend().callablesInActor()::externalCallableDefinition);
+        emitter().emitNewLine();
+
         emitter().emit("// -- Glabal Variable Initilaization");
         globalVariableInitializer(getGlobalVarDecls());
         globalCallables(getGlobalVarDecls());
@@ -171,11 +175,9 @@ public interface Globals {
         emitter().emit("#undef TYPE_DIRECT");
         emitter().emitNewLine();
 
-        //emitter().emit("// -- Declare Callables");
-        //backend().callables().declareCallables();
+        emitter().emit("// -- External Callables Declaration");
+        backend().task().walk().forEach(backend().callablesInActor()::externalCallableDeclaration);
         emitter().emitNewLine();
-        //emitter().emit("// -- Declare Environment for Callables In Scope ");
-        //backend().callables().declareEnvironmentForCallablesInScope(backend().task());
         emitter().emit(" // -- Global Variables Declaration");
         emitter().emit("void init_global_variables(void);");
         globalVariableDeclarations(getGlobalVarDecls());
