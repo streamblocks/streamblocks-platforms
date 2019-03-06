@@ -124,7 +124,7 @@ public interface NetworkToDot {
         String source = srcInstanceName + ":" + connection.getSource().getPort();
         String target = tgtInstanceName + ":" + connection.getTarget().getPort();
 
-        emitter().emit("%s:e -> %s:w [color=\"%s\", label=\"sz=%d\"];", source, target, encodeColor(hashColor(connection)), backend().main().connectionBufferSize(connection));
+        emitter().emit("%s:e -> %s:w [color=\"%s\", label=\"sz=%d\"];", source, target, encodeColor(hashColor(connection)), backend().channelsutils().connectionBufferSize(connection));
     }
 
     /**

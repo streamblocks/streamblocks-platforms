@@ -4,6 +4,7 @@ import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.ir.Port;
+import se.lth.cs.tycho.ir.ToolValueAttribute;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
@@ -83,5 +84,27 @@ public interface ChannelsUtils {
 
         return definedOutput;
     }
+
+    default int targetEndSize(Connection.End target) {
+        Network network = backend().task().getNetwork();
+        Connection connection = network.getConnections().stream()
+                .filter(conn -> conn.getTarget().equals(target))
+                .findFirst().get();
+        return connectionBufferSize(connection);
+    }
+
+
+    default int connectionBufferSize(Connection connection) {
+        Optional<ToolValueAttribute> attribute = connection.getValueAttribute("buffersize");
+        if (!attribute.isPresent()) {
+            attribute = connection.getValueAttribute("bufferSize");
+        }
+        if (attribute.isPresent()) {
+            return (int) backend().constants().intValue(attribute.get().getValue()).getAsLong();
+        } else {
+            return 4096;
+        }
+    }
+
 
 }

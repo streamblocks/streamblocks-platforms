@@ -6,6 +6,7 @@ import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.GlobalNames;
+import se.lth.cs.tycho.ir.Port;
 import se.lth.cs.tycho.ir.QID;
 import se.lth.cs.tycho.ir.ToolValueAttribute;
 import se.lth.cs.tycho.ir.ValueParameter;
@@ -15,6 +16,7 @@ import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.network.Network;
+import se.lth.cs.tycho.type.Type;
 
 import java.nio.file.Path;
 import java.util.*;
@@ -135,7 +137,8 @@ public interface Main {
 
             // -- Instantiate instance ports
             for (PortDecl inputPort : entityDecl.getEntity().getInputPorts()) {
-                emitter().emit("%s_%s = createInputPort(%1$s, \"%2$s\", %d);", joinQID, inputPort.getName(), 4096);
+                int bufferSize = backend().channelsutils().targetEndSize(new Connection.End(Optional.of(instance.getInstanceName()), inputPort.getName()));
+                emitter().emit("%s_%s = createInputPort(%1$s, \"%2$s\", %d);", joinQID, inputPort.getName(), bufferSize);
             }
             for (PortDecl outputPort : entityDecl.getEntity().getOutputPorts()) {
                 Connection.End end = new Connection.End(Optional.of(instance.getInstanceName()), outputPort.getName());
@@ -175,18 +178,5 @@ public interface Main {
         emitter().emit("}");
 
     }
-
-    default int connectionBufferSize(Connection connection) {
-        Optional<ToolValueAttribute> attribute = connection.getValueAttribute("buffersize");
-        if (!attribute.isPresent()) {
-            attribute = connection.getValueAttribute("bufferSize");
-        }
-        if (attribute.isPresent()) {
-            return (int) backend().constants().intValue(attribute.get().getValue()).getAsLong();
-        } else {
-            return 4096;
-        }
-    }
-
 
 }
