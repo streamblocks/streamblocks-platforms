@@ -22,8 +22,8 @@ public class VivadoHLS implements Platform {
 
     public static List<Phase> actorMachinePhases() {
         return ImmutableList.of(
-                new RenameActorVariablesPhase(),
-                new LiftProcessVarDeclsPhase()
+                new RenameActorVariablesPhase()
+                //new LiftProcessVarDeclsPhase()
                 //new AddSchedulePhase(),
                 //new ScheduleUntaggedPhase(),
                 //new ScheduleInitializersPhase(),

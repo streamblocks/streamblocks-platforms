@@ -75,7 +75,7 @@ public interface Instances {
      * Instance headers
      */
 
-    default void defineIncludes(){
+    default void defineIncludes() {
         backend().includeSystem("ap_int.h");
         backend().includeSystem("hls_stream.h");
         backend().includeSystem("stdint.h");
@@ -84,20 +84,22 @@ public interface Instances {
 
     void instanceState(String instanceName, Entity entity);
 
-    default void instanceState(String instanceName, CalActor actor){
-        emitter().emit("// -- Instance state");
-        emitter().emit("typedef struct{");
-        emitter().increaseIndentation();
-        for(VarDecl var : actor.getVarDecls()){
-            if (var.getValue() instanceof ExprLambda || var.getValue() instanceof ExprProc) {
-                // -- Do nothing
-            } else {
-                String decl = declarations().declaration(types().declaredType(var), backend().variables().declarationName(var));
-                emitter().emit("%s;", decl);
+    default void instanceState(String instanceName, CalActor actor) {
+        if (!actor.getVarDecls().isEmpty()) {
+            emitter().emit("// -- Instance state");
+            emitter().emit("typedef struct{");
+            emitter().increaseIndentation();
+            for (VarDecl var : actor.getVarDecls()) {
+                if (var.getValue() instanceof ExprLambda || var.getValue() instanceof ExprProc) {
+                    // -- Do nothing
+                } else {
+                    String decl = declarations().declaration(types().declaredType(var), backend().variables().declarationName(var));
+                    emitter().emit("%s;", decl);
+                }
             }
+            emitter().decreaseIndentation();
+            emitter().emit("} ActorInstance_%s;", backend().instaceQID(instanceName, "_"));
         }
-        emitter().decreaseIndentation();
-        emitter().emit("} ActorInstance_%s;", backend().instaceQID(instanceName, "_"));
     }
 
 }

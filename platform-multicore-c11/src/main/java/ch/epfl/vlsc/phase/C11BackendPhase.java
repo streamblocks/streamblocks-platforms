@@ -1,5 +1,6 @@
 package ch.epfl.vlsc.phase;
 
+import ch.epfl.vlsc.backend.Controllers;
 import ch.epfl.vlsc.backend.MulticoreBackend;
 import ch.epfl.vlsc.platformutils.ControllerToGraphviz;
 import ch.epfl.vlsc.platformutils.PathUtils;
@@ -9,10 +10,12 @@ import se.lth.cs.tycho.compiler.Compiler;
 import se.lth.cs.tycho.compiler.Context;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.network.Instance;
+import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.phase.Phase;
 import se.lth.cs.tycho.reporting.CompilationException;
 import se.lth.cs.tycho.reporting.Diagnostic;
 import se.lth.cs.tycho.reporting.Reporter;
+import se.lth.cs.tycho.settings.Setting;
 
 import java.io.IOException;
 import java.net.URI;
@@ -21,6 +24,7 @@ import java.net.URL;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Collections;
+import java.util.List;
 
 public class C11BackendPhase implements Phase {
 
@@ -69,6 +73,10 @@ public class C11BackendPhase implements Phase {
         return "StreamBlocks Multicore C11 Platform for Tycho compiler";
     }
 
+    @Override
+    public List<Setting<?>> getPhaseSettings() {
+        return ImmutableList.of(Controllers.scopeLivenessAnalysis);
+    }
 
     /**
      * Create the backend directories

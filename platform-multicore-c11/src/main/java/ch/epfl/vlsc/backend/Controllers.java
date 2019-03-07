@@ -4,6 +4,7 @@ import ch.epfl.vlsc.platformutils.Emitter;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
+import se.lth.cs.tycho.attribute.ScopeLiveness;
 import se.lth.cs.tycho.ir.entity.am.ActorMachine;
 import se.lth.cs.tycho.ir.entity.am.ctrl.*;
 import se.lth.cs.tycho.settings.Configuration;
@@ -63,12 +64,12 @@ public interface Controllers {
         jumpInto(waitTargets.stream().mapToInt(stateMap::get).collect(BitSet::new, BitSet::set, BitSet::or));
 
         Function<Instruction, BitSet> initialize;
-        //if (backend().context().getConfiguration().get(scopeLivenessAnalysis)) {
-        //    ScopeLiveness liveness = new ScopeLiveness(backend().scopes(), actorMachine, backend().scopeDependencies());
-        //    initialize = liveness::init;
-        //} else {
+        if (backend().context().getConfiguration().get(scopeLivenessAnalysis)) {
+            ScopeLiveness liveness = new ScopeLiveness(backend().scopes(), actorMachine, backend().scopeDependencies());
+            initialize = liveness::init;
+        } else {
             initialize = instruction -> backend().scopes().init(actorMachine, instruction);
-        //}
+        }
 
         for (State s : stateList) {
             emitter().emit("S%d:", stateMap.get(s));
