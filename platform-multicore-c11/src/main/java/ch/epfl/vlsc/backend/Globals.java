@@ -20,7 +20,7 @@ import java.util.stream.Stream;
 public interface Globals {
 
     @Binding(BindingKind.INJECTED)
-    Backend backend();
+    MulticoreBackend backend();
 
     default Emitter emitter() {
         return backend().emitter();

@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 public interface ExpressionEvaluator {
 
     @Binding(BindingKind.INJECTED)
-    Backend backend();
+    MulticoreBackend backend();
 
     default Emitter emitter() {
         return backend().emitter();

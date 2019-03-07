@@ -5,7 +5,6 @@ import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.Types;
-import se.lth.cs.tycho.ir.Variable;
 import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.expr.ExprBinaryOp;
@@ -21,7 +20,7 @@ import java.util.stream.Collectors;
 @Module
 public interface Statements {
     @Binding(BindingKind.INJECTED)
-    Backend backend();
+    MulticoreBackend backend();
 
     default Emitter emitter() {
         return backend().emitter();

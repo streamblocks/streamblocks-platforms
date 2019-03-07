@@ -11,7 +11,7 @@ import java.util.stream.Collectors;
 public interface Declarations {
 
     @Binding(BindingKind.INJECTED)
-    Backend backend();
+    MulticoreBackend backend();
 
     default String declaration(Type type, String name) {
         return backend().typeseval().type(type) + " " + name;

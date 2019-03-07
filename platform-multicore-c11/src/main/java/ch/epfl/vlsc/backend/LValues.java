@@ -20,7 +20,7 @@ import java.util.List;
 public interface LValues {
 
     @Binding(BindingKind.INJECTED)
-    Backend backend();
+    MulticoreBackend backend();
 
     default Emitter emitter() {
         return backend().emitter();

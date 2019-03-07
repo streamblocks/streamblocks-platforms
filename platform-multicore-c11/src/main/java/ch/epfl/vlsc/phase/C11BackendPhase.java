@@ -1,6 +1,6 @@
 package ch.epfl.vlsc.phase;
 
-import ch.epfl.vlsc.backend.Backend;
+import ch.epfl.vlsc.backend.MulticoreBackend;
 import ch.epfl.vlsc.platformutils.ControllerToGraphviz;
 import ch.epfl.vlsc.platformutils.PathUtils;
 import org.multij.MultiJ;
@@ -15,15 +15,12 @@ import se.lth.cs.tycho.reporting.Diagnostic;
 import se.lth.cs.tycho.reporting.Reporter;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 
 public class C11BackendPhase implements Phase {
 
@@ -113,13 +110,13 @@ public class C11BackendPhase implements Phase {
         createDirectories(context);
 
         // -- Instantiate backend, bind current compilation task and the context
-        Backend backend = MultiJ.from(Backend.class)
+        MulticoreBackend backend = MultiJ.from(MulticoreBackend.class)
                 .bind("task").to(task)
                 .bind("context").to(context)
                 .instance();
 
 
-        // -- Copy Backend resources
+        // -- Copy MulticoreBackend resources
         copyBackendResources(backend);
 
         // -- Generate main
@@ -142,66 +139,66 @@ public class C11BackendPhase implements Phase {
     /**
      * Generates main and the initialization of the network
      *
-     * @param backend
+     * @param multicoreBackend
      */
-    private void generateMain(Backend backend) {
-        backend.main().main();
+    private void generateMain(MulticoreBackend multicoreBackend) {
+        multicoreBackend.main().main();
     }
 
     /**
      * Generate Instances
      *
-     * @param backend
+     * @param multicoreBackend
      */
-    private void generateInstrances(Backend backend) {
-        for (Instance instance : backend.task().getNetwork().getInstances()) {
-            GlobalEntityDecl entityDecl = backend.globalnames().entityDecl(instance.getEntityName(), true);
+    private void generateInstrances(MulticoreBackend multicoreBackend) {
+        for (Instance instance : multicoreBackend.task().getNetwork().getInstances()) {
+            GlobalEntityDecl entityDecl = multicoreBackend.globalnames().entityDecl(instance.getEntityName(), true);
             if (!entityDecl.getExternal())
-                backend.instance().generateInstance(instance);
+                multicoreBackend.instance().generateInstance(instance);
         }
     }
 
     /**
      * Generates the various CMakeLists.txt for building the generated code
      *
-     * @param backend
+     * @param multicoreBackend
      */
-    private void generateCmakeLists(Backend backend) {
+    private void generateCmakeLists(MulticoreBackend multicoreBackend) {
         // -- Project CMakeLists
-        backend.cmakelists().projectCMakeLists();
+        multicoreBackend.cmakelists().projectCMakeLists();
 
         // -- CodeGen CMakeLists
-        backend.cmakelists().codegenCMakeLists();
+        multicoreBackend.cmakelists().codegenCMakeLists();
     }
 
     /**
      * Generate Globals
      *
-     * @param backend
+     * @param multicoreBackend
      */
-    private void generateGlobals(Backend backend) {
+    private void generateGlobals(MulticoreBackend multicoreBackend) {
         // -- Globals Source
-        backend.globals().globalSource();
+        multicoreBackend.globals().globalSource();
 
         // -- Globals Header
-        backend.globals().globalHeader();
+        multicoreBackend.globals().globalHeader();
     }
 
     /**
      * Generate Auxiliary files for visualization
      *
-     * @param backend
+     * @param multicoreBackend
      */
-    private void generateAuxiliary(Backend backend) {
+    private void generateAuxiliary(MulticoreBackend multicoreBackend) {
 
         // -- Network to DOT
-        backend.netoworkToDot().generateNetworkDot();
+        multicoreBackend.netoworkToDot().generateNetworkDot();
 
         // -- Actor Machine Controllers to DOT
-        for (Instance instance : backend.task().getNetwork().getInstances()) {
-            String instanceWithQID = backend.instaceQID(instance.getInstanceName(), "_");
-            GlobalEntityDecl entityDecl = backend.globalnames().entityDecl(instance.getEntityName(), true);
-            ControllerToGraphviz dot = new ControllerToGraphviz(entityDecl, instanceWithQID, PathUtils.getAuxiliary(backend.context()).resolve(instanceWithQID + ".dot"));
+        for (Instance instance : multicoreBackend.task().getNetwork().getInstances()) {
+            String instanceWithQID = multicoreBackend.instaceQID(instance.getInstanceName(), "_");
+            GlobalEntityDecl entityDecl = multicoreBackend.globalnames().entityDecl(instance.getEntityName(), true);
+            ControllerToGraphviz dot = new ControllerToGraphviz(entityDecl, instanceWithQID, PathUtils.getAuxiliary(multicoreBackend.context()).resolve(instanceWithQID + ".dot"));
             dot.print();
         }
     }
@@ -245,11 +242,11 @@ public class C11BackendPhase implements Phase {
     }
 
     /**
-     * Copy the Backend resources to the target directory
+     * Copy the MulticoreBackend resources to the target directory
      *
-     * @param backend
+     * @param multicoreBackend
      */
-    private void copyBackendResources(Backend backend) {
+    private void copyBackendResources(MulticoreBackend multicoreBackend) {
 
         try {
             // -- Copy Runtime
@@ -262,13 +259,13 @@ public class C11BackendPhase implements Phase {
                 PathUtils.copyDirTree(libResourcePath, libPath, StandardCopyOption.REPLACE_EXISTING);
             }
             // -- Copy __arrayCopy.h
-            Files.copy(getClass().getResourceAsStream("/arraycopy/__arrayCopy.h"), PathUtils.getTargetCodeGenInclude(backend.context()).resolve("__arrayCopy.h"), StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(getClass().getResourceAsStream("/arraycopy/__arrayCopy.h"), PathUtils.getTargetCodeGenInclude(multicoreBackend.context()).resolve("__arrayCopy.h"), StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException e) {
-            throw new CompilationException(new Diagnostic(Diagnostic.Kind.ERROR, "Could not copy backend resources"));
+            throw new CompilationException(new Diagnostic(Diagnostic.Kind.ERROR, "Could not copy multicoreBackend resources"));
         } catch (URISyntaxException e) {
             e.printStackTrace();
         } catch (FileSystemNotFoundException e) {
-            throw new CompilationException(new Diagnostic(Diagnostic.Kind.ERROR, String.format("Could not copy backend resources")));
+            throw new CompilationException(new Diagnostic(Diagnostic.Kind.ERROR, String.format("Could not copy multicoreBackend resources")));
         }
     }
 

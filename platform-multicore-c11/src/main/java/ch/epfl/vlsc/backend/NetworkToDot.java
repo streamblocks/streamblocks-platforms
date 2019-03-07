@@ -22,7 +22,7 @@ import java.util.Map;
 public interface NetworkToDot {
 
     @Binding(BindingKind.INJECTED)
-    Backend backend();
+    MulticoreBackend backend();
 
     default Emitter emitter() {
         return backend().emitter();

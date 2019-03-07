@@ -5,15 +5,14 @@ import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.ir.Port;
 import se.lth.cs.tycho.ir.ToolValueAttribute;
-import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.network.Connection;
-import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.network.Network;
 import se.lth.cs.tycho.type.Type;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -21,7 +20,7 @@ import java.util.stream.Collectors;
 public interface ChannelsUtils {
 
     @Binding(BindingKind.INJECTED)
-    Backend backend();
+    MulticoreBackend backend();
 
     default String sourceEndTypeSize(Connection.End source) {
         Network network = backend().task().getNetwork();
@@ -87,10 +86,15 @@ public interface ChannelsUtils {
 
     default int targetEndSize(Connection.End target) {
         Network network = backend().task().getNetwork();
-        Connection connection = network.getConnections().stream()
-                .filter(conn -> conn.getTarget().equals(target))
-                .findFirst().get();
-        return connectionBufferSize(connection);
+        try {
+            Connection connection = network.getConnections().stream()
+                    .filter(conn -> conn.getTarget().equals(target))
+                    .findFirst().get();
+            return connectionBufferSize(connection);
+        } catch (NoSuchElementException e){
+            throw new RuntimeException(e);
+        }
+
     }
 
 

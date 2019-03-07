@@ -18,7 +18,7 @@ import java.util.stream.Stream;
 @Module
 public interface Variables {
     @Binding(BindingKind.INJECTED)
-    Backend backend();
+    MulticoreBackend backend();
 
     /**
      * Generate a temporary variable

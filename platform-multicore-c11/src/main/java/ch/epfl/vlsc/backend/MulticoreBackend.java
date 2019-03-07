@@ -18,7 +18,7 @@ import static org.multij.BindingKind.INJECTED;
 import static org.multij.BindingKind.LAZY;
 
 @Module
-public interface Backend {
+public interface MulticoreBackend {
     // -- Compilation Task
     @Binding(INJECTED)
     CompilationTask task();

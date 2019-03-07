@@ -4,7 +4,6 @@ import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.Types;
-import se.lth.cs.tycho.ir.IRNode;
 import se.lth.cs.tycho.type.*;
 
 import java.util.ArrayList;
@@ -14,7 +13,7 @@ import java.util.List;
 public interface TypesEvaluator {
 
     @Binding(BindingKind.INJECTED)
-    Backend backend();
+    MulticoreBackend backend();
 
     default Types types() {
         return backend().types();

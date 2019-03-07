@@ -19,7 +19,7 @@ import java.util.*;
 @Module
 public interface CallablesInActors {
     @Binding(BindingKind.INJECTED)
-    Backend backend();
+    MulticoreBackend backend();
 
 
     /**

@@ -6,17 +6,12 @@ import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.GlobalNames;
-import se.lth.cs.tycho.ir.Port;
-import se.lth.cs.tycho.ir.QID;
-import se.lth.cs.tycho.ir.ToolValueAttribute;
 import se.lth.cs.tycho.ir.ValueParameter;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
-import se.lth.cs.tycho.ir.decl.ParameterVarDecl;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.network.Network;
-import se.lth.cs.tycho.type.Type;
 
 import java.nio.file.Path;
 import java.util.*;
@@ -25,7 +20,7 @@ import java.util.*;
 public interface Main {
 
     @Binding(BindingKind.INJECTED)
-    Backend backend();
+    MulticoreBackend backend();
 
     default Emitter emitter() {
         return backend().emitter();

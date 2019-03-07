@@ -4,7 +4,6 @@ import ch.epfl.vlsc.platformutils.Emitter;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
-import se.lth.cs.tycho.attribute.ScopeLiveness;
 import se.lth.cs.tycho.ir.entity.am.ActorMachine;
 import se.lth.cs.tycho.ir.entity.am.ctrl.*;
 import se.lth.cs.tycho.settings.Configuration;
@@ -16,7 +15,7 @@ import java.util.function.Function;
 @Module
 public interface Controllers {
     @Binding(BindingKind.INJECTED)
-    Backend backend();
+    MulticoreBackend backend();
 
 
     default Emitter emitter() {

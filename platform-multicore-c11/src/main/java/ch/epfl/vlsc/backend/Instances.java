@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
 @Module
 public interface Instances {
     @Binding(BindingKind.INJECTED)
-    Backend backend();
+    MulticoreBackend backend();
 
 
     default Emitter emitter() {

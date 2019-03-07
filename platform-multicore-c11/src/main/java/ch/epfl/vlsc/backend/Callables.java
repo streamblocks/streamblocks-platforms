@@ -23,7 +23,7 @@ import java.util.stream.Stream;
 @Module
 public interface Callables {
     @Binding(BindingKind.INJECTED)
-    Backend backend();
+    MulticoreBackend backend();
 	/*
 	Global scope:
 	- typedef fat pointers for all different ExprLambda and ExprProc types

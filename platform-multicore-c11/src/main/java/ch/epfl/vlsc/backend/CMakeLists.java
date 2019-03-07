@@ -12,7 +12,7 @@ import se.lth.cs.tycho.ir.network.Instance;
 public interface CMakeLists {
 
     @Binding(BindingKind.INJECTED)
-    Backend backend();
+    MulticoreBackend backend();
 
     default Emitter emitter() {
         return backend().emitter();
