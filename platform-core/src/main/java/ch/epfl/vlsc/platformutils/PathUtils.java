@@ -75,6 +75,18 @@ public class PathUtils {
     }
 
     /**
+     * Get the code-gen RTL target output directory
+     *
+     * @param context
+     * @return
+     */
+    public static Path getTargetCodeGenRtl(Context context) {
+        File directory = new File(getTargetCodeGen(context).toFile(), "rtl");
+        return directory.toPath();
+    }
+
+
+    /**
      * Get the code-gen headers target output directory
      *
      * @param context

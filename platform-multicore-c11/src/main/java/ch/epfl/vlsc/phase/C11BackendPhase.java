@@ -106,7 +106,7 @@ public class C11BackendPhase implements Phase {
         reporter.report(new Diagnostic(Diagnostic.Kind.INFO, "Identifier, " + task.getIdentifier().toString()));
         reporter.report(new Diagnostic(Diagnostic.Kind.INFO, "Target Path, " + PathUtils.getTarget(context)));
 
-        // -- Create Context
+        // -- Create Directories
         createDirectories(context);
 
         // -- Instantiate backend, bind current compilation task and the context
