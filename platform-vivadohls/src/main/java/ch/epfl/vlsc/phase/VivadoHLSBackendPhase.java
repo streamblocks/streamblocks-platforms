@@ -63,6 +63,9 @@ public class VivadoHLSBackendPhase implements Phase {
         // -- Source path
         PathUtils.createDirectory(codeGenPath, "src");
 
+        // -- Include path
+        PathUtils.createDirectory(codeGenPath, "include");
+
         // -- Source testbench path
         PathUtils.createDirectory(codeGenPath, "src-tb");
 
@@ -104,9 +107,16 @@ public class VivadoHLSBackendPhase implements Phase {
         // -- Generate instances
         generateInstrances(backend);
 
+        // -- Generate Globals
+        generateGlobals(backend);
+
         return task;
     }
 
+    /**
+     * Generate Source code for instances
+     * @param backend
+     */
 
     private void generateInstrances(VivadoHLSBackend backend){
         for (Instance instance : backend.task().getNetwork().getInstances()) {
@@ -115,6 +125,15 @@ public class VivadoHLSBackendPhase implements Phase {
                 backend.instance().generateInstance(instance);
             }
         }
+    }
+
+
+    private void generateGlobals(VivadoHLSBackend backend){
+        // -- Globals Source
+        backend.globals().globalSource();
+
+        // -- Globals Header
+        backend.globals().globalHeader();
     }
 
 

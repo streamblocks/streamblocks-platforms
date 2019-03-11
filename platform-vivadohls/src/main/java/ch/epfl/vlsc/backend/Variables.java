@@ -10,6 +10,7 @@ import se.lth.cs.tycho.ir.Variable;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.am.ActorMachine;
 import se.lth.cs.tycho.ir.entity.am.Scope;
+import se.lth.cs.tycho.ir.entity.cal.CalActor;
 import se.lth.cs.tycho.ir.expr.ExprGlobalVariable;
 
 import java.util.stream.Collectors;
@@ -53,6 +54,8 @@ public interface Variables {
             return "a_" + escape(decl.getName());
         } else if (parent instanceof ActorMachine) {
             return "a_" + escape(decl.getName());
+        } else if (parent instanceof CalActor){
+            return "a_" + escape(decl.getName());
         } else if (parent instanceof NamespaceDecl) {
             QID ns = ((NamespaceDecl) parent).getQID();
             return Stream.concat(ns.parts().stream(), Stream.of(decl.getName()))
@@ -85,8 +88,8 @@ public interface Variables {
 
     default String reference(VarDecl decl) {
         IRNode parent = backend().tree().parent(decl);
-        if (parent instanceof Scope || parent instanceof ActorMachine) {
-            return "&(thisActor." + declarationName(decl) + ")";
+        if (parent instanceof Scope || parent instanceof ActorMachine || parent instanceof CalActor) {
+            return "&(this->" + declarationName(decl) + ")";
         } else {
             return "&" + declarationName(decl);
         }
@@ -102,9 +105,9 @@ public interface Variables {
         VarDecl decl = backend().varDecls().declaration(var);
         IRNode parent = backend().tree().parent(decl);
         if (backend().closures().isDeclaredInClosure(var)) {
-            return "thisActor." + declarationName(decl);
-        } else if (parent instanceof Scope || parent instanceof ActorMachine) {
-            return "thisActor." + declarationName(decl);
+            return "this->" + declarationName(decl);
+        } else if (parent instanceof Scope || parent instanceof ActorMachine || parent instanceof CalActor) {
+            return "this->" + declarationName(decl);
         } else {
             return declarationName(decl);
         }
@@ -112,8 +115,8 @@ public interface Variables {
 
     default String name(VarDecl decl) {
         IRNode parent = backend().tree().parent(decl);
-        if (parent instanceof Scope || parent instanceof ActorMachine) {
-            return "thisActor." + declarationName(decl) + "";
+        if (parent instanceof Scope || parent instanceof ActorMachine || parent instanceof CalActor) {
+            return "this->" + declarationName(decl) + "";
         } else {
             return declarationName(decl);
         }

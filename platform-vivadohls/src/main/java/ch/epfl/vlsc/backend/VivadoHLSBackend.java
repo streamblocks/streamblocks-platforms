@@ -13,6 +13,7 @@ import se.lth.cs.tycho.ir.QID;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.phase.TreeShadow;
+import sun.jvm.hotspot.debugger.cdbg.basic.LazyBlockSym;
 
 import static org.multij.BindingKind.INJECTED;
 import static org.multij.BindingKind.LAZY;
@@ -114,14 +115,41 @@ public interface VivadoHLSBackend {
     default Declarations declarations() {return MultiJ.from(Declarations.class).bind("backend").to(this).instance();}
 
     // -- Variables
+    @Binding(LAZY)
     default Variables variables() {return MultiJ.from(Variables.class).bind("backend").to(this).instance();}
 
+    // -- ChannelUtils
+    @Binding(LAZY)
+    default LValues lvalues() {return MultiJ.from(LValues.class).bind("backend").to(this).instance();}
+
+    // -- Expression Evaluator
+    @Binding(LAZY)
+    default ExpressionEvaluator expressioneval() {return MultiJ.from(ExpressionEvaluator.class).bind("backend").to(this).instance();}
+
+    // -- Statements
+    @Binding(LAZY)
+    default Statements statements() {return MultiJ.from(Statements.class).bind("backend").to(this).instance();}
+
+    // -- Callables
+    @Binding(LAZY)
+    default CallablesInActors callables() {return MultiJ.from(CallablesInActors.class).bind("backend").to(this).instance();}
+
+    // -- ChannelUtils
+    @Binding(LAZY)
+    default ChannelsUtils channelsutils() {return MultiJ.from(ChannelsUtils.class).bind("backend").to(this).instance();}
 
     // -- Instance generator
     @Binding(LAZY)
     default Instances instance() {
         return MultiJ.from(Instances.class).bind("backend").to(this).instance();
     }
+
+    // -- Globals
+    @Binding(LAZY)
+    default Globals globals() {
+        return MultiJ.from(Globals.class).bind("backend").to(this).instance();
+    }
+
 
 
     // -- Utils

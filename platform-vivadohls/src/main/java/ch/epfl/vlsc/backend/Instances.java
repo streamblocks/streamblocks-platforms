@@ -10,12 +10,16 @@ import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
+import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.entity.cal.CalActor;
 import se.lth.cs.tycho.ir.expr.ExprLambda;
 import se.lth.cs.tycho.ir.expr.ExprProc;
 import se.lth.cs.tycho.ir.network.Instance;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Module
 public interface Instances {
@@ -50,56 +54,201 @@ public interface Instances {
         // -- Add entity to box
         backend().entitybox().set(entity);
 
-        // -- Instance Name
-        String instanceName = instance.getInstanceName();
+        // -- Generate Source
+        generateSource(instance);
 
-        // -- Target file Path
-        Path instanceTarget = PathUtils.getTargetCodeGenSource(backend().context()).resolve(backend().instaceQID(instance.getInstanceName(), "_") + ".cpp");
-        emitter().open(instanceTarget);
-
-        // -- Includes
-        defineIncludes();
-
-        // -- Instance State
-        instanceState(instanceName, entity);
-
-        // -- EOF
-        emitter().close();
+        // -- Generate Header
+        generateHeader(instance);
 
         // -- Clear boxes
         backend().entitybox().clear();
         backend().instancebox().clear();
     }
 
+
+    default void generateSource(Instance instance) {
+        // -- Target file Path
+        Path instanceTarget = PathUtils.getTargetCodeGenSource(backend().context()).resolve(backend().instaceQID(instance.getInstanceName(), "_") + ".cpp");
+        emitter().open(instanceTarget);
+
+        // -- Instance Name
+        String instanceName = instance.getInstanceName();
+
+        // -- Includes
+        defineIncludes(false);
+
+        // -- Static call of instance
+        staticCallofInstance(instance);
+
+
+        // -- EOF
+        emitter().close();
+    }
+
+
+    default void staticCallofInstance(Instance instance) {
+        emitter().emit("void %s(%s) {", instance.getInstanceName(), entityPorts());
+        emitter().increaseIndentation();
+
+        String className = backend().instaceQID(instance.getInstanceName(), "_");
+        emitter().emit("static %s %s;", className, instance.getInstanceName());
+        emitter().emitNewLine();
+
+        Entity entity = backend().entitybox().get();
+        List<String> ports = entity.getInputPorts().stream().map(PortDecl::getName).collect(Collectors.toList());
+        ports.addAll(entity.getOutputPorts().stream().map(PortDecl::getName).collect(Collectors.toList()));
+        if (entity instanceof CalActor) {
+            CalActor actor = (CalActor) entity;
+            if (actor.getProcessDescription() != null) {
+                if(actor.getProcessDescription().isRepeated()){
+                    emitter().emit("%s(%s);", instance.getInstanceName(), String.join(", ", ports));
+                }else{
+                    emitter().emit("bool has_executed = false;");
+                    emitter().emitNewLine();
+                    emitter().emit("if (!has_executed) {");
+                    emitter().increaseIndentation();
+
+                    emitter().emit("%s(%s);", instance.getInstanceName(), String.join(", ", ports));
+                    emitter().emit("has_executed = true;");
+
+                    emitter().decreaseIndentation();
+                    emitter().emit("}");
+                }
+            } else {
+                //throw new UnsupportedOperationException("Actors is not a Process.");
+            }
+        } else {
+            emitter().emit("%s(%s);", instance.getInstanceName(), String.join(", ", ports));
+        }
+
+
+        emitter().decreaseIndentation();
+        emitter().emit("}");
+    }
+
+
+    default void generateHeader(Instance instance) {
+        // -- Target file Path
+        Path instanceTarget = PathUtils.getTargetCodeGenInclude(backend().context()).resolve(backend().instaceQID(instance.getInstanceName(), "_") + ".h");
+        emitter().open(instanceTarget);
+
+        // -- Entity
+        Entity entity = backend().entitybox().get();
+
+        // -- Instance Name
+        String instanceName = instance.getInstanceName();
+
+        // -- Includes
+        defineIncludes(true);
+
+        // -- Instance State
+        instanceClass(instanceName, entity);
+
+        // -- Callables
+        // -- Todo
+
+        // -- Top of Instance
+        topOfInstance(instanceName, entity);
+
+        // -- EOF
+        emitter().close();
+    }
+
+
     /*
      * Instance headers
      */
 
-    default void defineIncludes() {
-        backend().includeSystem("ap_int.h");
-        backend().includeSystem("hls_stream.h");
-        backend().includeSystem("stdint.h");
+    default void defineIncludes(boolean isHeader) {
+        if (isHeader) {
+            backend().includeSystem("ap_int.h");
+            backend().includeSystem("hls_stream.h");
+            backend().includeSystem("stdint.h");
+            backend().includeUser("globals.h");
+        } else {
+            Instance instance = backend().instancebox().get();
+            String headerName = backend().instaceQID(instance.getInstanceName(), "_") + ".h";
+
+            backend().includeUser(headerName);
+        }
         emitter().emitNewLine();
     }
 
-    void instanceState(String instanceName, Entity entity);
+    void instanceClass(String instanceName, Entity entity);
 
-    default void instanceState(String instanceName, CalActor actor) {
+    default void instanceClass(String instanceName, CalActor actor) {
         if (!actor.getVarDecls().isEmpty()) {
-            emitter().emit("// -- Instance state");
-            emitter().emit("typedef struct{");
+            emitter().emit("// -- Instance Class");
+            String className = backend().instaceQID(instanceName, "_");
+            emitter().emit("class %s {", className);
+
+            // -- Private
+            emitter().emit("private:");
             emitter().increaseIndentation();
+
             for (VarDecl var : actor.getVarDecls()) {
                 if (var.getValue() instanceof ExprLambda || var.getValue() instanceof ExprProc) {
                     // -- Do nothing
                 } else {
                     String decl = declarations().declaration(types().declaredType(var), backend().variables().declarationName(var));
-                    emitter().emit("%s;", decl);
+                    if (var.getValue() != null) {
+                        emitter().emit("%s = %s;", decl, backend().expressioneval().evaluate(var.getValue()));
+                    } else {
+                        emitter().emit("%s;", decl);
+                    }
                 }
             }
+
+
             emitter().decreaseIndentation();
-            emitter().emit("} ActorInstance_%s;", backend().instaceQID(instanceName, "_"));
+
+            // -- Public
+            emitter().emit("public:");
+            emitter().increaseIndentation();
+
+            emitter().emit("void operator()(%s);", entityPorts());
+
+            emitter().decreaseIndentation();
+
+            emitter().emit("};");
+            emitter().emitNewLine();
         }
     }
+
+    default String entityPorts() {
+        Entity entity = backend().entitybox().get();
+        List<String> ports = new ArrayList<>();
+        for (PortDecl port : entity.getInputPorts()) {
+            ports.add(backend().declarations().portDeclaration(port));
+        }
+
+        for (PortDecl port : entity.getOutputPorts()) {
+            ports.add(backend().declarations().portDeclaration(port));
+        }
+
+        return String.join(", ", ports);
+    }
+
+
+    /*
+     * Top of Instance
+     */
+
+    void topOfInstance(String instanceName, Entity entity);
+
+    default void topOfInstance(String instanceName, CalActor actor) {
+        if (actor.getProcessDescription() != null) {
+            String className = backend().instaceQID(instanceName, "_");
+            emitter().emit("void %s::operator()(%s) {", className, entityPorts());
+            emitter().increaseIndentation();
+            actor.getProcessDescription().getStatements().forEach(backend().statements()::execute);
+            emitter().decreaseIndentation();
+            emitter().emit("}");
+
+        } else {
+            //throw new UnsupportedOperationException("Actors is not a Process.");
+        }
+    }
+
 
 }

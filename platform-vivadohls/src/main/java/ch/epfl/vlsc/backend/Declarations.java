@@ -3,6 +3,7 @@ package ch.epfl.vlsc.backend;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
+import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.type.*;
 
 import java.util.stream.Collectors;
@@ -39,7 +40,7 @@ public interface Declarations {
     }
 
     default String declaration(StringType type, String name) {
-        return "char *" + name;
+        return "char* " + name;
     }
 
     default String declarationTemp(Type type, String name) {
@@ -67,5 +68,10 @@ public interface Declarations {
         }
     }
 
+
+    default String portDeclaration(PortDecl portDecl){
+        Type type = backend().types().declaredPortType(portDecl);
+        return String.format("hls::stream< %s> &%s", declaration(type, ""), portDecl.getName());
+    }
 
 }
