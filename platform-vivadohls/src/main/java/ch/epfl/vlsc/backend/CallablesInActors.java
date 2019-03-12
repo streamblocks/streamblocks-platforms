@@ -57,7 +57,7 @@ public interface CallablesInActors {
      * @param lambda
      */
     default void callableDefinition(String instanceName, ExprLambda lambda) {
-        backend().emitter().emit("%s {", lambdaHeader(instanceName, lambda));
+        backend().emitter().emit("static %s {", lambdaHeader(instanceName, lambda));
         backend().emitter().emit("#pragma HLS INLINE");
         backend().emitter().increaseIndentation();
         backend().emitter().emit("return %s;", backend().expressioneval().evaluate(lambda.getBody()));
@@ -73,7 +73,7 @@ public interface CallablesInActors {
      */
 
     default void callableDefinition(String instanceName, ExprProc proc) {
-        backend().emitter().emit("%s {", procHeader(instanceName, proc));
+        backend().emitter().emit("static %s {", procHeader(instanceName, proc));
         backend().emitter().emit("#pragma HLS INLINE");
         backend().emitter().increaseIndentation();
         proc.getBody().forEach(backend().statements()::execute);
@@ -103,11 +103,8 @@ public interface CallablesInActors {
      * @param withEnv
      * @return
      */
-    default String callableHeader(String instanceName, String name, CallableType type, List<String> parameterNames, boolean withEnv) {
+    default String callableHeader(String instanceName, String name, CallableType type, List<String> parameterNames) {
         List<String> parameters = new ArrayList<>();
-        if (withEnv) {
-            parameters.add(String.format("%s *thisActor", "ActorInstance_" + backend().instaceQID(instanceName, "_")));
-        }
         assert parameterNames.size() == type.getParameterTypes().size();
         for (int i = 0; i < parameterNames.size(); i++) {
             parameters.add(backend().declarations().declarationParameter(type.getParameterTypes().get(i), parameterNames.get(i)));
@@ -150,7 +147,7 @@ public interface CallablesInActors {
         String name = functionName(instanceName, lambda);
         LambdaType type = (LambdaType) backend().types().type(lambda);
         ImmutableList<String> parameterNames = lambda.getValueParameters().map(backend().variables()::declarationName);
-        return callableHeader(instanceName, name, type, parameterNames, !directlyCallable(lambda));
+        return callableHeader(instanceName, name, type, parameterNames);
     }
 
     /**
@@ -164,7 +161,7 @@ public interface CallablesInActors {
         String name = functionName(instanceName, proc);
         ProcType type = (ProcType) backend().types().type(proc);
         ImmutableList<String> parameterNames = proc.getValueParameters().map(backend().variables()::declarationName);
-        return callableHeader(instanceName, name, type, parameterNames, !directlyCallable(proc));
+        return callableHeader(instanceName, name, type, parameterNames);
     }
 
 
@@ -246,7 +243,7 @@ public interface CallablesInActors {
                 parameterNames.add("p_" + i);
             }
             String name = externalWrapperFunctionName(varDecl);
-            backend().emitter().emit("%s {", externalCallableHeader(name, callable, parameterNames));
+            backend().emitter().emit("static %s {", externalCallableHeader(name, callable, parameterNames));
             backend().emitter().increaseIndentation();
             String call = varDecl.getOriginalName() + "(" + String.join(", ", parameterNames) + ")";
             if (callable.getReturnType().equals(UnitType.INSTANCE)) {

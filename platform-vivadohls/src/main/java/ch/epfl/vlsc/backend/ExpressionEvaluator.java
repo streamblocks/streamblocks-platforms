@@ -497,13 +497,9 @@ public interface ExpressionEvaluator {
      * @return
      */
     default String evaluate(ExprApplication apply) {
-        boolean directlyCallable = backend().callables().directlyCallable(apply.getFunction());
         String fn;
         List<String> parameters = new ArrayList<>();
 
-        if(!directlyCallable){
-            parameters.add("thisActor");
-        }
         for (Expression parameter : apply.getArgs()) {
             parameters.add(evaluate(parameter));
         }

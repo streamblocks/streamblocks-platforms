@@ -91,7 +91,7 @@ public interface Instances {
         emitter().increaseIndentation();
 
         String className = backend().instaceQID(instance.getInstanceName(), "_");
-        emitter().emit("static %s %s;", className, instance.getInstanceName());
+        emitter().emit("static %s i_%s;", className, instance.getInstanceName());
         emitter().emitNewLine();
 
         Entity entity = backend().entitybox().get();
@@ -101,14 +101,14 @@ public interface Instances {
             CalActor actor = (CalActor) entity;
             if (actor.getProcessDescription() != null) {
                 if(actor.getProcessDescription().isRepeated()){
-                    emitter().emit("%s(%s);", instance.getInstanceName(), String.join(", ", ports));
+                    emitter().emit("i_%s(%s);", instance.getInstanceName(), String.join(", ", ports));
                 }else{
                     emitter().emit("bool has_executed = false;");
                     emitter().emitNewLine();
                     emitter().emit("if (!has_executed) {");
                     emitter().increaseIndentation();
 
-                    emitter().emit("%s(%s);", instance.getInstanceName(), String.join(", ", ports));
+                    emitter().emit("i_%s(%s);", instance.getInstanceName(), String.join(", ", ports));
                     emitter().emit("has_executed = true;");
 
                     emitter().decreaseIndentation();
@@ -118,7 +118,7 @@ public interface Instances {
                 //throw new UnsupportedOperationException("Actors is not a Process.");
             }
         } else {
-            emitter().emit("%s(%s);", instance.getInstanceName(), String.join(", ", ports));
+            emitter().emit("i_%s(%s);", instance.getInstanceName(), String.join(", ", ports));
         }
 
 
@@ -240,6 +240,7 @@ public interface Instances {
         if (actor.getProcessDescription() != null) {
             String className = backend().instaceQID(instanceName, "_");
             emitter().emit("void %s::operator()(%s) {", className, entityPorts());
+            emitter().emit("#pragma HLS INLINE");
             emitter().increaseIndentation();
             actor.getProcessDescription().getStatements().forEach(backend().statements()::execute);
             emitter().decreaseIndentation();

@@ -143,11 +143,7 @@ public interface Statements {
     default void execute(StmtCall call) {
         String proc;
         List<String> parameters = new ArrayList<>();
-        boolean directlyCallable = backend().callables().directlyCallable(call.getProcedure());
 
-        if (!directlyCallable) {
-            parameters.add("thisActor");
-        }
         proc = expressioneval().evaluateCall(call.getProcedure());
 
         for (Expression parameter : call.getArgs()) {

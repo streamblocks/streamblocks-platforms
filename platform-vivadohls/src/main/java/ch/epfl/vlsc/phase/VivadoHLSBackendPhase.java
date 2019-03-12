@@ -129,8 +129,6 @@ public class VivadoHLSBackendPhase implements Phase {
 
 
     private void generateGlobals(VivadoHLSBackend backend){
-        // -- Globals Source
-        backend.globals().globalSource();
 
         // -- Globals Header
         backend.globals().globalHeader();
