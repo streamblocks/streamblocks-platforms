@@ -35,6 +35,15 @@ public class VivadoHLSBackendPhase implements Phase {
      */
     private Path rtlPath;
 
+    /**
+     * cmake path for finding the HLS tools
+     */
+    private Path cmakePath;
+
+    /**
+     * Script paths for hls generate by cmake
+     */
+    private Path scriptsPath;
 
     @Override
     public String getDescription() {
@@ -50,6 +59,12 @@ public class VivadoHLSBackendPhase implements Phase {
     private void createDirectories(Context context) {
         // -- Get target Path
         targetPath = context.getConfiguration().get(Compiler.targetPath);
+
+        // -- Cmake path
+        cmakePath = PathUtils.createDirectory(targetPath, "cmake");
+
+        // -- Script paths for cmake
+        scriptsPath = PathUtils.createDirectory(targetPath, "scripts");
 
         // -- Code Generation paths
         codeGenPath = PathUtils.createDirectory(targetPath, "code-gen");
@@ -110,6 +125,9 @@ public class VivadoHLSBackendPhase implements Phase {
         // -- Generate Globals
         generateGlobals(backend);
 
+        // -- Generate Project CMakeList
+        generateCmakeLists(backend);
+
         return task;
     }
 
@@ -136,6 +154,16 @@ public class VivadoHLSBackendPhase implements Phase {
 
 
     /**
+     * Generates the various CMakeLists.txt for building the generated code
+     *
+     * @param backend
+     */
+    private void generateCmakeLists(VivadoHLSBackend backend) {
+        // -- Project CMakeLists
+        backend.cmakelists().projectCMakeLists();
+    }
+
+    /**
      * Copy the backend resources
      *
      * @param backend
@@ -144,8 +172,16 @@ public class VivadoHLSBackendPhase implements Phase {
         try {
             // -- Vivado HLS Fifo
             Files.copy(getClass().getResourceAsStream("/lib/verilog/fifo.v"), PathUtils.getTargetCodeGenRtl(backend.context()).resolve("fifo.v"), StandardCopyOption.REPLACE_EXISTING);
+
+            // -- Find Vivado hls for cmake
+            Files.copy(getClass().getResourceAsStream("/lib/cmake/FindVivadoHLS.cmake"), PathUtils.getTargetCmake(backend.context()).resolve("FindVivadoHLS.cmake"), StandardCopyOption.REPLACE_EXISTING);
+
+            // -- Synthesis script for Vivado HLS as an input to CMake
+            Files.copy(getClass().getResourceAsStream("/lib/cmake/Synthesis.tcl.in"), PathUtils.getTargetScripts(backend.context()).resolve("Synthesis.tcl.in"), StandardCopyOption.REPLACE_EXISTING);
+
+
         } catch (IOException e) {
-            throw new CompilationException(new Diagnostic(Diagnostic.Kind.ERROR, "Could not copy multicoreBackend resources"));
+            throw new CompilationException(new Diagnostic(Diagnostic.Kind.ERROR, "Could not copy backend resources"));
         }
     }
 

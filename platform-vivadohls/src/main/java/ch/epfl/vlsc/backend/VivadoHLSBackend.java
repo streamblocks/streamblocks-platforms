@@ -150,6 +150,12 @@ public interface VivadoHLSBackend {
         return MultiJ.from(Globals.class).bind("backend").to(this).instance();
     }
 
+    // -- CMakeLists
+    @Binding(LAZY)
+    default CMakeLists cmakelists() {
+        return MultiJ.from(CMakeLists.class).bind("backend").to(this).instance();
+    }
+
 
 
     // -- Utils

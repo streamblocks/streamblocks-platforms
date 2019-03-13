@@ -53,6 +53,29 @@ public class PathUtils {
     }
 
     /**
+     * Get the cmake target output directory
+     *
+     * @param context
+     * @return
+     */
+    public static Path getTargetCmake(Context context) {
+        File directory = new File(getTarget(context).toFile(), "cmake");
+        return directory.toPath();
+    }
+
+    /**
+     * Get the cmake target output directory
+     *
+     * @param context
+     * @return
+     */
+    public static Path getTargetScripts(Context context) {
+        File directory = new File(getTarget(context).toFile(), "scripts");
+        return directory.toPath();
+    }
+
+
+    /**
      * Get the code-gen target output directory
      *
      * @param context

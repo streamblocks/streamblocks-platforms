@@ -100,9 +100,9 @@ public interface Instances {
         if (entity instanceof CalActor) {
             CalActor actor = (CalActor) entity;
             if (actor.getProcessDescription() != null) {
-                if(actor.getProcessDescription().isRepeated()){
+                if (actor.getProcessDescription().isRepeated()) {
                     emitter().emit("i_%s(%s);", instance.getInstanceName(), String.join(", ", ports));
-                }else{
+                } else {
                     emitter().emit("bool has_executed = false;");
                     emitter().emitNewLine();
                     emitter().emit("if (!has_executed) {");
@@ -177,12 +177,13 @@ public interface Instances {
     void instanceClass(String instanceName, Entity entity);
 
     default void instanceClass(String instanceName, CalActor actor) {
-        if (!actor.getVarDecls().isEmpty()) {
-            emitter().emit("// -- Instance Class");
-            String className = backend().instaceQID(instanceName, "_");
-            emitter().emit("class %s {", className);
 
-            // -- Private
+        emitter().emit("// -- Instance Class");
+        String className = backend().instaceQID(instanceName, "_");
+        emitter().emit("class %s {", className);
+
+        // -- Private
+        if (!actor.getVarDecls().isEmpty()) {
             emitter().emit("private:");
             emitter().increaseIndentation();
 
@@ -198,21 +199,21 @@ public interface Instances {
                     }
                 }
             }
-
-
-            emitter().decreaseIndentation();
-
-            // -- Public
-            emitter().emit("public:");
-            emitter().increaseIndentation();
-
-            emitter().emit("void operator()(%s);", entityPorts());
-
-            emitter().decreaseIndentation();
-
-            emitter().emit("};");
-            emitter().emitNewLine();
         }
+
+        emitter().decreaseIndentation();
+
+        // -- Public
+        emitter().emit("public:");
+        emitter().increaseIndentation();
+
+        emitter().emit("void operator()(%s);", entityPorts());
+
+        emitter().decreaseIndentation();
+
+        emitter().emit("};");
+        emitter().emitNewLine();
+
     }
 
     default String entityPorts() {

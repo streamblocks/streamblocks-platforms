@@ -1,0 +1,39 @@
+if { [llength $argv] eq 5 } {
+	puts "The Synthesis.tcl script requires two arguments."
+	puts "For example, vivado_hls -f synthesis.tcl <top name> <source file name>.cpp"
+	puts "Please try again."
+	set instance_name ""
+	set file_name ""
+	exit
+} else {
+	set instance_name [lindex $argv 2]
+	set file_name [lindex $argv 3]
+}
+
+## -- Create project
+open_project $instance_name
+
+## -- Set top level
+set_top $instance_name
+
+## -- Add file
+add_files ${CMAKE_SOURCE_DIR}/code-gen/src/$file_name -cflags "-std=c++11 -I${CMAKE_SOURCE_DIR}/code-gen/include"
+
+## -- Create solution
+open_solution -reset solution
+
+## -- Define Xilinx FPGA
+set_part ${FPGA_NAME}
+
+## -- Define clock period
+create_clock -period 10.0 -name clk
+
+## -- Config RTL
+config_rtl -reset_level low
+config_compile -name_max_length 512 -pipeline_loops 256
+
+## -- Run synthesis
+csynth_design
+
+exit
+## EOF
