@@ -30,7 +30,7 @@ public interface CallablesInActors {
      * @return
      */
 
-    default String functionName(String instanceName, Expression callable) {
+    default String functionName(String instanceName, Expression callable, boolean withInstanceName) {
         assert callable instanceof ExprLambda || callable instanceof ExprProc;
         IRNode parent = backend().tree().parent(callable);
         if (parent instanceof VarDecl) {
@@ -39,7 +39,11 @@ public interface CallablesInActors {
             if (declParent instanceof NamespaceDecl) {
                 return instanceName;
             } else {
-                return instanceName + "_" + decl.getName();
+                if (withInstanceName) {
+                    return instanceName + "::" + decl.getName();
+                } else {
+                    return decl.getName();
+                }
             }
         } else {
             throw new UnsupportedOperationException("Unsupported Callable");
@@ -57,7 +61,7 @@ public interface CallablesInActors {
      * @param lambda
      */
     default void callableDefinition(String instanceName, ExprLambda lambda) {
-        backend().emitter().emit("static %s {", lambdaHeader(instanceName, lambda));
+        backend().emitter().emit("%s {", lambdaHeader(instanceName, lambda,true));
         backend().emitter().emit("#pragma HLS INLINE");
         backend().emitter().increaseIndentation();
         backend().emitter().emit("return %s;", backend().expressioneval().evaluate(lambda.getBody()));
@@ -73,7 +77,7 @@ public interface CallablesInActors {
      */
 
     default void callableDefinition(String instanceName, ExprProc proc) {
-        backend().emitter().emit("static %s {", procHeader(instanceName, proc));
+        backend().emitter().emit("%s {", procHeader(instanceName, proc,true));
         backend().emitter().emit("#pragma HLS INLINE");
         backend().emitter().increaseIndentation();
         proc.getBody().forEach(backend().statements()::execute);
@@ -86,11 +90,11 @@ public interface CallablesInActors {
     }
 
     default void callablePrototypes(String instanceName, ExprLambda lambda) {
-        backend().emitter().emit("%s;", lambdaHeader(instanceName, lambda));
+        backend().emitter().emit("%s;", lambdaHeader(instanceName, lambda, false));
     }
 
     default void callablePrototypes(String instanceName, ExprProc proc) {
-        backend().emitter().emit("%s;", procHeader(instanceName, proc));
+        backend().emitter().emit("%s;", procHeader(instanceName, proc, false));
     }
 
     /**
@@ -100,7 +104,6 @@ public interface CallablesInActors {
      * @param name
      * @param type
      * @param parameterNames
-     * @param withEnv
      * @return
      */
     default String callableHeader(String instanceName, String name, CallableType type, List<String> parameterNames) {
@@ -117,7 +120,6 @@ public interface CallablesInActors {
         result += ")";
         return result;
     }
-
 
 
     default String externalCallableHeader(String name, CallableType type, List<String> parameterNames) {
@@ -143,8 +145,8 @@ public interface CallablesInActors {
      * @param lambda
      * @return
      */
-    default String lambdaHeader(String instanceName, ExprLambda lambda) {
-        String name = functionName(instanceName, lambda);
+    default String lambdaHeader(String instanceName, ExprLambda lambda, boolean withInstanceName) {
+        String name = functionName(instanceName, lambda, withInstanceName);
         LambdaType type = (LambdaType) backend().types().type(lambda);
         ImmutableList<String> parameterNames = lambda.getValueParameters().map(backend().variables()::declarationName);
         return callableHeader(instanceName, name, type, parameterNames);
@@ -157,8 +159,8 @@ public interface CallablesInActors {
      * @param proc
      * @return
      */
-    default String procHeader(String instanceName, ExprProc proc) {
-        String name = functionName(instanceName, proc);
+    default String procHeader(String instanceName, ExprProc proc, boolean withInstanceName) {
+        String name = functionName(instanceName, proc, withInstanceName);
         ProcType type = (ProcType) backend().types().type(proc);
         ImmutableList<String> parameterNames = proc.getValueParameters().map(backend().variables()::declarationName);
         return callableHeader(instanceName, name, type, parameterNames);
@@ -209,12 +211,8 @@ public interface CallablesInActors {
     }
 
 
-
-    @Binding(BindingKind.LAZY)
-    default Set<String> usedNames() { return new HashSet<>(); }
-
-
-    default void externalCallableDeclaration(IRNode varDecl) { }
+    default void externalCallableDeclaration(IRNode varDecl) {
+    }
 
     default void externalCallableDeclaration(VarDecl varDecl) {
         if (varDecl.isExternal()) {
@@ -231,7 +229,8 @@ public interface CallablesInActors {
         }
     }
 
-    default void externalCallableDefinition(IRNode node) { }
+    default void externalCallableDefinition(IRNode node) {
+    }
 
     default void externalCallableDefinition(VarDecl varDecl) {
         if (varDecl.isExternal()) {

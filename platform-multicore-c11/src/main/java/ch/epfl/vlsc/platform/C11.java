@@ -12,12 +12,12 @@ import java.util.List;
 public class C11 implements Platform {
     @Override
     public String name() {
-        return "multicore-c11";
+        return "multicore";
     }
 
     @Override
     public String description() {
-        return "A backend for multicore C11 code.";
+        return "StreamBlocks code-generator for multicore platforms that uses PThread.";
     }
 
     private static final List<Phase> phases = ImmutableList.<Phase>builder()

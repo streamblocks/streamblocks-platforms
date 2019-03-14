@@ -13,7 +13,6 @@ import se.lth.cs.tycho.ir.QID;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.phase.TreeShadow;
-import sun.jvm.hotspot.debugger.cdbg.basic.LazyBlockSym;
 
 import static org.multij.BindingKind.INJECTED;
 import static org.multij.BindingKind.LAZY;

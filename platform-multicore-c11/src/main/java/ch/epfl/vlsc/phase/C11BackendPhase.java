@@ -70,7 +70,7 @@ public class C11BackendPhase implements Phase {
 
     @Override
     public String getDescription() {
-        return "StreamBlocks Multicore C11 Platform for Tycho compiler";
+        return "StreamBlocks Multicore code-generator for Pthread enabled platforms.";
     }
 
     @Override

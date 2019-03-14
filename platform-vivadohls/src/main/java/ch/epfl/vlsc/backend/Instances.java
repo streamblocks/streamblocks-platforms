@@ -11,9 +11,12 @@ import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
+import se.lth.cs.tycho.ir.entity.am.ActorMachine;
+import se.lth.cs.tycho.ir.entity.am.Scope;
 import se.lth.cs.tycho.ir.entity.cal.CalActor;
 import se.lth.cs.tycho.ir.expr.ExprLambda;
 import se.lth.cs.tycho.ir.expr.ExprProc;
+import se.lth.cs.tycho.ir.expr.Expression;
 import se.lth.cs.tycho.ir.network.Instance;
 
 import java.nio.file.Path;
@@ -144,11 +147,11 @@ public interface Instances {
         // -- Instance State
         instanceClass(instanceName, entity);
 
-        // -- Callables
-        // -- Todo
-
         // -- Top of Instance
         topOfInstance(instanceName, entity);
+
+        // -- Callables
+        callables(instanceName, entity);
 
         // -- EOF
         emitter().close();
@@ -189,7 +192,7 @@ public interface Instances {
 
             for (VarDecl var : actor.getVarDecls()) {
                 if (var.getValue() instanceof ExprLambda || var.getValue() instanceof ExprProc) {
-                    // -- Do nothing
+                    backend().callables().callablePrototypes(instanceName, var.getValue());
                 } else {
                     String decl = declarations().declaration(types().declaredType(var), backend().variables().declarationName(var));
                     if (var.getValue() != null) {
@@ -200,8 +203,8 @@ public interface Instances {
                 }
             }
         }
-
         emitter().decreaseIndentation();
+        emitter().emitNewLine();
 
         // -- Public
         emitter().emit("public:");
@@ -249,6 +252,39 @@ public interface Instances {
 
         } else {
             //throw new UnsupportedOperationException("Actors is not a Process.");
+        }
+    }
+
+
+    void callables(String instanceName, Entity entity);
+
+    default void callables(String instanceName, CalActor actor) {
+        emitter().emit("// -- Callables");
+        String className = backend().instaceQID(instanceName, "_");
+        for (VarDecl decl : actor.getVarDecls()) {
+            if (decl.getValue() != null) {
+                Expression expr = decl.getValue();
+                if (expr instanceof ExprLambda || expr instanceof ExprProc) {
+                    backend().callables().callableDefinition(className, expr);
+                }
+            }
+        }
+    }
+
+    default void callables(String instanceName, ActorMachine am) {
+        emitter().emit("// -- Callables");
+        for (Scope scope : am.getScopes()) {
+            if (scope.isPersistent()) {
+                for (VarDecl decl : scope.getDeclarations()) {
+                    if (decl.getValue() != null) {
+                        Expression expr = decl.getValue();
+                        if (expr instanceof ExprLambda || expr instanceof ExprProc) {
+                            backend().callables().callableDefinition(instanceName, expr);
+                            emitter().emitNewLine();
+                        }
+                    }
+                }
+            }
         }
     }
 

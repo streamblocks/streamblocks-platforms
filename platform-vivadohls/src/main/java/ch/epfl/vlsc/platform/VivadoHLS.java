@@ -16,7 +16,7 @@ public class VivadoHLS implements Platform {
 
     @Override
     public String description() {
-        return "A backend for Vivado HLS.";
+        return "StreamBlocks code-generator for VivadoHLS.";
     }
 
 
