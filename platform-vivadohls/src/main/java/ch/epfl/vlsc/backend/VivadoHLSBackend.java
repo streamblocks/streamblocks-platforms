@@ -1,7 +1,8 @@
 package ch.epfl.vlsc.backend;
 
+import ch.epfl.vlsc.backend.verilog.VerilogNetwork;
 import ch.epfl.vlsc.platformutils.Emitter;
-import ch.epfl.vlsc.platformutils.ch.epfl.vlsc.backend.utils.Box;
+import ch.epfl.vlsc.platformutils.utils.Box;
 import org.multij.Binding;
 import org.multij.Module;
 import org.multij.MultiJ;
@@ -141,6 +142,12 @@ public interface VivadoHLSBackend {
     @Binding(LAZY)
     default Instances instance() {
         return MultiJ.from(Instances.class).bind("backend").to(this).instance();
+    }
+
+    // -- Verilog Network generator
+    @Binding(LAZY)
+    default VerilogNetwork vnetwork() {
+        return MultiJ.from(VerilogNetwork.class).bind("backend").to(this).instance();
     }
 
     // -- Globals

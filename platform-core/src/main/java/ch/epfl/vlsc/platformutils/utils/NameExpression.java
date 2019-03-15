@@ -1,4 +1,4 @@
-package ch.epfl.vlsc.platformutils.ch.epfl.vlsc.backend.utils;
+package ch.epfl.vlsc.platformutils.utils;
 
 import se.lth.cs.tycho.ir.util.ImmutableList;
 

@@ -1,7 +1,7 @@
 package ch.epfl.vlsc.backend;
 
 import ch.epfl.vlsc.platformutils.Emitter;
-import ch.epfl.vlsc.platformutils.ch.epfl.vlsc.backend.utils.Box;
+import ch.epfl.vlsc.platformutils.utils.Box;
 import org.multij.Binding;
 import org.multij.Module;
 import org.multij.MultiJ;

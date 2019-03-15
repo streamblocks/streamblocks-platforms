@@ -1,6 +1,6 @@
 package ch.epfl.vlsc.backend;
 
-import ch.epfl.vlsc.platformutils.ch.epfl.vlsc.backend.utils.NameExpression;
+import ch.epfl.vlsc.platformutils.utils.NameExpression;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;

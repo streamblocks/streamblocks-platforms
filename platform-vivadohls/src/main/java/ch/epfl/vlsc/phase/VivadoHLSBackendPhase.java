@@ -125,6 +125,9 @@ public class VivadoHLSBackendPhase implements Phase {
         // -- Generate Globals
         generateGlobals(backend);
 
+        // -- Generate Network
+        generateNetwork(backend);
+
         // -- Generate Project CMakeList
         generateCmakeLists(backend);
 
@@ -143,6 +146,11 @@ public class VivadoHLSBackendPhase implements Phase {
                 backend.instance().generateInstance(instance);
             }
         }
+    }
+
+
+    private void generateNetwork(VivadoHLSBackend backend){
+        backend.vnetwork().generateNetwork();
     }
 
 
