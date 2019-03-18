@@ -1,5 +1,6 @@
 package ch.epfl.vlsc.platform;
 
+import ch.epfl.vlsc.phase.AddFanoutPhase;
 import ch.epfl.vlsc.phase.VivadoHLSBackendPhase;
 import se.lth.cs.tycho.compiler.Compiler;
 import se.lth.cs.tycho.ir.util.ImmutableList;
@@ -42,6 +43,7 @@ public class VivadoHLS implements Platform {
     private static final List<Phase> phases = ImmutableList.<Phase>builder()
             .addAll(Compiler.frontendPhases())
             .addAll(Compiler.networkElaborationPhases())
+            .add(new AddFanoutPhase())
             .addAll(actorMachinePhases())
             .add(new RemoveUnusedEntityDeclsPhase())
             .add(new VivadoHLSBackendPhase())
