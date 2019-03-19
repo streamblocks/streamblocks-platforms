@@ -1,9 +1,9 @@
 package ch.epfl.vlsc.phase;
 
-import ch.epfl.vlsc.backend.Variables;
-import se.lth.cs.tycho.compiler.CompilationTask;
-import se.lth.cs.tycho.compiler.Context;
+import se.lth.cs.tycho.compiler.*;
+import se.lth.cs.tycho.ir.NamespaceDecl;
 import se.lth.cs.tycho.ir.Port;
+import se.lth.cs.tycho.ir.QID;
 import se.lth.cs.tycho.ir.Variable;
 import se.lth.cs.tycho.ir.decl.Availability;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
@@ -27,10 +27,7 @@ import se.lth.cs.tycho.phase.ElaborateNetworkPhase;
 import se.lth.cs.tycho.phase.Phase;
 import se.lth.cs.tycho.reporting.CompilationException;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class AddFanoutPhase implements Phase {
@@ -46,72 +43,206 @@ public class AddFanoutPhase implements Phase {
 
     @Override
     public CompilationTask execute(CompilationTask task, Context context) throws CompilationException {
-        return task.withNetwork(addFannout(task, task.getNetwork()));
+        return addFannout(task, task.getNetwork(), context);
     }
 
-    public Network addFannout(CompilationTask task, Network network) {
+    public CompilationTask addFannout(CompilationTask task, Network network, Context context) {
+
+        // -- Map of fannouts per input ports and by instance output port
+        Map<String, List<Connection>> portInFanouts = network.getConnections().stream()
+                .filter(c -> !c.getSource().getInstance().isPresent())
+                .filter(c -> network.getConnections().stream().anyMatch(u -> u.getSource().getPort().equals(c.getSource().getPort()) && !u.equals(c)))
+                .collect(Collectors.groupingBy(c -> c.getSource().getPort()));
+
+        Map<String, Map<String, List<Connection>>> instancePortFanout = network.getConnections().stream()
+                .filter(c -> c.getSource().getInstance().isPresent())
+                .filter(c -> network.getConnections().stream().
+                        filter(x -> x.getSource().getInstance().isPresent())
+                        .anyMatch(u -> u.getSource().getInstance().get().equals(c.getSource().getInstance().get()) && u.getSource().getPort().equals(c.getSource().getPort()) && !u.equals(c)))
+                .collect(Collectors.groupingBy(c -> c.getSource().getInstance().get()))
+                .entrySet()
+                .stream()
+                .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue().stream().collect(Collectors.groupingBy(c -> c.getSource().getPort()))));
+
+        // -- If both maps are empty return original task
+        if (portInFanouts.isEmpty() && instancePortFanout.isEmpty()) {
+            return task;
+        }
+
+        // --------------------------------------------------------------------
+        // -- Network Immutable lists
+
+        // -- Copy I/O Ports
+        ImmutableList<PortDecl> networkInputPorts = network.getInputPorts().map(PortDecl::deepClone);
+        ImmutableList<PortDecl> networkOutputPorts = network.getOutputPorts().map(PortDecl::deepClone);
+
+        // -- Network Instances
+        ImmutableList.Builder<Instance> networkInstances = ImmutableList.builder();
+        for (Instance instance : network.getInstances()) {
+            networkInstances.add(instance);
+        }
+
+        // -- Network connections
+        ImmutableList.Builder<Connection> networkConnections = ImmutableList.builder();
+
 
         // -- Global entities
         ImmutableList.Builder<GlobalEntityDecl> fanoutEntities = ImmutableList.builder();
 
-        // -- Copy I/O Ports
-        ImmutableList<PortDecl> inputPorts = network.getInputPorts().map(PortDecl::deepClone);
-        ImmutableList<PortDecl> outputPorts = network.getOutputPorts().map(PortDecl::deepClone);
 
-        // -- Copy Instances
-        ImmutableList.Builder<Instance> instances = ImmutableList.builder();
-        for (Instance instance : network.getInstances()) {
-            instances.add(instance);
-        }
         // --------------------------------------------------------------------
         // -- Fanout Actor for input ports
-        Map<String, List<Connection>> portInFanouts = network.getConnections().stream()
-                .filter(c -> !c.getSource().getInstance().isPresent())
-                .collect(Collectors.groupingBy(c -> c.getSource().getPort()));
-
+        List<Connection> oldConnections = new ArrayList<>();
+        for (Connection c : network.getConnections()) {
+            oldConnections.add(c);
+        }
 
         // -- Create fanout actor and entities
-        for (String name : portInFanouts.keySet()) {
+        for (String portName : portInFanouts.keySet()) {
+            // -- Name
+            String name = "fanout_port_" + portName;
+
             // -- Get Input Port Declaration
-            PortDecl port = inputPorts.stream().filter(p -> p.getName().equals(name)).findAny().orElse(null);
+            PortDecl port = networkInputPorts.stream().filter(p -> p.getName().equals(portName)).findAny().orElse(null);
 
             // -- Create actor
-            CalActor fanout = getFanoutActor(port, portInFanouts.get(name).size());
+            CalActor fanout = getFanoutActor(port, portInFanouts.get(portName).size());
+
+            // -- Names
+            String fanoutInstanceName = uniqueInstanceName(task.getNetwork(), name);
+            String originalEntityName = name;
 
             // -- Create global entity
-            GlobalEntityDecl fanoutEntity = GlobalEntityDecl.global(Availability.PUBLIC, "fanout_port_" + name, fanout, true);
+            GlobalEntityDecl fanoutEntity = GlobalEntityDecl.global(Availability.PUBLIC, originalEntityName, fanout, false);
+
+            // -- Create instance
+            Instance instance = new Instance(fanoutInstanceName, QID.of(fanoutInstanceName), ImmutableList.empty(), ImmutableList.empty());
+            networkInstances.add(instance);
+
+            // -- Create Connection from Port to Fanout
+            {
+                Connection.End source = new Connection.End(Optional.empty(), portName);
+                Connection.End target = new Connection.End(Optional.of(name), "F_IN");
+                Connection connection = new Connection(source, target);
+                networkConnections.add(connection);
+            }
+
+            // -- Create Connections from fanout to instance/ports
+            int i = 0;
+            for (Connection fanoutConnection : portInFanouts.get(portName)) {
+                Connection.End source = new Connection.End(Optional.of(name), "F_OUT_" + i);
+                Connection.End target = new Connection.End(Optional.of(fanoutConnection.getTarget().getInstance().get()), fanoutConnection.getTarget().getPort());
+                Connection connection = new Connection(source, target);
+
+                // -- Remove old connection
+                Connection oldConnection = oldConnections.stream().filter(c -> c.equals(fanoutConnection)).findAny().orElse(null);
+                oldConnections.remove(oldConnection);
+
+                // -- Add new Connection to network Connections
+                networkConnections.add(connection);
+                i++;
+            }
+
             fanoutEntities.add(fanoutEntity);
         }
 
         // --------------------------------------------------------------------
         // -- Fanout Actor for instance outputs
-        Map<String, Map<String, List<Connection>>> instancePortFanout = network.getConnections().stream()
-                .filter(c-> c.getSource().getInstance().isPresent())
-                .collect(Collectors.groupingBy(c -> c.getSource().getInstance().get()))
-                .entrySet()
-                .stream()
-                .collect(Collectors.toMap(e-> e.getKey(), e -> e.getValue().stream().collect(Collectors.groupingBy(c -> c.getSource().getPort()))));
+        for (String instanceName : instancePortFanout.keySet()) {
+            for (String portName : instancePortFanout.get(instanceName).keySet()) {
+                // -- String name
+                String name = "fanout_" + instanceName + "_port_" + portName;
 
-        // -- Fixme: get isntance port form entity
-        /*
-        for(String instanceName : instancePortFanout.keySet()){
-            for(String portName : instancePortFanout.get(instanceName).keySet()){
-                // -- Get Input Port Declaration
+                // -- Get instance and global entity declaration
+                Instance instance = network.getInstances().stream().filter(i -> i.getInstanceName().equals(instanceName)).findAny().orElse(null);
+                GlobalEntityDecl entity = GlobalDeclarations.getEntity(task, instance.getEntityName());
 
-                PortDecl port = inputPorts.stream().filter(p -> p.getName().equals(portName)).findAny().orElse(null);
+                // -- Get output port
+                PortDecl port = entity.getEntity().getOutputPorts().stream().filter(p -> p.getName().equals(portName)).findAny().orElse(null);
 
                 // -- Create actor
-                CalActor fanout = getFanoutActor(port, portInFanouts.get(portName).size());
+                CalActor fanout = getFanoutActor(port, instancePortFanout.get(instanceName).get(portName).size());
+
+                // -- Names
+                String fanoutInstanceName = uniqueInstanceName(task.getNetwork(), name);
+                String originalEntityName = name;
 
                 // -- Create global entity
-                GlobalEntityDecl fanoutEntity = GlobalEntityDecl.global(Availability.PUBLIC, "fanout_" + instanceName + "_port_" + portName, fanout, true);
+                GlobalEntityDecl fanoutEntity = GlobalEntityDecl.global(Availability.PUBLIC, originalEntityName, fanout, false);
                 fanoutEntities.add(fanoutEntity);
+
+                // -- Create instance
+                Instance fanoutInstance = new Instance(fanoutInstanceName, QID.of(fanoutInstanceName), ImmutableList.empty(), ImmutableList.empty());
+                networkInstances.add(fanoutInstance);
+
+                // -- Create Connection from Port to Fanout
+                {
+                    Connection.End source = new Connection.End(Optional.of(instanceName), portName);
+                    Connection.End target = new Connection.End(Optional.of(name), "F_IN");
+                    Connection connection = new Connection(source, target);
+                    networkConnections.add(connection);
+                }
+
+                // -- Create Connections from fanout to instance/ports
+                int i = 0;
+                for (Connection fanoutConnection : instancePortFanout.get(instanceName).get(portName)) {
+                    Connection.End source = new Connection.End(Optional.of(name), "F_OUT_" + i);
+
+                    Optional<String> targetInstance;
+                    if (fanoutConnection.getTarget().getInstance().isPresent()) {
+                        targetInstance = Optional.of(fanoutConnection.getTarget().getInstance().get());
+                    } else {
+                        targetInstance = Optional.empty();
+                    }
+
+                    Connection.End target = new Connection.End(targetInstance, fanoutConnection.getTarget().getPort());
+                    Connection connection = new Connection(source, target);
+
+                    // -- Remove old connection
+                    Connection oldConnection = oldConnections.stream().filter(c -> c.equals(fanoutConnection)).findAny().orElse(null);
+                    oldConnections.remove(oldConnection);
+
+                    // -- Add new Connection to network Connections
+                    networkConnections.add(connection);
+                    i++;
+                }
+
             }
         }
-        */
+
+        // -- Copy remaining old connection to the new network connections
+        for (Connection c : oldConnections) {
+            Optional<String> sourceInstance;
+            Optional<String> targetInstance;
+
+            if (c.getSource().getInstance().isPresent()) {
+                sourceInstance = Optional.of(c.getSource().getInstance().get());
+            } else {
+                sourceInstance = Optional.empty();
+            }
+
+            if (c.getTarget().getInstance().isPresent()) {
+                targetInstance = Optional.of(c.getTarget().getInstance().get());
+            } else {
+                targetInstance = Optional.empty();
+            }
+
+            Connection.End source = new Connection.End(sourceInstance, c.getSource().getPort());
+            Connection.End target = new Connection.End(targetInstance, c.getTarget().getPort());
+            Connection connection = new Connection(source, target);
+            networkConnections.add(connection);
+        }
 
 
-        return network;
+        // --------------------------------------------------------------------
+        // -- Create new Network
+        Network result = new Network(networkInputPorts, networkOutputPorts, networkInstances.build(), networkConnections.build());
+
+        task = task.withNetwork(result);
+
+        SourceUnit fanoutUnit = new SyntheticSourceUnit(new NamespaceDecl(QID.empty(), null, null, fanoutEntities.build(), null));
+
+        return task.withSourceUnits(ImmutableList.<SourceUnit>builder().addAll(task.getSourceUnits()).add(fanoutUnit).build());
     }
 
 
@@ -176,6 +307,18 @@ public class AddFanoutPhase implements Phase {
         return fanout;
     }
 
+    private String uniqueInstanceName(Network network, String base) {
+        Set<String> names = network.getInstances().stream()
+                .map(Instance::getInstanceName)
+                .collect(Collectors.toSet());
+        String result = base;
+        int i = 1;
+        while (names.contains(result)) {
+            result = String.format("%s_%d", base, i);
+            i = i + 1;
+        }
+        return result;
+    }
 
     @Override
     public Set<Class<? extends Phase>> dependencies() {

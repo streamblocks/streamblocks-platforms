@@ -21,9 +21,23 @@ public class VivadoHLS implements Platform {
     }
 
 
+
+    public static List<Phase> networkElaborationPhases() {
+        return ImmutableList.of(
+                new CreateNetworkPhase(),
+                new RenameActorVariablesPhase(),
+                new ResolveGlobalEntityNamesPhase(),
+                new ResolveGlobalVariableNamesPhase(),
+                new ElaborateNetworkPhase(),
+                new AddFanoutPhase(),
+                new ResolveGlobalEntityNamesPhase(),
+                new RemoveUnusedGlobalDeclarations()
+        );
+    }
+
+
     public static List<Phase> actorMachinePhases() {
         return ImmutableList.of(
-                new RenameActorVariablesPhase()
                 //new LiftProcessVarDeclsPhase()
                 //new AddSchedulePhase(),
                 //new ScheduleUntaggedPhase(),
@@ -42,8 +56,7 @@ public class VivadoHLS implements Platform {
 
     private static final List<Phase> phases = ImmutableList.<Phase>builder()
             .addAll(Compiler.frontendPhases())
-            .addAll(Compiler.networkElaborationPhases())
-            .add(new AddFanoutPhase())
+            .addAll(networkElaborationPhases())
             .addAll(actorMachinePhases())
             .add(new RemoveUnusedEntityDeclsPhase())
             .add(new VivadoHLSBackendPhase())
