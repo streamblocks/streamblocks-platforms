@@ -19,6 +19,7 @@ import se.lth.cs.tycho.type.Type;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Module
 public interface VerilogNetwork {
@@ -70,6 +71,9 @@ public interface VerilogNetwork {
 
             // -- Instances
             getInstances(network.getInstances());
+
+            // -- Assignments
+            getAssignments(network);
 
             emitter().decreaseIndentation();
         }
@@ -316,14 +320,38 @@ public interface VerilogNetwork {
         emitter().emit(");");
     }
 
+    // ------------------------------------------------------------------------
+    // -- Assignments
+
+    default void getAssignments(Network network){
+        emitter().emit("// ------------------------------------------------------------------------");
+        emitter().emit("// -- Assignments");
+        emitter().emitNewLine();
+
+        // -- AP Control
+        getApControlAssignments(network);
+
+    }
+
+    default void getApControlAssignments(Network network){
+        emitter().emit("// -- AP Idle");
+        emitter().emit("assign ap_idle = %s;", String.join(" & ", network.getInstances()
+                .stream().map(n -> n.getInstanceName() + "_ap_idle")
+                .collect(Collectors.toList())));
+
+    }
+
+
+
+    // ------------------------------------------------------------------------
+    // -- Helper methods
+
+
     default String getPortExtension() {
         // -- TODO : Add _V_V for type accuracy
         return "_V";
     }
 
-
-    // ------------------------------------------------------------------------
-    // -- Helper methods
 
     @Binding(BindingKind.LAZY)
     default Map<Connection, String> queueNames() {
