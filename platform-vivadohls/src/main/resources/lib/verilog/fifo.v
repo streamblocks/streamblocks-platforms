@@ -179,3 +179,5 @@ always @(posedge clk) begin
     else if (if_read)
         dout_valid <= 1'b0;
 end
+
+endmodule

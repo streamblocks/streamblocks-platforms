@@ -108,13 +108,13 @@ public interface VerilogNetwork {
         Type type = backend().types().declaredPortType(port);
         int bitSize = TypeUtils.sizeOfBits(type);
         if (isInput) {
-            emitter().emit("output wire [%d:0] %s_din,", bitSize, port.getName());
-            emitter().emit("input  wire %s_full_n,", port.getName());
-            emitter().emit("output wire %s_write,", port.getName());
+            emitter().emit("input  wire [%d:0] %s_din,", bitSize - 1, port.getName());
+            emitter().emit("output wire %s_full_n,", port.getName());
+            emitter().emit("input  wire %s_write,", port.getName());
         } else {
-            emitter().emit("input  wire [%d:0] %s_dout,", bitSize, port.getName());
-            emitter().emit("input  wire %s_empty_n,", port.getName());
-            emitter().emit("output wire %s_read,", port.getName());
+            emitter().emit("output wire [%d:0] %s_dout,", bitSize - 1, port.getName());
+            emitter().emit("output wire %s_empty_n,", port.getName());
+            emitter().emit("input  wire %s_read,", port.getName());
         }
     }
 
@@ -225,7 +225,7 @@ public interface VerilogNetwork {
         {
             emitter().increaseIndentation();
             emitter().emit(".MEM_STYLE(\"block\"),");
-            emitter().emit(".DATA_WIDTH(%d)", dataWidth);
+            emitter().emit(".DATA_WIDTH(%d),", dataWidth);
             emitter().emit(".ADDR_WIDTH(%s_ADDR_WIDTH)", queueName.toUpperCase());
             emitter().decreaseIndentation();
         }
@@ -241,9 +241,9 @@ public interface VerilogNetwork {
             } else {
                 source = connection.getSource().getPort();
             }
-            emitter().emit(".if_full_n(%s_full_n)", source);
-            emitter().emit(".if_write(%s_write)", source);
-            emitter().emit(".if_din(%s_din)", source);
+            emitter().emit(".if_full_n(%s_full_n),", source);
+            emitter().emit(".if_write(%s_write),", source);
+            emitter().emit(".if_din(%s_din),", source);
             emitter().emitNewLine();
 
             String target;
@@ -252,14 +252,14 @@ public interface VerilogNetwork {
             } else {
                 target = connection.getTarget().getPort();
             }
-            emitter().emit(".if_empty_n(%s_empty_n)", target);
-            emitter().emit(".if_read(%s_read)", target);
-            emitter().emit(".if_dout(%s_dout)", target);
+            emitter().emit(".if_empty_n(%s_empty_n),", target);
+            emitter().emit(".if_read(%s_read),", target);
+            emitter().emit(".if_dout(%s_dout),", target);
             emitter().emitNewLine();
 
             emitter().emit(".peek(%s_peek),", queueName);
             emitter().emit(".count(%s_count),", queueName);
-            emitter().emit(".size(%s_size),", queueName);
+            emitter().emit(".size(%s_size)", queueName);
             emitter().decreaseIndentation();
         }
         emitter().emit(");");
