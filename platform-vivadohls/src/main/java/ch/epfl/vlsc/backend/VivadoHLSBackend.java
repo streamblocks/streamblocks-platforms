@@ -1,6 +1,7 @@
 package ch.epfl.vlsc.backend;
 
 import ch.epfl.vlsc.backend.verilog.VerilogNetwork;
+import ch.epfl.vlsc.backend.verilog.VerilogTestbench;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.utils.Box;
 import org.multij.Binding;
@@ -162,7 +163,11 @@ public interface VivadoHLSBackend {
         return MultiJ.from(CMakeLists.class).bind("backend").to(this).instance();
     }
 
-
+    // -- Verilog Testbenches
+    @Binding(LAZY)
+    default VerilogTestbench testbench() {
+        return MultiJ.from(VerilogTestbench.class).bind("backend").to(this).instance();
+    }
 
     // -- Utils
     default QID taskIdentifier() {

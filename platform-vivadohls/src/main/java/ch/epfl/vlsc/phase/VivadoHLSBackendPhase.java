@@ -8,6 +8,7 @@ import se.lth.cs.tycho.compiler.Compiler;
 import se.lth.cs.tycho.compiler.Context;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.network.Instance;
+import se.lth.cs.tycho.ir.network.Network;
 import se.lth.cs.tycho.phase.Phase;
 import se.lth.cs.tycho.reporting.CompilationException;
 import se.lth.cs.tycho.reporting.Diagnostic;
@@ -128,6 +129,9 @@ public class VivadoHLSBackendPhase implements Phase {
         // -- Generate Network
         generateNetwork(backend);
 
+        // -- Generate Testbenches
+        generateTestbenches(backend);
+
         // -- Generate Project CMakeList
         generateCmakeLists(backend);
 
@@ -136,30 +140,54 @@ public class VivadoHLSBackendPhase implements Phase {
 
     /**
      * Generate Source code for instances
+     *
      * @param backend
      */
 
-    private void generateInstrances(VivadoHLSBackend backend){
+    private void generateInstrances(VivadoHLSBackend backend) {
         for (Instance instance : backend.task().getNetwork().getInstances()) {
             GlobalEntityDecl entityDecl = backend.globalnames().entityDecl(instance.getEntityName(), true);
-            if (!entityDecl.getExternal()){
+            if (!entityDecl.getExternal()) {
                 backend.instance().generateInstance(instance);
             }
         }
     }
 
-
-    private void generateNetwork(VivadoHLSBackend backend){
+    /**
+     * Generate Verilog network
+     *
+     * @param backend
+     */
+    private void generateNetwork(VivadoHLSBackend backend) {
         backend.vnetwork().generateNetwork();
     }
 
-
-    private void generateGlobals(VivadoHLSBackend backend){
+    /**
+     * Generate gloabals
+     *
+     * @param backend
+     */
+    private void generateGlobals(VivadoHLSBackend backend) {
 
         // -- Globals Header
         backend.globals().globalHeader();
     }
 
+    /**
+     * Generate tesbenches for Network and Instances
+     *
+     * @param backend
+     */
+    private void generateTestbenches(VivadoHLSBackend backend) {
+        // -- Network
+        Network network = backend.task().getNetwork();
+
+        // -- Network Verilog Testbench
+        backend.testbench().generateTestbench(network);
+
+        // -- Instance Verilog Testbench
+        network.getInstances().forEach(backend.testbench()::generateTestbench);
+    }
 
     /**
      * Generates the various CMakeLists.txt for building the generated code
