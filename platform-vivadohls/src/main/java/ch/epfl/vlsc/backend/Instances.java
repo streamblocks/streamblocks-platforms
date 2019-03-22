@@ -90,11 +90,12 @@ public interface Instances {
 
 
     default void staticCallofInstance(Instance instance) {
-        emitter().emit("void %s(%s) {", instance.getInstanceName(), entityPorts());
+        String name = backend().instaceQID(instance.getInstanceName(), "_");
+        emitter().emit("void %s(%s) {", name, entityPorts());
         emitter().increaseIndentation();
 
-        String className = backend().instaceQID(instance.getInstanceName(), "_");
-        emitter().emit("static %s i_%s;", className, instance.getInstanceName());
+        String className = "class_" + backend().instaceQID(instance.getInstanceName(), "_");
+        emitter().emit("static %s i_%s;", className, name);
         emitter().emitNewLine();
 
         Entity entity = backend().entitybox().get();
@@ -104,14 +105,14 @@ public interface Instances {
             CalActor actor = (CalActor) entity;
             if (actor.getProcessDescription() != null) {
                 if (actor.getProcessDescription().isRepeated()) {
-                    emitter().emit("i_%s(%s);", instance.getInstanceName(), String.join(", ", ports));
+                    emitter().emit("i_%s(%s);", name, String.join(", ", ports));
                 } else {
                     emitter().emit("bool has_executed = false;");
                     emitter().emitNewLine();
                     emitter().emit("if (!has_executed) {");
                     emitter().increaseIndentation();
 
-                    emitter().emit("i_%s(%s);", instance.getInstanceName(), String.join(", ", ports));
+                    emitter().emit("i_%s(%s);", name, String.join(", ", ports));
                     emitter().emit("has_executed = true;");
 
                     emitter().decreaseIndentation();
@@ -121,7 +122,7 @@ public interface Instances {
                 //throw new UnsupportedOperationException("Actors is not a Process.");
             }
         } else {
-            emitter().emit("i_%s(%s);", instance.getInstanceName(), String.join(", ", ports));
+            emitter().emit("i_%s(%s);", name, String.join(", ", ports));
         }
 
 
@@ -182,7 +183,7 @@ public interface Instances {
     default void instanceClass(String instanceName, CalActor actor) {
 
         emitter().emit("// -- Instance Class");
-        String className = backend().instaceQID(instanceName, "_");
+        String className = "class_" + backend().instaceQID(instanceName, "_");
         emitter().emit("class %s {", className);
 
         // -- Private
@@ -242,7 +243,7 @@ public interface Instances {
 
     default void topOfInstance(String instanceName, CalActor actor) {
         if (actor.getProcessDescription() != null) {
-            String className = backend().instaceQID(instanceName, "_");
+            String className = "class_" + backend().instaceQID(instanceName, "_");
             emitter().emit("void %s::operator()(%s) {", className, entityPorts());
             emitter().emit("#pragma HLS INLINE");
             emitter().increaseIndentation();
@@ -260,7 +261,7 @@ public interface Instances {
 
     default void callables(String instanceName, CalActor actor) {
         emitter().emit("// -- Callables");
-        String className = backend().instaceQID(instanceName, "_");
+        String className = "class_" + backend().instaceQID(instanceName, "_");
         for (VarDecl decl : actor.getVarDecls()) {
             if (decl.getValue() != null) {
                 Expression expr = decl.getValue();

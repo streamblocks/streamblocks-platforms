@@ -59,8 +59,8 @@ public interface CMakeLists {
         for (Instance instance : backend().task().getNetwork().getInstances()) {
             GlobalEntityDecl entityDecl = backend().globalnames().entityDecl(instance.getEntityName(), true);
             if (!entityDecl.getExternal()) {
-                String instanceName = instance.getInstanceName();
-                String filename = backend().instaceQID(instance.getInstanceName(), "_") + ".cpp";
+                String instanceName = backend().instaceQID(instance.getInstanceName(), "_");
+                String filename = instanceName + ".cpp";
                 emitter().emit("add_custom_command(");
                 emitter().increaseIndentation();
 
@@ -78,7 +78,7 @@ public interface CMakeLists {
         for (Instance instance : backend().task().getNetwork().getInstances()) {
             GlobalEntityDecl entityDecl = backend().globalnames().entityDecl(instance.getEntityName(), true);
             if (!entityDecl.getExternal()) {
-                String instanceName = instance.getInstanceName();
+                String instanceName = backend().instaceQID(instance.getInstanceName(), "_");
                 emitter().emit("add_custom_target(%s ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/%1$s/solution/syn/verilog/%1$s.v)", instanceName);
             }
         }

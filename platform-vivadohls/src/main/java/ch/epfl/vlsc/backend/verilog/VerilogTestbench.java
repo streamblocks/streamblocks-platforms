@@ -30,8 +30,8 @@ public interface VerilogTestbench {
 
 
     default void generateTestbench(Instance instance) {
-        String identifier = instance.getInstanceName();
-        Path instanceTarget = PathUtils.getTargetCodeGenRtlTb(backend().context()).resolve("tb_" + backend().instaceQID(identifier, "_") + ".v");
+        String identifier = backend().instaceQID(instance.getInstanceName(), "_");
+        Path instanceTarget = PathUtils.getTargetCodeGenRtlTb(backend().context()).resolve("tb_" + identifier + ".v");
 
         // -- Get Entity
         GlobalEntityDecl entityDecl = backend().globalnames().entityDecl(instance.getEntityName(), true);
@@ -49,6 +49,10 @@ public interface VerilogTestbench {
             inputPortWiresAndReg(entity.getInputPorts());
 
             outputPortWireAndRer(entity.getOutputPorts());
+
+            entity.getInputPorts().forEach(p -> queueWires(identifier, p,true));
+
+            entity.getOutputPorts().forEach(p -> queueWires(identifier, p,false));
 
             getInitial(identifier, entity.getInputPorts(), entity.getOutputPorts());
 
@@ -70,6 +74,18 @@ public interface VerilogTestbench {
                 emitter().emit("// ------------------------------------------------------------------------");
                 emitter().emit("// -- Compare with golden reference");
                 entity.getOutputPorts().forEach(this::compareWithGoldenReference);
+            }
+
+            if (!entity.getInputPorts().isEmpty()) {
+                emitter().emit("// ------------------------------------------------------------------------");
+                emitter().emit("// -- Queues for input ports");
+                entity.getInputPorts().forEach(p -> getQueue(identifier, p, true));
+            }
+
+            if (!entity.getOutputPorts().isEmpty()) {
+                emitter().emit("// ------------------------------------------------------------------------");
+                emitter().emit("// -- Queues for output ports");
+                entity.getOutputPorts().forEach(p -> getQueue(identifier, p, false));
             }
 
             getDut(instance);
@@ -138,7 +154,7 @@ public interface VerilogTestbench {
     // ------------------------------------------------------------------------
     // -- Preprocessor
 
-    default void getPreprocessor(){
+    default void getPreprocessor() {
         emitter().emit("`timescale 1 ns / 1 ps ");
         emitter().emit("`define NULL 0");
         emitter().emitNewLine();
@@ -218,6 +234,31 @@ public interface VerilogTestbench {
 
         emitter().emit("// -- Output port registers, wires and state for reading");
         ports.forEach(p -> ioRegWires(p, false));
+    }
+
+
+    default void queueWires(String name, PortDecl port, boolean isInput){
+        String portName = port.getName();
+        String queueName = "q_" + name + "_" + portName;
+        Type type = backend().types().declaredPortType(port);
+        int bitSize = TypeUtils.sizeOfBits(type);
+
+        emitter().emit("// -- Queue wires for port : %s", portName);
+        if(isInput){
+            emitter().emit("wire %s_empty_n;", queueName);
+            emitter().emit("wire %s_read;", queueName);
+            emitter().emit("wire [%d:0] %s_dout;", bitSize - 1,queueName);
+        }else{
+            emitter().emit("wire %s_full_n;", queueName);
+            emitter().emit("wire %s_write;", queueName);
+            emitter().emit("wire [%d:0] %s_din;",bitSize - 1, queueName);
+        }
+
+        emitter().emit("wire [%d:0] %s_peek;",bitSize - 1, queueName);
+        emitter().emit("wire [31:0] %s_count;", queueName);
+        emitter().emit("wire [31:0] %s_size;", queueName);
+        emitter().emitNewLine();
+
     }
 
 
@@ -434,9 +475,70 @@ public interface VerilogTestbench {
         emitter().emitNewLine();
     }
 
+    // ------------------------------------------------------------------------
+    // -- Queue
+
+    default void getQueue(String name, PortDecl port, boolean isInput) {
+        String portName = port.getName();
+        String queueName = "q_" + name + "_" + portName;
+        Type type = backend().types().declaredPortType(port);
+        int bitSize = TypeUtils.sizeOfBits(type);
+
+
+        emitter().emit("// -- Queue FIFO for port : %s", portName);
+        emitter().emit("FIFO #(");
+        {
+            emitter().increaseIndentation();
+            emitter().emit(".MEM_STYLE(\"block\"),");
+            emitter().emit(".DATA_WIDTH(%d),", bitSize);
+            emitter().emit(".ADDR_WIDTH(9)");
+            emitter().decreaseIndentation();
+        }
+        emitter().emit(") %s (", queueName);
+        {
+            emitter().increaseIndentation();
+            emitter().emit(".clk(clock),");
+            emitter().emit(".reset_n(reset_n),");
+
+            String source;
+            if (isInput) {
+                source = portName;
+            } else {
+                source = queueName;
+            }
+            emitter().emit(".if_full_n(%s_full_n),", source);
+            emitter().emit(".if_write(%s_write),", source);
+            emitter().emit(".if_din(%s_din),", source);
+            emitter().emitNewLine();
+
+            String target;
+            if (isInput) {
+                target = queueName;
+            } else {
+                target = portName;
+            }
+            emitter().emit(".if_empty_n(%s_empty_n),", target);
+            emitter().emit(".if_read(%s_read),", target);
+            emitter().emit(".if_dout(%s_dout),", target);
+            emitter().emitNewLine();
+
+            emitter().emit(".peek(%s_peek),", queueName);
+            emitter().emit(".count(%s_count),", queueName);
+            emitter().emit(".size(%s_size)", queueName);
+            emitter().decreaseIndentation();
+        }
+        emitter().emit(");");
+        emitter().emitNewLine();
+    }
+
+
+
+    // ------------------------------------------------------------------------
+    // -- Design under test
+
     default void getDut(Instance instance) {
         // -- Identifier
-        String identifier = instance.getInstanceName();
+        String identifier = backend().instaceQID(instance.getInstanceName(), "_");
 
         // -- Get Entity
         GlobalEntityDecl entityDecl = backend().globalnames().entityDecl(instance.getEntityName(), true);
@@ -449,10 +551,10 @@ public interface VerilogTestbench {
         emitter().increaseIndentation();
         {
             // -- Inputs
-            entity.getInputPorts().forEach(p -> getDutIO(identifier, p, true));
+            entity.getInputPorts().forEach(p -> getDutIO(identifier, p, false));
 
             // -- Outputs
-            entity.getOutputPorts().forEach(p -> getDutIO(identifier, p, false));
+            entity.getOutputPorts().forEach(p -> getDutIO(identifier, p, true));
 
             emitter().emit(".ap_clk(clock),");
             emitter().emit(".ap_rst_n(reset_n),");
@@ -492,17 +594,23 @@ public interface VerilogTestbench {
     }
 
     default void getDutIO(String name, PortDecl port, boolean isInput) {
-        String portName = name.isEmpty() ? port.getName() : String.format("q_%s_%s", name, port.getName());
+        String wireName = name.isEmpty() ? port.getName() : String.format("q_%s_%s", name, port.getName());
+        String portName = name.isEmpty() ? port.getName() : port.getName() + getPortExtension();
         if (isInput) {
-            emitter().emit(".%s_din(%1$s_din),", portName);
-            emitter().emit(".%s_full_n(%1$s_full_n),", portName);
-            emitter().emit(".%s_write(%1$s_write),", portName);
+            emitter().emit(".%s_din(%s_din),", portName, wireName);
+            emitter().emit(".%s_full_n(%s_full_n),", portName, wireName);
+            emitter().emit(".%s_write(%s_write),", portName, wireName);
         } else {
-            emitter().emit(".%s_dout(%1$s_dout),", portName);
-            emitter().emit(".%s_empty_n(%1$s_empty_n),", portName);
-            emitter().emit(".%s_read(%1$s_read),", portName);
+            emitter().emit(".%s_dout(%s_dout),", portName, wireName);
+            emitter().emit(".%s_empty_n(%s_empty_n),", portName, wireName);
+            emitter().emit(".%s_read(%s_read),", portName, wireName);
         }
         emitter().emitNewLine();
+    }
+
+    default String getPortExtension() {
+        // -- TODO : Add _V_V for type accuracy
+        return "_V";
     }
 
 
