@@ -54,6 +54,12 @@ public interface CMakeLists {
         emitter().emit("configure_file(${CMAKE_SOURCE_DIR}/scripts/Synthesis.tcl.in Synthesis.tcl)");
         emitter().emitNewLine();
 
+        // -- Source and Include folders
+        emitter().emit("set(_srcpath ${CMAKE_CURRENT_SOURCE_DIR}/code-gen/src)");
+        emitter().emit("set(_incpath ${CMAKE_CURRENT_SOURCE_DIR}/code-gen/include)");
+        emitter().emitNewLine();
+
+
         // -- Custom commands & targets
         emitter().emit("## -- Custom commands");
         for (Instance instance : backend().task().getNetwork().getInstances()) {
@@ -66,6 +72,7 @@ public interface CMakeLists {
 
                 emitter().emit("OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/%s/solution/syn/verilog/%1$s.v", instanceName);
                 emitter().emit("COMMAND ${VIVADO_HLS_BINARY} -f Synthesis.tcl -tclargs \\\"%s\\\" \\\"%s\\\"", instanceName, filename);
+                emitter().emit("DEPENDS ${_incpath}/%s.h ${_srcpath}/%1$s.cpp", instanceName);
 
                 emitter().decreaseIndentation();
                 emitter().emit(")");
