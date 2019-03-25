@@ -135,6 +135,9 @@ public class VivadoHLSBackendPhase implements Phase {
         // -- Generate Project CMakeList
         generateCmakeLists(backend);
 
+        // -- Generate Wcfg
+        generateWcfg(backend);
+
         return task;
     }
 
@@ -188,6 +191,13 @@ public class VivadoHLSBackendPhase implements Phase {
         // -- Instance Verilog Testbench
         network.getInstances().forEach(backend.testbench()::generateTestbench);
     }
+
+    private void generateWcfg(VivadoHLSBackend backend){
+        // -- Wcfg
+        Network network = backend.task().getNetwork();
+        backend.wcfg().getWcfg(network);
+    }
+
 
     /**
      * Generates the various CMakeLists.txt for building the generated code

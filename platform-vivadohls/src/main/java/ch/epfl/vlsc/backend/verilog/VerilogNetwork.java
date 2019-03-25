@@ -279,14 +279,14 @@ public interface VerilogNetwork {
 
     default void getInstance(Instance instance) {
         // -- Instance name
+        String qidName = backend().instaceQID(instance.getInstanceName(), "_");
         String name = instance.getInstanceName();
-
         // -- Entity
         GlobalEntityDecl entityDecl = backend().globalnames().entityDecl(instance.getEntityName(), true);
         Entity entity = entityDecl.getEntity();
 
-        emitter().emit("// -- Instance : %s", name);
-        emitter().emit("%s i_%1$s(", name);
+        emitter().emit("// -- Instance : %s", qidName);
+        emitter().emit("%s i_%1$s(", qidName);
         {
             emitter().increaseIndentation();
             // -- Inputs

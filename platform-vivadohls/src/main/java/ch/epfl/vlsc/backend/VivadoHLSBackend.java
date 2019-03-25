@@ -1,5 +1,6 @@
 package ch.epfl.vlsc.backend;
 
+import ch.epfl.vlsc.backend.simulators.WcfgWaveform;
 import ch.epfl.vlsc.backend.verilog.VerilogNetwork;
 import ch.epfl.vlsc.backend.verilog.VerilogTestbench;
 import ch.epfl.vlsc.platformutils.Emitter;
@@ -167,6 +168,12 @@ public interface VivadoHLSBackend {
     @Binding(LAZY)
     default VerilogTestbench testbench() {
         return MultiJ.from(VerilogTestbench.class).bind("backend").to(this).instance();
+    }
+
+    // -- Verilog Testbenches
+    @Binding(LAZY)
+    default WcfgWaveform wcfg() {
+        return MultiJ.from(WcfgWaveform.class).bind("backend").to(this).instance();
     }
 
     // -- Utils
