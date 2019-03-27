@@ -50,11 +50,11 @@ public interface VerilogTestbench {
 
             outputPortWireAndRer(entity.getOutputPorts());
 
-            entity.getInputPorts().forEach(p -> queueWires(identifier, p,true));
+            entity.getInputPorts().forEach(p -> queueWires(identifier, p, true));
 
-            entity.getOutputPorts().forEach(p -> queueWires(identifier, p,false));
+            entity.getOutputPorts().forEach(p -> queueWires(identifier, p, false));
 
-            getInitial(identifier, entity.getInputPorts(), entity.getOutputPorts());
+            getInitial(identifier, entity.getInputPorts(), entity.getOutputPorts(), true);
 
             clockGeneration();
 
@@ -117,7 +117,7 @@ public interface VerilogTestbench {
 
             outputPortWireAndRer(network.getOutputPorts());
 
-            getInitial(identifier, network.getInputPorts(), network.getOutputPorts());
+            getInitial(identifier, network.getInputPorts(), network.getOutputPorts(), false);
 
             clockGeneration();
 
@@ -237,24 +237,24 @@ public interface VerilogTestbench {
     }
 
 
-    default void queueWires(String name, PortDecl port, boolean isInput){
+    default void queueWires(String name, PortDecl port, boolean isInput) {
         String portName = port.getName();
         String queueName = "q_" + name + "_" + portName;
         Type type = backend().types().declaredPortType(port);
         int bitSize = TypeUtils.sizeOfBits(type);
 
         emitter().emit("// -- Queue wires for port : %s", portName);
-        if(isInput){
+        if (isInput) {
             emitter().emit("wire %s_empty_n;", queueName);
             emitter().emit("wire %s_read;", queueName);
-            emitter().emit("wire [%d:0] %s_dout;", bitSize - 1,queueName);
-        }else{
+            emitter().emit("wire [%d:0] %s_dout;", bitSize - 1, queueName);
+        } else {
             emitter().emit("wire %s_full_n;", queueName);
             emitter().emit("wire %s_write;", queueName);
-            emitter().emit("wire [%d:0] %s_din;",bitSize - 1, queueName);
+            emitter().emit("wire [%d:0] %s_din;", bitSize - 1, queueName);
         }
 
-        emitter().emit("wire [%d:0] %s_peek;",bitSize - 1, queueName);
+        emitter().emit("wire [%d:0] %s_peek;", bitSize - 1, queueName);
         emitter().emit("wire [31:0] %s_count;", queueName);
         emitter().emit("wire [31:0] %s_size;", queueName);
         emitter().emitNewLine();
@@ -265,7 +265,7 @@ public interface VerilogTestbench {
     // ------------------------------------------------------------------------
     // -- Initial Block
 
-    default void getInitial(String name, List<PortDecl> inputs, List<PortDecl> outputs) {
+    default void getInitial(String name, List<PortDecl> inputs, List<PortDecl> outputs, boolean isInstance) {
         emitter().emit("// ------------------------------------------------------------------------");
         emitter().emit("// -- Initial block");
         emitter().emit("initial begin");
@@ -300,12 +300,12 @@ public interface VerilogTestbench {
 
             if (!inputs.isEmpty()) {
                 emitter().emit("// -- Open input vector data files");
-                inputs.forEach(this::initPortDataVector);
+                inputs.forEach(p -> initPortDataVector(name, p, isInstance));
             }
 
             if (!outputs.isEmpty()) {
                 emitter().emit("// -- Open output vector data files");
-                outputs.forEach(this::initPortDataVector);
+                outputs.forEach(p -> initPortDataVector(name, p, isInstance));
             }
 
             emitter().emit("#55 reset_n = 1'b1;");
@@ -316,13 +316,17 @@ public interface VerilogTestbench {
         emitter().emitNewLine();
     }
 
-    default void initPortDataVector(PortDecl port) {
-        String name = port.getName();
-        emitter().emit("%s_data_file = $fopen(\"../../../../../fifo-traces/%1$s.txt\" ,\"r\");", name);
-        emitter().emit("if (%s_data_file == `NULL) begin", name);
+    default void initPortDataVector(String name, PortDecl port, boolean isInstance) {
+        String portName = port.getName();
+        String fileName = portName;
+        if (isInstance) {
+            fileName = String.format("%s_%s", name, portName);
+        }
+        emitter().emit("%s_data_file = $fopen(\"../../../../../fifo-traces/%1$s.txt\" ,\"r\");", fileName);
+        emitter().emit("if (%s_data_file == `NULL) begin", fileName);
         emitter().increaseIndentation();
         {
-            emitter().emit("$display(\"Error: File %s.txt does not exist !!!\");", name);
+            emitter().emit("$display(\"Error: File %s.txt does not exist !!!\");", fileName);
             emitter().emit("$finish;");
         }
         emitter().decreaseIndentation();
@@ -530,7 +534,6 @@ public interface VerilogTestbench {
         emitter().emit(");");
         emitter().emitNewLine();
     }
-
 
 
     // ------------------------------------------------------------------------

@@ -98,7 +98,10 @@ public class VivadoHLSBackendPhase implements Phase {
         PathUtils.createDirectory(targetPath, "build");
 
         // -- Output
-        PathUtils.createDirectory(targetPath, "output");
+        Path outputPath = PathUtils.createDirectory(targetPath, "output");
+
+        // -- Fifo traces
+        PathUtils.createDirectory(outputPath, "fifo-traces");
 
     }
 
