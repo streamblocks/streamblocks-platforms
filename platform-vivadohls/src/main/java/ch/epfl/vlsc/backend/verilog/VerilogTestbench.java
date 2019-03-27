@@ -318,7 +318,7 @@ public interface VerilogTestbench {
 
     default void initPortDataVector(PortDecl port) {
         String name = port.getName();
-        emitter().emit("%s_data_file = $fopen(\"../fifo-traces/%1$s.txt\" ,\"r\");", name);
+        emitter().emit("%s_data_file = $fopen(\"../../../../../fifo-traces/%1$s.txt\" ,\"r\");", name);
         emitter().emit("if (%s_data_file == `NULL) begin", name);
         emitter().increaseIndentation();
         {
