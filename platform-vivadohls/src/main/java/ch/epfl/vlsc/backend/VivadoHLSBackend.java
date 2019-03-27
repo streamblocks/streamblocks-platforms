@@ -1,5 +1,6 @@
 package ch.epfl.vlsc.backend;
 
+import ch.epfl.vlsc.backend.scripts.VivadoTCL;
 import ch.epfl.vlsc.backend.simulators.WcfgWaveform;
 import ch.epfl.vlsc.backend.verilog.VerilogNetwork;
 import ch.epfl.vlsc.backend.verilog.VerilogTestbench;
@@ -174,6 +175,12 @@ public interface VivadoHLSBackend {
     @Binding(LAZY)
     default WcfgWaveform wcfg() {
         return MultiJ.from(WcfgWaveform.class).bind("backend").to(this).instance();
+    }
+
+    // -- Vivado TCL
+    @Binding(LAZY)
+    default VivadoTCL vivadotcl() {
+        return MultiJ.from(VivadoTCL.class).bind("backend").to(this).instance();
     }
 
     // -- Utils

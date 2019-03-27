@@ -276,7 +276,7 @@ public interface WcfgWaveform {
 
             emitter().emit("<obj_property name=\"label\">%s</obj_property>", port.getName());
             emitter().emit("<obj_property name=\"DisplayName\">label</obj_property>");
-            wvObjectArrayPort("tb_" + name, port, true, false);
+            wvObjectArrayPort("tb_" + name, port, false, false);
             wvObject("logic", "tb_"+name, port.getName() + "_write");
             wvObject("logic", "tb_"+name, port.getName() + "_full_n");
 
@@ -301,7 +301,7 @@ public interface WcfgWaveform {
             wvObjectArray("tb_" + name, port.getName() + "_exp_value", bitSize-1);
 
 
-            wvObjectArrayPort("tb_" + name, port, false, false);
+            wvObjectArrayPort("tb_" + name, port, true, false);
             wvObject("logic", "tb_"+name, port.getName() + "_read");
             wvObject("logic", "tb_"+name, port.getName() + "_empty_n");
 

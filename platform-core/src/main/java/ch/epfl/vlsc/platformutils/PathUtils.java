@@ -131,6 +131,17 @@ public class PathUtils {
         return directory.toPath();
     }
 
+    /**
+     * Get the CMake script target output directory
+     *
+     * @param context
+     * @return
+     */
+    public static Path getTargetScript(Context context) {
+        File directory = new File(getTarget(context).toFile(), "scripts");
+        return directory.toPath();
+    }
+
 
     /**
      * Get the code-gen headers target output directory

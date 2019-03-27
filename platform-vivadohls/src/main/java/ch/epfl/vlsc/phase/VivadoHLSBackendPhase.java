@@ -97,6 +97,9 @@ public class VivadoHLSBackendPhase implements Phase {
         // -- Build path
         PathUtils.createDirectory(targetPath, "build");
 
+        // -- Output
+        PathUtils.createDirectory(targetPath, "output");
+
     }
 
     @Override
@@ -137,6 +140,10 @@ public class VivadoHLSBackendPhase implements Phase {
 
         // -- Generate Wcfg
         generateWcfg(backend);
+
+        // -- Generate CMake Script
+        generateCmakeScript(backend);
+
 
         return task;
     }
@@ -198,6 +205,11 @@ public class VivadoHLSBackendPhase implements Phase {
         backend.wcfg().getWcfg(network);
     }
 
+    private void generateCmakeScript(VivadoHLSBackend backend){
+        // -- CMake script for Vivado HLS
+        backend.vivadotcl().generateVivadoTCL();
+    }
+
 
     /**
      * Generates the various CMakeLists.txt for building the generated code
@@ -221,6 +233,7 @@ public class VivadoHLSBackendPhase implements Phase {
 
             // -- Find Vivado hls for cmake
             Files.copy(getClass().getResourceAsStream("/lib/cmake/FindVivadoHLS.cmake"), PathUtils.getTargetCmake(backend.context()).resolve("FindVivadoHLS.cmake"), StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(getClass().getResourceAsStream("/lib/cmake/FindVivado.cmake"), PathUtils.getTargetCmake(backend.context()).resolve("FindVivado.cmake"), StandardCopyOption.REPLACE_EXISTING);
 
             // -- Synthesis script for Vivado HLS as an input to CMake
             Files.copy(getClass().getResourceAsStream("/lib/cmake/Synthesis.tcl.in"), PathUtils.getTargetScripts(backend.context()).resolve("Synthesis.tcl.in"), StandardCopyOption.REPLACE_EXISTING);
