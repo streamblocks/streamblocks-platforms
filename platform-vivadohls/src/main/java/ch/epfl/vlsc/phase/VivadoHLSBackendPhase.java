@@ -1,5 +1,6 @@
 package ch.epfl.vlsc.phase;
 
+import ch.epfl.vlsc.backend.Controllers;
 import ch.epfl.vlsc.backend.VivadoHLSBackend;
 import ch.epfl.vlsc.platformutils.PathUtils;
 import org.multij.MultiJ;
@@ -9,15 +10,18 @@ import se.lth.cs.tycho.compiler.Context;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.network.Network;
+import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.phase.Phase;
 import se.lth.cs.tycho.reporting.CompilationException;
 import se.lth.cs.tycho.reporting.Diagnostic;
 import se.lth.cs.tycho.reporting.Reporter;
+import se.lth.cs.tycho.settings.Setting;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.List;
 
 public class VivadoHLSBackendPhase implements Phase {
 
@@ -51,6 +55,11 @@ public class VivadoHLSBackendPhase implements Phase {
         return "StreamBlocks Vivado HLS Platform for Tycho compiler";
     }
 
+
+    @Override
+    public List<Setting<?>> getPhaseSettings() {
+        return ImmutableList.of(Controllers.scopeLivenessAnalysis);
+    }
 
     /**
      * Create the backend directories

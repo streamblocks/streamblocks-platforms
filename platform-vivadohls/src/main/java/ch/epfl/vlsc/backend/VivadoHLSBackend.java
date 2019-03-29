@@ -147,6 +147,13 @@ public interface VivadoHLSBackend {
         return MultiJ.from(Instances.class).bind("backend").to(this).instance();
     }
 
+    // -- Instance generator
+    @Binding(LAZY)
+    default Controllers controllers() {
+        return MultiJ.from(Controllers.class).bind("backend").to(this).instance();
+    }
+
+
     // -- Verilog Network generator
     @Binding(LAZY)
     default VerilogNetwork vnetwork() {
