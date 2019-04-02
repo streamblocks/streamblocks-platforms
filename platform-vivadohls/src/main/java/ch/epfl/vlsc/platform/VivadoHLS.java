@@ -1,6 +1,7 @@
 package ch.epfl.vlsc.platform;
 
 import ch.epfl.vlsc.phase.AddFanoutPhase;
+import ch.epfl.vlsc.phase.CalToAmHwPhase;
 import ch.epfl.vlsc.phase.VivadoHLSBackendPhase;
 import se.lth.cs.tycho.compiler.Compiler;
 import se.lth.cs.tycho.ir.util.ImmutableList;
@@ -43,14 +44,13 @@ public class VivadoHLS implements Platform {
                 new ScheduleUntaggedPhase(),
                 new ScheduleInitializersPhase(),
                 new MergeManyGuardsPhase(),
-                new CalToAmPhase(),
+                new CalToAmHwPhase(),
                 new RemoveEmptyTransitionsPhase(),
                 new ReduceActorMachinePhase(),
                 new CompositionEntitiesUniquePhase(),
                 new CompositionPhase(),
                 new InternalizeBuffersPhase(),
-                new RemoveUnusedConditionsPhase(),
-                new LiftScopesPhase()
+                new RemoveUnusedConditionsPhase()
         );
     }
 

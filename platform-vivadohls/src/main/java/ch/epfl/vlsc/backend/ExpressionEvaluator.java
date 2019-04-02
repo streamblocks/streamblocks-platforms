@@ -159,26 +159,19 @@ public interface ExpressionEvaluator {
      */
     default String evaluate(ExprInput input) {
         String tmp = variables().generateTemp();
-        Type type = types().type(input);
-        //if (input.hasRepeat()) {
-        //    String maxIndex = typeseval().sizeByDimension((ListType) type).stream().map(Object::toString).collect(Collectors.joining("*"));
-        //    emitter().emit("%s = malloc(sizeof(%s) * (%s));", declarations().declaration(types().type(input), tmp), maxIndex);
-        //} else {
         emitter().emit("%s;", declarations().declarationTemp(types().type(input), tmp));
-        //}
-
 
         if (input.hasRepeat()) {
             if (input.getOffset() == 0) {
-                emitter().emit("pinPeekRepeat_%s(%s, %s, %d);", channelsutils().inputPortTypeSize(input.getPort()), channelsutils().definedInputPort(input.getPort()), tmp, input.getRepeat());
+                emitter().emit("pinPeekRepeat(%s, %s, %d);", channelsutils().definedInputPort(input.getPort()), tmp, input.getRepeat());
             } else {
                 throw new RuntimeException("not implemented");
             }
         } else {
             if (input.getOffset() == 0) {
-                emitter().emit("%s = pinPeekFront_%s(%s);", tmp, channelsutils().inputPortTypeSize(input.getPort()), channelsutils().definedInputPort(input.getPort()));
+                emitter().emit("pinPeekFront(%s, %s);", channelsutils().definedInputPort(input.getPort()), tmp);
             } else {
-                emitter().emit("%s = pinPeek_%s(%s, %d);", tmp, channelsutils().inputPortTypeSize(input.getPort()), channelsutils().definedInputPort(input.getPort()), input.getOffset());
+                emitter().emit("pinPeek(%s, %d, %s);", channelsutils().definedInputPort(input.getPort()), input.getOffset(), tmp);
             }
         }
 
@@ -190,15 +183,15 @@ public interface ExpressionEvaluator {
     default void evaluateWithLvalue(String lvalue, ExprInput input) {
         if (input.hasRepeat()) {
             if (input.getOffset() == 0) {
-                emitter().emit("pinPeekRepeat_%s(%s, %s, %d);", channelsutils().inputPortTypeSize(input.getPort()), channelsutils().definedInputPort(input.getPort()), lvalue, input.getRepeat());
+                emitter().emit("pinPeekRepeat(%s, %s, %d);", channelsutils().definedInputPort(input.getPort()), lvalue, input.getRepeat());
             } else {
                 throw new RuntimeException("not implemented");
             }
         } else {
             if (input.getOffset() == 0) {
-                emitter().emit("%s = pinPeekFront_%s(%s);", lvalue, channelsutils().inputPortTypeSize(input.getPort()), channelsutils().definedInputPort(input.getPort()));
+                emitter().emit("pinPeekFront(%s, %s);", channelsutils().definedInputPort(input.getPort()), lvalue);
             } else {
-                emitter().emit("%s = pinPeek_%s(%s, %d);", lvalue, channelsutils().inputPortTypeSize(input.getPort()), channelsutils().definedInputPort(input.getPort()), input.getOffset());
+                emitter().emit("pinPeek(%s, %d, %s);", channelsutils().definedInputPort(input.getPort()), input.getOffset(), lvalue);
             }
         }
     }
@@ -240,7 +233,7 @@ public interface ExpressionEvaluator {
             case "and":
             case "&&":
                 String andResult = variables().generateTemp();
-                emitter().emit("_Bool %s;", andResult);
+                emitter().emit("bool %s;", andResult);
                 emitter().emit("if (%s) {", evaluate(left));
                 emitter().increaseIndentation();
                 emitter().emit("%s = %s;", andResult, evaluate(right));
@@ -254,7 +247,7 @@ public interface ExpressionEvaluator {
             case "||":
             case "or":
                 String orResult = variables().generateTemp();
-                emitter().emit("_Bool %s;", orResult);
+                emitter().emit("bool %s;", orResult);
                 emitter().emit("if (%s) {", evaluate(left));
                 emitter().increaseIndentation();
                 emitter().emit("%s = true;", orResult);

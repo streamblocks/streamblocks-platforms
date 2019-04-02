@@ -65,9 +65,10 @@ public interface Statements {
 
     default void execute(StmtConsume consume) {
         if (consume.getNumberOfTokens() > 1) {
-            emitter().emit("pinConsumeRepeat_%s(%s, %d);", channelsutils().inputPortTypeSize(consume.getPort()), channelsutils().definedInputPort(consume.getPort()), consume.getNumberOfTokens());
+            emitter().emit("pinConsume(%s, %d);", consume.getPort().getName(), consume.getNumberOfTokens());
+
         } else {
-            emitter().emit("pinConsume_%s(%s);", channelsutils().inputPortTypeSize(consume.getPort()), channelsutils().definedInputPort(consume.getPort()));
+            emitter().emit("pinConsume(%s);", consume.getPort().getName());
         }
     }
 
@@ -79,7 +80,7 @@ public interface Statements {
         if (read.getRepeatExpression() == null) {
             for(LValue lvalue : read.getLValues()){
                 String l = backend().lvalues().lvalue(lvalue);
-                emitter().emit("%s = %s.read();", l, read.getPort().getName());
+                emitter().emit("pinRead(%s, %s);", read.getPort().getName(), l);
             }
         } else {
 
@@ -93,17 +94,16 @@ public interface Statements {
 
     default void execute(StmtWrite write) {
         if (write.getRepeatExpression() == null) {
-            String portType = typeseval().type(types().portType(write.getPort()));
             String tmp = variables().generateTemp();
             emitter().emit("%s;", declarartions().declaration(types().portType(write.getPort()), tmp));
             for (Expression expr : write.getValues()) {
                 emitter().emit("%s = %s;", tmp, expressioneval().evaluate(expr));
-                emitter().emit("%s.write(%s);", write.getPort().getName(), tmp);
+                emitter().emit("pinWrite(%s, %s);", write.getPort().getName(), tmp);
             }
         } else if (write.getValues().size() == 1) {
             String value = expressioneval().evaluate(write.getValues().get(0));
             String repeat = expressioneval().evaluate(write.getRepeatExpression());
-            emitter().emit("pinWriteRepeat_%s(%s, %s, %s);", channelsutils().outputPortTypeSize(write.getPort()), channelsutils().definedOutputPort(write.getPort()), value, repeat);
+            emitter().emit("pinWriteRepeat(%s, %s, %s);", channelsutils().definedOutputPort(write.getPort()), value, repeat);
         } else {
             throw new Error("not implemented");
         }

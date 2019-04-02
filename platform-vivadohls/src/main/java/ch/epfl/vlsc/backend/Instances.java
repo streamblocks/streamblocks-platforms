@@ -7,6 +7,7 @@ import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.GlobalNames;
 import se.lth.cs.tycho.attribute.Types;
+import se.lth.cs.tycho.ir.Port;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
@@ -98,15 +99,21 @@ public interface Instances {
     }
 
     default void staticCallofInstance(Instance instance) {
+        Entity entity = backend().entitybox().get();
+        boolean withIO = false;
+        if (entity instanceof ActorMachine) {
+            withIO = true;
+        }
+
         String name = backend().instaceQID(instance.getInstanceName(), "_");
-        emitter().emit("void %s(%s) {", name, entityPorts());
+        emitter().emit("void %s(%s) {", name, entityPorts(withIO));
         emitter().increaseIndentation();
 
         String className = "class_" + backend().instaceQID(instance.getInstanceName(), "_");
         emitter().emit("static %s i_%s;", className, name);
         emitter().emitNewLine();
 
-        Entity entity = backend().entitybox().get();
+
         List<String> ports = entity.getInputPorts().stream().map(PortDecl::getName).collect(Collectors.toList());
         ports.addAll(entity.getOutputPorts().stream().map(PortDecl::getName).collect(Collectors.toList()));
         if (entity instanceof CalActor) {
@@ -130,7 +137,7 @@ public interface Instances {
                 //throw new UnsupportedOperationException("Actors is not a Process.");
             }
         } else {
-            emitter().emit("i_%s(%s);", name, String.join(", ", ports));
+            emitter().emit("i_%s(%s, io);", name, String.join(", ", ports));
         }
 
 
@@ -152,6 +159,12 @@ public interface Instances {
 
         // -- Includes
         defineIncludes(true);
+
+        // -- IO Struct
+        if (entity instanceof ActorMachine) {
+            ActorMachine actor = (ActorMachine) entity;
+            structIO(actor);
+        }
 
         // -- Instance State
         instanceClass(instanceName, entity);
@@ -201,6 +214,40 @@ public interface Instances {
         emitter().emitNewLine();
     }
 
+    /*
+     * Struct IO
+     */
+
+    default void structIO(ActorMachine actor){
+        // -- Struct IO
+        emitter().emit("// -- Struct IO");
+        emitter().emit("struct IO {");
+        {
+            emitter().increaseIndentation();
+
+            for(PortDecl port : actor.getInputPorts()){
+                Type type = backend().types().declaredPortType(port);
+                emitter().emit("%s;",backend().declarations().declaration(type, String.format("%s_peek",port.getName())));
+                emitter().emit("int %s_count;", port.getName());
+            }
+
+            for(PortDecl port : actor.getOutputPorts()){
+                emitter().emit("int %s_size;", port.getName());
+                emitter().emit("int %s_count;", port.getName());
+            }
+
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("};");
+        emitter().emitNewLine();
+    }
+
+
+    /*
+     * Instance class
+     */
+
+
     void instanceClass(String instanceName, Entity entity);
 
     default void instanceClass(String instanceName, CalActor actor) {
@@ -234,7 +281,7 @@ public interface Instances {
         emitter().emit("public:");
         emitter().increaseIndentation();
 
-        emitter().emit("void operator()(%s);", entityPorts());
+        emitter().emit("void operator()(%s);", entityPorts(false));
 
         emitter().decreaseIndentation();
 
@@ -257,7 +304,7 @@ public interface Instances {
                     emitter().emit("// -- Scope %d", actor.getScopes().indexOf(scope));
                     for (VarDecl var : scope.getDeclarations()) {
                         if (var.getValue() instanceof ExprLambda || var.getValue() instanceof ExprProc) {
-                            // -- Do nothing
+                            backend().callables().callablePrototypes(instanceName, var.getValue());
                         } else {
                             String decl = declarations().declaration(types().declaredType(var), backend().variables().declarationName(var));
                             emitter().emit("%s;", decl);
@@ -265,6 +312,7 @@ public interface Instances {
                     }
                 }
             }
+
             emitter().emit("// -- Actor machine state");
             emitter().emit("int program_counter;");
             emitter().emitNewLine();
@@ -290,7 +338,7 @@ public interface Instances {
         {
             emitter().increaseIndentation();
 
-            emitter().emit("void operator()(%s);", entityPorts());
+            emitter().emit("void operator()(%s);", entityPorts(true));
 
             emitter().decreaseIndentation();
         }
@@ -299,7 +347,7 @@ public interface Instances {
     }
 
 
-    default String entityPorts() {
+    default String entityPorts(boolean withIO) {
         Entity entity = backend().entitybox().get();
         List<String> ports = new ArrayList<>();
         for (PortDecl port : entity.getInputPorts()) {
@@ -308,6 +356,10 @@ public interface Instances {
 
         for (PortDecl port : entity.getOutputPorts()) {
             ports.add(backend().declarations().portDeclaration(port));
+        }
+
+        if (withIO) {
+            ports.add("IO io");
         }
 
         return String.join(", ", ports);
@@ -323,7 +375,7 @@ public interface Instances {
     default void topOfInstance(String instanceName, CalActor actor) {
         if (actor.getProcessDescription() != null) {
             String className = "class_" + backend().instaceQID(instanceName, "_");
-            emitter().emit("void %s::operator()(%s) {", className, entityPorts());
+            emitter().emit("void %s::operator()(%s) {", className, entityPorts(false));
             emitter().emit("#pragma HLS INLINE");
             emitter().increaseIndentation();
             actor.getProcessDescription().getStatements().forEach(backend().statements()::execute);
@@ -337,7 +389,7 @@ public interface Instances {
 
     default void topOfInstance(String instanceName, ActorMachine actor) {
         String className = "class_" + backend().instaceQID(instanceName, "_");
-        emitter().emit("void %s::operator()(%s) {", className, entityPorts());
+        emitter().emit("void %s::operator()(%s) {", className, entityPorts(true));
         emitter().emit("#pragma HLS INLINE");
         {
             emitter().increaseIndentation();
@@ -390,11 +442,19 @@ public interface Instances {
     default String scopePrototype(String instanceName, Scope scope, int index, boolean withClassName) {
         // -- Actor Instance Name
         String className = "class_" + backend().instaceQID(instanceName, "_");
-        String io = "";
+        String io = scopeIO(scope);
 
-        return String.format("void %sscope%d(%s)", withClassName ? className + "::" : "", index, io);
+        return String.format("void %sscope_%d(%s)", withClassName ? className + "::" : "", index, io);
     }
 
+
+    default String scopeIO(Scope scope) {
+        return "IO io";
+    }
+
+    default String scopeArguments(Scope scope){
+        return "io";
+    }
 
     // ------------------------------------------------------------------------
     // -- Conditions
@@ -416,11 +476,11 @@ public interface Instances {
     default String conditionPrototype(String instanceName, Condition condition, int index, boolean withClassName) {
         // -- Actor Instance Name
         String className = "class_" + backend().instaceQID(instanceName, "_");
-        String io = "";
+        String io = conditionIO(condition);
         if (condition instanceof PortCondition) {
-            io = "IO io";
+            io = io + ", " + "IO io";
         }
-        return String.format("bool %scondition%d(%s)", withClassName ? className + "::" : "", index, io);
+        return String.format("bool %scondition_%d(%s)", withClassName ? className + "::" : "", index, io);
     }
 
     String evaluateCondition(Condition condition);
@@ -431,9 +491,27 @@ public interface Instances {
 
     default String evaluateCondition(PortCondition condition) {
         if (condition.isInputCondition()) {
-            return String.format("pinAvailIn_%s(%s) >=  %d", channelutils().inputPortTypeSize(condition.getPortName()), channelutils().definedInputPort(condition.getPortName()), condition.N());
+            return String.format("(pinAvailIn(%s, io) >= %d) && !%1$s.empty()", channelutils().definedInputPort(condition.getPortName()), condition.N());
         } else {
-            return String.format("pinAvailOut_%s(%s) >= %d", channelutils().outputPortTypeSize(condition.getPortName()), channelutils().definedOutputPort(condition.getPortName()), condition.N());
+            return String.format("(pinAvailOut(%s, io) >= %d) && !%1$s.full()", channelutils().definedOutputPort(condition.getPortName()), condition.N());
+        }
+    }
+
+    String conditionIO(Condition condition);
+
+    default String conditionIO(PredicateCondition condition) {
+        return "";
+    }
+
+    default String conditionIO(PortCondition condition) {
+        Entity entity = backend().entitybox().get();
+
+        if (condition.isInputCondition()) {
+            PortDecl portDecl = entity.getInputPorts().stream().filter(p -> p.getName().equals(condition.getPortName().getName())).findAny().orElse(null);
+            return backend().declarations().portDeclaration(portDecl);
+        } else {
+            PortDecl portDecl = entity.getOutputPorts().stream().filter(p -> p.getName().equals(condition.getPortName().getName())).findAny().orElse(null);
+            return backend().declarations().portDeclaration(portDecl);
         }
     }
 
@@ -442,7 +520,6 @@ public interface Instances {
 
     default void transition(String instanceName, Transition transition, int index) {
         // -- Actor Instance Name
-        String className = "class_" + backend().instaceQID(instanceName, "_");
         emitter().emit("%s{", transitionPrototype(instanceName, transition, index, true));
         {
             emitter().increaseIndentation();
@@ -458,11 +535,43 @@ public interface Instances {
     default String transitionPrototype(String instanceName, Transition transition, int index, boolean withClassName) {
         // -- Actor Instance Name
         String className = "class_" + backend().instaceQID(instanceName, "_");
-        String io = "";
+        String io = transitionIO(transition);
 
-        return String.format("void %stransition%d(%s)", withClassName ? className + "::" : "", index, io);
+        return String.format("void %stransition_%d(%s)", withClassName ? className + "::" : "", index, io);
     }
 
+
+    default String transitionIO(Transition transition) {
+        Entity entity = backend().entitybox().get();
+
+        List<String> ports = new ArrayList<>();
+        for (Port port : transition.getInputRates().keySet()) {
+            PortDecl portDecl = entity.getInputPorts().stream().filter(p -> p.getName().equals(port.getName())).findAny().orElse(null);
+            ports.add(backend().declarations().portDeclaration(portDecl));
+        }
+
+        for (Port port : transition.getOutputRates().keySet()) {
+            PortDecl portDecl = entity.getOutputPorts().stream().filter(p -> p.getName().equals(port.getName())).findAny().orElse(null);
+            ports.add(backend().declarations().portDeclaration(portDecl));
+        }
+
+        return String.join(", ", ports);
+    }
+
+
+    default String transitionIoArguments(Transition transition) {
+
+        List<String> ports = new ArrayList<>();
+        for (Port port : transition.getInputRates().keySet()) {
+            ports.add(port.getName());
+        }
+
+        for (Port port : transition.getOutputRates().keySet()) {
+            ports.add(port.getName());
+        }
+
+        return String.join(", ", ports);
+    }
 
     // ------------------------------------------------------------------------
     // -- Callables

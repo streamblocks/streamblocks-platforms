@@ -32,6 +32,48 @@ public interface Globals {
         emitter().emit("#define __GLOBALS_%s__", backend().task().getIdentifier().getLast().toString().toUpperCase());
         emitter().emitNewLine();
 
+        // -- Pins
+        emitter().emit("// -- Pins");
+
+        // -- PinPeekFront
+        emitter().emit("#define pinPeekFront(NAME, value) value = io.NAME ## _peek");
+        emitter().emitNewLine();
+
+        // -- PinRead
+        emitter().emit("#define pinRead(NAME, value) NAME.read_nb(value)");
+        emitter().emitNewLine();
+
+        // -- PinReadRepeat
+        emitter().emitRawLine("#define pinReadRepeat(NAME, value, d) \\\n" +
+                "{\\\n" +
+                "\tfor(int i = 0; i < d; i++){\\\n" +
+                "\t\tNAME.read_nb(value[i]);\\\n" +
+                "\t}\\\n" +
+                "}");
+        emitter().emitNewLine();
+
+
+        // -- PinWrite
+        emitter().emit("#define pinWrite(NAME, value) NAME.write_nb(value)");
+        emitter().emitNewLine();
+
+        // -- PinWriteRepeat
+        emitter().emitRawLine("#define pinWriteRepeat(NAME, value, d) \\\n" +
+                "{\\\n" +
+                "\tfor(int i = 0; i < d; i++){\\\n" +
+                "\t\tNAME.write_nb(value[i]);\\\n" +
+                "\t}\\\n" +
+                "}");
+        emitter().emitNewLine();
+
+        // -- PinAvailIn
+        emitter().emit("#define pinAvailIn(NAME, IO) IO.NAME ## _count");
+        emitter().emitNewLine();
+
+        // -- PinAvailOut
+        emitter().emit("#define pinAvailOut(NAME, IO) IO.NAME ## _size - IO.NAME ## _count");
+        emitter().emitNewLine();
+
         // -- Headers
         backend().includeSystem("ap_int.h");
         backend().includeSystem("stdint.h");

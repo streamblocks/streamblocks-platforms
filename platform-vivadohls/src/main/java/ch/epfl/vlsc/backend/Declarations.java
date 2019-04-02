@@ -27,7 +27,8 @@ public interface Declarations {
     }
 
     default String declaration(ListType type, String name) {
-        return typeseval().type(type) + "* " + name;
+        String maxIndex = typeseval().sizeByDimension((ListType) type).stream().map(Object::toString).collect(Collectors.joining("*"));
+        return String.format("%s %s[%s]", typeseval().type(type), name, maxIndex);
     }
 
     default String declaration(RefType type, String name) {

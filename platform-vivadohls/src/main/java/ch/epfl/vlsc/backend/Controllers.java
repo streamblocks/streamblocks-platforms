@@ -6,6 +6,7 @@ import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.ScopeLiveness;
 import se.lth.cs.tycho.ir.entity.am.ActorMachine;
+import se.lth.cs.tycho.ir.entity.am.PortCondition;
 import se.lth.cs.tycho.ir.entity.am.ctrl.*;
 import se.lth.cs.tycho.settings.Configuration;
 import se.lth.cs.tycho.settings.OnOffSetting;
@@ -69,9 +70,9 @@ public interface Controllers {
             emitter().emit("S%d:", stateMap.get(s));
             Instruction instruction = s.getInstructions().get(0);
             initialize.apply(instruction).stream().forEach(scope ->
-                    emitter().emit("scope_%d();", scope)
+                    emitter().emit("scope_%d(%s);", scope, backend().instance().scopeArguments(actorMachine.getScopes().get(scope)))
             );
-            emitInstruction(name, instruction, stateMap);
+            emitInstruction(actorMachine, name, instruction, stateMap);
         }
 
         emitter().emit("out:");
@@ -79,10 +80,15 @@ public interface Controllers {
     }
 
 
-    void emitInstruction(String name, Instruction instruction, Map<State, Integer> stateNumbers);
+    void emitInstruction(ActorMachine am, String name, Instruction instruction, Map<State, Integer> stateNumbers);
 
-    default void emitInstruction(String name, Test test, Map<State, Integer> stateNumbers) {
-        emitter().emit("if (condition_%d()) {", test.condition());
+    default void emitInstruction(ActorMachine am, String name, Test test, Map<State, Integer> stateNumbers) {
+        String io = "";
+        if(am.getCondition(test.condition()) instanceof PortCondition){
+            String portName = ((PortCondition) am.getCondition(test.condition())).getPortName().getName();
+            io = portName + ", io";
+        }
+        emitter().emit("if (condition_%d(%s)) {", test.condition(), io);
         emitter().increaseIndentation();
         emitter().emit("goto S%d;", stateNumbers.get(test.targetTrue()));
         emitter().decreaseIndentation();
@@ -94,14 +100,14 @@ public interface Controllers {
         emitter().emit("");
     }
 
-    default void emitInstruction(String name, Wait wait, Map<State, Integer> stateNumbers) {
+    default void emitInstruction(ActorMachine am, String name, Wait wait, Map<State, Integer> stateNumbers) {
         emitter().emit("this->program_counter = %d;", stateNumbers.get(wait.target()));
         emitter().emit("goto out;");
         emitter().emit("");
     }
 
-    default void emitInstruction(String name, Exec exec, Map<State, Integer> stateNumbers) {
-        emitter().emit("transition_%d();", exec.transition());
+    default void emitInstruction(ActorMachine am, String name, Exec exec, Map<State, Integer> stateNumbers) {
+        emitter().emit("transition_%d(%s);", exec.transition(), backend().instance().transitionIoArguments(am.getTransitions().get(exec.transition())));
         emitter().emit("this->program_counter = %d;", stateNumbers.get(exec.target()));
         emitter().emit("goto out;");
         emitter().emit("");
