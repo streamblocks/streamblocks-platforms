@@ -40,7 +40,8 @@ public interface CallablesInActors {
                 return instanceName;
             } else {
                 if (withInstanceName) {
-                    return instanceName + "::" + decl.getName();
+                    String className = "class_" + backend().instaceQID(instanceName, "_");
+                    return className + "::" + decl.getName();
                 } else {
                     return decl.getName();
                 }

@@ -411,6 +411,7 @@ public interface Instances {
         if (scope.getDeclarations().size() > 0 || scope.isPersistent()) {
             if (index != 0) {
                 emitter().emit("%s{", scopePrototype(instanceName, scope, index, true));
+                emitter().emit("#pragma HLS INLINE");
 
                 {
                     emitter().increaseIndentation();
@@ -462,6 +463,7 @@ public interface Instances {
     default void condition(String instanceName, Condition condition, int index) {
         // -- Actor Instance Name
         emitter().emit("%s{", conditionPrototype(instanceName, condition, index, true));
+        emitter().emit("#pragma HLS INLINE");
         emitter().increaseIndentation();
         {
 
@@ -521,6 +523,7 @@ public interface Instances {
     default void transition(String instanceName, Transition transition, int index) {
         // -- Actor Instance Name
         emitter().emit("%s{", transitionPrototype(instanceName, transition, index, true));
+        emitter().emit("#pragma HLS INLINE");
         {
             emitter().increaseIndentation();
 

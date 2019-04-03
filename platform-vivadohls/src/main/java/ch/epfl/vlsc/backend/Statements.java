@@ -83,7 +83,11 @@ public interface Statements {
                 emitter().emit("pinRead(%s, %s);", read.getPort().getName(), l);
             }
         } else {
-
+            for(LValue lvalue : read.getLValues()){
+                String l = backend().lvalues().lvalue(lvalue);
+                String repeat = expressioneval().evaluate(read.getRepeatExpression());
+                emitter().emit("pinReadRepeat(%s, %s, %s);", read.getPort().getName(), l, repeat);
+            }
         }
     }
 

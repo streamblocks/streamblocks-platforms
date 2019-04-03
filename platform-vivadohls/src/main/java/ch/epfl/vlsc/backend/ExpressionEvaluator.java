@@ -529,7 +529,13 @@ public interface ExpressionEvaluator {
      * @return
      */
     default String evaluate(ExprLet let) {
-       return "";
+        for (VarDecl decl : let.getVarDecls()) {
+            Type type = types().declaredType(decl);
+            String name = variables().declarationName(decl);
+            emitter().emit("%s;", declarations().declaration(type, name));
+            backend().statements().copy(type, name, types().type(decl.getValue()), evaluate(decl.getValue()));
+        }
+        return evaluate(let.getBody());
     }
 
 
