@@ -12,7 +12,16 @@ public class TypeUtils {
             IntType t = (IntType) type;
             OptionalInt size = t.getSize();
             if (size.isPresent()) {
-                return size.getAsInt();
+                int bitSize = size.getAsInt();
+                if (bitSize <= 8) {
+                    return 8;
+                } else if (bitSize <= 16) {
+                    return 16;
+                } else if (bitSize <= 32) {
+                    return 32;
+                } else {
+                    return 64;
+                }
             } else {
                 return 32;
             }

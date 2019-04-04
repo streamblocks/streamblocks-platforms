@@ -6,7 +6,10 @@ import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
+import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
+import se.lth.cs.tycho.ir.entity.Entity;
+import se.lth.cs.tycho.ir.entity.cal.CalActor;
 import se.lth.cs.tycho.ir.expr.ExprBinaryOp;
 import se.lth.cs.tycho.ir.expr.ExprInput;
 import se.lth.cs.tycho.ir.expr.Expression;
@@ -77,16 +80,31 @@ public interface Statements {
      */
 
     default void execute(StmtRead read) {
+        boolean isProcess = false;
+        Entity entity = backend().entitybox().get();
+        if(entity instanceof CalActor){
+            if(((CalActor)entity).getProcessDescription() != null){
+                isProcess = true;
+            }
+        }
         if (read.getRepeatExpression() == null) {
             for(LValue lvalue : read.getLValues()){
                 String l = backend().lvalues().lvalue(lvalue);
-                emitter().emit("pinRead(%s, %s);", read.getPort().getName(), l);
+                if(!isProcess){
+                    emitter().emit("pinRead(%s, %s);", read.getPort().getName(), l);
+                }else{
+                    emitter().emit("pinReadBlocking(%s, %s);", read.getPort().getName(), l);
+                }
             }
         } else {
             for(LValue lvalue : read.getLValues()){
                 String l = backend().lvalues().lvalue(lvalue);
                 String repeat = expressioneval().evaluate(read.getRepeatExpression());
-                emitter().emit("pinReadRepeat(%s, %s, %s);", read.getPort().getName(), l, repeat);
+                if(!isProcess) {
+                    emitter().emit("pinReadRepeat(%s, %s, %s);", read.getPort().getName(), l, repeat);
+                } else {
+                    emitter().emit("pinReadRepeatBlocking(%s, %s, %s);", read.getPort().getName(), l, repeat);
+                }
             }
         }
     }
@@ -97,17 +115,32 @@ public interface Statements {
      */
 
     default void execute(StmtWrite write) {
+        boolean isProcess = false;
+        Entity entity = backend().entitybox().get();
+        if(entity instanceof CalActor){
+            if(((CalActor)entity).getProcessDescription() != null){
+                isProcess = true;
+            }
+        }
         if (write.getRepeatExpression() == null) {
             String tmp = variables().generateTemp();
             emitter().emit("%s;", declarartions().declaration(types().portType(write.getPort()), tmp));
             for (Expression expr : write.getValues()) {
                 emitter().emit("%s = %s;", tmp, expressioneval().evaluate(expr));
-                emitter().emit("pinWrite(%s, %s);", write.getPort().getName(), tmp);
+                if(!isProcess) {
+                    emitter().emit("pinWrite(%s, %s);", write.getPort().getName(), tmp);
+                }else{
+                    emitter().emit("pinWriteBlocking(%s, %s);", write.getPort().getName(), tmp);
+                }
             }
         } else if (write.getValues().size() == 1) {
             String value = expressioneval().evaluate(write.getValues().get(0));
             String repeat = expressioneval().evaluate(write.getRepeatExpression());
-            emitter().emit("pinWriteRepeat(%s, %s, %s);", channelsutils().definedOutputPort(write.getPort()), value, repeat);
+            if(!isProcess) {
+                emitter().emit("pinWriteRepeat(%s, %s, %s);", channelsutils().definedOutputPort(write.getPort()), value, repeat);
+            }else{
+                emitter().emit("pinWriteRepeatBlocking(%s, %s, %s);", channelsutils().definedOutputPort(write.getPort()), value, repeat);
+            }
         } else {
             throw new Error("not implemented");
         }

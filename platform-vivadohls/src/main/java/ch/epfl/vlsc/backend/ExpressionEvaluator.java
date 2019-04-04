@@ -364,19 +364,11 @@ public interface ExpressionEvaluator {
     default String evaluate(ExprList list) {
         ListType t = (ListType) types().type(list);
         if (t.getSize().isPresent()) {
-
-            String name = variables().generateTemp();
-            String decl = declarations().declarationTemp(t, name);
-            String value = evaluateExprList(list);
-
-            String init = "{" + value + " }";
-            emitter().emit("%s = %s;", decl, init);
-            return name;
+            return String.format("{%s}", evaluateExprList(list));
         } else {
             return "NULL /* TODO: implement dynamically sized lists */";
         }
     }
-
 
     default String evaluateExprList(Expression expr) {
         return evaluate(expr);
@@ -509,7 +501,7 @@ public interface ExpressionEvaluator {
      * @return
      */
     default String evaluate(ExprLambda lambda) {
-       return "";
+        return "";
     }
 
     /**
@@ -519,7 +511,7 @@ public interface ExpressionEvaluator {
      * @return
      */
     default String evaluate(ExprProc proc) {
-      return "";
+        return "";
     }
 
     /**

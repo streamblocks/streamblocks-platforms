@@ -5,12 +5,14 @@ import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.PathUtils;
 import ch.epfl.vlsc.platformutils.utils.MathUtils;
 import ch.epfl.vlsc.platformutils.utils.TypeUtils;
+import com.sun.xml.internal.ws.wsdl.writer.document.Port;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
+import se.lth.cs.tycho.ir.entity.am.ActorMachine;
 import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.network.Network;
@@ -19,6 +21,7 @@ import se.lth.cs.tycho.type.Type;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Module
@@ -305,6 +308,36 @@ public interface VerilogNetwork {
                 emitter().emit(".%s%s_din(%s),", portName, getPortExtension(), String.format("q_%s_%s_din", name, portName));
                 emitter().emitNewLine();
             }
+
+            if(entity instanceof ActorMachine){
+                // -- IO for Inputs
+                for(PortDecl port : entity.getInputPorts()){
+                    String portName = port.getName();
+                    Connection.End target = new Connection.End(Optional.of(name), portName);
+                    Connection connection = backend().task().getNetwork()
+                            .getConnections().stream()
+                            .filter(c -> c.getTarget().equals(target)).findAny().orElse(null);
+                    String queueName = queueNames().get(connection);
+
+                    emitter().emit(".io_%s_peek(%s),", portName,String.format("%s_peek", queueName) );
+                    emitter().emit(".io_%s_count(%s),", portName,String.format("%s_count", queueName) );
+                    emitter().emitNewLine();
+                }
+
+                // -- IO for Outputs
+                for(PortDecl port : entity.getOutputPorts()){
+                    String portName = port.getName();
+                    Connection.End source = new Connection.End(Optional.of(name), portName);
+                    Connection connection = backend().task().getNetwork()
+                            .getConnections().stream()
+                            .filter(c -> c.getSource().equals(source)).findAny().orElse(null);
+                    String queueName = queueNames().get(connection);
+                    emitter().emit(".io_%s_size(%s),", portName,String.format("%s_size", queueName) );
+                    emitter().emit(".io_%s_count(%s),", portName,String.format("%s_count", queueName) );
+                    emitter().emitNewLine();
+                }
+            }
+
 
             // -- Vivado HLS control signals
             emitter().emit(".ap_start(ap_start),");

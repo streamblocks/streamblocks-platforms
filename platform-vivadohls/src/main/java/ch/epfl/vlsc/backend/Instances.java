@@ -266,7 +266,7 @@ public interface Instances {
                     backend().callables().callablePrototypes(instanceName, var.getValue());
                 } else {
                     String decl = declarations().declaration(types().declaredType(var), backend().variables().declarationName(var));
-                    if (var.getValue() != null) {
+                    if (var.getValue() != null ) {
                         emitter().emit("%s = %s;", decl, backend().expressioneval().evaluate(var.getValue()));
                     } else {
                         emitter().emit("%s;", decl);
@@ -307,7 +307,11 @@ public interface Instances {
                             backend().callables().callablePrototypes(instanceName, var.getValue());
                         } else {
                             String decl = declarations().declaration(types().declaredType(var), backend().variables().declarationName(var));
-                            emitter().emit("%s;", decl);
+                            if (var.getValue() != null && !(var.getValue() instanceof ExprInput)) {
+                                emitter().emit("%s = %s;", decl, backend().expressioneval().evaluate(var.getValue()));
+                            } else {
+                                emitter().emit("%s;", decl);
+                            }
                         }
                     }
                 }

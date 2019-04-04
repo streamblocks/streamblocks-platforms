@@ -23,8 +23,13 @@ public class CalToAmHwPhase implements Phase {
     public CompilationTask execute(CompilationTask task, Context context) {
         return Transformations.transformEntityDecls(task, decl -> {
             if (decl.getEntity() instanceof CalActor) {
-                CalToAmHw translator = new CalToAmHw((CalActor) decl.getEntity(), context.getConfiguration(), task.getModule(ConstantEvaluator.key));
-                return decl.withEntity(translator.buildActorMachine());
+                CalActor actor = (CalActor) decl.getEntity();
+                if(actor.getProcessDescription() == null){
+                    CalToAmHw translator = new CalToAmHw(actor, context.getConfiguration(), task.getModule(ConstantEvaluator.key));
+                    return decl.withEntity(translator.buildActorMachine());
+                }else{
+                    return decl;
+                }
             } else {
                 return decl;
             }
