@@ -59,7 +59,6 @@ public class Transitions {
         addInputStmts(action.getInputPatterns(), builder);
         builder.addAll(action.getBody());
         addOutputStmts(action.getOutputExpressions(), builder);
-        //addConsumeStmts(action.getInputPatterns(), builder);
         return new Transition(getInputRates(action.getInputPatterns()), getOutputRates(action.getOutputExpressions()), transientScopes, builder.build());
     }
 
@@ -77,13 +76,6 @@ public class Transitions {
                 .collect(Collectors.toMap(PortCondition::getPortName, PortCondition::N));
     }
 
-    private void addConsumeStmts(ImmutableList<InputPattern> inputPatterns, Consumer<Statement> builder) {
-        inputPatterns.stream()
-                .map(conditions::getCondition)
-                .map(cond -> new StmtConsume((Port) cond.getPortName().deepClone(), cond.N()))
-                .forEach(builder);
-    }
-
     private void addInputStmts(ImmutableList<InputPattern> inputPatterns, Consumer<Statement> builder) {
         for(InputPattern inputPattern : inputPatterns){
             ImmutableList.Builder<LValue> lvalues = ImmutableList.builder();
@@ -96,7 +88,6 @@ public class Transitions {
         }
 
     }
-
 
     private void addOutputStmts(ImmutableList<OutputExpression> outputExpressions, Consumer<Statement> builder) {
         outputExpressions.stream()

@@ -2,6 +2,7 @@ package ch.epfl.vlsc.platform;
 
 import ch.epfl.vlsc.phase.AddFanoutPhase;
 import ch.epfl.vlsc.phase.CalToAmHwPhase;
+import ch.epfl.vlsc.phase.LiftExprInputFromScopesPhase;
 import ch.epfl.vlsc.phase.VivadoHLSBackendPhase;
 import se.lth.cs.tycho.compiler.Compiler;
 import se.lth.cs.tycho.ir.util.ImmutableList;
@@ -50,7 +51,9 @@ public class VivadoHLS implements Platform {
                 new CompositionEntitiesUniquePhase(),
                 new CompositionPhase(),
                 new InternalizeBuffersPhase(),
-                new RemoveUnusedConditionsPhase()
+                new RemoveUnusedConditionsPhase(),
+                new LiftExprInputFromScopesPhase(),
+                new LiftScopesPhase()
         );
     }
 
