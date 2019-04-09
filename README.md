@@ -29,8 +29,8 @@ git clone https://github.com/streamblocks/streamblocks-platforms streamblocks-pl
 
 Platform                   | Description           | 
 ---------------------------|-----------------------|
-[platform-multicore-c11/][]    | Code generation platform for multicore architectures supporting PThreads  <br> |
-[platform-vivadohls/][]        | Code generation platform for Xilinx FPGAs by using Vivado HLS <br>   |  
+[platform-multicore/][]    | Code generation platform for multicore architectures supporting PThreads  <br> |
+[platform-vivadohls/][]    | Code generation platform for Xilinx FPGAs by using Vivado HLS <br>   |  
 
 
 
@@ -59,5 +59,5 @@ If you have an issue with one of the StreamBlocks platforms please create a new 
 
 
 [.]:.
-[platform-multicore-c11/]:platform-multicore-c11/
+[platform-multicore/]:platform-multicore/
 [platform-vivadohls/]:platform-vivadohls/

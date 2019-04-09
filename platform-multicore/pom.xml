@@ -9,9 +9,9 @@
         <version>1.0-SNAPSHOT</version>
     </parent>
     <groupId>ch.epfl.vlsc.streamblock</groupId>
-    <artifactId>platform-multicore-c11</artifactId>
+    <artifactId>platform-multicore</artifactId>
     <version>1.0-SNAPSHOT</version>
-    <name>StreamBlocks Multicore C11 platform for Tycho compiler</name>
+    <name>StreamBlocks Multicore platform for Tycho compiler</name>
     <dependencies>
         <!-- https://mvnrepository.com/artifact/commons-io/commons-io -->
         <dependency>

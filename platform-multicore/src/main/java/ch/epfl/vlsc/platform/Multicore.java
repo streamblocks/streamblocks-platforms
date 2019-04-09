@@ -8,7 +8,7 @@ import se.lth.cs.tycho.platform.Platform;
 
 import java.util.List;
 
-public class C11 implements Platform {
+public class Multicore implements Platform {
     @Override
     public String name() {
         return "multicore";

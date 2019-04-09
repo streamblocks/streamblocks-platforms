@@ -13,7 +13,7 @@
     <modules>
         <module>platform-core</module>
         <module>platform-generic-c</module>
-        <module>platform-multicore-c11</module>
+        <module>platform-multicore</module>
         <module>platform-vivadohls</module>
     </modules>
 

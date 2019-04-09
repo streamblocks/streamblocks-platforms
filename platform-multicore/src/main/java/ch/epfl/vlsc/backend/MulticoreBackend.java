@@ -200,7 +200,7 @@ public interface MulticoreBackend {
     }
 
     /**
-     * Get the QID of the instance for the C11 platform
+     * Get the QID of the instance for the Multicore platform
      *
      * @param instanceName
      * @param delimiter

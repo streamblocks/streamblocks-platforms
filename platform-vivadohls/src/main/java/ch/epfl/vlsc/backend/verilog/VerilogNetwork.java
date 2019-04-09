@@ -5,7 +5,6 @@ import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.PathUtils;
 import ch.epfl.vlsc.platformutils.utils.MathUtils;
 import ch.epfl.vlsc.platformutils.utils.TypeUtils;
-import com.sun.xml.internal.ws.wsdl.writer.document.Port;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
