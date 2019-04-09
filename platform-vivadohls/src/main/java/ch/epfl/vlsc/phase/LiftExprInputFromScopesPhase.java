@@ -120,6 +120,12 @@ public class LiftExprInputFromScopesPhase implements Phase {
             return a | b;
         }
 
+        default boolean visit(VarDecl decl, ExprIndexer expr){
+            boolean i = visit(decl, expr.getIndex());
+            boolean s = visit(decl, expr.getStructure());
+            return i | s;
+        }
+
         default boolean visit(VarDecl decl, ExprVariable expr) {
             return decl.equals(varDecls().declaration(expr));
         }

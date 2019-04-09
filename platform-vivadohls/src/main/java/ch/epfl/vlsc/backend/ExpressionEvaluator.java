@@ -163,7 +163,7 @@ public interface ExpressionEvaluator {
 
         if (input.hasRepeat()) {
             if (input.getOffset() == 0) {
-                emitter().emit("pinPeekRepeat(%s, %s, %d);", channelsutils().definedInputPort(input.getPort()), tmp, input.getRepeat());
+                emitter().emit("pinPeekFront(%s, %s[0]);", channelsutils().definedInputPort(input.getPort()), tmp);
             } else {
                 throw new RuntimeException("not implemented");
             }
@@ -171,7 +171,7 @@ public interface ExpressionEvaluator {
             if (input.getOffset() == 0) {
                 emitter().emit("pinPeekFront(%s, %s);", channelsutils().definedInputPort(input.getPort()), tmp);
             } else {
-                emitter().emit("pinPeek(%s, %d, %s);", channelsutils().definedInputPort(input.getPort()), input.getOffset(), tmp);
+                emitter().emit("pinPeekFront(%s, %d, %s);", channelsutils().definedInputPort(input.getPort()), input.getOffset(), tmp);
             }
         }
 
@@ -183,7 +183,7 @@ public interface ExpressionEvaluator {
     default void evaluateWithLvalue(String lvalue, ExprInput input) {
         if (input.hasRepeat()) {
             if (input.getOffset() == 0) {
-                emitter().emit("pinPeekRepeat(%s, %s, %d);", channelsutils().definedInputPort(input.getPort()), lvalue, input.getRepeat());
+                emitter().emit("pinPeekFront(%s, %s[0]);", channelsutils().definedInputPort(input.getPort()), lvalue);
             } else {
                 throw new RuntimeException("not implemented");
             }
@@ -191,7 +191,7 @@ public interface ExpressionEvaluator {
             if (input.getOffset() == 0) {
                 emitter().emit("pinPeekFront(%s, %s);", channelsutils().definedInputPort(input.getPort()), lvalue);
             } else {
-                emitter().emit("pinPeek(%s, %d, %s);", channelsutils().definedInputPort(input.getPort()), input.getOffset(), lvalue);
+                emitter().emit("pinPeekFront(%s, %d, %s);", channelsutils().definedInputPort(input.getPort()), input.getOffset(), lvalue);
             }
         }
     }
@@ -364,7 +364,14 @@ public interface ExpressionEvaluator {
     default String evaluate(ExprList list) {
         ListType t = (ListType) types().type(list);
         if (t.getSize().isPresent()) {
-            return String.format("{%s}", evaluateExprList(list));
+
+            String name = variables().generateTemp();
+            String decl = declarations().declarationTemp(t, name);
+            String value = evaluateExprList(list);
+
+            String init = "{" + value + " }";
+            emitter().emit("%s = %s;", decl, init);
+            return name;
         } else {
             return "NULL /* TODO: implement dynamically sized lists */";
         }

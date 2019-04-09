@@ -14,10 +14,7 @@ import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.entity.am.*;
 import se.lth.cs.tycho.ir.entity.cal.CalActor;
-import se.lth.cs.tycho.ir.expr.ExprInput;
-import se.lth.cs.tycho.ir.expr.ExprLambda;
-import se.lth.cs.tycho.ir.expr.ExprProc;
-import se.lth.cs.tycho.ir.expr.Expression;
+import se.lth.cs.tycho.ir.expr.*;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.type.CallableType;
 import se.lth.cs.tycho.type.Type;
@@ -308,7 +305,11 @@ public interface Instances {
                         } else {
                             String decl = declarations().declaration(types().declaredType(var), backend().variables().declarationName(var));
                             if (var.getValue() != null && !(var.getValue() instanceof ExprInput)) {
-                                emitter().emit("%s = %s;", decl, backend().expressioneval().evaluate(var.getValue()));
+                                if(var.getValue() instanceof ExprList){
+                                    emitter().emit("%s = {%s};", decl, backend().expressioneval().evaluateExprList(var.getValue()));
+                                }else {
+                                    emitter().emit("%s = %s;", decl, backend().expressioneval().evaluate(var.getValue()));
+                                }
                             } else {
                                 emitter().emit("%s;", decl);
                             }
