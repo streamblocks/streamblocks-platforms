@@ -13,8 +13,7 @@ This README file is organized as follows:
 
 ### 1. Getting started
 
-The StreamBlocks dataflow compiler offers code-generation for multicore generic platform and FPGAs through HLS (high-level synthesis). 
-Currently the StreamBlocks platforms are under heavy development.
+The StreamBlocks dataflow compiler offers code-generation for multicore generic platforms and FPGAs through High-level synthesis. This repository contains the backends of the StreamBlocks-tycho dataflow compiler. Currently this repository is under heavy development.
 
 To use the StreamBlocks Platforms first you need to compile and install StreamBlocks-Tycho compiler [streamblocks-tycho](https://github.com/streamblocks/streamblocks-tycho/blob/master/README.md).
 
@@ -29,8 +28,8 @@ git clone https://github.com/streamblocks/streamblocks-platforms streamblocks-pl
 
 Platform                   | Description           | 
 ---------------------------|-----------------------|
-[platform-multicore/][]    | Code generation platform for multicore architectures supporting PThreads  <br> |
-[platform-vivadohls/][]    | Code generation platform for Xilinx FPGAs by using Vivado HLS <br>   |  
+[platform-multicore/][]    | Code generation for multicore architectures supporting Posix threads  <br> |
+[platform-vivadohls/][]    | Code generation for Xilinx FPGAs by using Vivado HLS <br>   |  
 
 
 
