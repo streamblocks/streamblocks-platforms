@@ -24,10 +24,12 @@ endif()
 include_directories(
         art-runtime/include
         art-native/include
+        art-genomic/include
 )
 
 add_subdirectory(art-runtime)
 add_subdirectory(art-native)
+add_subdirectory(art-genomic)
 
 set(extra_definitions ${extra_definitions} PARENT_SCOPE)
 set(extra_includes ${extra_includes} PARENT_SCOPE)
