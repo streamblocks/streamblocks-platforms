@@ -124,7 +124,7 @@ public interface Controllers {
         Set<State> targets = new HashSet<>();
         for (State state : stateList) {
             Instruction i = state.getInstructions().get(0);
-            if (i.getKind() == InstructionKind.WAIT) {
+            if ((i.getKind() == InstructionKind.WAIT) || (i.getKind() == InstructionKind.EXEC) ) {
                 i.forEachTarget(targets::add);
             }
         }
