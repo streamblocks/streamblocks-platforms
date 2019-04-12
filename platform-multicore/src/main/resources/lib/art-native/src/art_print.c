@@ -19,6 +19,10 @@ void print_s(const char * value){
     printf("%s", value);
 }
 
+void print_c(int value){
+    printf("%c", (char) value);
+}
+
 // -- Print and return line
 
 void println(){

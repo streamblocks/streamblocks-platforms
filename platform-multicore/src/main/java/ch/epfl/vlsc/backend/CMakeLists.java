@@ -126,7 +126,7 @@ public interface CMakeLists {
 
         // -- Target link libraries
         emitter().emit("# -- Target link libraries");
-        emitter().emit("target_link_libraries(%s art-native art-runtime ${extra_libraries})", backend().task().getIdentifier().getLast().toString());
+        emitter().emit("target_link_libraries(%s art-genomic art-native art-runtime ${extra_libraries})", backend().task().getIdentifier().getLast().toString());
         emitter().emitNewLine();
         // -- EOF
         emitter().close();
