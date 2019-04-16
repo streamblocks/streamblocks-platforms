@@ -40,11 +40,7 @@
 #define _INTERNAL_H
 
 #include <stdio.h>
-#ifdef __APPLE__
-#include <dispatch/dispatch.h>
-#else
-#include <semaphore.h>
-#endif
+#include "actors-thread.h"
 #include "cycle.h"
 
 /* make the header usable from C++ */
@@ -93,11 +89,9 @@ typedef struct cpu_runtime_data {
 
     pthread_t thread;
     int physical_id; /* physical index of this cpu */
-#ifdef __APPLE__
-    dispatch_semaphore_t *sem;
-#else
-    sem_t *sem;
-#endif
+
+    art_semaphore_t *sem;
+
     int *sleep; // Odd value indicates thread sleeping
     int quiescent_at; // Does this need to be cache_aligned?
     struct SharedContext *shared;

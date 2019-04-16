@@ -7,11 +7,16 @@
 #include <string.h>
 #include <sched.h>
 #include "actors-rts.h"
+
 #ifdef __APPLE__
 #include <dispatch/dispatch.h>
 #else
+
 #include <semaphore.h>
+
 #endif
+
+#include "actors-thread.h"
 
 #include <pthread.h>
 #include <limits.h>
@@ -98,7 +103,7 @@ static void add_timer(art_timer_t *timer,
     long long tmp;
 
     tmp = getticks();
-    *timer += elapsed(tmp,*tb);
+    *timer += elapsed(tmp, *tb);
     *tb = tmp;
 }
 
@@ -223,10 +228,9 @@ static int terminate;
 #undef MUTEX_UNLOCK
 
 #ifdef __APPLE__
-typedef int cpu_set_t;
+//typedef int cpu_set_t;
 #define CPU_ZERO(cpu)
 #define CPU_SET(a,b)
-#define CPU_SETSIZE 1
 #define CPU_ISSET(i,b) ((i==0)?1:0)
 int sched_getaffinity(int a, size_t sz, cpu_set_t* aff) {
   aff=0;
@@ -397,7 +401,7 @@ static int nr_of_cpus(cpu_set_t *cpu_set) {
     int result, i;
 
     for (result = 0, i = 0; cpu_set && i < CPU_SETSIZE; i++) {
-        if (CPU_ISSET(i, cpu_set)) { result++; }
+        if (art_isset_cpu_set(i, cpu_set)) { result++; }
     }
     return result;
 }
@@ -555,7 +559,7 @@ static int check_network(ActorInstance_1_t **instance,
     int i;
     cpu_set_t cpu_set;
 
-    CPU_ZERO(&cpu_set);
+    art_clear_cpu_set(&cpu_set);
     for (i = 0; i < numInstances; i++) {
         // Check that we have processor affinity, else force single CPU mode
         if (instance[i]->affinity == -1) {
@@ -577,7 +581,7 @@ static int check_network(ActorInstance_1_t **instance,
         if ((*flags & FLAG_SINGLE_CPU)) {
             instance[i]->affinity = 0;
         }
-        CPU_SET(instance[i]->affinity, &cpu_set);
+        art_set_cpu_set(instance[i]->affinity, &cpu_set);
 
         // Check that everything has been connected
         for (j = 0; j < instance[i]->actorClass->numOutputPorts; j++) {
@@ -611,25 +615,23 @@ static int check_network(ActorInstance_1_t **instance,
         cpu_set_t old;
         int err;
 
-        err = sched_getaffinity(0, sizeof(old), &old);
+        err = art_get_affinity(0, old);
         if (err == 0) {
             int i, n_cpu;
 
             for (n_cpu = 0, i = 0; i < CPU_SETSIZE; i++) {
-                if (CPU_ISSET(i, &cpu_set)) {
+                if (art_isset_cpu_set(i, &cpu_set)) {
                     cpu_set_t new;
-
+                    err = art_set_new_affinity(new, i);
                     n_cpu++;
-                    CPU_ZERO(&new);
-                    CPU_SET(i, &new);
-                    err = sched_setaffinity(0, sizeof(new), &new);
+
                     if (err) {
                         printf("System does not have a processor #%d\n", i);
                         result = 1;
                     }
                 }
             }
-            err = sched_setaffinity(0, sizeof(old), &old);
+            err = art_set_affinity(0, old);
         }
     }
     if (result == 0 && used_cpus) {
@@ -871,7 +873,7 @@ static cpu_runtime_data_t *allocate_network(
 
     /* Setup CPU local data */
     for (cpu = -1, i = 0; i < CPU_SETSIZE; i++) {
-        if (CPU_ISSET(i, used_cpus)) {
+        if (art_isset_cpu_set(i, used_cpus)) {
             void *cpu_shared_p, *cpu_local_p, *cpu_actor_data;
 
             cpu++;
@@ -887,11 +889,8 @@ static cpu_runtime_data_t *allocate_network(
             result[cpu].physical_id = i;
             result[cpu].sem = malloc(sizeof(*result[cpu].sem));
             // Data accessed from multiple cpus
-#ifdef __APPLE__
-            *result[cpu].sem = dispatch_semaphore_create(0);
-#else
-            sem_init(result[cpu].sem, 0, 0);
-#endif
+
+            art_semaphore_create(result[cpu].sem, 0);
 
             result[cpu].sleep = cpu_shared_p;
             cpu_shared_p += cache_bytes(sizeof(*result[cpu].sleep));
@@ -1018,9 +1017,7 @@ static void *run_with_affinity(void *arg) {
     cpu_runtime_data_t *cpu = arg;
     cpu_set_t affinity;
 
-    CPU_ZERO(&affinity);
-    CPU_SET(cpu->physical_id, &affinity);
-    sched_setaffinity(0, sizeof(cpu_set_t), &affinity);
+    art_set_new_affinity(affinity, cpu->physical_id);
 
     return cpu->main(cpu, arg_loopmax);
 }
@@ -1031,17 +1028,14 @@ static void run_threads(cpu_runtime_data_t *runtime,
 
     for (i = 0; i < runtime->cpu_count; i++) {
         runtime[i].main = execute;
-        pthread_create(&runtime[i].thread,
-                       NULL,
-                       run_with_affinity,
-                       &runtime[i]);
+        art_thread_create(runtime[i].thread, run_with_affinity, runtime[i]);
     }
 
     if (cb_add_threads)
         cb_add_threads(runtime->cpu_count + 1);
 
     for (i = 0; i < runtime->cpu_count; i++) {
-        pthread_join(runtime[i].thread, NULL);
+        art_thread_join(runtime[i].thread);
     }
 }
 

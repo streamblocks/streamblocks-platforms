@@ -160,11 +160,8 @@ static void *EXECUTE_NETWORK(cpu_runtime_data_t *runtime,
                                 // This assumes that sem_post does not reach the waiting
                                 // cpu before all the updates from above are visible.
                                 // Do we need an extra write_barrier, and how can we test it?
-#ifdef __APPLE__
-                                dispatch_semaphore_signal(*cpu[i].sem);
-#else
-                                sem_post(cpu[i].sem);
-#endif
+
+                                art_semaphore_set(cpu[i].sem);
                                 // Only wake it once for each sleep
                                 cpu[this_cpu].has_affected[i] = 0;
                                 old_sleep[i] = current_sleep;
@@ -215,11 +212,8 @@ static void *EXECUTE_NETWORK(cpu_runtime_data_t *runtime,
                         } else {
                             if (cpu[this_cpu].has_affected[i]) {
                                 // We have data for some sleeping thread
-#ifdef __APPLE__
-                                dispatch_semaphore_signal(*cpu[i].sem);
-#else
-                                sem_post(cpu[i].sem);
-#endif
+
+                                art_semaphore_set(cpu[i].sem);
                                 // Only wake it once for each sleep
                                 cpu[this_cpu].has_affected[i] = 0;
                                 old_sleep[i] = current_sleep;
@@ -262,11 +256,7 @@ static void *EXECUTE_NETWORK(cpu_runtime_data_t *runtime,
                         int do_terminate = 1;
                         for (i = 0; i < runtime->cpu_count; i++) {
                             if (cpu[i].quiescent_at != curr_sleep_event) {
-#ifdef __APPLE__
-                                dispatch_semaphore_signal(*cpu[i].sem);
-#else
-                                sem_post(cpu[i].sem);
-#endif
+                                art_semaphore_set(cpu[i].sem);
                                 do_terminate = 0;
                             }
                         }
@@ -286,11 +276,9 @@ static void *EXECUTE_NETWORK(cpu_runtime_data_t *runtime,
                 if (cpu[this_cpu].traceFile) {
                     xmlTraceStatus(cpu[this_cpu].traceFile, 0);
                 }
-#ifdef __APPLE__
-                dispatch_semaphore_wait(*cpu[this_cpu].sem, DISPATCH_TIME_FOREVER);
-#else
-                sem_wait(cpu[this_cpu].sem);
-#endif
+
+                art_semaphore_wait(cpu[this_cpu].sem);
+
                 statistics.nsleep++;
 
                 if (terminate) { goto done; }
@@ -304,24 +292,15 @@ static void *EXECUTE_NETWORK(cpu_runtime_data_t *runtime,
                 xmlTraceStatus(cpu[this_cpu].traceFile, 1);
             }
             MUTEX_UNLOCK();
-#ifdef __APPLE__
-            while (cpu[this_cpu].sem ? (0 == dispatch_semaphore_wait(*cpu[this_cpu].sem, DISPATCH_TIME_NOW)) : false) {
-                // Consume all active activations (might have been awakened
-                // by more than one thread), but as far away as possible from
-                // the wait to catch as many wakeups as possible.
-                // We assume that a sem_wait/sem_trywait guarantees that all
-                // data from the thread that did the sem_signal has reached us.
 
-            }
-#else
-            while (sem_trywait(cpu[this_cpu].sem) == 0) {
+            while (art_semaphore_try_wait(cpu[this_cpu].sem) == 0) {
                 // Consume all active activations (might have been awakened
                 // by more than one thread), but as far away as possible from
                 // the wait to catch as many wakeups as possible.
                 // We assume that a sem_wait/sem_trywait guarantees that all
                 // data from the thread that did the sem_signal has reached us.
             }
-#endif
+
             ADD_TIMER(&statistics.sync_blocked, &t1);
         }
     }
@@ -333,12 +312,7 @@ static void *EXECUTE_NETWORK(cpu_runtime_data_t *runtime,
         if (this_cpu == i) {
             continue;
         }
-#ifdef __APPLE__
-        dispatch_semaphore_signal(*cpu[i].sem);
-#else
-        sem_post(cpu[i].sem);
-#endif
-
+        art_semaphore_set(cpu[i].sem);
     }
     cpu[this_cpu].statistics = statistics;
 
