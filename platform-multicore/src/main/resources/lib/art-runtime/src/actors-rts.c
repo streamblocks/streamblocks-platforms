@@ -8,14 +8,6 @@
 #include <sched.h>
 #include "actors-rts.h"
 
-#ifdef __APPLE__
-#include <dispatch/dispatch.h>
-#else
-
-#include <semaphore.h>
-
-#endif
-
 #include "actors-thread.h"
 
 #include <pthread.h>
@@ -226,20 +218,6 @@ static int terminate;
 #undef WRITE_BARRIER
 #undef MUTEX_LOCK
 #undef MUTEX_UNLOCK
-
-#ifdef __APPLE__
-//typedef int cpu_set_t;
-#define CPU_ZERO(cpu)
-#define CPU_SET(a,b)
-#define CPU_ISSET(i,b) ((i==0)?1:0)
-int sched_getaffinity(int a, size_t sz, cpu_set_t* aff) {
-  aff=0;
-  return 1;
-}
-int sched_setaffinity(int a, size_t sz, cpu_set_t* aff) {
-  return 1;
-}
-#endif
 
 /*
  * We need to know processor affinity, etc before we allocate the true
@@ -610,7 +588,8 @@ static int check_network(ActorInstance_1_t **instance,
         }
 
     }
-    {
+
+    /*{
         // Check that all needed cpus are present
         cpu_set_t old;
         int err;
@@ -633,7 +612,7 @@ static int check_network(ActorInstance_1_t **instance,
             }
             err = art_set_affinity(0, old);
         }
-    }
+    }*/
     if (result == 0 && used_cpus) {
         *used_cpus = cpu_set;
     }
@@ -1017,7 +996,7 @@ static void *run_with_affinity(void *arg) {
     cpu_runtime_data_t *cpu = arg;
     cpu_set_t affinity;
 
-    art_set_new_affinity(affinity, cpu->physical_id);
+    art_set_thread_affinity(affinity, cpu->physical_id, cpu->thread);
 
     return cpu->main(cpu, arg_loopmax);
 }

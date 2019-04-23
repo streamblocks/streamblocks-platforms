@@ -98,29 +98,89 @@ static void art_set_this_process_affinity(cpu_set_t cpuset, int proc_num) {
 #ifdef __APPLE__
 
 #include <mach/mach_traps.h>
-#include <dispatch/dispatch.h>
+#include <mach/semaphore.h>
 #include <mach/task.h>
 #include <mach/mach.h>
+#include <sys/types.h>
+#include <sys/sysctl.h>
 
-#define CPU_SETSIZE 1024
+#define CPU_SETSIZE 16
+#define SYSCTL_CORE_COUNT   "machdep.cpu.core_count"
 
 typedef struct cpu_set {
     uint32_t    count;
 } cpu_set_t;
 
-#define art_clear_cpu_set(cpuset)
-#define art_set_thread_affinity(cpuset, proc_num, thread)
-#define art_get_thread_affinity(cpuset, thread) 0
-#define art_set_this_process_affinity(cpuset, proc_num) 0
+
+static inline void CPU_ZERO(cpu_set_t *cs) { cs->count = 0; }
+
+static inline void CPU_SET(int num, cpu_set_t *cs) { cs->count |= (1 << num); }
+
+static inline int CPU_ISSET(int num, cpu_set_t *cs) { return (cs->count & (1 << num)); }
 
 
-#define art_semaphore_create(semaphore, number) *semaphore = dispatch_semaphore_create(number)
-#define art_semaphore_wait(semaphore) dispatch_semaphore_wait(*semaphore, DISPATCH_TIME_FOREVER)
-#define art_semaphore_try_wait(semaphore) semaphore ? (0 == dispatch_semaphore_wait(*semaphore, DISPATCH_TIME_NOW)) : false
 
-#define art_semaphore_set(semaphore)  dispatch_semaphore_signal(*semaphore)
+static int sched_getaffinity(pid_t pid, size_t cpu_size, cpu_set_t *cpu_set)
+{
+    int32_t core_count = 0;
+    size_t  len = sizeof(core_count);
+    int ret = sysctlbyname(SYSCTL_CORE_COUNT, &core_count, &len, 0, 0);
+    if (ret) {
+        printf("error while get core count %d\n", ret);
+        return -1;
+    }
+    cpu_set->count = 0;
+    for (int i = 0; i < core_count; i++) {
+        cpu_set->count |= (1 << i);
+    }
+
+    return 0;
+}
+
+static int pthread_setaffinity_np(pthread_t thread, size_t cpu_size,
+                                  cpu_set_t *cpu_set)
+{
+    thread_port_t mach_thread;
+    int core = 0;
+
+    for (core = 0; core < 8 * cpu_size; core++) {
+        if (CPU_ISSET(core, cpu_set)) break;
+    }
+    thread_affinity_policy_data_t policy = { core };
+    mach_thread = pthread_mach_thread_np(thread);
+    thread_policy_set(mach_thread, THREAD_AFFINITY_POLICY,
+                      (thread_policy_t)&policy, 1);
+    return 0;
+}
+
+#define art_clear_cpu_set(mask) CPU_ZERO(mask)
+#define art_isset_cpu_set(proc_num, mask) CPU_ISSET(proc_num, mask)
+#define art_set_cpu_set(proc_num, mask) CPU_SET(proc_num, mask)
+#define art_get_affinity(pid, mask) sched_getaffinity(pid, sizeof(mask), &mask)
+
+
+#define art_set_thread_affinity(mask, proc_num, thread) {             	\
+            CPU_ZERO(&(mask));										 	\
+            CPU_SET(proc_num, &(mask));                                    	\
+            pthread_setaffinity_np(thread, sizeof(cpu_set_t), &(mask));    	\
+    }
+#define art_set_new_affinity(mask, proc_num) ({					\
+            int ret; \
+            CPU_ZERO(&(mask));											 	\
+            CPU_SET(proc_num, &(mask));										\
+            ret = pthread_setaffinity_np(0, sizeof(cpu_set_t), &(mask));					\
+            ret;\
+} )
+
+#define art_set_affinity(thread, mask) pthread_setaffinity_np(thread, sizeof(mask), &mask)
+
+
+#define art_semaphore_create(semaphore, number) semaphore_create(mach_task_self(), (semaphore), SYNC_POLICY_FIFO, (number))
+#define art_semaphore_wait(semaphore) semaphore_wait(semaphore)
+#define art_semaphore_try_wait(semaphore) semaphore_wait(semaphore)
+#define art_semaphore_set(semaphore) semaphore_signal(semaphore)
 #define art_semaphore_destroy(semaphore) semaphore_destroy(mach_task_self(), &(semaphore))
-#define art_semaphore_t dispatch_semaphore_t
+#define art_semaphore_t semaphore_t
 
 #else
 
@@ -132,20 +192,15 @@ typedef struct cpu_set {
 #define art_set_cpu_set(proc_num, mask) CPU_SET(proc_num, mask)
 #define art_get_affinity(pid, mask) sched_getaffinity(pid, sizeof(mask), &mask)
 
-#define art_set_thread_affinity(mask, proc_num, thread) {             	\
+#define art_set_thread_affinity(mask, proc_num, thread)( {             	\
+            int ret; \
             CPU_ZERO(&(mask));										 	\
             CPU_SET(proc_num, &(mask));                                    	\
-            pthread_setaffinity_np(thread, sizeof(cpu_set_t), &(mask));    	\
-    }
-#define art_set_new_affinity(mask, proc_num) ({					\
-            int ret; \
-            CPU_ZERO(&(mask));											 	\
-            CPU_SET(proc_num, &(mask));										\
-            ret = sched_setaffinity(0, sizeof(cpu_set_t), &(mask));					\
-            ret;\
-} )
+            ret = pthread_setaffinity_np(thread, sizeof(cpu_set_t), &(mask));    	\
+            ret; \
+    })
 
-#define art_set_affinity(pid, mask) sched_setaffinity(pid, sizeof(mask), &mask)
+#define art_set_affinity(thread, mask) pthread_setaffinity_np(thread, sizeof(mask), &mask)
 
 #define art_semaphore_create(semaphore, number) sem_init(semaphore, 0, (number))
 #define art_semaphore_wait(semaphore) sem_wait(semaphore)
