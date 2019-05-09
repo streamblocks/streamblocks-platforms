@@ -1,4 +1,4 @@
-package ch.epfl.vlsc.phase;
+package ch.epfl.vlsc.phases;
 
 import ch.epfl.vlsc.transformation.cal2am.CalToAmHw;
 import se.lth.cs.tycho.attribute.ConstantEvaluator;

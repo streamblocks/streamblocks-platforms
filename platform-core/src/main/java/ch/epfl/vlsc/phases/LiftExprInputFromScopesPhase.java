@@ -1,4 +1,4 @@
-package ch.epfl.vlsc.phase;
+package ch.epfl.vlsc.phases;
 
 import org.multij.Binding;
 import org.multij.BindingKind;

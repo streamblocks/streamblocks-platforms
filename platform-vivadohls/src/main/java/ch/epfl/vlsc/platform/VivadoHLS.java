@@ -1,9 +1,9 @@
 package ch.epfl.vlsc.platform;
 
-import ch.epfl.vlsc.phase.AddFanoutPhase;
-import ch.epfl.vlsc.phase.CalToAmHwPhase;
-import ch.epfl.vlsc.phase.LiftExprInputFromScopesPhase;
 import ch.epfl.vlsc.phase.VivadoHLSBackendPhase;
+import ch.epfl.vlsc.phases.AddFanoutPhase;
+import ch.epfl.vlsc.phases.CalToAmHwPhase;
+import ch.epfl.vlsc.phases.LiftExprInputFromScopesPhase;
 import se.lth.cs.tycho.compiler.Compiler;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.phase.*;

@@ -1,4 +1,4 @@
-package ch.epfl.vlsc.phase;
+package ch.epfl.vlsc.phases;
 
 import se.lth.cs.tycho.compiler.*;
 import se.lth.cs.tycho.ir.NamespaceDecl;
