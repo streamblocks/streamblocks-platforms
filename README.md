@@ -19,7 +19,7 @@ To use the StreamBlocks Platforms first you need to compile and install StreamBl
 
 ### 2. How to download this repository
 
-To get a local copy of the StreamBlocks examples repository, clone this repository to the local system with the following commmand:
+To get a local copy of the StreamBlocks platforms repository, clone this repository to the local system with the following commmand:
 ```
 git clone https://github.com/streamblocks/streamblocks-platforms streamblocks-platforms
 ```
@@ -28,7 +28,8 @@ git clone https://github.com/streamblocks/streamblocks-platforms streamblocks-pl
 
 Platform                   | Description           | 
 ---------------------------|-----------------------|
-[platform-multicore/][]    | Code generation for multicore architectures supporting Posix threads  <br> |
+[platform-generic-c/][]    | Generic monocore C code generation <i> (to be deprecated)</i>  <br> |
+[platform-multicore/][]    | Code generation for multicore architectures supporting Posix threads <br> |
 [platform-vivadohls/][]    | Code generation for Xilinx FPGAs by using Vivado HLS <br>   |  
 
 
@@ -58,5 +59,6 @@ If you have an issue with one of the StreamBlocks platforms please create a new 
 
 
 [.]:.
+[platform-generic-c/]:platform-multicore/
 [platform-multicore/]:platform-multicore/
 [platform-vivadohls/]:platform-vivadohls/
