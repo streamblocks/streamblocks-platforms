@@ -1,3 +1,5 @@
+![Logo](doc/streamblocks-logo.png#)
+
 StreamBlocks Platforms Repository
 =================================
 
@@ -62,3 +64,4 @@ If you have an issue with one of the StreamBlocks platforms please create a new 
 [platform-generic-c/]:platform-multicore/
 [platform-multicore/]:platform-multicore/
 [platform-vivadohls/]:platform-vivadohls/
+
