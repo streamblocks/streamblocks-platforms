@@ -33,6 +33,10 @@ public interface CMakeLists {
         emitter().emit("set(CMAKE_C_STANDARD 11)");
         emitter().emitNewLine();
 
+        // -- ART Node
+        emitter().emit("option(ART_NODE \"Run actors on ART Node.\" OFF)");
+        emitter().emitNewLine();
+
         // -- Default C Flags
         emitter().emit("# -- Default C Flags");
         emitter().emit("set(CMAKE_C_FLAGS \"-Wall -Wno-unused-variable -Wno-missing-braces\")");
@@ -51,12 +55,34 @@ public interface CMakeLists {
 
         // -- Include directories
         emitter().emit("# -- Include directories");
-        emitter().emit("include_directories(");
-        emitter().increaseIndentation();
-        emitter().emit("lib/art-runtime/include");
-        emitter().emit("lib/art-native/include");
-        emitter().decreaseIndentation();
-        emitter().emit(")");
+
+        emitter().emit("if(ART_NODE)");
+        {
+            emitter().increaseIndentation();
+
+            emitter().emit("include_directories(");
+            emitter().increaseIndentation();
+            emitter().emit("lib/art-node/include");
+            emitter().emit("lib/art-native/include");
+            emitter().decreaseIndentation();
+            emitter().emit(")");
+
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("else()");
+        {
+            emitter().increaseIndentation();
+
+            emitter().emit("include_directories(");
+            emitter().increaseIndentation();
+            emitter().emit("lib/art-runtime/include");
+            emitter().emit("lib/art-native/include");
+            emitter().decreaseIndentation();
+            emitter().emit(")");
+
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("endif()");
         emitter().emitNewLine();
 
         // -- Add sub directories
@@ -114,20 +140,60 @@ public interface CMakeLists {
         emitter().emit("add_definitions(${extra_definitions})");
         emitter().emitNewLine();
 
-        // -- Add executable
-        emitter().emit("# -- Add executable");
-        emitter().emit("add_executable(%s ${filenames})", backend().task().getIdentifier().getLast().toString());
-        emitter().emitNewLine();
+        // -- Node or Executable
+        emitter().emit("## -- Node or executable");
+        emitter().emit("if(ART_NODE)");
+        {
+            emitter().increaseIndentation();
 
-        // -- Target Include directories
-        emitter().emit("# -- Target include directories");
-        emitter().emit("target_include_directories(%s PRIVATE ./include)", backend().task().getIdentifier().getLast().toString());
-        emitter().emitNewLine();
+            emitter().emit("# -- Shared Module flags");
+            emitter().emit("set(CMAKE_SHARED_MODULE_CREATE_C_FLAGS \"${CMAKE_SHARED_MODULE_CREATE_C_FLAGS} -std=c99 -Wall -Wno-parentheses-equality -fPIC -flat_namespace -bundle -undefined suppress\")");
+            emitter().emitNewLine();
 
-        // -- Target link libraries
-        emitter().emit("# -- Target link libraries");
-        emitter().emit("target_link_libraries(%s art-genomic art-native art-runtime ${extra_libraries})", backend().task().getIdentifier().getLast().toString());
-        emitter().emitNewLine();
+            emitter().emit("# -- Shared Module for each actor");
+            for (Instance instance : backend().task().getNetwork().getInstances()) {
+                GlobalEntityDecl entityDecl = backend().globalnames().entityDecl(instance.getEntityName(), true);
+                if (!entityDecl.getExternal()) {
+                    String name = backend().instaceQID(instance.getInstanceName(), "_");
+
+                    emitter().emit("add_library(%s MODULE src/%1$s.c src/globals.c)", name);
+                    emitter().emit("set_target_properties(%s PROPERTIES COMPILE_FLAGS \"-Wall -fPIC\")", name);
+                    emitter().emit("set_target_properties(%s PROPERTIES PREFIX \"\")", name);
+                    emitter().emit("set_target_properties(%s PROPERTIES LIBRARY_OUTPUT_DIRECTORY \"${CMAKE_SOURCE_DIR}/bin/modules\")", name);
+                    emitter().emit("if(APPLE)");
+                    emitter().increaseIndentation();
+                    emitter().emit("set_target_properties(%s PROPERTIES SUFFIX \".bundle\")", name);
+                    emitter().decreaseIndentation();
+                    emitter().emit("endif()");
+                    emitter().emit("target_link_libraries(%s art-node ${extra_libraries})", name);
+
+                    emitter().emitNewLine();
+                }
+            }
+
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("else()");
+        {
+           emitter().increaseIndentation();
+
+            // -- Add executable
+            emitter().emit("# -- Add executable");
+            emitter().emit("add_executable(%s ${filenames})", backend().task().getIdentifier().getLast().toString());
+            emitter().emitNewLine();
+
+            // -- Target Include directories
+            emitter().emit("# -- Target include directories");
+            emitter().emit("target_include_directories(%s PRIVATE ./include)", backend().task().getIdentifier().getLast().toString());
+            emitter().emitNewLine();
+
+            // -- Target link libraries
+            emitter().emit("# -- Target link libraries");
+            emitter().emit("target_link_libraries(%s art-genomic art-native art-runtime ${extra_libraries})", backend().task().getIdentifier().getLast().toString());
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("endif()");
+
         // -- EOF
         emitter().close();
     }

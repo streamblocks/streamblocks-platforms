@@ -86,6 +86,19 @@ public class PathUtils {
         return directory.toPath();
     }
 
+
+    /**
+     * Get the code-gen target output directory
+     *
+     * @param context
+     * @return
+     */
+    public static Path getTargetBin(Context context) {
+        File directory = new File(getTarget(context).toFile(), "bin");
+        return directory.toPath();
+    }
+
+
     /**
      * Get the code-gen source target output directory
      *

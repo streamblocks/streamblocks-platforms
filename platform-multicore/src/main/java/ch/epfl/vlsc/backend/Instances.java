@@ -153,6 +153,7 @@ public interface Instances {
         backend().includeUser("actors-rts.h");
         backend().includeUser("natives.h");
         backend().includeUser("globals.h");
+        backend().includeSystem("stdbool.h");
         emitter().emitNewLine();
     }
 

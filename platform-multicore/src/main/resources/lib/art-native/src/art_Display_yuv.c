@@ -180,7 +180,7 @@ static const ActionDescription actionDescriptions[] = {
                       portRate_0,  0},};
 
 ActorClass ActorClass_art_Display_yuv = INIT_ActorClass(
-        "art_Sink_yuv",
+        "art_Display_yuv",
         ActorInstance_art_Display_yuv,
         art_Display_yuv_constructor,
         art_Display_yuv_setParam,

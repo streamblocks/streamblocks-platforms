@@ -8,7 +8,6 @@ set(art_native_source
     src/art_Source_byte.c
     src/art_Source_real.c
     src/art_Source_txt.c
-    src/art_Streaming.c
     src/art_print.c
     src/display.c)
 
@@ -32,7 +31,8 @@ include_directories(${extra_includes})
 add_definitions(${extra_definitions})
 
 add_library(art-native STATIC ${art_native_source} ${art_native_header})
-target_link_libraries(art-native art-runtime ${extra_libraries})
+set_target_properties(art-native PROPERTIES COMPILE_FLAGS "-Wall -fPIC")
+target_link_libraries(art-native ${extra_libraries})
 
 install(TARGETS art-native
         ARCHIVE DESTINATION lib)

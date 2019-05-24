@@ -188,6 +188,10 @@ public interface MulticoreBackend {
         return MultiJ.from(Main.class).bind("backend").to(this).instance();
     }
 
+    // -- Node Scripts
+    @Binding(LAZY)
+    default NodeScripts nodescripts(){return MultiJ.from(NodeScripts.class).bind("backend").to(this).instance();}
+
     // -- Network to DOT
     @Binding(LAZY)
     default NetworkToDot netoworkToDot() {

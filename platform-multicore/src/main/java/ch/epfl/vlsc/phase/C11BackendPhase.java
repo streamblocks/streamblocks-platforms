@@ -139,6 +139,9 @@ public class C11BackendPhase implements Phase {
         // -- Generate CMakeLists
         generateCmakeLists(backend);
 
+        // -- Generate Node scripts
+        generateNodeScripts(backend);
+
         // -- Generate Auxiliary
         generateAuxiliary(backend);
         return task;
@@ -211,6 +214,13 @@ public class C11BackendPhase implements Phase {
         }
     }
 
+
+    private void generateNodeScripts(MulticoreBackend multicoreBackend){
+        multicoreBackend.nodescripts().scriptNetwork();
+        multicoreBackend.nodescripts().pythonScriptNode();
+    }
+
+
     /**
      * Copy a path from jar
      *
@@ -268,6 +278,9 @@ public class C11BackendPhase implements Phase {
             }
             // -- Copy __arrayCopy.h
             Files.copy(getClass().getResourceAsStream("/arraycopy/__arrayCopy.h"), PathUtils.getTargetCodeGenInclude(multicoreBackend.context()).resolve("__arrayCopy.h"), StandardCopyOption.REPLACE_EXISTING);
+
+            // -- Copy streamblcoks.py
+            Files.copy(getClass().getResourceAsStream("/python/streamblocks.py"), PathUtils.getTargetBin(multicoreBackend.context()).resolve("streamblocks.py"), StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException e) {
             throw new CompilationException(new Diagnostic(Diagnostic.Kind.ERROR, "Could not copy multicoreBackend resources"));
         } catch (URISyntaxException e) {

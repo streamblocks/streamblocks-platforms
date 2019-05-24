@@ -21,13 +21,24 @@ else()
     message(STATUS "Cannot find LibXml2")
 endif()
 
-include_directories(
-        art-runtime/include
-        art-native/include
-        art-genomic/include
-)
 
-add_subdirectory(art-runtime)
+if(ART_NODE)
+    include_directories(
+            art-node/include
+            art-native/include
+            art-genomic/include
+    )
+    add_subdirectory(art-node)
+else()
+    include_directories(
+            art-runtime/include
+            art-native/include
+            art-genomic/include
+    )
+    add_subdirectory(art-runtime)
+endif()
+
+
 add_subdirectory(art-native)
 add_subdirectory(art-genomic)
 

@@ -1,4 +1,4 @@
-![Logo](doc/streamblocks-logo.png#)
+![Logo](doc/streamblocks-logo.png)
 
 StreamBlocks Platforms Repository
 =================================

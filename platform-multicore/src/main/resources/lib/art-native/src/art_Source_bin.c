@@ -5,6 +5,7 @@
  */
 
 #include "actors-rts.h"
+#include <stdio.h>
 #include <errno.h>
 
 #define BUF_SIZE 1024
