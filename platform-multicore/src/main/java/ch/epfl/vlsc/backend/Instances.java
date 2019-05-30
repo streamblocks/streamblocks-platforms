@@ -562,6 +562,13 @@ public interface Instances {
         emitter().emit("%s *thisActor = (%1$s*) pBase;", actorInstanceName);
         emitter().emit("// -- Actor Machine Initial Program Counter");
         emitter().emit("thisActor->program_counter = %d;", 0);
+        emitter().emitNewLine();
+
+        emitter().emit("#ifdef CAL_RT_CALVIN");
+        emitter().emit("init_global_variables();");
+        emitter().emit("#endif");
+        emitter().emitNewLine();
+
         emitter().emit("// -- Initialize persistent scopes");
         for (Scope scope : am.getScopes()) {
             if (am.getScopes().indexOf(scope) == 0) {

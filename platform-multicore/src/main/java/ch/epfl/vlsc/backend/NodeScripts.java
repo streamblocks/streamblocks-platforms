@@ -72,7 +72,7 @@ public interface NodeScripts {
             GlobalEntityDecl entityDecl = globalnames().entityDecl(instance.getEntityName(), true);
             String actorClass = instanceActorClasses.get(instance);
 
-            if(!entityDecl.getExternal()){
+            if (!entityDecl.getExternal()) {
                 emitter().emit("LOAD ./modules/%s", actorClass);
             }
         }
@@ -84,9 +84,9 @@ public interface NodeScripts {
             String actorClass = instanceActorClasses.get(instance);
             String joinQID = instanceQIDs.get(instance);
             String parameters = "";
-            for(ValueParameter p : instance.getValueParameters()){
+            for (ValueParameter p : instance.getValueParameters()) {
                 String value = String.format("%s=%s", p.getName(), evaluator().evaluate(p.getValue()));
-                parameters+= value + " ";
+                parameters += value + " ";
             }
 
 
@@ -115,7 +115,7 @@ public interface NodeScripts {
         emitter().emitNewLine();
 
         // -- ENABLE
-        emitter().emit("ENABLE %s", instanceQIDs.entrySet().stream().map(i-> i.getValue()).collect(java.util.stream.Collectors.joining(" ")));
+        emitter().emit("ENABLE %s", instanceQIDs.entrySet().stream().map(i -> i.getValue()).collect(java.util.stream.Collectors.joining(" ")));
         emitter().emitNewLine();
 
         // -- JOIN
@@ -124,7 +124,7 @@ public interface NodeScripts {
         emitter().close();
     }
 
-    default void pythonScriptNode(){
+    default void pythonScriptNode() {
         Path script = PathUtils.getTargetBin(backend().context()).resolve(backend().task().getIdentifier().getLast().toString() + ".py");
         emitter().open(script);
 
@@ -158,6 +158,7 @@ public interface NodeScripts {
         }
 
         emitter().emit("import streamblocks");
+        emitter().emit("import time");
         emitter().emitNewLine();
 
         emitter().emit("# expects a streamblocks node to be running at localhost:9000");
@@ -166,19 +167,38 @@ public interface NodeScripts {
         emitter().emit("n = streamblocks.Node(\"localhost\", 9000);");
         emitter().emitNewLine();
 
-        // -- Load
 
         // -- Load
         for (Instance instance : network.getInstances()) {
             GlobalEntityDecl entityDecl = globalnames().entityDecl(instance.getEntityName(), true);
             String actorClass = instanceActorClasses.get(instance);
 
-            if(!entityDecl.getExternal()){
+            if (!entityDecl.getExternal()) {
                 emitter().emit("n.load(\"./modules/%s\")", actorClass);
             }
         }
         emitter().emitNewLine();
 
+        // -- New instance
+        for (Instance instance : network.getInstances()) {
+            GlobalEntityDecl entityDecl = globalnames().entityDecl(instance.getEntityName(), true);
+            String actorClass = instanceActorClasses.get(instance);
+            String joinQID = instanceQIDs.get(instance);
+            List<String> parameters = new ArrayList<>();
+
+            // -- add actorClass
+            //parameters.add(actorClass);
+
+            for (ValueParameter p : instance.getValueParameters()) {
+                String value = String.format("%s=%s", p.getName(), evaluator().evaluate(p.getValue()));
+                parameters.add(value);
+            }
+
+            String arguments = String.join(", ", parameters);
+
+            emitter().emit("%s = n.new(\"%s\"%s)", joinQID,actorClass, arguments.isEmpty() ? "" : ", " + arguments);
+        }
+        emitter().emitNewLine();
 
 
         // -- Connections
@@ -201,8 +221,28 @@ public interface NodeScripts {
         }
         emitter().emitNewLine();
 
+        // -- Actors
 
+        emitter().emit("actors = (%s)", instanceQIDs.entrySet().stream().map(i -> i.getValue()).collect(java.util.stream.Collectors.joining(", ")));
+        emitter().emitNewLine();
 
+        // -- Enable
+        emitter().emit("for actor in actors:");
+        emitter().increaseIndentation();
+        emitter().emit("actor.enable()");
+        emitter().decreaseIndentation();
+        emitter().emitNewLine();
+
+        // -- Sleep
+        emitter().emit("time.sleep(5)");
+        emitter().emitNewLine();
+
+        // -- Destroy
+        emitter().emit("for actor in actors:");
+        emitter().increaseIndentation();
+        emitter().emit("actor.destroy()");
+        emitter().decreaseIndentation();
+        emitter().emitNewLine();
 
         emitter().close();
     }

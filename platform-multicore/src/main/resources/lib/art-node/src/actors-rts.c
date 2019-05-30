@@ -62,6 +62,7 @@ extern const ActorClass ActorClass_art_Source_txt;
 extern const ActorClass ActorClass_art_Source_byte;
 
 extern const ActorClass ActorClass_art_Display_yuv;
+extern const ActorClass ActorClass_art_Display_yuv_width_height;
 
 
 // ============================================================================
@@ -172,6 +173,7 @@ int main(int argc, char **argv)
   registryAddClass(&ActorClass_art_Source_byte);
 
   registryAddClass(&ActorClass_art_Display_yuv);
+  registryAddClass(&ActorClass_art_Display_yuv_width_height);
 
 
   /* execute each named file in non-interactive mode */

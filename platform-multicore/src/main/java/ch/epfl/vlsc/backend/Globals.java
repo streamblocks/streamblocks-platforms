@@ -54,6 +54,7 @@ public interface Globals {
 
         // -- Headers
         backend().includeSystem("stdint.h");
+        backend().includeSystem("stdbool.h");
         backend().includeSystem("stdlib.h");
         backend().includeSystem("string.h");
         backend().includeUser("actors-rts.h");
