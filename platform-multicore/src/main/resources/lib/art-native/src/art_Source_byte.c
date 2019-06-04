@@ -145,7 +145,7 @@ static void setParam(AbstractActorInstance *pBase, const char *paramName,
 }
 
 static const PortDescription outputPortDescriptions[] = {{0, "Out",
-                                                                 sizeof(int32_t)}};
+                                                                 sizeof(uint8_t)}};
 
 static const int portRate_0[] = {0};
 

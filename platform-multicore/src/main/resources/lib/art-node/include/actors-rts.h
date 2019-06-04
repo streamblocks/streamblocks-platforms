@@ -458,6 +458,32 @@ static void name(thistype *thisActor)
     p->available --;
   }
 
+
+static inline void pinRead_dynRepeat(LocalInputPort *p,
+                                     void *token,       /* output */
+                                     size_t tokenSize,
+                                     int n)
+{
+    const char *startPtr = (char *) p->readPtr;
+    const char *endPtr = (char *) ((char *) startPtr + n*tokenSize);
+    const char *bufferEnd = (char *) p->bufferEnd;
+
+    assert(p->available >= n);
+    p->available -= n;
+
+    if (endPtr >= bufferEnd) {
+        // Buffer wrap
+        int numBytes = bufferEnd - startPtr;
+        memcpy(token, startPtr, numBytes);
+        token = (char *) ((char *) token + numBytes);
+        startPtr = p->bufferStart;
+        endPtr = startPtr + (endPtr - bufferEnd);
+    }
+    memcpy(token, startPtr, endPtr - startPtr);
+    p->readPtr = endPtr;
+}
+
+
   static inline unsigned pinAvailOut_dyn(const LocalOutputPort *p)
   {
     return p->spaceLeft;
@@ -473,13 +499,67 @@ static void name(thistype *thisActor)
     /* FIXME: this is not terribly efficient for small tokens */
     memcpy(writePtr, token, tokenSize);
     writePtr += tokenSize;
-    
+
     if (writePtr >= (char *) p->bufferEnd)
       writePtr = p->bufferStart;
     p->writePtr = writePtr;
     p->spaceLeft --;
   }
-  
+
+
+static inline void pinWrite_dynRepeat(LocalOutputPort *p,
+                                      const void *token,
+                                      size_t tokenSize,
+                                      unsigned int n)
+{
+    char *startPtr = (char *) p->writePtr;
+    char *endPtr = (char *) ((char *) startPtr + n*tokenSize);
+    char *bufferEnd = (char *) p->bufferEnd;
+
+    assert(p->spaceLeft >= n);
+
+    if (endPtr >= bufferEnd) {
+        // Buffer wrap
+        int numBytes = bufferEnd - startPtr;
+        memcpy(startPtr, token, numBytes);
+        token = (char *) ((char *) token + numBytes);
+        startPtr = p->bufferStart;
+        endPtr = startPtr + (endPtr - bufferEnd);
+    }
+
+    memcpy(startPtr, token, endPtr - startPtr);
+    p->writePtr = endPtr;
+    p->spaceLeft-=n;
+}
+
+static inline void pinWrite_dynRepeat_offset(LocalOutputPort *p,
+                                             const void *token,
+                                             size_t tokenSize,
+                                             int offset,
+                                             unsigned int n)
+{
+    char *startPtr = (char *) p->writePtr;
+    char *endPtr = (char *) ((char *) startPtr + n*tokenSize);
+    char *bufferEnd = (char *) p->bufferEnd;
+
+    char *t = (char*) token;
+
+    if (endPtr >= bufferEnd) {
+        // Buffer wrap
+        int numBytes = bufferEnd - startPtr;
+        memcpy(startPtr, &t[offset*tokenSize], numBytes);
+        t = (char *) ((char *) token + numBytes);
+        startPtr = p->bufferStart;
+        endPtr = startPtr + (endPtr - bufferEnd);
+    }
+
+    memcpy(startPtr, &t[offset*tokenSize], endPtr - startPtr);
+    p->writePtr = endPtr;
+    p->spaceLeft-=n;
+}
+
+
+
 #ifdef __cplusplus
 }
 #endif

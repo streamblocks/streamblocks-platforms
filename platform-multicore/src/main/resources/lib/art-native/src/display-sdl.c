@@ -47,6 +47,9 @@ typedef struct {
     SDL_Renderer *renderer;
     SDL_Texture *texture;
     SDL_Surface *image;
+    unsigned int relative_start_time;
+    unsigned int nb_pictures;
+    unsigned int last_num_picture;
 } sdl_display_t;
 
 static void free_display(const struct FrameBuffer *fb);
@@ -68,6 +71,11 @@ int allocate_display(int width,
     }
 
     atexit(SDL_Quit);
+
+    disp->relative_start_time = SDL_GetTicks();
+    disp->nb_pictures = 0;
+    disp->last_num_picture = 0;
+
 
     disp->window = SDL_CreateWindow("Display", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height,
                                     SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL);
@@ -141,12 +149,17 @@ static void free_display(const struct FrameBuffer *fb) {
 
     if (disp != 0) {
         SDL_FreeSurface(disp->image);
+        SDL_DestroyWindow(disp->window);
         free(disp);
+        SDL_Quit();
     }
 }
 
 
 static void frame_done(const struct FrameBuffer *fb) {
+    unsigned int end_time;
+    float relative_time;
+
     sdl_display_t *disp = (sdl_display_t *) fb->displaySpecific;
 
     SDL_Event event;
@@ -155,6 +168,23 @@ static void frame_done(const struct FrameBuffer *fb) {
     SDL_RenderClear(disp->renderer);
     SDL_RenderCopy(disp->renderer, disp->texture, NULL, NULL);
     SDL_RenderPresent(disp->renderer);
+
+    end_time = SDL_GetTicks();
+    disp->nb_pictures++;
+
+    relative_time = (end_time - disp->relative_start_time) / 1000.0f;
+
+
+    if(relative_time >= 5){
+        float framerate = (disp->nb_pictures - disp->last_num_picture) / relative_time;
+        fflush(stdout);
+        printf("%f images/sec \n", framerate);
+
+
+        disp->relative_start_time = end_time;
+        disp->last_num_picture = disp->nb_pictures;
+    }
+
 
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
@@ -165,3 +195,4 @@ static void frame_done(const struct FrameBuffer *fb) {
         }
     }
 }
+
