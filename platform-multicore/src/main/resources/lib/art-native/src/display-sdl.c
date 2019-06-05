@@ -149,6 +149,8 @@ static void free_display(const struct FrameBuffer *fb) {
 
     if (disp != 0) {
         SDL_FreeSurface(disp->image);
+        SDL_DestroyTexture(disp->texture);
+        SDL_DestroyRenderer(disp->renderer);
         SDL_DestroyWindow(disp->window);
         free(disp);
         SDL_Quit();
