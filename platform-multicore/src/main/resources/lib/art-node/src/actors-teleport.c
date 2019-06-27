@@ -55,7 +55,8 @@
 #include "dllist.h"
 
 /* maximal size of generated class names */
-#define GENERATED_CLASS_NAME_MAX   (32)
+#define GENERATED_CLASS_NAME_MAX   (64)
+#define MAX_BUFFER_SIZE 8192
 
 extern const ActorClass ActorClass_art_SocketSender;
 extern const ActorClass ActorClass_art_SocketReceiver;
@@ -156,7 +157,7 @@ static void initTokenMonitor(struct TokenMonitor *mon, int tokenSize) {
     mon->status = 0;
     mon->rest = 0;
 
-    mon->tokenBuffer = calloc(1, tokenSize * 4096);
+    mon->tokenBuffer = calloc(1, tokenSize * MAX_BUFFER_SIZE);
 
     mon->serializeBufferSize = 0;
     mon->serializeBuffer = NULL;
@@ -291,7 +292,7 @@ static void *receiver_thread(void *arg) {
                 do {
                     status = read(instance->client_socket,
                                   instance->tokenMon.tokenBuffer + instance->bytesRead,
-                                  tokenSize * 4096 - instance->bytesRead);
+                                  tokenSize * MAX_BUFFER_SIZE - instance->bytesRead);
 
                     if (status >= 0) {
                         instance->bytesRead += status;
@@ -405,61 +406,51 @@ ART_ACTION_SCHEDULER(receiver_action_scheduler) {
         {
             pthread_mutex_lock(&instance->tokenMon.lock);
 
-
             if (instance->tokenMon.full) {
 
                 int readBySocket = instance->tokenMon.status / tokenSize;
 
                 switch (instance->program_counter) {
-                    case 0:
-                        goto S0;
-                    case 1:
-                        goto S1;
-                }
-
-
-                S0:
-                {
-                    if (avail >= readBySocket) {
-                        pinWrite_dynRepeat(output, instance->tokenMon.tokenBuffer, tokenSize, readBySocket);
-                        instance->tokenMon.status = 0;
-                        instance->program_counter = 0;
-                        instance->tokenMon.full = 0;
-                        goto exit;
-                    } else {
-                        pinWrite_dynRepeat(output, instance->tokenMon.tokenBuffer, tokenSize, avail);
-                        int rest = readBySocket - avail;
-                        instance->tokenMon.status = rest;
-                        instance->buf_pointer = avail;
-                        instance->rest = rest;
-                        instance->program_counter = 1;
-                        goto exit;
+                    case 0: {
+                        if (avail >= readBySocket) {
+                            pinWrite_dynRepeat(output, instance->tokenMon.tokenBuffer, tokenSize, readBySocket);
+                            instance->tokenMon.status = 0;
+                            instance->program_counter = 0;
+                            instance->tokenMon.full = 0;
+                            pthread_cond_signal(&instance->tokenMon.empty);
+                        } else {
+                            pinWrite_dynRepeat(output, instance->tokenMon.tokenBuffer, tokenSize, avail);
+                            int rest = readBySocket - avail;
+                            instance->tokenMon.status = rest;
+                            instance->buf_pointer = avail;
+                            instance->rest = rest;
+                            instance->program_counter = 1;
+                        }
                     }
-                }
-
-                S1:
-                {
-                    if (avail >= instance->rest) {
-                        pinWrite_dynRepeat_offset(output, instance->tokenMon.tokenBuffer, tokenSize,
-                                                  instance->buf_pointer, instance->rest);
-                        instance->buf_pointer = 0;
-                        instance->rest = 0;
-                        instance->tokenMon.status = 0;
-                        instance->program_counter = 0;
-                        instance->tokenMon.full = 0;
-                        goto exit;
-                    } else {
-                        instance->program_counter = 1;
-                        goto exit;
+                        break;
+                    case 1: {
+                        if (avail >= instance->rest) {
+                            pinWrite_dynRepeat_offset(output, instance->tokenMon.tokenBuffer, tokenSize,
+                                                      instance->buf_pointer, instance->rest);
+                            instance->buf_pointer = 0;
+                            instance->rest = 0;
+                            instance->tokenMon.status = 0;
+                            instance->program_counter = 0;
+                            instance->tokenMon.full = 0;
+                            pthread_cond_signal(&instance->tokenMon.empty);
+                        } else {
+                            pinWrite_dynRepeat_offset(output, instance->tokenMon.tokenBuffer, tokenSize,
+                                                      instance->buf_pointer, avail);
+                            int rest = instance->rest - avail;
+                            instance->tokenMon.status = rest;
+                            instance->buf_pointer += avail;
+                            instance->rest = rest;
+                            instance->program_counter = 1;
+                        }
                     }
+                        break;
                 }
-
-
-                exit:
-                pthread_cond_signal(&instance->tokenMon.empty);
             }
-
-
             pthread_mutex_unlock(&instance->tokenMon.lock);
         }
     }
