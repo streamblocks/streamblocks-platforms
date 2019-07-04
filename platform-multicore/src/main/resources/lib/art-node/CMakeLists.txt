@@ -6,6 +6,7 @@ set(art_node_sources
         src/actors-registry.c
         src/actors-teleport.c
         src/actors-rts.c
+        src/buffer_pool.c
 )
 
 # ART Runtime includes
@@ -20,13 +21,14 @@ set(art_node_header
         include/actors-typedefs.h
         include/dllist.h
         include/natives.h
+        include/buffer_pool.h
 )
 
 include_directories(${extra_includes})
 add_definitions(${extra_definitions})
 
 add_library(art-node STATIC ${art_node_sources} ${art_node_header})
-set_target_properties(art-node PROPERTIES COMPILE_FLAGS "-Wall -fPIC")
+set_target_properties(art-node PROPERTIES COMPILE_FLAGS "-Wall -fPIC -lck")
 
 target_link_libraries(art-node art-native ${extra_libraries})
 

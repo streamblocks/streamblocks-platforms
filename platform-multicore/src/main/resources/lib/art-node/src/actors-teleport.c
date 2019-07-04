@@ -54,10 +54,11 @@
 #include "actors-teleport.h"
 #include "dllist.h"
 
+#include "buffer_pool.h"
 /* maximal size of generated class names */
 #define GENERATED_CLASS_NAME_MAX   (64)
-#define MAX_BUFFER_SIZE 8192
-
+#define MAX_BUFFER_SIZE 4096
+#define POOL_SIZE 8
 extern const ActorClass ActorClass_art_SocketSender;
 extern const ActorClass ActorClass_art_SocketReceiver;
 
@@ -81,6 +82,10 @@ struct TokenMonitor {
     char *tokenBuffer;
     size_t serializeBufferSize;
     char *serializeBuffer;
+    buffer_pool_t bufferPool;   /* A pool of buffers managed by two rings*/
+    counted_buffer_t *currBuffer;
+    uint8_t partialRead;
+    
 };
 
 /**
@@ -95,11 +100,7 @@ typedef struct {
     int port;           /* port, for the listener to find us */
     size_t bytesRead;   /* to handle incomplete reads */
 
-    int buf_pointer;
 
-    int rest;
-
-    int program_counter;
 
     uint32_t hashId;     /* A unique hashid used to identify with the action scheduler's locked busy mechanism */
     struct TokenMonitor tokenMon;
@@ -161,6 +162,9 @@ static void initTokenMonitor(struct TokenMonitor *mon, int tokenSize) {
 
     mon->serializeBufferSize = 0;
     mon->serializeBuffer = NULL;
+
+    buffer_pool_init(&mon->bufferPool, POOL_SIZE, tokenSize * MAX_BUFFER_SIZE);
+    mon->partialRead = 0;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -216,113 +220,40 @@ static void *receiver_thread(void *arg) {
              */
             lockedBusyNetworkToggle(instance->hashId);
 
-            /* Block until the monitor has space for a token */
-            {
-                pthread_mutex_lock(&instance->tokenMon.lock);
-                while (instance->tokenMon.full) {
-                    pthread_cond_wait(&instance->tokenMon.empty,
-                                      &instance->tokenMon.lock);
-                }
-                pthread_mutex_unlock(&instance->tokenMon.lock);
-            }
+            counted_buffer_t *stagingBuffer;
+            pop_free_buffer(&instance->tokenMon.bufferPool, &stagingBuffer);
 
-            /* Disable locked busy execution. Matched above.
-             */
             lockedBusyNetworkToggle(instance->hashId);
+            /**************************************************
+             * Read simple tokens that don't need serialization
+             **************************************************/
+            do {
+                status = read(instance->client_socket,
+                                stagingBuffer->buffer + instance->bytesRead,
+                                tokenSize * MAX_BUFFER_SIZE - instance->bytesRead);
 
-            if (needSerialization) {
-                /************************************************
-                 * Read complex tokens that do need serialization
-                 ************************************************/
-                int32_t sz = 0;
-                int bytesRead = 0;
-                //Read serialization token size
-                do {
-                    status = read(instance->client_socket, &sz + bytesRead, sizeof(int32_t) - bytesRead);
-                    if (status >= 0) {
-                        bytesRead += status;
-                    } else {
-                        bytesRead = 0;
-                        warn("read() failed: %s", strerror(errno));
-                    }
-                } while (bytesRead != sizeof(int32_t));
-
-                //Read serialized token data
-                if (bytesRead > 0 && sz > 0) {
-                    bytesRead = 0;
-                    if (instance->tokenMon.serializeBufferSize < sz) {
-                        //Need more memory to handle the serialization
-                        instance->tokenMon.serializeBuffer = realloc(instance->tokenMon.serializeBuffer, sz);
-                        instance->tokenMon.serializeBufferSize = sz;
-                    }
-                    do {
-                        status = read(instance->client_socket, instance->tokenMon.serializeBuffer + bytesRead,
-                                      sz - bytesRead);
-                        if (status >= 0) {
-                            bytesRead += status;
-                        } else {
-                            bytesRead = 0;
-                            warn("read() failed: %s", strerror(errno));
-                        }
-                    } while (bytesRead != sz);
-                    if (bytesRead != sz) {
-                        /*
-                         * If we got here it is a failure, since
-                         * we have a serialization size but can't get all
-                         * the data. Anyway break out of here and wait
-                         * for a new sender to connect.
-                         */
-                        break;
-                    } else {
-                        //Deserialize the incoming token (will allocate it on the heap) and write the reference to the tokenBuffer
-                        //Also assert that the deserialization used all the data
-                        assert((functions->deserialize((void **) instance->tokenMon.tokenBuffer,
-                                                       instance->tokenMon.serializeBuffer) -
-                                instance->tokenMon.serializeBuffer) == sz);
-                    }
+                if (status >= 0) {
+                    instance->bytesRead += status;
+                    assert(instance->bytesRead <= status);
                 } else {
-                    /* if we failed reading, break out of this loop to and wait for
-                     another client */
+                    /* on general read failures, assume client disconnected and wait for
+                        * another one */
+                    instance->bytesRead = 0;
+                    warn("read() failed: %s", strerror(errno));
                     break;
                 }
-            } else {
-                /**************************************************
-                 * Read simple tokens that don't need serialization
-                 **************************************************/
-                do {
-                    status = read(instance->client_socket,
-                                  instance->tokenMon.tokenBuffer + instance->bytesRead,
-                                  tokenSize * MAX_BUFFER_SIZE - instance->bytesRead);
+            } while (instance->bytesRead != status);
 
-                    if (status >= 0) {
-                        instance->bytesRead += status;
-                        assert(instance->bytesRead <= status);
-                    } else {
-                        /* on general read failures, assume client disconnected and wait for
-                         * another one */
-                        instance->bytesRead = 0;
-                        warn("read() failed: %s", strerror(errno));
-                        break;
-                    }
-                } while (instance->bytesRead != status);
-
-                /* if we failed reading, break out of this loop to and wait for
-                 another client */
-                if (instance->bytesRead != status) {
-                    break;
-                }
+            /* if we failed reading, break out of this loop to and wait for
+                another client */
+            if (instance->bytesRead != status) {
+                break;
             }
-
+            
             instance->bytesRead = 0;
-
-            /* Update the monitor and notify actor */
-            assert(!instance->tokenMon.full);
-            {
-                pthread_mutex_lock(&instance->tokenMon.lock);
-                instance->tokenMon.full = 1;
-                instance->tokenMon.status = status;
-                pthread_mutex_unlock(&instance->tokenMon.lock);
-            }
+            stagingBuffer->count = status;
+            push_full_buffer(&instance->tokenMon.bufferPool, stagingBuffer);
+           
         }
     }
 }
@@ -360,7 +291,7 @@ static void receiver_constructor(AbstractActorInstance *pBase) {
         instance->server_socket = -1;
         return;
     }
-
+    
     static socklen_t sockaddr_size = sizeof(struct sockaddr);
     if (getsockname(instance->server_socket,
                     (struct sockaddr *) &server_addr,
@@ -376,17 +307,11 @@ static void receiver_constructor(AbstractActorInstance *pBase) {
 
     instance->hashId = getUniqueHashid();
 
-    instance->buf_pointer = 0;
-
-    instance->program_counter = 0;
-
-    instance->rest = 0;
-
+    
     /* since we only have the class here, not the extended class, we need
      * to take the long way to find the port description */
     initTokenMonitor(&instance->tokenMon,
                      pBase->actorClass->outputPortDescriptions[0].tokenSize);
-
     pthread_create(&instance->pid, NULL, &receiver_thread, pBase);
 }
 
@@ -401,57 +326,38 @@ ART_ACTION_SCHEDULER(receiver_action_scheduler) {
 
     LocalOutputPort *output = &pBase->outputPort[0].localOutputPort;
     int avail = pinAvailOut_dyn(output);
+    uint8_t can_fire = 1;
     if (avail > 0) {
-        /* If there is a new token in the monitor, take it */
-        {
-            pthread_mutex_lock(&instance->tokenMon.lock);
 
-            if (instance->tokenMon.full) {
+        
+        counted_buffer_t *stagingBuffer;
+        uint32_t readBySocket = 0;
+        if (instance->tokenMon.partialRead) {
+            stagingBuffer = instance->tokenMon.currBuffer;
+            readBySocket = stagingBuffer->count / tokenSize;
+            
+        }
+        else if (try_pop_full_buffer(&instance->tokenMon.bufferPool, &stagingBuffer)) {
+            instance->tokenMon.currBuffer = stagingBuffer;
+            readBySocket = stagingBuffer->count / tokenSize;
+        } else {
+            can_fire = 0;
+        }
 
-                int readBySocket = instance->tokenMon.status / tokenSize;
-
-                switch (instance->program_counter) {
-                    case 0: {
-                        if (avail >= readBySocket) {
-                            pinWrite_dynRepeat(output, instance->tokenMon.tokenBuffer, tokenSize, readBySocket);
-                            instance->tokenMon.status = 0;
-                            instance->program_counter = 0;
-                            instance->tokenMon.full = 0;
-                            pthread_cond_signal(&instance->tokenMon.empty);
-                        } else {
-                            pinWrite_dynRepeat(output, instance->tokenMon.tokenBuffer, tokenSize, avail);
-                            int rest = readBySocket - avail;
-                            instance->tokenMon.status = rest;
-                            instance->buf_pointer = avail;
-                            instance->rest = rest;
-                            instance->program_counter = 1;
-                        }
-                    }
-                        break;
-                    case 1: {
-                        if (avail >= instance->rest) {
-                            pinWrite_dynRepeat_offset(output, instance->tokenMon.tokenBuffer, tokenSize,
-                                                      instance->buf_pointer, instance->rest);
-                            instance->buf_pointer = 0;
-                            instance->rest = 0;
-                            instance->tokenMon.status = 0;
-                            instance->program_counter = 0;
-                            instance->tokenMon.full = 0;
-                            pthread_cond_signal(&instance->tokenMon.empty);
-                        } else {
-                            pinWrite_dynRepeat_offset(output, instance->tokenMon.tokenBuffer, tokenSize,
-                                                      instance->buf_pointer, avail);
-                            int rest = instance->rest - avail;
-                            instance->tokenMon.status = rest;
-                            instance->buf_pointer += avail;
-                            instance->rest = rest;
-                            instance->program_counter = 1;
-                        }
-                    }
-                        break;
-                }
+        if (can_fire) {
+            
+            if (avail >= readBySocket) {
+                pinWrite_dynRepeat(output, stagingBuffer->buffer, tokenSize, readBySocket);
+                instance->tokenMon.partialRead = 0;
+                push_free_buffer(&instance->tokenMon.bufferPool, stagingBuffer);
+                
+            } else {
+                
+                pinWrite_dynRepeat(output, stagingBuffer->buffer, tokenSize, avail);
+                instance->tokenMon.partialRead = 1;
+                stagingBuffer->count -= avail * tokenSize;
+                stagingBuffer->buffer += avail * tokenSize;
             }
-            pthread_mutex_unlock(&instance->tokenMon.lock);
         }
     }
 
@@ -504,7 +410,6 @@ static void *sender_thread(void *arg) {
     }
 
     server_addr.sin_port = htons(instance->remotePort);
-
     if (connect(instance->socket,
                 (struct sockaddr *) &server_addr,
                 sizeof(server_addr)) < 0) {
@@ -525,87 +430,42 @@ static void *sender_thread(void *arg) {
 
         /* Enable execution, in case network has gone idle otherwise we might wait forever */
         wakeUpNetwork();
-
-        /* Block until the monitor holds a token */
-        {
-            pthread_mutex_lock(&instance->tokenMon.lock);
-            while (!instance->tokenMon.full) {
-                pthread_cond_wait(&instance->tokenMon.available,
-                                  &instance->tokenMon.lock);
-            }
-            pthread_mutex_unlock(&instance->tokenMon.lock);
+        counted_buffer_t *stagingBuffer;
+        if (!try_pop_full_buffer(&instance->tokenMon.bufferPool, &stagingBuffer)) {
+            
+            continue;
         }
-
         int bytesWritten = 0;
-        if (needSerialization) {
-            /************************************************
-             * Write complex tokens that do need serialization
-             ************************************************/
-            int32_t sz = functions->size(*((void **) instance->tokenMon.tokenBuffer));
-            if (instance->tokenMon.serializeBufferSize < (sz + sizeof(int32_t))) {
-                //Need more memory to handle the serialization
-                instance->tokenMon.serializeBuffer = realloc(instance->tokenMon.serializeBuffer, sz + sizeof(int32_t));
-                instance->tokenMon.serializeBufferSize = sz + sizeof(int32_t);
+    
+        /**************************************************
+         * Write simple tokens that don't need serialization
+         **************************************************/
+        
+        uint32_t toWrite = stagingBuffer->count;
+        do {
+            // printf("TCP write");
+            int status = write(instance->socket,
+                                stagingBuffer->buffer + bytesWritten,
+                                toWrite - bytesWritten);
+            
+            if (status >= 0) {
+                
+                bytesWritten += status;
+                instance->tokenMon.status -= status;
+                
+                assert(bytesWritten <= toWrite);
+            } else {
+                /* on general write failures, bail out*/
+                warn("write() failed: %s", strerror(errno));
+                return NULL;
             }
-            //Write the size first
-            *((int32_t *) instance->tokenMon.serializeBuffer) = sz;
-            //include the size bytes in sz
-            sz += sizeof(int32_t);
-            //Serialize the outgoing token and write the data into the serialization buffer
-            //Also assert that the serialization wrote all the data
-            assert((functions->serialize(*((void **) instance->tokenMon.tokenBuffer),
-                                         instance->tokenMon.serializeBuffer + sizeof(int32_t)) -
-                    instance->tokenMon.serializeBuffer) == sz);
-            //FIXME we free the token here, but that only works if the port has no fan-out,
-            //that limitation also exist in the Caltoopia generated code.
-            functions->free(*((void **) instance->tokenMon.tokenBuffer), 1/*TRUE*/);
-
-            do {
-                int status = write(instance->socket,
-                                   instance->tokenMon.serializeBuffer + bytesWritten,
-                                   sz - bytesWritten);
-
-                if (status >= 0) {
-                    bytesWritten += status;
-                    assert(bytesWritten <= sz);
-                } else {
-                    /* on general write failures, bail out*/
-                    warn("write() failed: %s", strerror(errno));
-                    return NULL;
-                }
-            } while (bytesWritten != sz);
-        } else {
-            /**************************************************
-             * Write simple tokens that don't need serialization
-             **************************************************/
-            int toWrite = instance->tokenMon.status;
-            do {
-                int status = write(instance->socket,
-                                   instance->tokenMon.tokenBuffer + bytesWritten,
-                                   toWrite * tokenSize - bytesWritten);
-
-                if (status >= 0) {
-                    bytesWritten += status;
-                    instance->tokenMon.status -= status;
-                    assert(bytesWritten <= tokenSize * toWrite);
-                } else {
-                    /* on general write failures, bail out*/
-                    warn("write() failed: %s", strerror(errno));
-                    return NULL;
-                }
-            } while (bytesWritten != tokenSize * toWrite);
-        }
-
+            // printf(" complete\n");
+        } while (bytesWritten != toWrite);
+        
         bytesWritten = 0;
-
-        /* Update the monitor and notify actor */
-        assert(instance->tokenMon.full);
-        {
-            pthread_mutex_lock(&instance->tokenMon.lock);
-            instance->tokenMon.full = 0;
-            pthread_cond_signal(&instance->tokenMon.empty);
-            pthread_mutex_unlock(&instance->tokenMon.lock);
-        }
+        stagingBuffer->count = 0;
+        push_free_buffer(&instance->tokenMon.bufferPool, stagingBuffer);
+        
     }
 }
 
@@ -653,18 +513,13 @@ ART_ACTION_SCHEDULER(sender_action_scheduler) {
             lockedBusyNetworkToggle(instance->hashId);
             instance->lockedBusy = 1;
         }
-        /* If there is room for a new token in the monitor, push one there */
-        {
-            pthread_mutex_lock(&instance->tokenMon.lock);
-            if (!instance->tokenMon.full) {
-                //pinRead_dyn(input, instance->tokenMon.tokenBuffer, tokenSize);
-                instance->tokenMon.status = avail;
-                pinRead_dynRepeat(input, instance->tokenMon.tokenBuffer, tokenSize, avail);
-                instance->tokenMon.full = 1;
-                pthread_cond_signal(&instance->tokenMon.available);
-            }
-            pthread_mutex_unlock(&instance->tokenMon.lock);
-        }
+        counted_buffer_t *stagingBuffer;
+        pop_free_buffer(&instance->tokenMon.bufferPool, &stagingBuffer);      
+        uint32_t count = (avail <= instance->tokenMon.bufferPool.capacity / tokenSize) ? avail :
+            instance->tokenMon.bufferPool.capacity / tokenSize;
+        pinRead_dynRepeat(input, stagingBuffer->buffer, tokenSize, count);
+        stagingBuffer->count = count * tokenSize;
+        push_full_buffer(&instance->tokenMon.bufferPool, stagingBuffer);
     } else {
         /* We don't have data to send no need to have the scheduler loop locked busy, keep track locally of toggling */
         if (instance->lockedBusy) {
@@ -865,3 +720,4 @@ void setSenderRemoteAddress(AbstractActorInstance *pBase,
     instance->remoteHost = strdup(host);
     instance->remotePort = port;
 }
+
