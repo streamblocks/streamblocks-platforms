@@ -942,10 +942,6 @@ static cpu_runtime_data_t *allocate_network(
                             actor->actor->set_param(actor, p->key, p->value);
                         }
                     }
-                    if (actor->actor->constructor) {
-//	    printf("Call constructor[%d, %p]...\n", j, actor);
-                        actor->actor->constructor(actor);
-                    }
                 }
             }
         }

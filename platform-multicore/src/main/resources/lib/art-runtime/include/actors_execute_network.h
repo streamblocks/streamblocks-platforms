@@ -51,8 +51,16 @@ static void *EXECUTE_NETWORK(cpu_runtime_data_t *runtime,
     CLEAR_TIMER(&statistics.total);
     statistics.nsleep = 0;
     statistics.nloops = 0;
+
+
+// -- Call actor constructor
+    for (i = 0; i < actors; i++) {
+        actor[i]->actor->constructor(actor[i]);
+    }
+
     INIT_TIMEBASE(&t1);
     INIT_TIMEBASE(&t2);
+
     while (1) {
         statistics.nloops++;
         // Determine how much data can be read/written and cache the values
