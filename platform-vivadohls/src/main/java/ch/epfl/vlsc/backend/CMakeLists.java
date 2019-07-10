@@ -90,7 +90,7 @@ public interface CMakeLists {
                     emitter().increaseIndentation();
 
                     emitter().emit("OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/%s/solution/syn/verilog/%1$s.v", instanceName);
-                    emitter().emit("COMMAND ${VIVADO_HLS_BINARY} -f Synthesis.tcl -tclargs \\\"%s\\\" \\\"%s\\\"", instanceName, filename);
+                    emitter().emit("COMMAND ${VIVADO_HLS_BINARY} -f Synthesis.tcl -tclargs \\\"%s\\\" \\\"%s\\\"  > %1$s.log", instanceName, filename);
                     emitter().emit("DEPENDS ${_incpath}/%s.h ${_srcpath}/%1$s.cpp", instanceName);
 
                     emitter().decreaseIndentation();
@@ -106,7 +106,7 @@ public interface CMakeLists {
             emitter().increaseIndentation();
 
             emitter().emit("OUTPUT ${CMAKE_SOURCE_DIR}/output/%s/%1$s.xpr", identifier);
-            emitter().emit("COMMAND ${VIVADO_BINARY} -mode batch -source %s.tcl", identifier);
+            emitter().emit("COMMAND ${VIVADO_BINARY} -mode batch -source %s.tcl  > %1$s.log", identifier);
             String verilogInstances = String.join(" ", network.getInstances()
                     .stream().map(n -> backend().instaceQID(n.getInstanceName(), "_"))
                     .collect(Collectors.toList()));
