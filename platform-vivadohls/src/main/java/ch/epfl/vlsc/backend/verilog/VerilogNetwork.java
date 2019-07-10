@@ -202,6 +202,7 @@ public interface VerilogNetwork {
             emitter().emit("wire %s_ap_done;", name);
             emitter().emit("wire %s_ap_idle;", name);
             emitter().emit("wire %s_ap_ready;", name);
+            emitter().emit("wire [31:0] %s_ap_return;", name);
             emitter().emitNewLine();
         }
     }
@@ -343,6 +344,7 @@ public interface VerilogNetwork {
             emitter().emit(".ap_done(%s_ap_done),", name);
             emitter().emit(".ap_idle(%s_ap_idle),", name);
             emitter().emit(".ap_ready(%s_ap_ready),", name);
+            emitter().emit(".ap_return(%s_ap_return),", name);
             emitter().emitNewLine();
             emitter().emit(".ap_clk(ap_clk),");
             emitter().emit(".ap_rst_n(ap_rst_n)");

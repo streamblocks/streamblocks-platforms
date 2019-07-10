@@ -103,7 +103,7 @@ public interface Instances {
         }
 
         String name = backend().instaceQID(instance.getInstanceName(), "_");
-        emitter().emit("void %s(%s) {", name, entityPorts(withIO));
+        emitter().emit("int %s(%s) {", name, entityPorts(withIO));
         emitter().increaseIndentation();
 
         String className = "class_" + backend().instaceQID(instance.getInstanceName(), "_");
@@ -117,14 +117,14 @@ public interface Instances {
             CalActor actor = (CalActor) entity;
             if (actor.getProcessDescription() != null) {
                 if (actor.getProcessDescription().isRepeated()) {
-                    emitter().emit("i_%s(%s);", name, String.join(", ", ports));
+                    emitter().emit("return i_%s(%s);", name, String.join(", ", ports));
                 } else {
                     emitter().emit("bool has_executed = false;");
                     emitter().emitNewLine();
                     emitter().emit("if (!has_executed) {");
                     emitter().increaseIndentation();
 
-                    emitter().emit("i_%s(%s);", name, String.join(", ", ports));
+                    emitter().emit("return i_%s(%s);", name, String.join(", ", ports));
                     emitter().emit("has_executed = true;");
 
                     emitter().decreaseIndentation();
@@ -134,7 +134,7 @@ public interface Instances {
                 //throw new UnsupportedOperationException("Actors is not a Process.");
             }
         } else {
-            emitter().emit("i_%s(%s, io);", name, String.join(", ", ports));
+            emitter().emit("return i_%s(%s, io);", name, String.join(", ", ports));
         }
 
 
@@ -278,7 +278,7 @@ public interface Instances {
         emitter().emit("public:");
         emitter().increaseIndentation();
 
-        emitter().emit("void operator()(%s);", entityPorts(false));
+        emitter().emit("int operator()(%s);", entityPorts(false));
 
         emitter().decreaseIndentation();
 
@@ -343,7 +343,7 @@ public interface Instances {
         {
             emitter().increaseIndentation();
 
-            emitter().emit("void operator()(%s);", entityPorts(true));
+            emitter().emit("int operator()(%s);", entityPorts(true));
 
             emitter().decreaseIndentation();
         }
@@ -380,11 +380,18 @@ public interface Instances {
     default void topOfInstance(String instanceName, CalActor actor) {
         if (actor.getProcessDescription() != null) {
             String className = "class_" + backend().instaceQID(instanceName, "_");
-            emitter().emit("void %s::operator()(%s) {", className, entityPorts(false));
+            emitter().emit("int %s::operator()(%s) {", className, entityPorts(false));
             emitter().emit("#pragma HLS INLINE");
-            emitter().increaseIndentation();
-            actor.getProcessDescription().getStatements().forEach(backend().statements()::execute);
-            emitter().decreaseIndentation();
+            {
+                emitter().increaseIndentation();
+
+                actor.getProcessDescription().getStatements().forEach(backend().statements()::execute);
+
+                emitter().emit("return RETURN_EXECUTED;");
+
+                emitter().decreaseIndentation();
+            }
+
             emitter().emit("}");
 
         } else {
@@ -394,10 +401,12 @@ public interface Instances {
 
     default void topOfInstance(String instanceName, ActorMachine actor) {
         String className = "class_" + backend().instaceQID(instanceName, "_");
-        emitter().emit("void %s::operator()(%s) {", className, entityPorts(true));
+        emitter().emit("int %s::operator()(%s) {", className, entityPorts(true));
         emitter().emit("#pragma HLS INLINE");
         {
             emitter().increaseIndentation();
+
+            emitter().emit("int ret = RETURN_IDLE;");
 
             backend().controllers().emitController(instanceName, actor);
 

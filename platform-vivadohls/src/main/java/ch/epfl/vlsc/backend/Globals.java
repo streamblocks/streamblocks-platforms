@@ -32,6 +32,13 @@ public interface Globals {
         emitter().emit("#define __GLOBALS_%s__", backend().task().getIdentifier().getLast().toString().toUpperCase());
         emitter().emitNewLine();
 
+        // -- Return
+        emitter().emit("// -- Actor Return values");
+        emitter().emit("#define RETURN_IDLE 0");
+        emitter().emit("#define RETURN_WAIT 1");
+        emitter().emit("#define RETURN_EXECUTED 2");
+        emitter().emitNewLine();
+
         // -- Pins
         emitter().emit("// -- Pins");
 

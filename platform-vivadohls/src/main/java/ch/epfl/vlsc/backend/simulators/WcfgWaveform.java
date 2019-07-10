@@ -242,7 +242,7 @@ public interface WcfgWaveform {
 
             emitter().emit("<obj_property name=\"label\">INPUTS</obj_property>");
             emitter().emit("<obj_property name=\"DisplayName\">label</obj_property>");
-            for(PortDecl port : inputs){
+            for (PortDecl port : inputs) {
                 currentGroupCounter = createGroupInputDUT(name, port, currentGroupCounter);
             }
             emitter().decreaseIndentation();
@@ -256,7 +256,7 @@ public interface WcfgWaveform {
             emitter().emit("<obj_property name=\"label\">OUTPUTS</obj_property>");
             emitter().emit("<obj_property name=\"DisplayName\">label</obj_property>");
 
-            for(PortDecl port : outputs){
+            for (PortDecl port : outputs) {
                 currentGroupCounter = createGroupOutputDUT(name, port, currentGroupCounter);
             }
             emitter().decreaseIndentation();
@@ -267,7 +267,7 @@ public interface WcfgWaveform {
     }
 
 
-    default int createGroupInputDUT(String name, PortDecl port, int groupCounter){
+    default int createGroupInputDUT(String name, PortDecl port, int groupCounter) {
         int currentGroupCounter = groupCounter;
         currentGroupCounter++;
         emitter().emit("<wvobject type=\"group\" fp_name=\"%d\">", currentGroupCounter);
@@ -277,8 +277,8 @@ public interface WcfgWaveform {
             emitter().emit("<obj_property name=\"label\">%s</obj_property>", port.getName());
             emitter().emit("<obj_property name=\"DisplayName\">label</obj_property>");
             wvObjectArrayPort("tb_" + name, port, false, false);
-            wvObject("logic", "tb_"+name, port.getName() + "_write");
-            wvObject("logic", "tb_"+name, port.getName() + "_full_n");
+            wvObject("logic", "tb_" + name, port.getName() + "_write");
+            wvObject("logic", "tb_" + name, port.getName() + "_full_n");
 
             emitter().decreaseIndentation();
         }
@@ -286,7 +286,7 @@ public interface WcfgWaveform {
         return currentGroupCounter;
     }
 
-    default int createGroupOutputDUT(String name, PortDecl port, int groupCounter){
+    default int createGroupOutputDUT(String name, PortDecl port, int groupCounter) {
         int currentGroupCounter = groupCounter;
         currentGroupCounter++;
         Type type = backend().types().declaredPortType(port);
@@ -298,12 +298,12 @@ public interface WcfgWaveform {
             emitter().emit("<obj_property name=\"label\">%s</obj_property>", port.getName());
             emitter().emit("<obj_property name=\"DisplayName\">label</obj_property>");
             wvObjectArray("tb_" + name, port.getName() + "_token_counter", 31);
-            wvObjectArray("tb_" + name, port.getName() + "_exp_value", bitSize-1);
+            wvObjectArray("tb_" + name, port.getName() + "_exp_value", bitSize - 1);
 
 
             wvObjectArrayPort("tb_" + name, port, true, false);
-            wvObject("logic", "tb_"+name, port.getName() + "_read");
-            wvObject("logic", "tb_"+name, port.getName() + "_empty_n");
+            wvObject("logic", "tb_" + name, port.getName() + "_read");
+            wvObject("logic", "tb_" + name, port.getName() + "_empty_n");
 
             emitter().decreaseIndentation();
         }
@@ -314,7 +314,7 @@ public interface WcfgWaveform {
     // ------------------------------------------------------------------------
     // -- Design under test
 
-    default int createGroupDUT(Network network, int groupCounter){
+    default int createGroupDUT(Network network, int groupCounter) {
         int currentGroupCounter = groupCounter;
         currentGroupCounter++;
         emitter().emit("<wvobject type=\"group\" fp_name=\"%d\">", currentGroupCounter);
@@ -332,7 +332,7 @@ public interface WcfgWaveform {
         return currentGroupCounter;
     }
 
-    default int createGroupInstances(Network network, int groupCounter){
+    default int createGroupInstances(Network network, int groupCounter) {
         int currentGroupCounter = groupCounter;
         currentGroupCounter++;
         emitter().emit("<wvobject type=\"group\" fp_name=\"%d\">", currentGroupCounter);
@@ -341,7 +341,7 @@ public interface WcfgWaveform {
 
             emitter().emit("<obj_property name=\"label\">Instances</obj_property>");
             emitter().emit("<obj_property name=\"DisplayName\">label</obj_property>");
-            for(Instance instance : network.getInstances()){
+            for (Instance instance : network.getInstances()) {
                 currentGroupCounter = createGroupInstance(instance, currentGroupCounter);
             }
 
@@ -352,7 +352,7 @@ public interface WcfgWaveform {
         return currentGroupCounter;
     }
 
-    default int createGroupInstance(Instance instance, int groupCounter){
+    default int createGroupInstance(Instance instance, int groupCounter) {
         int currentGroupCounter = groupCounter;
         currentGroupCounter++;
         String identifier = "i_" + backend().instaceQID(instance.getInstanceName(), "_");
@@ -373,11 +373,11 @@ public interface WcfgWaveform {
 
             // -- Inputs
             currentGroupCounter++;
-            if(!entity.getInputPorts().isEmpty()) {
+            if (!entity.getInputPorts().isEmpty()) {
                 emitter().emit("<wvobject type=\"group\" fp_name=\"%d\">", currentGroupCounter);
                 emitter().emit("<obj_property name=\"label\">INPUT%s</obj_property>", entity.getInputPorts().size() > 1 ? "S" : "");
                 emitter().emit("<obj_property name=\"DisplayName\">label</obj_property>");
-                for(PortDecl port : entity.getInputPorts()){
+                for (PortDecl port : entity.getInputPorts()) {
                     currentGroupCounter = createGroupInstanceIO(hierarchy, identifier, port, true, currentGroupCounter);
                 }
                 emitter().emit("</wvobject>");
@@ -385,11 +385,11 @@ public interface WcfgWaveform {
 
             // -- Outputs
             currentGroupCounter++;
-            if(!entity.getOutputPorts().isEmpty()) {
+            if (!entity.getOutputPorts().isEmpty()) {
                 emitter().emit("<wvobject type=\"group\" fp_name=\"%d\">", currentGroupCounter);
                 emitter().emit("<obj_property name=\"label\">OUTPUT%s</obj_property>", entity.getOutputPorts().size() > 1 ? "S" : "");
                 emitter().emit("<obj_property name=\"DisplayName\">label</obj_property>");
-                for(PortDecl port : entity.getOutputPorts()){
+                for (PortDecl port : entity.getOutputPorts()) {
                     currentGroupCounter = createGroupInstanceIO(hierarchy, identifier, port, false, currentGroupCounter);
                 }
                 emitter().emit("</wvobject>");
@@ -404,7 +404,7 @@ public interface WcfgWaveform {
     }
 
 
-    default int createGroupInstanceIO(String hierarchy, String name, PortDecl port, boolean isInput, int groupCounter){
+    default int createGroupInstanceIO(String hierarchy, String name, PortDecl port, boolean isInput, int groupCounter) {
         int currentGroupCounter = groupCounter;
         currentGroupCounter++;
         String portName = port.getName();
@@ -416,7 +416,7 @@ public interface WcfgWaveform {
             emitter().emit("<obj_property name=\"label\">%s</obj_property>", portName);
             emitter().emit("<obj_property name=\"DisplayName\">label</obj_property>");
             wvObjectArrayPort(hierarchy + "/" + name, port, isInput, true);
-            if (isInput){
+            if (isInput) {
                 wvObject("logic", hierarchy + "/" + name, portName + getPortExtension(true) + "_read");
                 wvObject("logic", hierarchy + "/" + name, portName + getPortExtension(true) + "_empty_n");
             } else {
@@ -442,7 +442,7 @@ public interface WcfgWaveform {
         }
     }
 
-    default void getWvObjectClkReset(String hierarchy, String name){
+    default void getWvObjectClkReset(String hierarchy, String name) {
         emitter().emit("<wvobject type=\"logic\" fp_name=\"/%s/%s/ap_clk\">", hierarchy, name);
         {
             emitter().increaseIndentation();
@@ -461,7 +461,7 @@ public interface WcfgWaveform {
         emitter().emit("</wvobject>");
     }
 
-    default int getGroupApCtrl(String hierarchy, String name, int groupCounter){
+    default int getGroupApCtrl(String hierarchy, String name, int groupCounter) {
         int currentGroupCounter = groupCounter;
         currentGroupCounter++;
 
@@ -516,6 +516,20 @@ public interface WcfgWaveform {
 
                 emitter().emit("<obj_property name=\"ElementShortName\">ap_ready</obj_property>");
                 emitter().emit("<obj_property name=\"ObjectShortName\">ap_ready</obj_property>");
+
+                emitter().decreaseIndentation();
+            }
+            emitter().emit("</wvobject>");
+
+
+            // -- AP return
+            emitter().emit("<wvobject type=\"array\" fp_name=\"/%s/%s/ap_return\">", hierarchy, name);
+            {
+                emitter().increaseIndentation();
+
+                emitter().emit("<obj_property name=\"ElementShortName\">ap_return[%d:0]</obj_property>", 31);
+                emitter().emit("<obj_property name=\"ObjectShortName\">ap_return[%d:0]</obj_property>", 31);
+                emitter().emit("<obj_property name=\"Radix\">UNSIGNEDDECRADIX</obj_property>");
 
                 emitter().decreaseIndentation();
             }
