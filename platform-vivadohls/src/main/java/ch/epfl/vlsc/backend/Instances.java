@@ -507,9 +507,18 @@ public interface Instances {
 
     default String evaluateCondition(PortCondition condition) {
         if (condition.isInputCondition()) {
-            return String.format("(pinAvailIn(%s, io) >= %d) && !%1$s.empty()", channelutils().definedInputPort(condition.getPortName()), condition.N());
+            if(condition.N() > 1){
+                return String.format("(pinAvailIn(%s, io) >= %d) && !%1$s.empty()", channelutils().definedInputPort(condition.getPortName()), condition.N());
+            }else {
+                return String.format("!%1$s.empty()", channelutils().definedInputPort(condition.getPortName()), condition.N());
+            }
         } else {
-            return String.format("(pinAvailOut(%s, io) >= %d) && !%1$s.full()", channelutils().definedOutputPort(condition.getPortName()), condition.N());
+            if(condition.N() > 1){
+                return String.format("(pinAvailOut(%s, io) >= %d) && !%1$s.full()", channelutils().definedOutputPort(condition.getPortName()), condition.N());
+            }else{
+                return String.format("!%1$s.full()", channelutils().definedOutputPort(condition.getPortName()), condition.N());
+            }
+
         }
     }
 
