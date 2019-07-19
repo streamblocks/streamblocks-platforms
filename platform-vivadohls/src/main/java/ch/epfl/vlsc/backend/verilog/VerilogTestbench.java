@@ -58,6 +58,7 @@ public interface VerilogTestbench {
 
             clockGeneration();
 
+
             if (!entity.getInputPorts().isEmpty()) {
                 emitter().emit("// ------------------------------------------------------------------------");
                 emitter().emit("// -- Read from the files and write to the input fifos");
@@ -121,6 +122,8 @@ public interface VerilogTestbench {
 
             clockGeneration();
 
+            startPulseGenerator();
+
             if (!network.getInputPorts().isEmpty()) {
                 emitter().emit("// ------------------------------------------------------------------------");
                 emitter().emit("// -- Read from the files and write to the input fifos");
@@ -172,7 +175,9 @@ public interface VerilogTestbench {
         emitter().emitNewLine();
 
         emitter().emit("reg start;");
+        emitter().emit("reg ap_start;");
         emitter().emit("wire idle;");
+        emitter().emit("wire done;");
         emitter().emitNewLine();
     }
 
@@ -344,6 +349,29 @@ public interface VerilogTestbench {
         emitter().emit("always #(cycle / 2) clock = !clock;");
         emitter().emitNewLine();
     }
+
+
+    // ------------------------------------------------------------------------
+    // -- ap_start pulse generator
+    default void startPulseGenerator(){
+        emitter().emit("// ------------------------------------------------------------------------");
+        emitter().emit("// -- ap_start pulse generator");
+        emitter().emit("reg pulse_delay;");
+        emitter().emitNewLine();
+
+        emitter().emit("always @(posedge clock)");
+        emitter().increaseIndentation();
+        emitter().emit("pulse_delay <= start;");
+        emitter().decreaseIndentation();
+        emitter().emitNewLine();
+
+        emitter().emit("always @(posedge clock)");
+        emitter().increaseIndentation();
+        emitter().emit("ap_start <= start && !pulse_delay;");
+        emitter().decreaseIndentation();
+        emitter().emitNewLine();
+    }
+
 
     // ------------------------------------------------------------------------
     // -- Read from file and write to the fifo
@@ -588,8 +616,9 @@ public interface VerilogTestbench {
 
             emitter().emit(".ap_clk(clock),");
             emitter().emit(".ap_rst_n(reset_n),");
-            emitter().emit(".ap_start(start),");
-            emitter().emit(".ap_idle(idle)");
+            emitter().emit(".ap_start(ap_start),");
+            emitter().emit(".ap_idle(idle),");
+            emitter().emit(".ap_done(done)");
         }
         emitter().decreaseIndentation();
         emitter().emit(");");
@@ -628,8 +657,7 @@ public interface VerilogTestbench {
         {
             emitter().increaseIndentation();
 
-
-            emitter().emit("if (%s) begin", String.join(" & ", outputs
+            emitter().emit("if (done || %s) begin", String.join(" & ", outputs
                     .stream()
                     .map(p -> p.getName() + "_end_of_file")
                     .collect(Collectors.toList())));

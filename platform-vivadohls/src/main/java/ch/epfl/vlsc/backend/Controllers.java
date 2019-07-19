@@ -84,9 +84,18 @@ public interface Controllers {
 
     default void emitInstruction(ActorMachine am, String name, Test test, Map<State, Integer> stateNumbers) {
         String io = "";
+        String waitKind = "";
         if(am.getCondition(test.condition()) instanceof PortCondition){
+            PortCondition condition = (PortCondition) am.getCondition(test.condition());
+            if(condition.isInputCondition()){
+                waitKind = String.format("ret = %s;", "RETURN_WAIT_INPUT");
+            }else{
+                waitKind = String.format("ret = %s;", "RETURN_WAIT_OUTPUT");
+            }
             String portName = ((PortCondition) am.getCondition(test.condition())).getPortName().getName();
             io = portName + ", io";
+        }else{
+            waitKind = String.format("ret = %s;", "RETURN_WAIT_PREDICATE");
         }
         emitter().emit("if (condition_%d(%s)) {", test.condition(), io);
         emitter().increaseIndentation();
@@ -94,6 +103,9 @@ public interface Controllers {
         emitter().decreaseIndentation();
         emitter().emit("} else {");
         emitter().increaseIndentation();
+        if(!waitKind.isEmpty()){
+            emitter().emit("%s", waitKind);
+        }
         emitter().emit("goto S%d;", stateNumbers.get(test.targetFalse()));
         emitter().decreaseIndentation();
         emitter().emit("}");
@@ -101,7 +113,6 @@ public interface Controllers {
     }
 
     default void emitInstruction(ActorMachine am, String name, Wait wait, Map<State, Integer> stateNumbers) {
-        emitter().emit("ret = RETURN_WAIT;");
         emitter().emit("this->program_counter = %d;", stateNumbers.get(wait.target()));
         emitter().emit("goto out;");
         emitter().emit("");

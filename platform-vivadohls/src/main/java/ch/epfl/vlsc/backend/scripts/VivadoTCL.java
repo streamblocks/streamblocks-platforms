@@ -63,6 +63,7 @@ public interface VivadoTCL {
 
     default void importStreamblocksVerilogFiles(String identifier){
         emitter().emit("# -- Import StreamBlocks Verilog RTL files");
+        emitter().emit("import_files -norecurse {${CMAKE_SOURCE_DIR}/code-gen/rtl/df_controller.v}");
         emitter().emit("import_files -norecurse {${CMAKE_SOURCE_DIR}/code-gen/rtl/fifo.v}");
         emitter().emit("import_files -norecurse {${CMAKE_SOURCE_DIR}/code-gen/rtl/%s.v}", identifier);
         emitter().emitNewLine();

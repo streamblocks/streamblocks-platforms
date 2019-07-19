@@ -44,6 +44,7 @@ public interface VerilogNetwork {
 
         emitter().emit("`timescale 1ns/1ps");
         emitter().emit("//`default_nettype none");
+        emitter().emit("`define RETURN_EXECUTED 5");
         emitter().emitNewLine();
 
         // -- Network module
@@ -124,7 +125,8 @@ public interface VerilogNetwork {
         emitter().emit("input  wire ap_clk,");
         emitter().emit("input  wire ap_rst_n,");
         emitter().emit("input  wire ap_start,");
-        emitter().emit("output wire ap_idle");
+        emitter().emit("output wire ap_idle,");
+        emitter().emit("output wire ap_done");
     }
 
     // ------------------------------------------------------------------------
@@ -164,6 +166,9 @@ public interface VerilogNetwork {
         // -- Instance AP cotrol wires
         getInstanceApControlWires(network.getInstances());
 
+        // -- Network is being executed wire
+        emitter().emit("wire network_is_executing;");
+        emitter().emitNewLine();
     }
 
     default void getFifoQueueWires(List<Connection> connections) {
@@ -195,8 +200,8 @@ public interface VerilogNetwork {
         }
     }
 
-    default void getInstanceApControlWires(List<Instance> instances){
-        for(Instance instance : instances){
+    default void getInstanceApControlWires(List<Instance> instances) {
+        for (Instance instance : instances) {
             String name = instance.getInstanceName();
             emitter().emit("// -- Instance AP Control Wires : %s", name);
             emitter().emit("wire %s_ap_done;", name);
@@ -289,6 +294,38 @@ public interface VerilogNetwork {
         Entity entity = entityDecl.getEntity();
 
         emitter().emit("// -- Instance : %s", qidName);
+        if(entity instanceof ActorMachine) {
+            emitter().emit("wire %s_ap_start;", qidName);
+            emitter().emit("wire %s_available_data = %s;", qidName,
+                    String.join(" || ", entity.getInputPorts()
+                            .stream().map(p -> String.format("q_%s_%s_empty_n", name, p.getName()))
+                            .collect(Collectors.toList())));
+            emitter().emitNewLine();
+
+            emitter().emit("df_controller i_control_%s(", qidName);
+            {
+                emitter().increaseIndentation();
+
+                emitter().emit(".clk(ap_clk),");
+                emitter().emit(".rst_n(ap_rst_n),");
+                emitter().emit(".ap_start(ap_start),");
+                emitter().emit(".ap_done(%s_ap_done),", name);
+                emitter().emit(".ap_return(%s_ap_return),", name);
+                emitter().emit(".others_executing(network_is_executing),");
+                emitter().emit(".available_data(%s_available_data),", qidName);
+                emitter().emit(".start(%s_ap_start)", qidName);
+
+                emitter().decreaseIndentation();
+            }
+            emitter().emit(");");
+            emitter().emitNewLine();
+        }else{
+            emitter().emit("wire %s_ap_start = %s;", qidName,
+                    String.join(" || ", entity.getInputPorts()
+                            .stream().map(p -> String.format("q_%s_%s_empty_n", name, p.getName()))
+                            .collect(Collectors.toList())));
+            emitter().emitNewLine();
+        }
         emitter().emit("%s i_%1$s(", qidName);
         {
             emitter().increaseIndentation();
@@ -309,9 +346,9 @@ public interface VerilogNetwork {
                 emitter().emitNewLine();
             }
 
-            if(entity instanceof ActorMachine){
+            if (entity instanceof ActorMachine) {
                 // -- IO for Inputs
-                for(PortDecl port : entity.getInputPorts()){
+                for (PortDecl port : entity.getInputPorts()) {
                     String portName = port.getName();
                     Connection.End target = new Connection.End(Optional.of(name), portName);
                     Connection connection = backend().task().getNetwork()
@@ -319,28 +356,28 @@ public interface VerilogNetwork {
                             .filter(c -> c.getTarget().equals(target)).findAny().orElse(null);
                     String queueName = queueNames().get(connection);
 
-                    emitter().emit(".io_%s_peek(%s),", portName,String.format("%s_peek", queueName) );
-                    emitter().emit(".io_%s_count(%s),", portName,String.format("%s_count", queueName) );
+                    emitter().emit(".io_%s_peek(%s),", portName, String.format("%s_peek", queueName));
+                    emitter().emit(".io_%s_count(%s),", portName, String.format("%s_count", queueName));
                     emitter().emitNewLine();
                 }
 
                 // -- IO for Outputs
-                for(PortDecl port : entity.getOutputPorts()){
+                for (PortDecl port : entity.getOutputPorts()) {
                     String portName = port.getName();
                     Connection.End source = new Connection.End(Optional.of(name), portName);
                     Connection connection = backend().task().getNetwork()
                             .getConnections().stream()
                             .filter(c -> c.getSource().equals(source)).findAny().orElse(null);
                     String queueName = queueNames().get(connection);
-                    emitter().emit(".io_%s_size(%s),", portName,String.format("%s_size", queueName) );
-                    emitter().emit(".io_%s_count(%s),", portName,String.format("%s_count", queueName) );
+                    emitter().emit(".io_%s_size(%s),", portName, String.format("%s_size", queueName));
+                    emitter().emit(".io_%s_count(%s),", portName, String.format("%s_count", queueName));
                     emitter().emitNewLine();
                 }
             }
 
 
             // -- Vivado HLS control signals
-            emitter().emit(".ap_start(ap_start),");
+            emitter().emit(".ap_start(%s_ap_start),",qidName);
             emitter().emit(".ap_done(%s_ap_done),", name);
             emitter().emit(".ap_idle(%s_ap_idle),", name);
             emitter().emit(".ap_ready(%s_ap_ready),", name);
@@ -357,25 +394,44 @@ public interface VerilogNetwork {
     // ------------------------------------------------------------------------
     // -- Assignments
 
-    default void getAssignments(Network network){
+    default void getAssignments(Network network) {
         emitter().emit("// ------------------------------------------------------------------------");
         emitter().emit("// -- Assignments");
         emitter().emitNewLine();
+
+        // -- Network is executing
+        getNeworkIsBeingExecutingAssignment(network);
 
         // -- AP Control
         getApControlAssignments(network);
 
     }
 
-    default void getApControlAssignments(Network network){
-        emitter().emit("// -- AP Idle");
-        emitter().emit("assign ap_idle = %s;", String.join(" & ", network.getInstances()
-                .stream().map(n -> n.getInstanceName() + "_ap_idle")
+    default void getNeworkIsBeingExecutingAssignment(Network network) {
+        emitter().emit("// -- Network is executing");
+        emitter().emit("assign network_is_executing = %s;", String.join(" || ", network.getInstances()
+                .stream()
+                .filter(i -> {
+                    GlobalEntityDecl entityDecl = backend().globalnames().entityDecl(i.getEntityName(), true);
+                    Entity entity = entityDecl.getEntity();
+                    return entity instanceof ActorMachine;
+                })
+                .map(i -> "(" + i.getInstanceName() + "_ap_return == `RETURN_EXECUTED)")
                 .collect(Collectors.toList())));
-
+        emitter().emitNewLine();
     }
 
+    default void getApControlAssignments(Network network) {
+        emitter().emit("// -- AP Idle");
+        emitter().emit("assign ap_idle = %s;", String.join(" & ", network.getInstances()
+                .stream().map(i -> i.getInstanceName() + "_ap_idle")
+                .collect(Collectors.toList())));
+        emitter().emitNewLine();
 
+        emitter().emit("// -- AP Done");
+        emitter().emit("assign ap_done = ~network_is_executing;");
+        emitter().emitNewLine();
+    }
 
     // ------------------------------------------------------------------------
     // -- Helper methods

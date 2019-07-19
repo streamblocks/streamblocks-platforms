@@ -242,6 +242,8 @@ public class VivadoHLSBackendPhase implements Phase {
         try {
             // -- Vivado HLS Fifo
             Files.copy(getClass().getResourceAsStream("/lib/verilog/fifo.v"), PathUtils.getTargetCodeGenRtl(backend.context()).resolve("fifo.v"), StandardCopyOption.REPLACE_EXISTING);
+            // -- Actor Start controller
+            Files.copy(getClass().getResourceAsStream("/lib/verilog/df_controller.v"), PathUtils.getTargetCodeGenRtl(backend.context()).resolve("df_controller.v"), StandardCopyOption.REPLACE_EXISTING);
 
             // -- Find Vivado hls for cmake
             Files.copy(getClass().getResourceAsStream("/lib/cmake/FindVivadoHLS.cmake"), PathUtils.getTargetCmake(backend.context()).resolve("FindVivadoHLS.cmake"), StandardCopyOption.REPLACE_EXISTING);
