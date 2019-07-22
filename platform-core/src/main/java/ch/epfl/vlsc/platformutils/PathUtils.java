@@ -86,6 +86,28 @@ public class PathUtils {
         return directory.toPath();
     }
 
+    /**
+     * Get the code-gen target output directory
+     *
+     * @param context
+     * @return
+     */
+    public static Path getTargetCodeGenCC(Context context) {
+        File directory = new File(getTargetCodeGen(context).toFile(), "cc");
+        return directory.toPath();
+    }
+
+    /**
+     * Get the code-gen target output directory
+     *
+     * @param context
+     * @return
+     */
+    public static Path getTargetCodeGenHLS(Context context) {
+        File directory = new File(getTargetCodeGen(context).toFile(), "hls");
+        return directory.toPath();
+    }
+
 
     /**
      * Get the code-gen target output directory
@@ -109,6 +131,19 @@ public class PathUtils {
         File directory = new File(getTargetCodeGen(context).toFile(), "src");
         return directory.toPath();
     }
+
+
+    /**
+     * Get the code-gen source target output directory
+     *
+     * @param context
+     * @return
+     */
+    public static Path getTargetCodeGenSourceCC(Context context) {
+        File directory = new File(getTargetCodeGenCC(context).toFile(), "src");
+        return directory.toPath();
+    }
+
 
     /**
      * Get the code-gen RTL target output directory
@@ -164,6 +199,17 @@ public class PathUtils {
      */
     public static Path getTargetCodeGenInclude(Context context) {
         File directory = new File(getTargetCodeGen(context).toFile(), "include");
+        return directory.toPath();
+    }
+
+    /**
+     * Get the code-gen headers target output directory
+     *
+     * @param context
+     * @return
+     */
+    public static Path getTargetCodeGenIncludeCC(Context context) {
+        File directory = new File(getTargetCodeGenCC(context).toFile(), "include");
         return directory.toPath();
     }
 
@@ -262,6 +308,43 @@ public class PathUtils {
         for (Object thing : things) {
             System.out.println(thing);
         }
+    }
+
+    /**
+     * Copy a path from jar
+     *
+     * @param source
+     * @param target
+     * @throws URISyntaxException
+     * @throws IOException
+     */
+    public static void copyFromJar(URI resource, String source, final Path target) throws IOException {
+        FileSystem fileSystem = FileSystems.newFileSystem(
+                resource,
+                Collections.<String, String>emptyMap()
+        );
+
+
+        final Path jarPath = fileSystem.getPath(source);
+
+        Files.walkFileTree(jarPath, new SimpleFileVisitor<Path>() {
+
+            private Path currentTarget;
+
+            @Override
+            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+                currentTarget = target.resolve(jarPath.relativize(dir).toString());
+                Files.createDirectories(currentTarget);
+                return FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                Files.copy(file, target.resolve(jarPath.relativize(file).toString()), StandardCopyOption.REPLACE_EXISTING);
+                return FileVisitResult.CONTINUE;
+            }
+
+        });
     }
 
 

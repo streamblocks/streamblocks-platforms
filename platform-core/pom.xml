@@ -10,7 +10,7 @@
     </parent>
     <artifactId>platform-core</artifactId>
     <version>1.0-SNAPSHOT</version>
-    <name>StreamBlocks Platform Core</name>
+    <name>StreamBlocks Core utilities for platforms</name>
     <dependencies>
         <dependency>
             <groupId>se.lth.cs.tycho</groupId>

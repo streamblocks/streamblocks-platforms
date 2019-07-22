@@ -15,6 +15,7 @@
         <module>platform-generic-c</module>
         <module>platform-multicore</module>
         <module>platform-vivadohls</module>
+        <module>platform-node</module>
     </modules>
 
     <properties>

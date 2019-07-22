@@ -9,9 +9,9 @@
         <version>1.0-SNAPSHOT</version>
     </parent>
     <groupId>ch.epfl.vlsc.streamblock</groupId>
-    <artifactId>platform-vivadohls</artifactId>
+    <artifactId>platform-node</artifactId>
     <version>1.0-SNAPSHOT</version>
-    <name>StreamBlocks Vivado HLS platform</name>
+    <name>StreamBlocks Node platform</name>
     <dependencies>
         <!-- https://mvnrepository.com/artifact/commons-io/commons-io -->
         <dependency>
@@ -44,6 +44,16 @@
             <groupId>org.multij</groupId>
             <artifactId>multij-processor</artifactId>
             <version>0.1</version>
+        </dependency>
+        <dependency>
+            <groupId>ch.epfl.vlsc.streamblock</groupId>
+            <artifactId>platform-multicore</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>ch.epfl.vlsc.streamblock</groupId>
+            <artifactId>platform-vivadohls</artifactId>
+            <version>1.0-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>ch.epfl.vlsc</groupId>

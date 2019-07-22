@@ -11,7 +11,7 @@
 	<groupId>ch.epfl.vlsc</groupId>
 	<artifactId>platform-generic-c</artifactId>
 	<version>1.0-SNAPSHOT</version>
-	<name>StreamBlocks C platform for Tycho compiler</name>
+	<name>StreamBlocks C platform</name>
 	<dependencies>
 		<dependency>
 			<groupId>se.lth.cs.tycho</groupId>
