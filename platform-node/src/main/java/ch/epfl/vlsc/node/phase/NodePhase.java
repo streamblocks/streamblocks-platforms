@@ -1,8 +1,8 @@
 package ch.epfl.vlsc.node.phase;
 
+import ch.epfl.vlsc.node.backend.NodeBackend;
 import ch.epfl.vlsc.platformutils.PathUtils;
 import ch.epfl.vlsc.settings.PlatformSettings;
-import ch.epfl.vlsc.sw.backend.MulticoreBackend;
 import ch.epfl.vlsc.sw.phase.C11BackendPhase;
 import org.multij.MultiJ;
 import se.lth.cs.tycho.compiler.CompilationTask;
@@ -112,7 +112,7 @@ public class NodePhase implements Phase {
         createDirectories(context);
 
         // -- Instantiate backend, bind current compilation task and the context
-        MulticoreBackend multicoreBackend = MultiJ.from(MulticoreBackend.class)
+        NodeBackend nodeBackend = MultiJ.from(NodeBackend.class)
                 .bind("task").to(task)
                 .bind("context").to(context)
                 .instance();
@@ -124,18 +124,31 @@ public class NodePhase implements Phase {
         // -- Copy MulticoreBackend resources
         copyBackendResources(context);
 
-        // TODO: make it more general
+        // FIXME: make it more general
         // -- Generate globals for SW
-        C11BackendPhase.generateGlobals(multicoreBackend);
+        C11BackendPhase.generateGlobals(nodeBackend.multicore());
 
         // -- Generate instances for SW
-        C11BackendPhase.generateInstrances(multicoreBackend);
+        C11BackendPhase.generateInstrances(nodeBackend.multicore());
 
-        // -- Generate CMakeLists
-        C11BackendPhase.generateNodeCmakeLists(multicoreBackend);
 
+        // -- Generate CMakeLists for Projects
+        generateCmakeLists(nodeBackend);
+
+        // -- Generate CMakeLists for SW instances
+        C11BackendPhase.generateNodeCmakeLists(nodeBackend.multicore());
+
+        // -- Generate Node Script
+        // FIXME: Make it more general
+        C11BackendPhase.generateNodeScripts(nodeBackend.multicore());
 
         return task;
+    }
+
+
+    private void generateCmakeLists(NodeBackend nodeBackend){
+        nodeBackend.cmakelists().projectCMakeLists();
+        nodeBackend.cmakelists().projectCodegenNodeCMakeLists();
     }
 
 

@@ -209,6 +209,10 @@ public interface CMakeLists {
         emitter().emit("include_directories(${extra_includes} ./include)");
         emitter().emitNewLine();
 
+        // -- Add definitions
+        emitter().emit("add_definitions(${extra_definitions})");
+        emitter().emitNewLine();
+
         emitter().emitSharpBlockComment("Shared Module for each actor");
         emitter().emitNewLine();
         for (Instance instance : backend().task().getNetwork().getInstances()) {

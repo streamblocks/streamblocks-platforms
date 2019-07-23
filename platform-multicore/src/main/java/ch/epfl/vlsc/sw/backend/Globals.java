@@ -79,6 +79,7 @@ public interface Globals {
         // -- Defines
         emitter().emit("#define TRUE 1");
         emitter().emit("#define FALSE 0");
+        emitter().emit("/*");
         emitter().emit("#define TYPE_DIRECT");
         emitter().emitNewLine();
 
@@ -191,6 +192,7 @@ public interface Globals {
         emitter().emit("#undef TYPE_DIRECT");
         emitter().emitNewLine();
 
+        emitter().emit("*/");
         emitter().emit("// -- External Callables Declaration");
         backend().task().walk().forEach(backend().callablesInActor()::externalCallableDeclaration);
         emitter().emitNewLine();

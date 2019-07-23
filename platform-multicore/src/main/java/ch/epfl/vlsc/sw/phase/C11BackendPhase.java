@@ -217,7 +217,7 @@ public class C11BackendPhase implements Phase {
     }
 
 
-    private void generateNodeScripts(MulticoreBackend multicoreBackend){
+    public static void generateNodeScripts(MulticoreBackend multicoreBackend){
         multicoreBackend.nodescripts().scriptNetwork();
         multicoreBackend.nodescripts().pythonScriptNode();
     }
