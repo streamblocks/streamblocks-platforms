@@ -131,6 +131,9 @@ public class NodePhase implements Phase {
         // -- Generate instances for SW
         C11BackendPhase.generateInstrances(multicoreBackend);
 
+        // -- Generate CMakeLists
+        C11BackendPhase.generateNodeCmakeLists(multicoreBackend);
+
 
         return task;
     }

@@ -198,4 +198,56 @@ public interface CMakeLists {
         emitter().close();
     }
 
+
+    default void codegenNodeCCCMakeLists() {
+        emitter().open(PathUtils.getTargetCodeGenCC(backend().context()).resolve("CMakeLists.txt"));
+        emitter().emit("# -- Generated from %s", backend().task().getIdentifier());
+        emitter().emitNewLine();
+
+        // -- Include directories
+        emitter().emit("# -- Include directories");
+        emitter().emit("include_directories(${extra_includes} ./include)");
+        emitter().emitNewLine();
+
+        emitter().emitSharpBlockComment("Shared Module for each actor");
+        emitter().emitNewLine();
+        for (Instance instance : backend().task().getNetwork().getInstances()) {
+            GlobalEntityDecl entityDecl = backend().globalnames().entityDecl(instance.getEntityName(), true);
+            if (!entityDecl.getExternal()) {
+                String name = backend().instaceQID(instance.getInstanceName(), "_");
+                emitter().emit("# -- Actor : %s", name);
+                emitter().emit("add_library(%s MODULE src/%1$s.cc src/globals.cc)", name);
+                emitter().emit("set_target_properties(%s PROPERTIES PREFIX \"\")", name);
+                emitter().emit("set_target_properties(%s PROPERTIES LIBRARY_OUTPUT_DIRECTORY \"${CMAKE_SOURCE_DIR}/bin/modules\")", name);
+                emitter().emit("if(MSVC)");
+                {
+                    emitter().increaseIndentation();
+                    emitter().emit("set_target_properties(%s PROPERTIES COMPILE_FLAGS \"/std:c++latest\")", name);
+                    emitter().emit("set_target_properties(%s PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)", name);
+                    emitter().decreaseIndentation();
+                }
+                emitter().emit("elseif(APPLE)");
+                {
+                    emitter().increaseIndentation();
+                    emitter().emit("set_target_properties(%s PROPERTIES SUFFIX \".bundle\")", name);
+                    emitter().decreaseIndentation();
+                }
+                emitter().emit("else()");
+                {
+                    emitter().increaseIndentation();
+                    emitter().emit("set_target_properties(%s PROPERTIES COMPILE_FLAGS \"-Wall -fPIC\")", name);
+                    emitter().decreaseIndentation();
+                }
+                emitter().emit("endif()");
+                emitter().emit("target_link_libraries(%s art-node art-native ${extra_libraries})", name);
+
+                emitter().emitNewLine();
+            }
+        }
+
+
+        // -- EOF
+        emitter().close();
+    }
+
 }

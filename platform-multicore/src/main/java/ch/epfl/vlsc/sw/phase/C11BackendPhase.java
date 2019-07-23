@@ -1,10 +1,9 @@
 package ch.epfl.vlsc.sw.phase;
 
-import ch.epfl.vlsc.settings.PlatformSettings;
-import ch.epfl.vlsc.sw.backend.Controllers;
-import ch.epfl.vlsc.sw.backend.MulticoreBackend;
 import ch.epfl.vlsc.platformutils.ControllerToGraphviz;
 import ch.epfl.vlsc.platformutils.PathUtils;
+import ch.epfl.vlsc.settings.PlatformSettings;
+import ch.epfl.vlsc.sw.backend.MulticoreBackend;
 import org.multij.MultiJ;
 import se.lth.cs.tycho.compiler.CompilationTask;
 import se.lth.cs.tycho.compiler.Compiler;
@@ -19,12 +18,9 @@ import se.lth.cs.tycho.reporting.Reporter;
 import se.lth.cs.tycho.settings.Setting;
 
 import java.io.IOException;
-import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.*;
-import java.nio.file.attribute.BasicFileAttributes;
-import java.util.Collections;
 import java.util.List;
 
 public class C11BackendPhase implements Phase {
@@ -181,6 +177,11 @@ public class C11BackendPhase implements Phase {
 
         // -- CodeGen CMakeLists
         multicoreBackend.cmakelists().codegenCMakeLists();
+    }
+
+    public static void generateNodeCmakeLists(MulticoreBackend multicoreBackend){
+        // -- Node CodeGen CMakeLists
+        multicoreBackend.cmakelists().codegenNodeCCCMakeLists();
     }
 
     /**

@@ -59,6 +59,18 @@ public class Emitter {
         writer.println(text);
     }
 
+    public void emitSharpBlockComment(String text){
+       emit("# -- --------------------------------------------------------------------------");
+       emit("# -- %s", text);
+       emit("# -- --------------------------------------------------------------------------");
+    }
+
+    public void emitClikeBlockComment(String text){
+        emit("// -- --------------------------------------------------------------------------");
+        emit("// -- %s", text);
+        emit("// -- --------------------------------------------------------------------------");
+    }
+
     public void emitNewLine(){
         emit("");
     }
