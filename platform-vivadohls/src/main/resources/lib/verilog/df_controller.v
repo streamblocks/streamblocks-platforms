@@ -60,7 +60,7 @@ always @(ap_start, ap_done, state_reg, available_data) begin
         s1 : begin
             start = 1'b1;
             if(ap_done) begin
-                state_next = s1;
+                state_next = s3;
             end
             else begin
                 state_next = s2;
