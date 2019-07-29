@@ -81,7 +81,7 @@ unsigned int class_output_stage<T>::operator()(hls::stream<T> &STREAM,
 	}
 
 	CHECK_DONE: {
-		// -- Higher priority
+		// -- Higher priority on core_done
 		if (core_done) {
 			goto WRITE_TO_MEMORY;
 		} else if (burst_counter == BURST_SIZE - 1) {
@@ -136,6 +136,8 @@ unsigned int class_output_stage<T>::operator()(hls::stream<T> &STREAM,
 
 	DONE: {
 		*size = token_counter;
+		token_counter = 0;
+        burst_counter = 0;
 		program_counter = 0;
 		ret = DONE_RECEIVING;
 		goto OUT;
