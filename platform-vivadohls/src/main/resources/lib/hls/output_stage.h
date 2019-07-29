@@ -38,6 +38,12 @@
 #ifndef _OUTPUT_STAGE_H
 #define _OUTPUT_STAGE_H
 
+#define RECEIVING 0
+#define WAITING_INPUT 1
+#define WRITING_TO_MEMORY 2
+#define BURST_WRITING_TO_MEMORY 3
+#define DONE_RECEIVING 4
+
 #include <hls_stream.h>
 #include <string.h>
 
@@ -45,8 +51,8 @@
 #define BURST_SIZE 256
 
 template<typename T>
-class class_output_stage{
-private :
+class class_output_stage {
+private:
 	int token_counter = 0;
 
 	int burst_counter = 0;
@@ -55,64 +61,87 @@ private :
 
 	T buffer[BURST_SIZE];
 
-public :
-	void operator()(hls::stream< T > &STREAM, bool core_done, int *size,
+public:
+	unsigned int operator()(hls::stream<T> &STREAM, bool core_done, int *size,
 			T *output);
 };
 
-
 template<typename T>
-void class_output_stage< T >::operator()(hls::stream< T > &STREAM, bool core_done, int *size,
-		T *output) {
+unsigned int class_output_stage<T>::operator()(hls::stream<T> &STREAM,
+		bool core_done, int *size, T *output) {
 #pragma HLS INLINE
 
+	int ret = RECEIVING;
 
 	switch (program_counter) {
 	case 0:
 		goto CHECK_DONE;
-	case 3:
-		goto READ;
+	case 1:
+		goto CHECK_INPUT;
 	}
 
 	CHECK_DONE: {
+		// -- Higher priority
 		if (core_done) {
-			goto DONE;
+			goto WRITE_TO_MEMORY;
+		} else if (burst_counter == BURST_SIZE - 1) {
+			goto BURST_WRITE_TO_MEMORY;
 		} else {
+			goto CHECK_INPUT;
+		}
+	}
+
+	CHECK_INPUT:{
+		if(STREAM.empty()){
+			program_counter = 1;
+			ret = WAITING_INPUT;
+			goto OUT;
+		}else{
 			goto READ;
 		}
 	}
 
 	READ: {
-		if (burst_counter < BURST_SIZE) {
-			buffer[burst_counter] = STREAM.read();
-			burst_counter++;
-			program_counter = 3;
-			goto OUT;
-		} else {
-			goto WRITE_TO_MEMORY;
-		}
+		buffer[burst_counter] = STREAM.read();
+		burst_counter++;
+		program_counter = 0;
+		ret = RECEIVING;
+		goto OUT;
+	}
 
+	BURST_WRITE_TO_MEMORY: {
+		for (int i = 0; i < BURST_SIZE; i++) {
+#pragma HLS PIPELINE
+			output[token_counter + i] = buffer[i];
+		}
+		burst_counter = 0;
+		token_counter += BURST_SIZE;
+		program_counter = 0;
+		ret = BURST_WRITING_TO_MEMORY;
+		goto OUT;
 	}
 
 	WRITE_TO_MEMORY: {
-		if (token_counter < MAX_BUFFER_SIZE) {
-			memcpy((T *) output, buffer, sizeof( T ) * BURST_SIZE);
-			token_counter += BURST_SIZE;
-			goto OUT;
-			program_counter = 0;
-		} else {
-			goto DONE;
+		for (int i = 0; i < burst_counter; i++) {
+#pragma HLS LOOP_TRIPCOUNT min=0 max=255
+#pragma HLS PIPELINE
+			output[token_counter + i] = buffer[i];
 		}
-
+		token_counter += burst_counter;
+		burst_counter = 0;
+		program_counter = 0;
+		ret = WRITING_TO_MEMORY;
+		goto DONE;
 	}
 
 	DONE: {
 		*size = token_counter;
 		program_counter = 0;
+		ret = DONE_RECEIVING;
 		goto OUT;
 	}
 
-	OUT: return;
+	OUT: return ret;
 }
 
 #endif //_OUTPUT_STAGE_H
