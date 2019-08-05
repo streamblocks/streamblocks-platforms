@@ -334,7 +334,7 @@ static void address_handler(struct parser_state *state) {
                     }
                 }
             }
-
+            stream << " ";
             ifa = ifa->ifa_next;
         } while (ifa);
 
