@@ -15,6 +15,7 @@ import se.lth.cs.tycho.reporting.Diagnostic;
 import se.lth.cs.tycho.reporting.Reporter;
 import se.lth.cs.tycho.settings.Setting;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -146,7 +147,7 @@ public class NodePhase implements Phase {
     }
 
 
-    private void generateCmakeLists(NodeBackend nodeBackend){
+    private void generateCmakeLists(NodeBackend nodeBackend) {
         nodeBackend.cmakelists().projectCMakeLists();
         nodeBackend.cmakelists().projectCodegenNodeCMakeLists();
     }
@@ -163,13 +164,15 @@ public class NodePhase implements Phase {
             URL url = getClass().getResource("/lib/");
             // -- Temporary hack to launch it from command line
             if (url.toString().contains("jar")) {
-                PathUtils.copyFromJar(getClass().getResource("").toURI(),"/lib", libPath);
+                PathUtils.copyFromJar(getClass().getResource("").toURI(), "/lib", libPath);
+                File pyFile = new File(binPath + File.separator + "streamblocks.py");
+                PathUtils.copyFromJar(getClass().getResource("").toURI(), "/python/streamblocks.py", pyFile.toPath());
             } else {
                 Path libResourcePath = Paths.get(url.toURI());
                 PathUtils.copyDirTree(libResourcePath, libPath, StandardCopyOption.REPLACE_EXISTING);
+                // -- Copy streamblcoks.py
+                Files.copy(getClass().getResourceAsStream("/python/streamblocks.py"), PathUtils.getTargetBin(context).resolve("streamblocks.py"), StandardCopyOption.REPLACE_EXISTING);
             }
-            // -- Copy streamblcoks.py
-            Files.copy(getClass().getResourceAsStream("/python/streamblocks.py"), PathUtils.getTargetBin(context).resolve("streamblocks.py"), StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException e) {
             throw new CompilationException(new Diagnostic(Diagnostic.Kind.ERROR, "Could not copy multicoreBackend resources"));
         } catch (URISyntaxException e) {

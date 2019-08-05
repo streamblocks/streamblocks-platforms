@@ -319,11 +319,13 @@ public class PathUtils {
      * @throws IOException
      */
     public static void copyFromJar(URI resource, String source, final Path target) throws IOException {
-        FileSystem fileSystem = FileSystems.newFileSystem(
-                resource,
-                Collections.<String, String>emptyMap()
-        );
 
+        FileSystem fileSystem;
+        try {
+            fileSystem = FileSystems.newFileSystem(resource, Collections.<String, String>emptyMap());
+        } catch (FileSystemAlreadyExistsException e) {
+            fileSystem = FileSystems.getFileSystem(resource);
+        }
 
         final Path jarPath = fileSystem.getPath(source);
 
