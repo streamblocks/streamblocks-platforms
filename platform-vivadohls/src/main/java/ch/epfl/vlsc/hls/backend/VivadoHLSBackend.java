@@ -4,6 +4,7 @@ import ch.epfl.vlsc.hls.backend.scripts.VivadoTCL;
 import ch.epfl.vlsc.hls.backend.simulators.WcfgWaveform;
 import ch.epfl.vlsc.hls.backend.verilog.VerilogNetwork;
 import ch.epfl.vlsc.hls.backend.verilog.VerilogTestbench;
+import ch.epfl.vlsc.hls.backend.wrapper.TopKernel;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.utils.Box;
 import org.multij.Binding;
@@ -189,6 +190,11 @@ public interface VivadoHLSBackend {
     default VivadoTCL vivadotcl() {
         return MultiJ.from(VivadoTCL.class).bind("backend").to(this).instance();
     }
+
+    // -----------------------------------
+    // -- Kernel Wrapper
+    @Binding(LAZY)
+    default TopKernel topkernel() {return MultiJ.from(TopKernel.class).bind("backend").to(this).instance();}
 
     // -- Utils
     default QID taskIdentifier() {

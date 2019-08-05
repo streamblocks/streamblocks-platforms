@@ -81,22 +81,31 @@ unsigned int class_output_stage<T>::operator()(hls::stream<T> &STREAM,
 	}
 
 	CHECK_DONE: {
-		// -- Higher priority on core_done
 		if (core_done) {
-			goto WRITE_TO_MEMORY;
-		} else if (burst_counter == BURST_SIZE - 1) {
-			goto BURST_WRITE_TO_MEMORY;
+			goto DONE_AVAILABLE_DATA;
 		} else {
-			goto CHECK_INPUT;
+			if (burst_counter == BURST_SIZE - 1) {
+				goto BURST_WRITE_TO_MEMORY;
+			} else {
+				goto CHECK_INPUT;
+			}
 		}
 	}
 
-	CHECK_INPUT:{
-		if(STREAM.empty()){
-			program_counter = 1;
+	DONE_AVAILABLE_DATA: {
+		if (STREAM.empty()) {
+			goto WRITE_TO_MEMORY;
+		} else {
+			goto READ;
+		}
+	}
+
+	CHECK_INPUT: {
+		if (STREAM.empty()) {
+			program_counter = 0;
 			ret = WAITING_INPUT;
 			goto OUT;
-		}else{
+		} else {
 			goto READ;
 		}
 	}
@@ -118,7 +127,12 @@ unsigned int class_output_stage<T>::operator()(hls::stream<T> &STREAM,
 		token_counter += BURST_SIZE;
 		program_counter = 0;
 		ret = BURST_WRITING_TO_MEMORY;
-		goto OUT;
+		// -- Buffer is full --> go to DONE
+		if (token_counter == MAX_BUFFER_SIZE - 1) {
+			goto DONE;
+		} else {
+			goto OUT;
+		}
 	}
 
 	WRITE_TO_MEMORY: {
@@ -137,7 +151,7 @@ unsigned int class_output_stage<T>::operator()(hls::stream<T> &STREAM,
 	DONE: {
 		*size = token_counter;
 		token_counter = 0;
-        burst_counter = 0;
+		burst_counter = 0;
 		program_counter = 0;
 		ret = DONE_RECEIVING;
 		goto OUT;

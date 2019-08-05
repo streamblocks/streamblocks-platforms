@@ -52,7 +52,7 @@
  	void operator()(T *input, int size, hls::stream< T > &STREAM);
  };
 
-
+/
  template<typename T>
  void class_input_stage< T >::operator()(T *input, int size, hls::stream< T > &STREAM) {
  #pragma HLS INLINE

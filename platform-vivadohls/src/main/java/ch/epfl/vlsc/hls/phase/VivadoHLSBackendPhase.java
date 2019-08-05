@@ -145,6 +145,9 @@ public class VivadoHLSBackendPhase implements Phase {
         // -- Generate Network
         generateNetwork(backend);
 
+        // -- Generate Kernel
+        generateKernel(backend);
+
         // -- Generate Testbenches
         generateTestbenches(backend);
 
@@ -186,6 +189,15 @@ public class VivadoHLSBackendPhase implements Phase {
     }
 
     /**
+     * Generate Verilog network wrapper for OpenCL Kernel
+     *
+     * @param backend
+     */
+    private void generateKernel(VivadoHLSBackend backend) {
+        backend.topkernel().generateTopKernel();
+    }
+
+    /**
      * Generate gloabals
      *
      * @param backend
@@ -212,13 +224,13 @@ public class VivadoHLSBackendPhase implements Phase {
         network.getInstances().forEach(backend.testbench()::generateTestbench);
     }
 
-    private void generateWcfg(VivadoHLSBackend backend){
+    private void generateWcfg(VivadoHLSBackend backend) {
         // -- Wcfg
         Network network = backend.task().getNetwork();
         backend.wcfg().getWcfg(network);
     }
 
-    private void generateCmakeScript(VivadoHLSBackend backend){
+    private void generateCmakeScript(VivadoHLSBackend backend) {
         // -- CMake script for Vivado HLS
         backend.vivadotcl().generateVivadoTCL();
     }
