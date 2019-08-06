@@ -331,6 +331,7 @@ public interface AxiLiteControl {
     }
 
     default void getAxiReadFSM(Network network) {
+        emitter().emit("// ------------------------------------------------------------------------");
         emitter().emit("// -- AXI Read FSM");
 
         emitter().emit("assign  arready = (rstate == SM_RDIDLE);");

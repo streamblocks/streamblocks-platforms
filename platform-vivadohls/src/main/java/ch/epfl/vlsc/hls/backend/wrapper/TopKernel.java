@@ -188,6 +188,16 @@ public interface TopKernel {
             }
         }
         emitter().emitNewLine();
+
+        emitter().emit("// -- Invert reset signal");
+        emitter().emit("always @(posedge ap_clk) begin");
+        {
+            emitter().increaseIndentation();
+            emitter().emit(" areset <= ~ap_rst_n;");
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("end");
+        emitter().emitNewLine();
     }
 
     // ------------------------------------------------------------------------
