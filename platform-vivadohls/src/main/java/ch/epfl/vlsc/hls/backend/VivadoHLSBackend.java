@@ -4,6 +4,7 @@ import ch.epfl.vlsc.hls.backend.scripts.VivadoTCL;
 import ch.epfl.vlsc.hls.backend.simulators.WcfgWaveform;
 import ch.epfl.vlsc.hls.backend.verilog.VerilogNetwork;
 import ch.epfl.vlsc.hls.backend.verilog.VerilogTestbench;
+import ch.epfl.vlsc.hls.backend.wrapper.AxiLiteControl;
 import ch.epfl.vlsc.hls.backend.wrapper.TopKernel;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.utils.Box;
@@ -193,8 +194,13 @@ public interface VivadoHLSBackend {
 
     // -----------------------------------
     // -- Kernel Wrapper
+    // -- Top Kernel
     @Binding(LAZY)
     default TopKernel topkernel() {return MultiJ.from(TopKernel.class).bind("backend").to(this).instance();}
+
+    // -- AXI Lite Control
+    @Binding(LAZY)
+    default AxiLiteControl axilitecontrol() {return MultiJ.from(AxiLiteControl.class).bind("backend").to(this).instance();}
 
     // -- Utils
     default QID taskIdentifier() {

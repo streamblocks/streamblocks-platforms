@@ -195,6 +195,7 @@ public class VivadoHLSBackendPhase implements Phase {
      */
     private void generateKernel(VivadoHLSBackend backend) {
         backend.topkernel().generateTopKernel();
+        backend.axilitecontrol().getAxiLiteControl();
     }
 
     /**
