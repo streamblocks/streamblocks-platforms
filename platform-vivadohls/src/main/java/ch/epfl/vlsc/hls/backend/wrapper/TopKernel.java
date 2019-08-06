@@ -167,6 +167,9 @@ public interface TopKernel {
     // ------------------------------------------------------------------------
     // -- Get wires
     default void getWires(Network network) {
+        emitter().emitClikeBlockComment("Reg & Wires");
+        emitter().emitNewLine();
+
         emitter().emit("reg     areset = 1'b0;");
         emitter().emit("wire    ap_start;");
         emitter().emit("wire    ap_idle;");
@@ -187,10 +190,11 @@ public interface TopKernel {
         emitter().emitNewLine();
     }
 
-
     // ------------------------------------------------------------------------
     // -- AXI Lite controller instance
     default void getAxiLiteControllerInstance(Network network) {
+        emitter().emitClikeBlockComment("AXI4-Lite Control");
+        emitter().emitNewLine();
         // -- Identifier
         String identifier = backend().task().getIdentifier().getLast().toString();
         emitter().emit("%s_control_s_axi #(", identifier);
@@ -250,6 +254,88 @@ public interface TopKernel {
     // ------------------------------------------------------------------------
     // -- Kernel wrapper
     default void getKernelWrapper(Network network) {
+        emitter().emitClikeBlockComment("Kernel Wrapper");
+        emitter().emitNewLine();
 
+        String identifier = backend().task().getIdentifier().getLast().toString();
+        emitter().emit("%s_wrapper #(", identifier);
+        {
+            emitter().increaseIndentation();
+            if (!network.getInputPorts().isEmpty()) {
+                for (PortDecl port : network.getInputPorts()) {
+                    boolean lastElement = network.getOutputPorts().isEmpty() && (network.getInputPorts().size() - 1 == network.getInputPorts().indexOf(port));
+                    emitter().emit(".C_M_AXI_%s_ADDR_WIDTH(C_M_AXI_%1$s_ADDR_WIDTH),", port.getName().toUpperCase());
+                    emitter().emit(".C_M_AXI_%s_DATA_WIDTH(C_M_AXI_%1$s_DATA_WIDTH)%s", port.getName().toUpperCase(), lastElement ? "" : ",");
+                }
+            }
+            // -- Network Output ports
+            if (!network.getOutputPorts().isEmpty()) {
+                for (PortDecl port : network.getOutputPorts()) {
+                    emitter().emit(".C_M_AXI_%s_ADDR_WIDTH(C_M_AXI_%1$s_ADDR_WIDTH),", port.getName().toUpperCase());
+                    emitter().emit(".C_M_AXI_%s_DATA_WIDTH(C_M_AXI_%1$s_DATA_WIDTH)%s", port.getName().toUpperCase(), network.getOutputPorts().size() - 1 == network.getOutputPorts().indexOf(port) ? "" : ",");
+                }
+            }
+            emitter().decreaseIndentation();
+        }
+        emitter().emit(")");
+        emitter().emit("inst_wrapper (");
+        {
+            emitter().increaseIndentation();
+            emitter().emit(".aclk( ap_clk ),");
+            emitter().emit(".ap_rst_n( ap_rst_n ),");
+
+            if (!network.getInputPorts().isEmpty()) {
+                for (PortDecl port : network.getInputPorts()) {
+                    getAxiMasterConnection(port);
+                }
+            }
+            if (!network.getOutputPorts().isEmpty()) {
+                for (PortDecl port : network.getOutputPorts()) {
+                    getAxiMasterConnection(port);
+                }
+            }
+
+            if (!network.getInputPorts().isEmpty()) {
+                for (PortDecl port : network.getInputPorts()) {
+                    emitter().emit(".%s_requested_size( %1$s_requested_size ),", port.getName());
+                    emitter().emit(".%s_size( %1$s_size ),", port.getName());
+                    emitter().emit(".%s_buffer( %1$s_size ),", port.getName());
+                }
+            }
+            if (!network.getOutputPorts().isEmpty()) {
+                for (PortDecl port : network.getOutputPorts()) {
+                    emitter().emit(".%s_size( %1$s_size ),", port.getName());
+                    emitter().emit(".%s_buffer( %1$s_size ),", port.getName());
+                }
+            }
+            emitter().emit(".ap_start( ap_start ),");
+            emitter().emit(".ap_done( ap_done),");
+            emitter().emit(".ap_idle( ap_idle )");
+            emitter().decreaseIndentation();
+        }
+        emitter().emit(");");
+    }
+
+    // -- Helpers
+    default void getAxiMasterConnection(PortDecl port){
+        emitter().emit(".m_axi_%s_awvalid ( m_axi_%1$s_awvalid ),", port.getName());
+        emitter().emit(".m_axi_%s_awready ( m_axi_%1$s_awready ),", port.getName());
+        emitter().emit(".m_axi_%s_awaddr ( m_axi_%1$s_awaddr ),", port.getName());
+        emitter().emit(".m_axi_%s_awlen ( m_axi_%1$s_awlen ),", port.getName());
+        emitter().emit(".m_axi_%s_wvalid ( m_axi_%1$s_wvalid ),", port.getName());
+        emitter().emit(".m_axi_%s_wready ( m_axi_%1$s_wready ),", port.getName());
+        emitter().emit(".m_axi_%s_wdata ( m_axi_%1$s_wdata ),", port.getName());
+        emitter().emit(".m_axi_%s_wstrb ( m_axi_%1$s_wstrb ),", port.getName());
+        emitter().emit(".m_axi_%s_wlast ( m_axi_%1$s_wlast ),", port.getName());
+        emitter().emit(".m_axi_%s_bvalid ( m_axi_%1$s_bvalid ),", port.getName());
+        emitter().emit(".m_axi_%s_bready ( m_axi_%1$s_bready ),", port.getName());
+        emitter().emit(".m_axi_%s_arvalid ( m_axi_%1$s_arvalid ),", port.getName());
+        emitter().emit(".m_axi_%s_arready ( m_axi_%1$s_arready ),", port.getName());
+        emitter().emit(".m_axi_%s_araddr ( m_axi_%1$s_araddr ),", port.getName());
+        emitter().emit(".m_axi_%s_arlen ( m_axi_%1$s_arlen ),", port.getName());
+        emitter().emit(".m_axi_%s_rvalid ( m_axi_%1$s_rvalid ),", port.getName());
+        emitter().emit(".m_axi_%s_rready ( m_axi_%1$s_rready ),", port.getName());
+        emitter().emit(".m_axi_%s_rdata ( m_axi_%1$s_rdata ),", port.getName());
+        emitter().emit(".m_axi_%s_rlast ( m_axi_%1$s_rlast ),", port.getName());
     }
 }
