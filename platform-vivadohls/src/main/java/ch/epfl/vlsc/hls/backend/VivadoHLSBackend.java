@@ -5,6 +5,7 @@ import ch.epfl.vlsc.hls.backend.simulators.WcfgWaveform;
 import ch.epfl.vlsc.hls.backend.verilog.VerilogNetwork;
 import ch.epfl.vlsc.hls.backend.verilog.VerilogTestbench;
 import ch.epfl.vlsc.hls.backend.wrapper.AxiLiteControl;
+import ch.epfl.vlsc.hls.backend.wrapper.KernelWrapper;
 import ch.epfl.vlsc.hls.backend.wrapper.TopKernel;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.utils.Box;
@@ -201,6 +202,8 @@ public interface VivadoHLSBackend {
     // -- AXI Lite Control
     @Binding(LAZY)
     default AxiLiteControl axilitecontrol() {return MultiJ.from(AxiLiteControl.class).bind("backend").to(this).instance();}
+
+    default KernelWrapper kenrelwrapper() {return MultiJ.from(KernelWrapper.class).bind("backend").to(this).instance();}
 
     // -- Utils
     default QID taskIdentifier() {

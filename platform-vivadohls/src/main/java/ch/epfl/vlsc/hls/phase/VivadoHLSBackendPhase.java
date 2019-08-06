@@ -194,8 +194,14 @@ public class VivadoHLSBackendPhase implements Phase {
      * @param backend
      */
     private void generateKernel(VivadoHLSBackend backend) {
+        // -- Top Kernel
         backend.topkernel().generateTopKernel();
+
+        // -- AXI4-Lite Control
         backend.axilitecontrol().getAxiLiteControl();
+
+        // -- Kernel Wrapper
+        backend.kenrelwrapper().getKernelWrapper();
     }
 
     /**
