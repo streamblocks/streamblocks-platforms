@@ -326,7 +326,7 @@ ART_ACTION_SCHEDULER(receiver_action_scheduler) {
     std::size_t readBySocket;
     if (instance->partialRead) {
       stagingBuffer = std::move(instance->currBuffer);
-      readBySocket = stagingBuffer.get_count() / tokenSize - instance->offset;
+      readBySocket = (stagingBuffer.get_count() - instance->offset) / tokenSize;
 
     } else if (instance->bufferPool->try_dequeue_full_buffer(stagingBuffer)) {
 
