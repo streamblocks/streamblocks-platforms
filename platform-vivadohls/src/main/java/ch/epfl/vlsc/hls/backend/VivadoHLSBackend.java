@@ -6,6 +6,7 @@ import ch.epfl.vlsc.hls.backend.verilog.VerilogNetwork;
 import ch.epfl.vlsc.hls.backend.verilog.VerilogTestbench;
 import ch.epfl.vlsc.hls.backend.wrapper.AxiLiteControl;
 import ch.epfl.vlsc.hls.backend.wrapper.KernelWrapper;
+import ch.epfl.vlsc.hls.backend.wrapper.KernelXml;
 import ch.epfl.vlsc.hls.backend.wrapper.TopKernel;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.utils.Box;
@@ -203,7 +204,14 @@ public interface VivadoHLSBackend {
     @Binding(LAZY)
     default AxiLiteControl axilitecontrol() {return MultiJ.from(AxiLiteControl.class).bind("backend").to(this).instance();}
 
-    default KernelWrapper kenrelwrapper() {return MultiJ.from(KernelWrapper.class).bind("backend").to(this).instance();}
+    // -- Kernel Wrapper (input/output stages and network)
+    @Binding(LAZY)
+    default KernelWrapper kernelwrapper() {return MultiJ.from(KernelWrapper.class).bind("backend").to(this).instance();}
+
+    @Binding(LAZY)
+    default KernelXml kernelxml() {return MultiJ.from(KernelXml.class).bind("backend").to(this).instance();}
+
+
 
     // -- Utils
     default QID taskIdentifier() {

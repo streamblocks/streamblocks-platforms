@@ -126,6 +126,10 @@ public interface AxiLiteControl {
                 emitter().emit("output  wire    [64 - 1 : 0]    %s_buffer,", port.getName());
             }
         }
+
+        emitter().emit("output  wire    ap_start,");
+        emitter().emit("input   wire    ap_idle,");
+        emitter().emit("input   wire    ap_done,");
         emitter().emit("output  wire    interrupt");
 
     }
@@ -149,21 +153,21 @@ public interface AxiLiteControl {
         for (PortDecl port : network.getInputPorts()) {
             emitter().emit("localparam  [C_ADDR_WIDTH-1:0]  LP_ADDR_%s_size_0 = 12'h%s;", port.getName().toUpperCase(), String.format("%03x", value));
             value += 4;
-            emitter().emit("localparam  [C_ADDR_WIDTH-1:0]  LP_ADDR_%s_size_1 = 12'h%s;", port.getName().toUpperCase(), String.format("%03x", value));
+            emitter().emit("localparam  [C_ADDR_WIDTH-1:0]  LP_ADDR_%s_size_1 = 12'h%s;", port.getName(), String.format("%03x", value));
             value += 4;
-            emitter().emit("localparam  [C_ADDR_WIDTH-1:0]  LP_ADDR_%s_buffer_0 = 12'h%s;", port.getName().toUpperCase(), String.format("%03x", value));
+            emitter().emit("localparam  [C_ADDR_WIDTH-1:0]  LP_ADDR_%s_buffer_0 = 12'h%s;", port.getName(), String.format("%03x", value));
             value += 4;
-            emitter().emit("localparam  [C_ADDR_WIDTH-1:0]  LP_ADDR_%s_buffer_1 = 12'h%s;", port.getName().toUpperCase(), String.format("%03x", value));
+            emitter().emit("localparam  [C_ADDR_WIDTH-1:0]  LP_ADDR_%s_buffer_1 = 12'h%s;", port.getName(), String.format("%03x", value));
             value += 4;
         }
         for (PortDecl port : network.getOutputPorts()) {
-            emitter().emit("localparam  [C_ADDR_WIDTH-1:0]  LP_ADDR_%s_size_0 = 12'h%s;", port.getName().toUpperCase(), String.format("%03x", value));
+            emitter().emit("localparam  [C_ADDR_WIDTH-1:0]  LP_ADDR_%s_size_0 = 12'h%s;", port.getName(), String.format("%03x", value));
             value += 4;
-            emitter().emit("localparam  [C_ADDR_WIDTH-1:0]  LP_ADDR_%s_size_1 = 12'h%s;", port.getName().toUpperCase(), String.format("%03x", value));
+            emitter().emit("localparam  [C_ADDR_WIDTH-1:0]  LP_ADDR_%s_size_1 = 12'h%s;", port.getName(), String.format("%03x", value));
             value += 4;
-            emitter().emit("localparam  [C_ADDR_WIDTH-1:0]  LP_ADDR_%s_buffer_0 = 12'h%s;", port.getName().toUpperCase(), String.format("%03x", value));
+            emitter().emit("localparam  [C_ADDR_WIDTH-1:0]  LP_ADDR_%s_buffer_0 = 12'h%s;", port.getName(), String.format("%03x", value));
             value += 4;
-            emitter().emit("localparam  [C_ADDR_WIDTH-1:0]  LP_ADDR_%s_buffer_1 = 12'h%s;", port.getName().toUpperCase(), String.format("%03x", value));
+            emitter().emit("localparam  [C_ADDR_WIDTH-1:0]  LP_ADDR_%s_buffer_1 = 12'h%s;", port.getName(), String.format("%03x", value));
             value += 4;
         }
 
@@ -589,7 +593,7 @@ public interface AxiLiteControl {
         emitter().emitNewLine();
     }
 
-    default void getRegisterLogic(Network network){
+    default void getRegisterLogic(Network network) {
         emitter().emitClikeBlockComment("Register Logic");
         emitter().emit("assign interrupt    = int_gie & (|int_isr);");
         emitter().emit("assign ap_start     = int_ap_start;");
@@ -607,6 +611,33 @@ public interface AxiLiteControl {
 
         // -- int_ap_start
         emitter().emit("// -- int_ap_start");
+        emitter().emit("always @(posedge aclk) begin");
+        {
+            emitter().increaseIndentation();
+
+            emitter().emit("if (areset)");
+            emitter().emit("\tint_ap_start <= 1'b0;");
+            emitter().emit("else if (aclk_en) begin");
+            {
+                emitter().increaseIndentation();
+
+                emitter().emit("if (w_hs && waddr == LP_ADDR_AP_CTRL && wstrb[0] && wdata[0])");
+                emitter().emit("\tint_ap_start <= 1'b1;");
+                emitter().emit("else if (ap_done)");
+                emitter().emit("\tint_ap_start <= 1'b0;");
+
+                emitter().decreaseIndentation();
+            }
+            emitter().emit("end");
+
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("end");
+        emitter().emitNewLine();
+
+
+        // -- int_ap_done
+        emitter().emit("// -- int_ap_done");
         emitter().emit("always @(posedge aclk) begin");
         {
             emitter().increaseIndentation();
@@ -737,7 +768,7 @@ public interface AxiLiteControl {
                 {
                     emitter().increaseIndentation();
 
-                    emitter().emit("if (w_hs && waddr == LP_ADDR_%s_size_0)", port.getName().toUpperCase());
+                    emitter().emit("if (w_hs && waddr == LP_ADDR_%s_size_0)", port.getName());
                     emitter().emit("\tint_%s_size[0+:32] <= (wdata[0+:32] & wmask[0+:32]) | (int_%1$s_size[0+:32] & ~wmask[0+:32]);", port.getName());
 
                     emitter().decreaseIndentation();
@@ -761,7 +792,7 @@ public interface AxiLiteControl {
                 {
                     emitter().increaseIndentation();
 
-                    emitter().emit("if (w_hs && waddr == LP_ADDR_%s_size_1)", port.getName().toUpperCase());
+                    emitter().emit("if (w_hs && waddr == LP_ADDR_%s_size_1)", port.getName());
                     emitter().emit("\tint_%s_size[32+:32] <= (wdata[0+:32] & wmask[0+:32]) | (int_%1$s_size[32+:32] & ~wmask[0+:32]);", port.getName());
 
                     emitter().decreaseIndentation();
@@ -785,7 +816,7 @@ public interface AxiLiteControl {
                 {
                     emitter().increaseIndentation();
 
-                    emitter().emit("if (w_hs && waddr == LP_ADDR_%s_buffer_0)", port.getName().toUpperCase());
+                    emitter().emit("if (w_hs && waddr == LP_ADDR_%s_buffer_0)", port.getName());
                     emitter().emit("\tint_%s_buffer[0+:32] <= (wdata[0+:32] & wmask[0+:32]) | (int_%1$s_buffer[0+:32] & ~wmask[0+:32]);", port.getName());
 
                     emitter().decreaseIndentation();
@@ -809,7 +840,7 @@ public interface AxiLiteControl {
                 {
                     emitter().increaseIndentation();
 
-                    emitter().emit("if (w_hs && waddr == LP_ADDR_%s_buffer_1)", port.getName().toUpperCase());
+                    emitter().emit("if (w_hs && waddr == LP_ADDR_%s_buffer_1)", port.getName());
                     emitter().emit("\tint_%s_buffer[32+:32] <= (wdata[0+:32] & wmask[0+:32]) | (int_%1$s_buffer[32+:32] & ~wmask[0+:32]);", port.getName());
 
                     emitter().decreaseIndentation();
@@ -835,7 +866,7 @@ public interface AxiLiteControl {
                 {
                     emitter().increaseIndentation();
 
-                    emitter().emit("if (w_hs && waddr == LP_ADDR_%s_size_0)", port.getName().toUpperCase());
+                    emitter().emit("if (w_hs && waddr == LP_ADDR_%s_size_0)", port.getName());
                     emitter().emit("\tint_%s_size[0+:32] <= (wdata[0+:32] & wmask[0+:32]) | (int_%1$s_size[0+:32] & ~wmask[0+:32]);", port.getName());
 
                     emitter().decreaseIndentation();
@@ -859,7 +890,7 @@ public interface AxiLiteControl {
                 {
                     emitter().increaseIndentation();
 
-                    emitter().emit("if (w_hs && waddr == LP_ADDR_%s_size_1)", port.getName().toUpperCase());
+                    emitter().emit("if (w_hs && waddr == LP_ADDR_%s_size_1)", port.getName());
                     emitter().emit("\tint_%s_size[32+:32] <= (wdata[0+:32] & wmask[0+:32]) | (int_%1$s_size[32+:32] & ~wmask[0+:32]);", port.getName());
 
                     emitter().decreaseIndentation();
@@ -883,7 +914,7 @@ public interface AxiLiteControl {
                 {
                     emitter().increaseIndentation();
 
-                    emitter().emit("if (w_hs && waddr == LP_ADDR_%s_buffer_0)", port.getName().toUpperCase());
+                    emitter().emit("if (w_hs && waddr == LP_ADDR_%s_buffer_0)", port.getName());
                     emitter().emit("\tint_%s_buffer[0+:32] <= (wdata[0+:32] & wmask[0+:32]) | (int_%1$s_buffer[0+:32] & ~wmask[0+:32]);", port.getName());
 
                     emitter().decreaseIndentation();
@@ -907,7 +938,7 @@ public interface AxiLiteControl {
                 {
                     emitter().increaseIndentation();
 
-                    emitter().emit("if (w_hs && waddr == LP_ADDR_%s_buffer_1)", port.getName().toUpperCase());
+                    emitter().emit("if (w_hs && waddr == LP_ADDR_%s_buffer_1)", port.getName());
                     emitter().emit("\tint_%s_buffer[32+:32] <= (wdata[0+:32] & wmask[0+:32]) | (int_%1$s_buffer[32+:32] & ~wmask[0+:32]);", port.getName());
 
                     emitter().decreaseIndentation();

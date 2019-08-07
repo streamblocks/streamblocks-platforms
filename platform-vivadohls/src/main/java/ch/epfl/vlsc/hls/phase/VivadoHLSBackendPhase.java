@@ -201,7 +201,10 @@ public class VivadoHLSBackendPhase implements Phase {
         backend.axilitecontrol().getAxiLiteControl();
 
         // -- Kernel Wrapper
-        backend.kenrelwrapper().getKernelWrapper();
+        backend.kernelwrapper().getKernelWrapper();
+
+        // -- Kernel XML
+        backend.kernelxml().getKernelXml();
     }
 
     /**

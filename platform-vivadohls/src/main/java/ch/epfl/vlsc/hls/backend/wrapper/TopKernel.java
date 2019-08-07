@@ -170,6 +170,7 @@ public interface TopKernel {
         emitter().emitClikeBlockComment("Reg & Wires");
         emitter().emitNewLine();
 
+        emitter().emit("(* DONT_TOUCH = \"yes\" *)");
         emitter().emit("reg     areset = 1'b0;");
         emitter().emit("wire    ap_start;");
         emitter().emit("wire    ap_idle;");
