@@ -560,8 +560,9 @@ ART_ACTION_SCHEDULER(sender_action_scheduler) {
     }
 
     TokenizedBuffer<byte_t> stagingBuffer;
-    while (!instance->bufferPool->try_dequeue_free_buffer(stagingBuffer))
-      ;
+    if (!instance->bufferPool->try_dequeue_free_buffer(stagingBuffer))
+        return EXIT_CODE_YIELD;
+
     auto bufferCapacity = stagingBuffer.get_capacity() / tokenSize;
     auto count = (avail <= bufferCapacity) ? avail : bufferCapacity;
     auto buffer = stagingBuffer.to_c_buffer();
