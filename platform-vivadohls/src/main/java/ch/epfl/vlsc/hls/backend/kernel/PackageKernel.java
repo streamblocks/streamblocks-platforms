@@ -30,8 +30,8 @@ public interface PackageKernel {
         emitter().open(PathUtils.getTargetScript(backend().context()).resolve("package_kernel.tcl.in"));
 
         // -- Paths
-        emitter().emit("set path_to_packaged \"${CMAKE_SOURCE_DIR}/output/kernel/packaged_kernel_${suffix}\"");
-        emitter().emit("set path_to_tmp_project \"${CMAKE_SOURCE_DIR}/output/kernel/tmp_kernel_pack_${suffix}\"");
+        emitter().emit("set path_to_packaged \"@CMAKE_SOURCE_DIR@/output/kernel/packaged_kernel_${suffix}\"");
+        emitter().emit("set path_to_tmp_project \"@CMAKE_SOURCE_DIR@/output/kernel/tmp_kernel_pack_${suffix}\"");
         emitter().emitNewLine();
 
         // -- Create Project
@@ -99,16 +99,16 @@ public interface PackageKernel {
 
     default void importKernelVerilogFiles(String identifier) {
         emitter().emitSharpBlockComment("Import StreamBlocks Kernel Verilog RTL files");
-        emitter().emit("import_files -norecurse {${CMAKE_SOURCE_DIR}/code-gen/rtl/%s_kernel.v}", identifier);
-        emitter().emit("import_files -norecurse {${CMAKE_SOURCE_DIR}/code-gen/rtl/%s_wrapper.sv}", identifier);
-        emitter().emit("import_files -norecurse {${CMAKE_SOURCE_DIR}/code-gen/rtl/%s_control_s_axi.v}", identifier);
+        emitter().emit("import_files -norecurse {@CMAKE_SOURCE_DIR@/code-gen/rtl/%s_kernel.v}", identifier);
+        emitter().emit("import_files -norecurse {@CMAKE_SOURCE_DIR@/code-gen/rtl/%s_wrapper.sv}", identifier);
+        emitter().emit("import_files -norecurse {@CMAKE_SOURCE_DIR@/code-gen/rtl/%s_control_s_axi.v}", identifier);
         emitter().emitNewLine();
     }
 
     default void importVivadoHLSIOStage(PortDecl port, boolean isInput) {
         String ioStageId = port.getName() + (isInput ? "_input" : "_output") + "_stage";
         emitter().emit("# -- Import files for %s", ioStageId);
-        emitter().emit("set %s_files [glob -directory ${CMAKE_CURRENT_BINARY_DIR}/%1$s/solution/syn/verilog *{v,dat}]", ioStageId);
+        emitter().emit("set %s_files [glob -directory @CMAKE_CURRENT_BINARY_DIR@/%1$s/solution/syn/verilog *{v,dat}]", ioStageId);
         emitter().emit("import_files -norecurse $%s_files", ioStageId);
         emitter().emitNewLine();
     }

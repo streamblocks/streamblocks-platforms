@@ -11,10 +11,10 @@ set device    [lindex $::argv 3]
 
 set suffix "${krnl_name}_${target}_${device}"
 
-source -notrace .${CMAKE_SOURCE_DIR}/code-gen/tcl/package_kernel.tcl
+source -notrace ./package_kernel.tcl
 
 if {[file exists "${xoname}"]} {
     file delete -force "${xoname}"
 }
 
-package_xo -xo_path ${xoname} -kernel_name krnl_vadd_rtl -ip_directory ${CMAKE_SOURCE_DIR}/output/kernel/packaged_kernel_${suffix} -kernel_xml ${CMAKE_SOURCE_DIR}/code-gen/src/kernel.xml
+package_xo -xo_path ${xoname} -kernel_name krnl_vadd_rtl -ip_directory @CMAKE_SOURCE_DIR@/output/kernel/packaged_kernel_${suffix} -kernel_xml @CMAKE_SOURCE_DIR@/code-gen/src/kernel.xml

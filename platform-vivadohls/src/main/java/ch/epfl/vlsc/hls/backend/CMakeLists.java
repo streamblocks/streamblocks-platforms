@@ -36,6 +36,9 @@ public interface CMakeLists {
         emitter().emit("project (%s)", identifier);
         emitter().emitNewLine();
 
+        // -- SDAccel Kernel Option
+        emitter().emit("option(SDACCEL \"Build an RTL OpenCL Kernel for SDAccel\" OFF)");
+
         // -- Set FPGA name
         emitter().emit("set(FPGA_NAME \"xc7z020clg484-1\" CACHE STRING \"Name of Xilinx FPGA\")");
         emitter().emitNewLine();
@@ -69,7 +72,17 @@ public interface CMakeLists {
 
         // -- Synthesis configure file
         emitter().emit("configure_file(${CMAKE_SOURCE_DIR}/scripts/Synthesis.tcl.in Synthesis.tcl)");
-        emitter().emit("configure_file(${CMAKE_SOURCE_DIR}/scripts/%s.tcl.in %1$s.tcl)", identifier);
+        emitter().emit("configure_file(${CMAKE_SOURCE_DIR}/scripts/%s.tcl.in %1$s.tcl @ONLY)", identifier);
+        emitter().emit("if(SDACCEL)");
+        {
+            emitter().increaseIndentation();
+
+            emitter().emit("configure_file(${CMAKE_SOURCE_DIR}/scripts/package_kernel.tcl.in package_kernel.tcl @ONLY)");
+            emitter().emit("configure_file(${CMAKE_SOURCE_DIR}/scripts/gen_xo.tcl.in gen_xo.tcl @ONLY)");
+
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("endif()");
         emitter().emitNewLine();
 
         // -- Source and Include folders

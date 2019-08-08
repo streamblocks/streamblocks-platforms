@@ -1,6 +1,5 @@
 package ch.epfl.vlsc.hls.phase;
 
-import ch.epfl.vlsc.hls.backend.Controllers;
 import ch.epfl.vlsc.hls.backend.VivadoHLSBackend;
 import ch.epfl.vlsc.platformutils.PathUtils;
 import ch.epfl.vlsc.settings.PlatformSettings;
@@ -279,6 +278,9 @@ public class VivadoHLSBackendPhase implements Phase {
 
             // -- Synthesis script for Vivado HLS as an input to CMake
             Files.copy(getClass().getResourceAsStream("/lib/cmake/Synthesis.tcl.in"), PathUtils.getTargetScripts(backend.context()).resolve("Synthesis.tcl.in"), StandardCopyOption.REPLACE_EXISTING);
+
+            // -- Gen XO
+            Files.copy(getClass().getResourceAsStream("/lib/cmake/gen_xo.tcl.in"), PathUtils.getTargetScripts(backend.context()).resolve("gen_xo.tcl.in"), StandardCopyOption.REPLACE_EXISTING);
 
 
         } catch (IOException e) {
