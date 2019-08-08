@@ -113,6 +113,8 @@ public class VivadoHLSBackendPhase implements Phase {
         // -- Fifo traces
         PathUtils.createDirectory(outputPath, "fifo-traces");
 
+        // -- Kernel path
+        PathUtils.createDirectory(outputPath, "kernel");
     }
 
     @Override
@@ -205,6 +207,9 @@ public class VivadoHLSBackendPhase implements Phase {
 
         // -- Kernel XML
         backend.kernelxml().getKernelXml();
+
+        // -- TCL script for packaging the OpenCL RTL Kernel
+        backend.packagekernel().getPackageKernel();
     }
 
     /**
