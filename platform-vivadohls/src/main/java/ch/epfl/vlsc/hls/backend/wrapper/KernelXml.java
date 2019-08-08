@@ -28,7 +28,7 @@ public interface KernelXml {
         // -- Network file
         emitter().open(PathUtils.getTargetCodeGenRtl(backend().context()).resolve("kernel.xml"));
         emitter().emit("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
-        emitter().emit("<root versionMajor=\"1\" versionMinor=\"5\">");
+        emitter().emit("<root versionMajor=\"1\" versionMinor=\"0\">");
         {
             emitter().increaseIndentation();
 
