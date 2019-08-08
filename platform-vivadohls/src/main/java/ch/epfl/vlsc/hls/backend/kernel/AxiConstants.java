@@ -1,4 +1,4 @@
-package ch.epfl.vlsc.hls.backend.wrapper;
+package ch.epfl.vlsc.hls.backend.kernel;
 
 public class AxiConstants {
 

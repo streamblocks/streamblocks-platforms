@@ -1,4 +1,4 @@
-package ch.epfl.vlsc.hls.backend.wrapper;
+package ch.epfl.vlsc.hls.backend.kernel;
 
 import ch.epfl.vlsc.hls.backend.VivadoHLSBackend;
 import ch.epfl.vlsc.platformutils.Emitter;
