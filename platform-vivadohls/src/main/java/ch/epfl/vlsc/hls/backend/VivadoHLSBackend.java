@@ -205,6 +205,14 @@ public interface VivadoHLSBackend {
     @Binding(LAZY)
     default KernelWrapper kernelwrapper() {return MultiJ.from(KernelWrapper.class).bind("backend").to(this).instance();}
 
+    // -- Input Stage
+    @Binding(LAZY)
+    default InputStage inputstage() {return MultiJ.from(InputStage.class).bind("backend").to(this).instance();}
+
+    // -- Output Stage
+    @Binding(LAZY)
+    default OutputStage outputstage() {return MultiJ.from(OutputStage.class).bind("backend").to(this).instance();}
+
     // -- OpenCL Kernel XML
     @Binding(LAZY)
     default KernelXml kernelxml() {return MultiJ.from(KernelXml.class).bind("backend").to(this).instance();}

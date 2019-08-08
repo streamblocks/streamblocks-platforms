@@ -8,6 +8,7 @@ import se.lth.cs.tycho.compiler.CompilationTask;
 import se.lth.cs.tycho.compiler.Compiler;
 import se.lth.cs.tycho.compiler.Context;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
+import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.network.Network;
 import se.lth.cs.tycho.ir.util.ImmutableList;
@@ -203,6 +204,16 @@ public class VivadoHLSBackendPhase implements Phase {
 
         // -- Kernel Wrapper
         backend.kernelwrapper().getKernelWrapper();
+
+        // -- Input Stage
+        for(PortDecl port : backend.task().getNetwork().getInputPorts()){
+            backend.inputstage().getInputStage(port);
+        }
+
+        // -- Output Stage
+        for(PortDecl port : backend.task().getNetwork().getInputPorts()){
+            backend.outputstage().getOutputStage(port);
+        }
 
         // -- Kernel XML
         backend.kernelxml().getKernelXml();
