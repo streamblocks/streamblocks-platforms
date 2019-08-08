@@ -64,6 +64,7 @@
 #include "actors-network.h"
 #include "actors-teleport.h"
 #include "actors-rts.h"
+#include "readerwriterqueue.h"
 
 /* ------------------------------------------------------------------------- */
 
@@ -74,6 +75,8 @@
  */
 static dllist_head_t instances;   /* active, executing instances */
 static dllist_head_t disabled_instances;/* disabled, non-executing instances */
+
+extern moodycamel::ReaderWriterQueue<std::string> enabledActors;
 
 /* TODO: make it possible to configure this on a per-connection basis */
 #define FIFO_CAPACITY  (8192)
@@ -340,6 +343,10 @@ static inline int postFire(AbstractActorInstance *actor) {
 /* ------------------------------------------------------------------------- */
 
 static void workerThreadMain() {
+    dllist_create(&instances);
+    dllist_create(&disabled_instances);
+
+
     while (1) {
         int fired = 1;
 
@@ -378,6 +385,16 @@ static void workerThreadMain() {
                     thread_state.wakeup_cond.wait(lk);
 
                 }
+
+                // -- Check if we need to enable an actor
+                while(1){
+                    std::string name;
+                    if(enabledActors.try_dequeue(name)){
+                        enableActorInstance(name.c_str());
+                    }else{
+                        break;
+                    }
+                }
             }
         }
 #endif
@@ -388,9 +405,6 @@ static void workerThreadMain() {
 /* ========================================================================= */
 
 void initActorNetwork(void) {
-    dllist_create(&instances);
-    dllist_create(&disabled_instances);
-
 
 #ifdef CALVIN_BLOCK_ON_IDLE
     thread_state.state = thread_state.ACTOR_THREAD_BUSY;
@@ -474,8 +488,6 @@ void enableActorInstance(const char *actor_name) {
 
     dllist_remove(&disabled_instances, &instance->listEntry);
     dllist_append(&instances, &instance->listEntry);
-
-    wakeUpNetwork();
 }
 
 /* ------------------------------------------------------------------------- */

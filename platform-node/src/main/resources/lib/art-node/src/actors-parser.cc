@@ -64,6 +64,7 @@ typedef int SOCKET;
 
 #include "actors-network.h"
 #include "actors-registry.h"
+#include "readerwriterqueue.h"
 
 #if defined(_WIN32) || defined(_WIN64)
 #define snprintf _snprintf
@@ -83,6 +84,9 @@ typedef int SOCKET;
 
 /* Max number of simultaneous clients to socket server */
 #define MAX_CLIENTS  (10)
+
+/* FIFO for enabling actors */
+moodycamel::ReaderWriterQueue<std::string> enabledActors(100);
 
 /* ========================================================================= */
 
@@ -419,9 +423,12 @@ static void enable_handler(struct parser_state *state) {
     }
 
     do {
-        enableActorInstance(actor_name);
+        std::string name = actor_name;
+        enabledActors.enqueue(name);
         actor_name = get_next_word(state);
     } while (actor_name);
+
+     wakeUpNetwork();
 
     ok(state, "enabled");
 }
