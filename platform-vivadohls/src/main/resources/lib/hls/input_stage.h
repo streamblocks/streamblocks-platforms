@@ -35,39 +35,97 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
- #ifndef _INPUT_STAGE_H
- #define _INPUT_STAGE_H
+#ifndef _INPUT_STAGE_H
+#define _INPUT_STAGE_H
 
- #include <hls_stream.h>
- #include <string.h>
+#define SENDING 0
+#define WAITING_OUTPUT 1
+#define READING_TO_MEMORY 2
+#define BURST_READING_TO_MEMORY 3
+#define DONE_SENDING 4
 
- #define MAX_BUFFER_SIZE 4096
+#include <stdint.h>
+#include <hls_stream.h>
 
- template<typename T>
- class class_input_stage{
- private :
- 	T buffer[MAX_BUFFER_SIZE];
+#define MAX_BUFFER_SIZE 4096
 
- public :
- 	void operator()(T *input, int size, hls::stream< T > &STREAM);
- };
+template<typename T>
+class class_input_stage {
+private:
+	uint32_t token_counter = 0;
 
-/
- template<typename T>
- void class_input_stage< T >::operator()(T *input, int size, hls::stream< T > &STREAM) {
- #pragma HLS INLINE
+	uint32_t program_counter = 0;
 
- 	read_mem: for(int i = 0; i < size; i++){
- #pragma HLS PIPELINE
- #pragma HLS LOOP_TRIPCOUNT min=0 max=4096
- 		buffer[i] = input[i];
- 	}
+	T buffer[MAX_BUFFER_SIZE];
 
- 	write_to_fifo: for(int i = 0; i < size; i++){
- #pragma HLS PIPELINE
- #pragma HLS LOOP_TRIPCOUNT min=0 max=4096
- 		STREAM.write(buffer[i]);
- 	}
- }
+public:
+	uint32_t operator()(bool core_done, uint32_t requested_size, uint32_t *size,
+			uint64_t *input, hls::stream<T> &STREAM);
+};
 
- #endif //_INPUT_STAGE_H
+template<typename T>
+uint32_t class_input_stage<T>::operator()(bool core_done, uint32_t requested_size,
+		uint32_t *size, uint64_t *input, hls::stream<T> &STREAM) {
+#pragma HLS INLINE
+
+	int ret = SENDING;
+
+	switch (program_counter){
+	case 0:
+			goto READING;
+	case 1:
+			goto CHECK_OUTPUT;
+	}
+
+	CHECK_DONE: {
+			if (core_done) {
+				ret = DONE_SENDING;
+				goto OUT;
+			}else{
+				goto CHECK_OUTPUT;
+			}
+		}
+
+	READING: {
+		for (int i = 0; i < requested_size; i++) {
+#pragma HLS LOOP_TRIPCOUNT min=0 max=4096
+#pragma HLS PIPELINE
+			buffer[i] = input[i];
+		}
+		goto CHECK_DONE;
+	}
+
+	CHECK_OUTPUT:{
+		if(STREAM.full()){
+			ret = WAITING_OUTPUT;
+			program_counter = 1;
+			goto OUT;
+		}else{
+			if(token_counter == (requested_size -1) ){
+				goto DONE;
+			}else{
+				goto SEND;
+			}
+		}
+	}
+
+	SEND:{
+		T value = ( T ) buffer[token_counter];
+		STREAM.write(value);
+		token_counter++;
+		ret = SENDING;
+		goto OUT;
+	}
+
+	DONE:{
+		*size = token_counter;
+		program_counter = 0;
+		token_counter = 0;
+		ret = DONE_SENDING;
+		goto OUT;
+	}
+
+	OUT: return ret;
+}
+
+#endif //_INPUT_STAGE_H

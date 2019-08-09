@@ -43,7 +43,7 @@ public interface InputStage {
             emitter().emit("static class_input_stage< %s > i_%s_input_stage;", backend().declarations().declaration(backend().types().declaredPortType(port), ""), port.getName());
             emitter().emitNewLine();
 
-            emitter().emit("return i_%s_input_stage(%1$s_requested_size, %1$s_size, %1$s_buffer, %1$s, io);", port.getName());
+            emitter().emit("return i_%s_input_stage(core_done, %1$s_requested_size, %1$s_size, %1$s_buffer, %1$s);", port.getName());
 
 
             emitter().decreaseIndentation();
@@ -55,12 +55,12 @@ public interface InputStage {
     default String entityPorts (PortDecl port){
         Type type = backend().types().declaredPortType(port);
         List<String> ports = new ArrayList<>();
+        ports.add("bool core_done");
         ports.add(String.format("uint32_t %s_requested_size", port.getName()));
         ports.add(String.format("uint32_t *%s_size", port.getName()));
-        ports.add(String.format("%s *%s_buffer", backend().declarations().declaration(type, ""), port.getName()));
+        ports.add(String.format("uint64_t *%s_buffer", port.getName()));
 
         ports.add(backend().declarations().portDeclaration(port));
-        ports.add("IO io");
         return String.join(", ", ports);
     }
 
