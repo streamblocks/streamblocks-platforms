@@ -57,7 +57,7 @@ public interface VivadoTCL {
 
     default void createProject(String identifier){
         emitter().emit("# -- Create project");
-        emitter().emit("create_project %s @CMAKE_SOURCE_DIR@/output/%1$s -part ${FPGA_NAME} -force", identifier);
+        emitter().emit("create_project %s @CMAKE_SOURCE_DIR@/output/%1$s -part @FPGA_NAME@ -force", identifier);
         emitter().emitNewLine();
     }
 

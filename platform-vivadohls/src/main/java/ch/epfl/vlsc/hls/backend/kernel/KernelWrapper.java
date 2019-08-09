@@ -82,6 +82,9 @@ public interface KernelWrapper {
             getOutputStage(port);
         }
 
+        emitter().emit("endmodule : %s_wrapper", identifier);
+        emitter().emit("`default_nettype wire");
+
         emitter().close();
     }
 
@@ -196,11 +199,10 @@ public interface KernelWrapper {
         {
             emitter().increaseIndentation();
 
-            emitter().emit("if (areset)");
+            emitter().emit("if (ap_rst_n == 1'b0)");
             emitter().emit("\tap_idle_r <= 1'b1;");
             emitter().emit("else");
             emitter().emit("\tap_idle_r <= ap_done ? 1'b1 : ap_start_pulse ? 1'b0 : ap_idle;");
-            emitter().emit("end");
 
             emitter().decreaseIndentation();
         }
@@ -215,11 +217,10 @@ public interface KernelWrapper {
         {
             emitter().increaseIndentation();
 
-            emitter().emit("if (areset)");
+            emitter().emit("if (ap_rst_n == 1'b0)");
             emitter().emit("\tap_done_r <= 1'b0;");
             emitter().emit("else");
             emitter().emit("\tap_done_r <= 1'b0; // TODO");
-            emitter().emit("end");
 
             emitter().decreaseIndentation();
         }
@@ -306,9 +307,9 @@ public interface KernelWrapper {
             // -- AXI Master
             getAxiMasterConnections(port);
             // -- Direct address
-            emitter().emit(".%s_requested_size(.%1$s_requested_size),", port.getName());
-            emitter().emit(".%s_size(.%1$s_size),", port.getName());
-            emitter().emit(".%s_buffer(.%1$s_buffer),", port.getName());
+            emitter().emit(".%s_requested_size(%1$s_requested_size),", port.getName());
+            emitter().emit(".%s_size(%1$s_size),", port.getName());
+            emitter().emit(".%s_buffer(%1$s_buffer),", port.getName());
             // -- FIFO I/O
             emitter().emit(".%s_V_din(%1$s_din),", port.getName());
             emitter().emit(".%s_V_full_n(%1$s_full_n),", port.getName());
@@ -328,12 +329,12 @@ public interface KernelWrapper {
             for (PortDecl port : network.getInputPorts()) {
                 emitter().emit(".%s_din(%1$s_din),", port.getName());
                 emitter().emit(".%s_full_n(%1$s_full_n),", port.getName());
-                emitter().emit(".%s_write(%1$s_write)", port.getName());
+                emitter().emit(".%s_write(%1$s_write),", port.getName());
             }
             for (PortDecl port : network.getOutputPorts()) {
                 emitter().emit(".%s_dout(%1$s_dout),", port.getName());
                 emitter().emit(".%s_empty_n(%1$s_empty_n),", port.getName());
-                emitter().emit(".%s_read(%1$s_read)", port.getName());
+                emitter().emit(".%s_read(%1$s_read),", port.getName());
             }
             emitter().emit(".ap_clk(ap_clk),");
             emitter().emit(".ap_rst_n(ap_rst_n),");
@@ -376,9 +377,9 @@ public interface KernelWrapper {
             // -- AXI Master
             getAxiMasterConnections(port);
             // -- Direct address
-            emitter().emit(".%s_available_size(.%1$s_available_size),", port.getName());
-            emitter().emit(".%s_size(.%1$s_size),", port.getName());
-            emitter().emit(".%s_buffer(.%1$s_buffer),", port.getName());
+            emitter().emit(".%s_available_size(%1$s_available_size),", port.getName());
+            emitter().emit(".%s_size(%1$s_size),", port.getName());
+            emitter().emit(".%s_buffer(%1$s_buffer),", port.getName());
             // -- FIFO I/O
             emitter().emit(".%s_V_dout(%1$s_dout),", port.getName());
             emitter().emit(".%s_V_empty_n(%1$s_empty_n),", port.getName());

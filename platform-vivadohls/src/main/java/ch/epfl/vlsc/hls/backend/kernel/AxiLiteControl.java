@@ -91,9 +91,9 @@ public interface AxiLiteControl {
 
     default void getAxiSlaveIO(Network network) {
         // -- System signals
-        emitter().emit("input   wire    ap_clk,");
-        emitter().emit("input   wire    ap_rst_n,");
-
+        emitter().emit("input   wire    aclk,");
+        emitter().emit("input   wire    areset,");
+        emitter().emit("input   wire    aclk_en,");
         emitter().emit("input   wire    awvalid,");
         emitter().emit("output  wire    awready,");
         emitter().emit("input   wire    [C_S_AXI_CONTROL_ADDR_WIDTH-1:0]    awaddr,");
@@ -139,42 +139,42 @@ public interface AxiLiteControl {
         emitter().emitClikeBlockComment("Local Parameters");
         emitter().emitNewLine();
         int value = 0;
-        emitter().emit("localparam  [C_ADDR_WIDTH-1:0]  LP_ADDR_AP_CTRL = 12'h%s;", String.format("%03x", value));
+        emitter().emit("localparam  [C_S_AXI_CONTROL_ADDR_WIDTH-1:0]  LP_ADDR_AP_CTRL = 12'h%s;", String.format("%03x", value));
         value += 4;
-        emitter().emit("localparam  [C_ADDR_WIDTH-1:0]  LP_ADDR_GIE = 12'h%s;", String.format("%03x", value));
+        emitter().emit("localparam  [C_S_AXI_CONTROL_ADDR_WIDTH-1:0]  LP_ADDR_GIE = 12'h%s;", String.format("%03x", value));
         value += 4;
-        emitter().emit("localparam  [C_ADDR_WIDTH-1:0]  LP_ADDR_IER = 12'h%s;", String.format("%03x", value));
+        emitter().emit("localparam  [C_S_AXI_CONTROL_ADDR_WIDTH-1:0]  LP_ADDR_IER = 12'h%s;", String.format("%03x", value));
         value += 4;
-        emitter().emit("localparam  [C_ADDR_WIDTH-1:0]  LP_ADDR_ISR = 12'h%s;", String.format("%03x", value));
+        emitter().emit("localparam  [C_S_AXI_CONTROL_ADDR_WIDTH-1:0]  LP_ADDR_ISR = 12'h%s;", String.format("%03x", value));
         value += 4;
         for (PortDecl port : network.getInputPorts()) {
-            emitter().emit("localparam  [C_ADDR_WIDTH-1:0]  LP_ADDR_%s_REQUESTED_SIZE_0 = 12'h%s;", port.getName().toUpperCase(), String.format("%03x", value));
+            emitter().emit("localparam  [C_S_AXI_CONTROL_ADDR_WIDTH-1:0]  LP_ADDR_%s_REQUESTED_SIZE_0 = 12'h%s;", port.getName().toUpperCase(), String.format("%03x", value));
             value += 4;
         }
         for (PortDecl port : network.getOutputPorts()) {
-            emitter().emit("localparam  [C_ADDR_WIDTH-1:0]  LP_ADDR_%s_AVAILABLE_SIZE_0 = 12'h%s;", port.getName().toUpperCase(), String.format("%03x", value));
+            emitter().emit("localparam  [C_S_AXI_CONTROL_ADDR_WIDTH-1:0]  LP_ADDR_%s_AVAILABLE_SIZE_0 = 12'h%s;", port.getName().toUpperCase(), String.format("%03x", value));
             value += 4;
         }
         // -- reserved address
         value += 4;
         for (PortDecl port : network.getInputPorts()) {
-            emitter().emit("localparam  [C_ADDR_WIDTH-1:0]  LP_ADDR_%s_size_0 = 12'h%s;", port.getName().toUpperCase(), String.format("%03x", value));
+            emitter().emit("localparam  [C_S_AXI_CONTROL_ADDR_WIDTH-1:0]  LP_ADDR_%s_size_0 = 12'h%s;", port.getName().toUpperCase(), String.format("%03x", value));
             value += 4;
-            emitter().emit("localparam  [C_ADDR_WIDTH-1:0]  LP_ADDR_%s_size_1 = 12'h%s;", port.getName(), String.format("%03x", value));
+            emitter().emit("localparam  [C_S_AXI_CONTROL_ADDR_WIDTH-1:0]  LP_ADDR_%s_size_1 = 12'h%s;", port.getName(), String.format("%03x", value));
             value += 4;
-            emitter().emit("localparam  [C_ADDR_WIDTH-1:0]  LP_ADDR_%s_buffer_0 = 12'h%s;", port.getName(), String.format("%03x", value));
+            emitter().emit("localparam  [C_S_AXI_CONTROL_ADDR_WIDTH-1:0]  LP_ADDR_%s_buffer_0 = 12'h%s;", port.getName(), String.format("%03x", value));
             value += 4;
-            emitter().emit("localparam  [C_ADDR_WIDTH-1:0]  LP_ADDR_%s_buffer_1 = 12'h%s;", port.getName(), String.format("%03x", value));
+            emitter().emit("localparam  [C_S_AXI_CONTROL_ADDR_WIDTH-1:0]  LP_ADDR_%s_buffer_1 = 12'h%s;", port.getName(), String.format("%03x", value));
             value += 4;
         }
         for (PortDecl port : network.getOutputPorts()) {
-            emitter().emit("localparam  [C_ADDR_WIDTH-1:0]  LP_ADDR_%s_size_0 = 12'h%s;", port.getName(), String.format("%03x", value));
+            emitter().emit("localparam  [C_S_AXI_CONTROL_ADDR_WIDTH-1:0]  LP_ADDR_%s_size_0 = 12'h%s;", port.getName(), String.format("%03x", value));
             value += 4;
-            emitter().emit("localparam  [C_ADDR_WIDTH-1:0]  LP_ADDR_%s_size_1 = 12'h%s;", port.getName(), String.format("%03x", value));
+            emitter().emit("localparam  [C_S_AXI_CONTROL_ADDR_WIDTH-1:0]  LP_ADDR_%s_size_1 = 12'h%s;", port.getName(), String.format("%03x", value));
             value += 4;
-            emitter().emit("localparam  [C_ADDR_WIDTH-1:0]  LP_ADDR_%s_buffer_0 = 12'h%s;", port.getName(), String.format("%03x", value));
+            emitter().emit("localparam  [C_S_AXI_CONTROL_ADDR_WIDTH-1:0]  LP_ADDR_%s_buffer_0 = 12'h%s;", port.getName(), String.format("%03x", value));
             value += 4;
-            emitter().emit("localparam  [C_ADDR_WIDTH-1:0]  LP_ADDR_%s_buffer_1 = 12'h%s;", port.getName(), String.format("%03x", value));
+            emitter().emit("localparam  [C_S_AXI_CONTROL_ADDR_WIDTH-1:0]  LP_ADDR_%s_buffer_1 = 12'h%s;", port.getName(), String.format("%03x", value));
             value += 4;
         }
 
@@ -195,15 +195,15 @@ public interface AxiLiteControl {
 
         emitter().emit("reg   [LP_SM_WIDTH-1:0]   wstate  = SM_WRRESET;");
         emitter().emit("reg   [LP_SM_WIDTH-1:0]   wnext;");
-        emitter().emit("reg   [C_ADDR_WIDTH-1:0]  waddr;");
-        emitter().emit("wire  [C_DATA_WIDTH-1:0]  wmask;");
+        emitter().emit("reg   [C_S_AXI_CONTROL_ADDR_WIDTH-1:0]  waddr;");
+        emitter().emit("wire  [C_S_AXI_CONTROL_DATA_WIDTH-1:0]  wmask;");
         emitter().emit("wire  aw_hs;");
         emitter().emit("wire  w_hs;");
         emitter().emit("reg   [LP_SM_WIDTH-1:0]   rstate  = SM_RDRESET;");
         emitter().emit("reg   [LP_SM_WIDTH-1:0]   rnext;");
-        emitter().emit("reg   [C_DATA_WIDTH-1:0]  rdata_r;");
+        emitter().emit("reg   [C_S_AXI_CONTROL_DATA_WIDTH-1:0]  rdata_r;");
         emitter().emit("wire  ar_hs;");
-        emitter().emit("wire  [C_ADDR_WIDTH-1:0]  raddr;");
+        emitter().emit("wire  [C_S_AXI_CONTROL_ADDR_WIDTH-1:0]  raddr;");
         emitter().emitNewLine();
 
         emitter().emit("// -- Internal Registers");
@@ -429,7 +429,7 @@ public interface AxiLiteControl {
                 {
                     emitter().increaseIndentation();
 
-                    emitter().emit("rdata_r <= {C_DATA_WIDTH{1'b0}};");
+                    emitter().emit("rdata_r <= {C_S_AXI_CONTROL_DATA_WIDTH{1'b0}};");
                     emitter().emit("case (raddr)");
                     {
                         emitter().increaseIndentation();
@@ -442,7 +442,7 @@ public interface AxiLiteControl {
                             emitter().emit("rdata_r[0] <= int_ap_start;");
                             emitter().emit("rdata_r[1] <= int_ap_done;");
                             emitter().emit("rdata_r[2] <= int_ap_idle;");
-                            emitter().emit("rdata_r[3+:C_DATA_WIDTH-3] <= {C_DATA_WIDTH-3{1'b0}};");
+                            emitter().emit("rdata_r[3+:C_S_AXI_CONTROL_DATA_WIDTH-3] <= {C_S_AXI_CONTROL_DATA_WIDTH-3{1'b0}};");
 
                             emitter().decreaseIndentation();
                         }
@@ -454,7 +454,7 @@ public interface AxiLiteControl {
                             emitter().increaseIndentation();
 
                             emitter().emit("rdata_r[0] <= int_gie;");
-                            emitter().emit("rdata_r[1+:C_DATA_WIDTH-1] <= {C_DATA_WIDTH-1{1'b0}};");
+                            emitter().emit("rdata_r[1+:C_S_AXI_CONTROL_DATA_WIDTH-1] <= {C_S_AXI_CONTROL_DATA_WIDTH-1{1'b0}};");
 
                             emitter().decreaseIndentation();
                         }
@@ -466,7 +466,7 @@ public interface AxiLiteControl {
                             emitter().increaseIndentation();
 
                             emitter().emit("rdata_r[0] <= int_ier;");
-                            emitter().emit("rdata_r[1+:C_DATA_WIDTH-1] <=  {C_DATA_WIDTH-1{1'b0}};");
+                            emitter().emit("rdata_r[1+:C_S_AXI_CONTROL_DATA_WIDTH-1] <=  {C_S_AXI_CONTROL_DATA_WIDTH-1{1'b0}};");
 
                             emitter().decreaseIndentation();
                         }
@@ -478,7 +478,7 @@ public interface AxiLiteControl {
                             emitter().increaseIndentation();
 
                             emitter().emit("rdata_r[0] <= int_isr;");
-                            emitter().emit("rdata_r[1+:C_DATA_WIDTH-1] <=  {C_DATA_WIDTH-1{1'b0}};");
+                            emitter().emit("rdata_r[1+:C_S_AXI_CONTROL_DATA_WIDTH-1] <=  {C_S_AXI_CONTROL_DATA_WIDTH-1{1'b0}};");
 
                             emitter().decreaseIndentation();
                         }
@@ -590,7 +590,7 @@ public interface AxiLiteControl {
 
                         // -- default
                         emitter().emit("default: begin");
-                        emitter().emit("\trdata_r <= {C_DATA_WIDTH{1'b0}};");
+                        emitter().emit("\trdata_r <= {C_S_AXI_CONTROL_DATA_WIDTH{1'b0}};");
                         emitter().emit("end");
 
                         emitter().decreaseIndentation();
@@ -668,7 +668,7 @@ public interface AxiLiteControl {
                 emitter().increaseIndentation();
 
                 emitter().emit("if (ap_done)");
-                emitter().emit("\tint_ap_done <= 1'b1");
+                emitter().emit("\tint_ap_done <= 1'b1;");
                 emitter().emit("else if (ar_hs && raddr == LP_ADDR_AP_CTRL)");
                 emitter().emit("\tint_ap_done <= 1'b0; // clear on read");
 
@@ -740,7 +740,6 @@ public interface AxiLiteControl {
                 emitter().emit("\tint_isr <= 1'b1;");
                 emitter().emit("else if (w_hs && waddr == LP_ADDR_ISR && wstrb[0])");
                 emitter().emit("\tint_isr <= int_isr ^ wdata[0];");
-                emitter().emit("end");
                 emitter().decreaseIndentation();
             }
             emitter().emit("end");
