@@ -212,8 +212,8 @@ public interface TopKernel {
         emitter().emit("%s_control_s_axi #(", identifier);
         {
             emitter().increaseIndentation();
-            emitter().emit(".C_ADDR_WIDTH ( C_S_AXI_CONTROL_ADDR_WIDTH ),");
-            emitter().emit(".C_DATA_WIDTH ( C_S_AXI_CONTROL_DATA_WIDTH )");
+            emitter().emit(".C_S_AXI_CONTROL_ADDR_WIDTH ( C_S_AXI_CONTROL_ADDR_WIDTH ),");
+            emitter().emit(".C_S_AXI_CONTROL_DATA_WIDTH ( C_S_AXI_CONTROL_DATA_WIDTH )");
             emitter().decreaseIndentation();
         }
         emitter().emit(")");
@@ -294,7 +294,7 @@ public interface TopKernel {
         emitter().emit("inst_wrapper (");
         {
             emitter().increaseIndentation();
-            emitter().emit(".aclk( ap_clk ),");
+            emitter().emit(".ap_clk( ap_clk ),");
             emitter().emit(".ap_rst_n( ap_rst_n ),");
 
             if (!network.getInputPorts().isEmpty()) {
