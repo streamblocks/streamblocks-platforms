@@ -227,6 +227,7 @@ public interface TopKernel {
             emitter().emit(".awvalid( s_axi_control_awvalid ),");
             emitter().emit(".awready( s_axi_control_awready ),");
             emitter().emit(".awaddr( s_axi_control_awaddr ),");
+            emitter().emit(".wvalid( s_axi_control_wvalid  ),");
             emitter().emit(".wready( s_axi_control_wready ),");
             emitter().emit(".wdata( s_axi_control_wdata ),");
             emitter().emit(".wstrb( s_axi_control_wstrb ),");
