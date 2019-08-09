@@ -8,5 +8,5 @@ public class AxiConstants {
 
     static final int C_M_AXI_ADDR_WIDTH = 64;
 
-    static final int C_M_AXI_DATA_WIDTH = 256;
+    static final int C_M_AXI_DATA_WIDTH = 512;
 }

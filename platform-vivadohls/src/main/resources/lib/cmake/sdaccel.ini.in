@@ -1,0 +1,6 @@
+[Debug]
+profile=true
+timeline_trace=true
+device_profile=true
+[Emulation]
+launch_waveform=gui

@@ -206,12 +206,12 @@ public class VivadoHLSBackendPhase implements Phase {
         backend.kernelwrapper().getKernelWrapper();
 
         // -- Input Stage
-        for(PortDecl port : backend.task().getNetwork().getInputPorts()){
+        for (PortDecl port : backend.task().getNetwork().getInputPorts()) {
             backend.inputstage().getInputStage(port);
         }
 
         // -- Output Stage
-        for(PortDecl port : backend.task().getNetwork().getInputPorts()){
+        for (PortDecl port : backend.task().getNetwork().getOutputPorts()) {
             backend.outputstage().getOutputStage(port);
         }
 
@@ -283,15 +283,25 @@ public class VivadoHLSBackendPhase implements Phase {
             // -- Actor Start controller
             Files.copy(getClass().getResourceAsStream("/lib/verilog/df_controller.v"), PathUtils.getTargetCodeGenRtl(backend.context()).resolve("df_controller.v"), StandardCopyOption.REPLACE_EXISTING);
 
-            // -- Find Vivado hls for cmake
+            // -- Find Vivado hls, vivado & SDAccel for cmake
             Files.copy(getClass().getResourceAsStream("/lib/cmake/FindVivadoHLS.cmake"), PathUtils.getTargetCmake(backend.context()).resolve("FindVivadoHLS.cmake"), StandardCopyOption.REPLACE_EXISTING);
             Files.copy(getClass().getResourceAsStream("/lib/cmake/FindVivado.cmake"), PathUtils.getTargetCmake(backend.context()).resolve("FindVivado.cmake"), StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(getClass().getResourceAsStream("/lib/cmake/FindSDAccel.cmake"), PathUtils.getTargetCmake(backend.context()).resolve("FindSDAccel.cmake"), StandardCopyOption.REPLACE_EXISTING);
+
+            // -- Input Stage Header
+            Files.copy(getClass().getResourceAsStream("/lib/hls/input_stage.h"), PathUtils.getTargetCodeGenInclude(backend.context()).resolve("input_stage.h"), StandardCopyOption.REPLACE_EXISTING);
+
+            // -- Output Stage Header
+            Files.copy(getClass().getResourceAsStream("/lib/hls/output_stage.h"), PathUtils.getTargetCodeGenInclude(backend.context()).resolve("output_stage.h"), StandardCopyOption.REPLACE_EXISTING);
 
             // -- Synthesis script for Vivado HLS as an input to CMake
             Files.copy(getClass().getResourceAsStream("/lib/cmake/Synthesis.tcl.in"), PathUtils.getTargetScripts(backend.context()).resolve("Synthesis.tcl.in"), StandardCopyOption.REPLACE_EXISTING);
 
             // -- Gen XO
             Files.copy(getClass().getResourceAsStream("/lib/cmake/gen_xo.tcl.in"), PathUtils.getTargetScripts(backend.context()).resolve("gen_xo.tcl.in"), StandardCopyOption.REPLACE_EXISTING);
+
+            // -- sdaccel ini
+            Files.copy(getClass().getResourceAsStream("/lib/cmake/sdaccel.ini.in"), PathUtils.getTargetScripts(backend.context()).resolve("sdaccel.ini.in"), StandardCopyOption.REPLACE_EXISTING);
 
 
         } catch (IOException e) {

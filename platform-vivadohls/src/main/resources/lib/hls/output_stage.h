@@ -44,10 +44,9 @@
 #define BURST_WRITING_TO_MEMORY 3
 #define DONE_RECEIVING 4
 
+#include <stdint.h>
 #include <hls_stream.h>
-#include <string.h>
 
-#define MAX_BUFFER_SIZE 4096
 #define BURST_SIZE 256
 
 template<typename T>
@@ -62,13 +61,14 @@ private:
 	T buffer[BURST_SIZE];
 
 public:
-	unsigned int operator()(hls::stream<T> &STREAM, bool core_done, int *size,
-			T *output);
+	uint32_t operator()(hls::stream< T > &STREAM, bool core_done, uint32_t available_size, uint32_t *size, uint64_t *output);
+
+
+
 };
 
 template<typename T>
-unsigned int class_output_stage<T>::operator()(hls::stream<T> &STREAM,
-		bool core_done, int *size, T *output) {
+uint32_t class_output_stage<T>::operator()(hls::stream< T > &STREAM, bool core_done, uint32_t available_size, uint32_t *size, uint64_t *output) {
 #pragma HLS INLINE
 
 	int ret = RECEIVING;
@@ -128,7 +128,7 @@ unsigned int class_output_stage<T>::operator()(hls::stream<T> &STREAM,
 		program_counter = 0;
 		ret = BURST_WRITING_TO_MEMORY;
 		// -- Buffer is full --> go to DONE
-		if (token_counter == MAX_BUFFER_SIZE - 1) {
+		if (token_counter == available_size - 1) {
 			goto DONE;
 		} else {
 			goto OUT;

@@ -25,8 +25,14 @@ open_solution -reset solution
 ## -- Define Xilinx FPGA
 set_part ${FPGA_NAME}
 
+## -- Configure Interface
+config_interface -clock_enable=0 -expose_global=0 -m_axi_addr64 -m_axi_offset off -register_io off -trim_dangling_port=0
+
 ## -- Define clock period
-create_clock -period 10.0 -name clk
+create_clock -period 4 -name default
+
+## -- Clock uncertainty
+set_clock_uncertainty 12.5%
 
 ## -- Config RTL
 config_rtl -reset_level low

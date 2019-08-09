@@ -184,6 +184,7 @@ public interface TopKernel {
         }
         if (!network.getOutputPorts().isEmpty()) {
             for (PortDecl port : network.getOutputPorts()) {
+                emitter().emit("wire    [32 - 1 : 0] %s_available_size;", port.getName());
                 emitter().emit("wire    [64 - 1 : 0] %s_size;", port.getName());
                 emitter().emit("wire    [64 - 1 : 0] %s_buffer;", port.getName());
             }
@@ -248,6 +249,7 @@ public interface TopKernel {
             }
             if (!network.getOutputPorts().isEmpty()) {
                 for (PortDecl port : network.getOutputPorts()) {
+                    emitter().emit(".%s_available_size( %1$s_available_size ),", port.getName());
                     emitter().emit(".%s_size( %1$s_size ),", port.getName());
                     emitter().emit(".%s_buffer( %1$s_size ),", port.getName());
                 }
@@ -315,6 +317,7 @@ public interface TopKernel {
             }
             if (!network.getOutputPorts().isEmpty()) {
                 for (PortDecl port : network.getOutputPorts()) {
+                    emitter().emit(".%s_available_size( %1$s_available_size ),", port.getName());
                     emitter().emit(".%s_size( %1$s_size ),", port.getName());
                     emitter().emit(".%s_buffer( %1$s_size ),", port.getName());
                 }

@@ -131,6 +131,7 @@ public interface KernelWrapper {
 
         // -- Network Output ports
         for (PortDecl port : network.getOutputPorts()) {
+            emitter().emit("input  wire    [32 - 1 : 0]    %s_available_size,", port.getName());
             emitter().emit("input  wire    [64 - 1 : 0]    %s_size,", port.getName());
             emitter().emit("input  wire    [64 - 1 : 0]    %s_buffer,", port.getName());
         }
@@ -375,6 +376,7 @@ public interface KernelWrapper {
             // -- AXI Master
             getAxiMasterConnections(port);
             // -- Direct address
+            emitter().emit(".%s_available_size(.%1$s_available_size),", port.getName());
             emitter().emit(".%s_size(.%1$s_size),", port.getName());
             emitter().emit(".%s_buffer(.%1$s_buffer),", port.getName());
             // -- FIFO I/O

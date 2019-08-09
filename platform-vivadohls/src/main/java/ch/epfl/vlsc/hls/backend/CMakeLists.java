@@ -6,6 +6,7 @@ import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
+import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.network.Network;
 
@@ -37,10 +38,10 @@ public interface CMakeLists {
         emitter().emitNewLine();
 
         // -- SDAccel Kernel Option
-        emitter().emit("option(SDACCEL \"Build an RTL OpenCL Kernel for SDAccel\" OFF)");
+        emitter().emit("option(SDACCEL_KERNEL \"Build an RTL OpenCL Kernel for SDAccel\" OFF)");
 
         // -- Set FPGA name
-        emitter().emit("set(FPGA_NAME \"xc7z020clg484-1\" CACHE STRING \"Name of Xilinx FPGA\")");
+        emitter().emit("set(FPGA_NAME \"xcku115-flvb2104-2-e\" CACHE STRING \"Name of Xilinx FPGA\")");
         emitter().emitNewLine();
 
         // -- Cmake module path for finding the tools
@@ -65,6 +66,21 @@ public interface CMakeLists {
         emitter().emit("endif()");
         emitter().emitNewLine();
 
+        // -- Find SDAccel
+        emitter().emit("if (SDACCEL_KERNEL)");
+        {
+            emitter().emit("find_package(SDAccel REQUIRED)");
+            emitter().emit("if (NOT SDACCEL_FOUND)");
+            emitter().increaseIndentation();
+            emitter().emit("message(FATAL_ERROR \"SDAccel is not found, source SDx settings.sh\")");
+            emitter().decreaseIndentation();
+            emitter().emit("else()");
+            emitter().emit("\tfile(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)");
+            emitter().emit("endif()");
+            emitter().emitNewLine();
+        }
+        emitter().emit("endif()");
+
 
         // -- Include directories
         emitter().emit("include_directories(${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR}/code-gen/include ${VIVADO_HLS_INCLUDE_DIRS})");
@@ -73,12 +89,13 @@ public interface CMakeLists {
         // -- Synthesis configure file
         emitter().emit("configure_file(${CMAKE_SOURCE_DIR}/scripts/Synthesis.tcl.in Synthesis.tcl)");
         emitter().emit("configure_file(${CMAKE_SOURCE_DIR}/scripts/%s.tcl.in %1$s.tcl @ONLY)", identifier);
-        emitter().emit("if(SDACCEL)");
+        emitter().emit("if(SDACCEL_KERNEL)");
         {
             emitter().increaseIndentation();
 
             emitter().emit("configure_file(${CMAKE_SOURCE_DIR}/scripts/package_kernel.tcl.in package_kernel.tcl @ONLY)");
             emitter().emit("configure_file(${CMAKE_SOURCE_DIR}/scripts/gen_xo.tcl.in gen_xo.tcl @ONLY)");
+            emitter().emit("configure_file(${CMAKE_SOURCE_DIR}/scripts/sdaccel.ini.in ${CMAKE_SOURCE_DIR}/bin/sdaccel.ini @ONLY)");
 
             emitter().decreaseIndentation();
         }
@@ -98,20 +115,30 @@ public interface CMakeLists {
             if (!entityDecl.getExternal()) {
                 String instanceName = backend().instaceQID(instance.getInstanceName(), "_");
                 String filename = instanceName + ".cpp";
-                emitter().emit("add_custom_command(");
-                {
-                    emitter().increaseIndentation();
-
-                    emitter().emit("OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/%s/solution/syn/verilog/%1$s.v", instanceName);
-                    emitter().emit("COMMAND ${VIVADO_HLS_BINARY} -f Synthesis.tcl -tclargs \\\"%s\\\" \\\"%s\\\"  > %1$s.log", instanceName, filename);
-                    emitter().emit("DEPENDS ${_incpath}/%s.h ${_srcpath}/%1$s.cpp", instanceName);
-
-                    emitter().decreaseIndentation();
-                }
-                emitter().emit(")");
-                emitter().emitNewLine();
+                entityCustomCommand(instanceName, filename);
             }
         }
+
+        // -- Input/Output Stages
+        emitter().emit("if(SDACCEL_KERNEL)");
+        {
+            emitter().increaseIndentation();
+
+            for(PortDecl port : network.getInputPorts()){
+                String topName = port.getName() + "_input_stage";
+                String filename = topName + ".cpp";
+                entityStageCustomCommand(topName, filename, true);
+            }
+
+            for(PortDecl port : network.getOutputPorts()){
+                String topName = port.getName() + "_output_stage";
+                String filename = topName + ".cpp";
+                entityStageCustomCommand(topName, filename, false);
+            }
+
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("endif()");
 
         // -- Vivado Custom command
         emitter().emit("add_custom_command(");
@@ -139,6 +166,25 @@ public interface CMakeLists {
             }
         }
 
+        // -- Input/Output Stage targets
+        emitter().emit("if(SDACCEL_KERNEL)");
+        {
+            emitter().increaseIndentation();
+
+            for(PortDecl port : network.getInputPorts()){
+                String topName = port.getName() + "_input_stage";
+                emitter().emit("add_custom_target(%s ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/%1$s/solution/syn/verilog/%1$s.v)", topName);
+            }
+
+            for(PortDecl port : network.getOutputPorts()){
+                String topName = port.getName() + "_output_stage";
+                emitter().emit("add_custom_target(%s ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/%1$s/solution/syn/verilog/%1$s.v)", topName);
+            }
+
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("endif()");
+
         // -- Top, Vivado custom target
         String xprProject = String.format("${CMAKE_SOURCE_DIR}/output/%s/%1$s.xpr", identifier);
 
@@ -146,6 +192,36 @@ public interface CMakeLists {
 
         emitter().close();
 
+    }
+
+    default void entityCustomCommand(String topName, String filename){
+        emitter().emit("add_custom_command(");
+        {
+            emitter().increaseIndentation();
+
+            emitter().emit("OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/%s/solution/syn/verilog/%1$s.v", topName);
+            emitter().emit("COMMAND ${VIVADO_HLS_BINARY} -f Synthesis.tcl -tclargs \\\"%s\\\" \\\"%s\\\"  > %1$s.log", topName, filename);
+            emitter().emit("DEPENDS ${_incpath}/%s.h ${_srcpath}/%1$s.cpp", topName);
+
+            emitter().decreaseIndentation();
+        }
+        emitter().emit(")");
+        emitter().emitNewLine();
+    }
+
+    default void entityStageCustomCommand(String topName, String filename, boolean isInput){
+        emitter().emit("add_custom_command(");
+        {
+            emitter().increaseIndentation();
+
+            emitter().emit("OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/%s/solution/syn/verilog/%1$s.v", topName);
+            emitter().emit("COMMAND ${VIVADO_HLS_BINARY} -f Synthesis.tcl -tclargs \\\"%s\\\" \\\"%s\\\"  > %1$s.log", topName, filename);
+            emitter().emit("DEPENDS ${_incpath}/%s.h ${_srcpath}/%s.cpp", isInput ? "input_stage" : "output_stage", topName);
+
+            emitter().decreaseIndentation();
+        }
+        emitter().emit(")");
+        emitter().emitNewLine();
     }
 
 }

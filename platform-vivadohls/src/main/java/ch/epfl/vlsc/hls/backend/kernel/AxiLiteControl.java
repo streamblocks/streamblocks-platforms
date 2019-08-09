@@ -122,6 +122,7 @@ public interface AxiLiteControl {
         // -- Network Output ports
         if (!network.getOutputPorts().isEmpty()) {
             for (PortDecl port : network.getOutputPorts()) {
+                emitter().emit("output  wire    [32 - 1 : 0]    %s_available_size,", port.getName());
                 emitter().emit("output  wire    [64 - 1 : 0]    %s_size,", port.getName());
                 emitter().emit("output  wire    [64 - 1 : 0]    %s_buffer,", port.getName());
             }
@@ -148,8 +149,14 @@ public interface AxiLiteControl {
         value += 4;
         for (PortDecl port : network.getInputPorts()) {
             emitter().emit("localparam  [C_ADDR_WIDTH-1:0]  LP_ADDR_%s_REQUESTED_SIZE_0 = 12'h%s;", port.getName().toUpperCase(), String.format("%03x", value));
+            value += 4;
         }
-        value += 8;
+        for (PortDecl port : network.getOutputPorts()) {
+            emitter().emit("localparam  [C_ADDR_WIDTH-1:0]  LP_ADDR_%s_AVAILABLE_SIZE_0 = 12'h%s;", port.getName().toUpperCase(), String.format("%03x", value));
+            value += 4;
+        }
+        // -- reserved address
+        value += 4;
         for (PortDecl port : network.getInputPorts()) {
             emitter().emit("localparam  [C_ADDR_WIDTH-1:0]  LP_ADDR_%s_size_0 = 12'h%s;", port.getName().toUpperCase(), String.format("%03x", value));
             value += 4;
@@ -215,6 +222,7 @@ public interface AxiLiteControl {
             emitter().emit("reg [64 - 1 : 0]    int_%s_buffer = 64'd0;", port.getName());
         }
         for (PortDecl port : network.getOutputPorts()) {
+            emitter().emit("reg [32 - 1 : 0]    int_%s_available_size = 32'd0;", port.getName());
             emitter().emit("reg [64 - 1 : 0]    int_%s_size = 64'd0;", port.getName());
             emitter().emit("reg [64 - 1 : 0]    int_%s_buffer = 64'd0;", port.getName());
         }
@@ -529,6 +537,16 @@ public interface AxiLiteControl {
                         }
 
                         for (PortDecl port : network.getOutputPorts()) {
+                            emitter().emit("LP_ADDR_%s_AVAILABLE_SIZE_0: begin", port.getName().toUpperCase());
+                            {
+                                emitter().increaseIndentation();
+
+                                emitter().emit("rdata_r <= int_%s_available_size[0+:32];", port.getName());
+
+                                emitter().decreaseIndentation();
+                            }
+                            emitter().emit("end");
+
                             emitter().emit("LP_ADDR_%s_size_0: begin", port.getName());
                             {
                                 emitter().increaseIndentation();
@@ -604,6 +622,7 @@ public interface AxiLiteControl {
             emitter().emit("assign %s_buffer = int_%1$s_buffer;", port.getName());
         }
         for (PortDecl port : network.getOutputPorts()) {
+            emitter().emit("assign %s_available_size = int_%1$s_available_size;", port.getName());
             emitter().emit("assign %s_size = int_%1$s_size;", port.getName());
             emitter().emit("assign %s_buffer = int_%1$s_buffer;", port.getName());
         }
@@ -854,6 +873,30 @@ public interface AxiLiteControl {
         }
 
         for (PortDecl port : network.getOutputPorts()) {
+            // -- available size
+            emitter().emit("// -- int_%s_available_size[32-1:0]", port.getName());
+            emitter().emit("always @(posedge aclk) begin");
+            {
+                emitter().increaseIndentation();
+
+                emitter().emit("if (areset)");
+                emitter().emit("\tint_%s_available_size[0+:32] <= 32'd0;", port.getName());
+                emitter().emit("else if (aclk_en) begin");
+                {
+                    emitter().increaseIndentation();
+
+                    emitter().emit("if (w_hs && waddr == LP_ADDR_%s_AVAILABLE_SIZE_0)", port.getName().toUpperCase());
+                    emitter().emit("\tint_%s_available_size[0+:32] <= (wdata[0+:32] & wmask[0+:32]) | (int_%1$s_available_size[0+:32] & ~wmask[0+:32]);", port.getName());
+
+                    emitter().decreaseIndentation();
+                }
+                emitter().emit("end");
+
+                emitter().decreaseIndentation();
+            }
+            emitter().emit("end");
+            emitter().emitNewLine();
+
             // -- size 0
             emitter().emit("// -- int_%s_size[32-1:0]", port.getName());
             emitter().emit("always @(posedge aclk) begin");

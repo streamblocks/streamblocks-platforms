@@ -66,6 +66,11 @@ public interface KernelXml {
                         emitter().emit("<arg name=\"%s_requested_size\" addressQualifier=\"0\" id=\"%d\" port=\"s_axi_control\" size=\"0x4\" offset=\"%s\" hostOffset=\"0x0\" hostSize=\"0x4\" type=\"uint\"/>", port.getName(), idCounter++, String.format("%03x", offset));
                         offset+=4;
                     }
+                    for(PortDecl port : network.getOutputPorts()){
+                        emitter().emit("<arg name=\"%s_available_size\" addressQualifier=\"0\" id=\"%d\" port=\"s_axi_control\" size=\"0x4\" offset=\"%s\" hostOffset=\"0x0\" hostSize=\"0x4\" type=\"uint\"/>", port.getName(), idCounter++, String.format("%03x", offset));
+                        offset+=4;
+                    }
+
                     // -- Increase by 4 for reserved offset
                     offset+=4;
                     for(PortDecl port : network.getInputPorts()){
