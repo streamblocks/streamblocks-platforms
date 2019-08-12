@@ -180,7 +180,7 @@ public interface CMakeLists {
                 emitter().increaseIndentation();
 
                 emitter().emit("OUTPUT  ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${DEVICE}.xclbin");
-                emitter().emit("COMMAND ${SDACCEL_XOCC} -t ${TARGET} --platform ${DEVICE} --save-temps  -lo ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${DEVICE}.xclbin ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${DEVICE}.xo  > ${CMAKE_PROJECT_NAME}_kernel_xclbin.log");
+                emitter().emit("COMMAND ${SDACCEL_XOCC} -t ${TARGET} --platform ${DEVICE} --save-temps  -lo ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${DEVICE}.xclbin ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${DEVICE}.xo  > ${CMAKE_PROJECT_NAME}_kernel_xclbin.log");
                 emitter().emit("DEPENDS ${CMAKE_PROJECT_NAME}_kernel_xo");
 
                 emitter().decreaseIndentation();
