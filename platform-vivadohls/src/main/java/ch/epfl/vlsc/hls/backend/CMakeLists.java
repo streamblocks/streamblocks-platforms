@@ -131,6 +131,17 @@ public interface CMakeLists {
         {
             emitter().increaseIndentation();
 
+            emitter().emit("add_custom_command(");
+            {
+                emitter().increaseIndentation();
+
+                emitter().emit("OUTPUT ${CMAKE_SOURCE_DIR}/bin/emconfig.json");
+                emitter().emit("COMMAND ${SDACCEL_EMCONFIGUTIL} --nd 1 --platform ${DEVICE} --od ${CMAKE_SOURCE_DIR}/bin > emconfigutil.log");
+                emitter().decreaseIndentation();
+            }
+            emitter().emit(")");
+
+
             for(PortDecl port : network.getInputPorts()){
                 String topName = port.getName() + "_input_stage";
                 String filename = topName + ".cpp";
@@ -171,7 +182,14 @@ public interface CMakeLists {
             String verilogInstances = String.join(" ", network.getInstances()
                     .stream().map(n -> backend().instaceQID(n.getInstanceName(), "_"))
                     .collect(Collectors.toList()));
-            emitter().emit("DEPENDS %s", verilogInstances);
+            String inputStages = String.join(" ", network.getInputPorts()
+                    .stream().map(p -> p.getName() + "_input_stage")
+                    .collect(Collectors.toList()));
+            String outputStages = String.join(" ", network.getOutputPorts()
+                    .stream().map(p -> p.getName() + "_output_stage")
+                    .collect(Collectors.toList()));
+
+            emitter().emit("DEPENDS %s %s %s emconfig", verilogInstances, inputStages, outputStages);
             emitter().decreaseIndentation();
         }
         emitter().emit(")");
@@ -191,6 +209,8 @@ public interface CMakeLists {
         emitter().emit("if(SDACCEL_KERNEL)");
         {
             emitter().increaseIndentation();
+
+            emitter().emit("add_custom_target(emconfig ALL DEPENDS ${CMAKE_SOURCE_DIR}/bin/emconfig.json)");
 
             for(PortDecl port : network.getInputPorts()){
                 String topName = port.getName() + "_input_stage";

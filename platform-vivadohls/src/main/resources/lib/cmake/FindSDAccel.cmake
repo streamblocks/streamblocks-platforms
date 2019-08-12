@@ -25,6 +25,7 @@ else()
 
   set(SDACCEL_FOUND TRUE)
   set(SDACCEL_INCLUDE_DIRS ${SDACCEL_ROOT_DIR}/include/)
+  set(SDACCEL_EMCONFIGUTIL ${SDACCEL_ROOT_DIR}/bin/emconfigutil)
   set(SDACCEL_XOCC ${SDACCEL_ROOT_DIR}/bin/xocc)
   set(SDACCEL_VIVADO_HLS ${SDACCEL_ROOT_DIR}/Vivado_HLS/bin/vivado_hls)
 
