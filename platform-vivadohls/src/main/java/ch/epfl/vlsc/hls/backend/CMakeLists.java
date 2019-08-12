@@ -75,7 +75,14 @@ public interface CMakeLists {
             emitter().emit("message(FATAL_ERROR \"SDAccel is not found, source SDx settings.sh\")");
             emitter().decreaseIndentation();
             emitter().emit("else()");
-            emitter().emit("\tfile(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)");
+            {
+                emitter().increaseIndentation();
+                emitter().emit("file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)");
+                emitter().emit("file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/xclbin)");
+                emitter().emit("set(TARGET \"hw_emu\" CACHE STRING \"SDAccel TARGET : hw_emu, hw\")");
+                emitter().emit("set(DEVICE \"xilinx_kcu1500_dynamic_5_0\" CACHE STRING \"SDAccel supported device name\")");
+                emitter().decreaseIndentation();
+            }
             emitter().emit("endif()");
             emitter().emitNewLine();
         }
@@ -136,6 +143,20 @@ public interface CMakeLists {
                 entityStageCustomCommand(topName, filename, false);
             }
 
+            emitter().emit("add_custom_command(");
+            {
+                emitter().increaseIndentation();
+
+                emitter().emit("OUTPUT  ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${DEVICE}.xo");
+                emitter().emit("COMMAND ${VIVADO_BINARY} -mode batch -source gen_xo.tcl -tclargs ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${DEVICE}.xo ${CMAKE_PROJECT_NAME}_kernel ${TARGET} ${DEVICE}  > ${CMAKE_PROJECT_NAME}_kernel_xo.log");
+                String verilogInstances = String.join(" ", network.getInstances()
+                        .stream().map(n -> backend().instaceQID(n.getInstanceName(), "_"))
+                        .collect(Collectors.toList()));
+                emitter().emit("DEPENDS %s", verilogInstances);
+                emitter().decreaseIndentation();
+            }
+            emitter().emit(")");
+
             emitter().decreaseIndentation();
         }
         emitter().emit("endif()");
@@ -180,6 +201,9 @@ public interface CMakeLists {
                 String topName = port.getName() + "_output_stage";
                 emitter().emit("add_custom_target(%s ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/%1$s/solution/syn/verilog/%1$s.v)", topName);
             }
+
+            // -- Generate XO custom target
+            emitter().emit("add_custom_target(${CMAKE_PROJECT_NAME}_kernel ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${DEVICE}.xo)");
 
             emitter().decreaseIndentation();
         }
