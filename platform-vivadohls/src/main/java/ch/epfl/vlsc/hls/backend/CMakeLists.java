@@ -78,6 +78,7 @@ public interface CMakeLists {
             {
                 emitter().increaseIndentation();
                 emitter().emit("file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)");
+                emitter().emit("file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/bin/xclbin)");
                 emitter().emit("file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/xclbin)");
                 emitter().emit("set(TARGET \"hw_emu\" CACHE STRING \"SDAccel TARGET : hw_emu, hw\")");
                 emitter().emit("set(DEVICE \"xilinx_kcu1500_dynamic_5_0\" CACHE STRING \"SDAccel supported device name\")");
@@ -163,16 +164,35 @@ public interface CMakeLists {
                 String verilogInstances = String.join(" ", network.getInstances()
                         .stream().map(n -> backend().instaceQID(n.getInstanceName(), "_"))
                         .collect(Collectors.toList()));
-                emitter().emit("DEPENDS %s", verilogInstances);
+                String inputStages = String.join(" ", network.getInputPorts()
+                        .stream().map(p -> p.getName() + "_input_stage")
+                        .collect(Collectors.toList()));
+                String outputStages = String.join(" ", network.getOutputPorts()
+                        .stream().map(p -> p.getName() + "_output_stage")
+                        .collect(Collectors.toList()));
+                emitter().emit("DEPENDS %s %s %s emconfig", verilogInstances, inputStages, outputStages);
                 emitter().decreaseIndentation();
             }
             emitter().emit(")");
+
+            emitter().emit("add_custom_command(");
+            {
+                emitter().increaseIndentation();
+
+                emitter().emit("OUTPUT  ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${DEVICE}.xclbin");
+                emitter().emit("COMMAND ${SDACCEL_XOCC} -t ${TARGET} --platform ${DEVICE} --save-temps  -lo ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${DEVICE}.xclbin ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${DEVICE}.xo  > ${CMAKE_PROJECT_NAME}_kernel_xclbin.log");
+                emitter().emit("DEPENDS ${CMAKE_PROJECT_NAME}_kernel_xo");
+
+                emitter().decreaseIndentation();
+            }
+            emitter().emit(")");
+
 
             emitter().decreaseIndentation();
         }
         emitter().emit("endif()");
 
-        // -- Vivado Custom command
+        // -- Vivado XO Custom command
         emitter().emit("add_custom_command(");
         {
             emitter().increaseIndentation();
@@ -182,14 +202,8 @@ public interface CMakeLists {
             String verilogInstances = String.join(" ", network.getInstances()
                     .stream().map(n -> backend().instaceQID(n.getInstanceName(), "_"))
                     .collect(Collectors.toList()));
-            String inputStages = String.join(" ", network.getInputPorts()
-                    .stream().map(p -> p.getName() + "_input_stage")
-                    .collect(Collectors.toList()));
-            String outputStages = String.join(" ", network.getOutputPorts()
-                    .stream().map(p -> p.getName() + "_output_stage")
-                    .collect(Collectors.toList()));
 
-            emitter().emit("DEPENDS %s %s %s emconfig", verilogInstances, inputStages, outputStages);
+            emitter().emit("DEPENDS %s", verilogInstances);
             emitter().decreaseIndentation();
         }
         emitter().emit(")");
@@ -223,7 +237,9 @@ public interface CMakeLists {
             }
 
             // -- Generate XO custom target
-            emitter().emit("add_custom_target(${CMAKE_PROJECT_NAME}_kernel ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${DEVICE}.xo)");
+            emitter().emit("add_custom_target(${CMAKE_PROJECT_NAME}_kernel_xo ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${DEVICE}.xo)");
+            // -- Generate XCLBIN custom target
+            emitter().emit("add_custom_target(${CMAKE_PROJECT_NAME}_kernel_xclbin ALL DEPENDS ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${DEVICE}.xclbin)");
 
             emitter().decreaseIndentation();
         }
