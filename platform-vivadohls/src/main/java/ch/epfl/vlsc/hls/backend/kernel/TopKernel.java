@@ -3,11 +3,13 @@ package ch.epfl.vlsc.hls.backend.kernel;
 import ch.epfl.vlsc.hls.backend.VivadoHLSBackend;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.PathUtils;
+import ch.epfl.vlsc.platformutils.utils.TypeUtils;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.network.Network;
+import se.lth.cs.tycho.type.Type;
 
 @Module
 public interface TopKernel {
@@ -78,15 +80,32 @@ public interface TopKernel {
 
         if (!network.getInputPorts().isEmpty()) {
             for (PortDecl port : network.getInputPorts()) {
+                Type type = backend().types().declaredPortType(port);
+                int bitSize = TypeUtils.sizeOfBits(type);
                 emitter().emit("parameter integer C_M_AXI_%s_ADDR_WIDTH = %d,", port.getName().toUpperCase(), AxiConstants.C_M_AXI_ADDR_WIDTH);
-                emitter().emit("parameter integer C_M_AXI_%s_DATA_WIDTH = %d,", port.getName().toUpperCase(), AxiConstants.C_M_AXI_DATA_WIDTH);
+                emitter().emit("parameter integer C_M_AXI_%s_DATA_WIDTH = %d,", port.getName().toUpperCase(), Math.max(bitSize, 32));
+                emitter().emit("parameter integer C_M_AXI_%s_ID_WIDTH = %d,", port.getName().toUpperCase(), 1);
+                emitter().emit("parameter integer C_M_AXI_%s_AWUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
+                emitter().emit("parameter integer C_M_AXI_%s_ARUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
+                emitter().emit("parameter integer C_M_AXI_%s_WUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
+                emitter().emit("parameter integer C_M_AXI_%s_RUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
+                emitter().emit("parameter integer C_M_AXI_%s_BUSER_WIDTH =  %d,", port.getName().toUpperCase(), 1);
+
             }
         }
         // -- Network Output ports
         if (!network.getOutputPorts().isEmpty()) {
             for (PortDecl port : network.getOutputPorts()) {
+                Type type = backend().types().declaredPortType(port);
+                int bitSize = TypeUtils.sizeOfBits(type);
                 emitter().emit("parameter integer C_M_AXI_%s_ADDR_WIDTH = %d,", port.getName().toUpperCase(), AxiConstants.C_M_AXI_ADDR_WIDTH);
-                emitter().emit("parameter integer C_M_AXI_%s_DATA_WIDTH = %d,", port.getName().toUpperCase(), AxiConstants.C_M_AXI_DATA_WIDTH);
+                emitter().emit("parameter integer C_M_AXI_%s_DATA_WIDTH = %d,", port.getName().toUpperCase(), Math.max(bitSize, 32));
+                emitter().emit("parameter integer C_M_AXI_%s_ID_WIDTH = %d,", port.getName().toUpperCase(), 1);
+                emitter().emit("parameter integer C_M_AXI_%s_AWUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
+                emitter().emit("parameter integer C_M_AXI_%s_ARUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
+                emitter().emit("parameter integer C_M_AXI_%s_WUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
+                emitter().emit("parameter integer C_M_AXI_%s_RUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
+                emitter().emit("parameter integer C_M_AXI_%s_BUSER_WIDTH =  %d,", port.getName().toUpperCase(), 1);
             }
         }
         // -- AXI4-Lite Control
@@ -97,27 +116,57 @@ public interface TopKernel {
     // ------------------------------------------------------------------------
     // -- Module Port IO
 
-    default void getAxiMasterPorts(PortDecl port) {
-        emitter().emit("// -- AXI4 Master interface : %s", port.getName());
-        emitter().emit("output  wire    m_axi_%s_awvalid,", port.getName());
-        emitter().emit("input   wire    m_axi_%s_awready,", port.getName());
-        emitter().emit("output  wire    [C_M_AXI_%s_ADDR_WIDTH-1:0]    m_axi_%s_awaddr,", port.getName().toUpperCase(), port.getName());
-        emitter().emit("output  wire    [8-1:0] m_axi_%s_awlen,", port.getName());
-        emitter().emit("output  wire    m_axi_%s_wvalid,", port.getName());
-        emitter().emit("input   wire    m_axi_%s_wready,", port.getName());
-        emitter().emit("output  wire    [C_M_AXI_%s_DATA_WIDTH-1:0]    m_axi_%s_wdata,", port.getName().toUpperCase(), port.getName());
-        emitter().emit("output  wire    [C_M_AXI_%s_DATA_WIDTH/8-1:0]  m_axi_%s_wstrb,", port.getName().toUpperCase(), port.getName());
-        emitter().emit("output  wire    m_axi_%s_wlast,", port.getName());
-        emitter().emit("input   wire    m_axi_%s_bvalid,", port.getName());
-        emitter().emit("output  wire    m_axi_%s_bready,", port.getName());
-        emitter().emit("output  wire    m_axi_%s_arvalid,", port.getName());
-        emitter().emit("input   wire    m_axi_%s_arready,", port.getName());
-        emitter().emit("output  wire    [C_M_AXI_%s_ADDR_WIDTH-1:0]    m_axi_%s_araddr,", port.getName().toUpperCase(), port.getName());
-        emitter().emit("output  wire    [8-1:0] m_axi_%s_arlen,", port.getName());
-        emitter().emit("input   wire    m_axi_%s_rvalid,", port.getName());
-        emitter().emit("output  wire    m_axi_%s_rready,", port.getName());
-        emitter().emit("input   wire    [C_M_AXI_%s_DATA_WIDTH-1:0]    m_axi_%s_rdata,", port.getName().toUpperCase(), port.getName());
-        emitter().emit("input   wire    m_axi_%s_rlast,", port.getName());
+    default void getAxiMasterPorts(String name) {
+        emitter().emit("// --write address channel");
+        emitter().emit("output wire [C_M_AXI_%s_ID_WIDTH-1:0]     m_axi_%s_AWID,", name.toUpperCase(), name);
+        emitter().emit("output wire [C_M_AXI_%s_ADDR_WIDTH-1:0]   m_axi_%s_AWADDR,", name.toUpperCase(), name);
+        emitter().emit("output wire [7:0]                         m_axi_%s_AWLEN,", name);
+        emitter().emit("output wire [2:0]                         m_axi_%s_AWSIZE,", name);
+        emitter().emit("output wire [1:0]                         m_axi_%s_AWBURST,", name);
+        emitter().emit("output wire [1:0]                         m_axi_%s_AWLOCK,", name);
+        emitter().emit("output wire [3:0]                         m_axi_%s_AWCACHE,", name);
+        emitter().emit("output wire [2:0]                         m_axi_%s_AWPROT,", name);
+        emitter().emit("output wire [3:0]                         m_axi_%s_AWQOS,", name);
+        emitter().emit("output wire [3:0]                         m_axi_%s_AWREGION,", name);
+        emitter().emit("output wire [C_M_AXI_%s_AWUSER_WIDTH-1:0] m_axi_%s_AWUSER,", name.toUpperCase(), name);
+        emitter().emit("output wire                               m_axi_%s_AWVALID,", name);
+        emitter().emit("input  wire                               m_axi_%s_AWREADY,", name);
+        emitter().emit("// write data channel");
+        emitter().emit("output wire [C_M_AXI_%s_ID_WIDTH-1:0]     m_axi_%s_WID,", name.toUpperCase(), name);
+        emitter().emit("output wire [C_M_AXI_%s_DATA_WIDTH-1:0]   m_axi_%s_WDATA,", name.toUpperCase(), name);
+        emitter().emit("output wire [C_M_AXI_%s_DATA_WIDTH/8-1:0] m_axi_%s_WSTRB,", name.toUpperCase(), name);
+        emitter().emit("output wire                               m_axi_%s_WLAST,", name);
+        emitter().emit("output wire [C_M_AXI_%s_WUSER_WIDTH-1:0]  m_axi_%s_WUSER,", name.toUpperCase(), name);
+        emitter().emit("output wire                               m_axi_%s_WVALID,", name);
+        emitter().emit("input  wire                               m_axi_%s_WREADY,", name);
+        emitter().emit("// -- write response channel");
+        emitter().emit("input  wire [C_M_AXI_%s_ID_WIDTH-1:0]     m_axi_%s_BID,", name.toUpperCase(), name);
+        emitter().emit("input  wire [1:0]                         m_axi_%s_BRESP,", name);
+        emitter().emit("input  wire [C_M_AXI_%s_BUSER_WIDTH-1:0]  m_axi_%s_BUSER,", name.toUpperCase(), name);
+        emitter().emit("input  wire                               m_axi_%s_BVALID,", name);
+        emitter().emit("output wire                               m_axi_%s_BREADY,", name);
+        emitter().emit("// -- read address channel");
+        emitter().emit("output wire [C_M_AXI_%s_ID_WIDTH-1:0]     m_axi_%s_ARID,", name.toUpperCase(), name);
+        emitter().emit("output wire [C_M_AXI_%s_ADDR_WIDTH-1:0]   m_axi_%s_ARADDR,", name.toUpperCase(), name);
+        emitter().emit("output wire [7:0]                         m_axi_%s_ARLEN,", name);
+        emitter().emit("output wire [2:0]                         m_axi_%s_ARSIZE,", name);
+        emitter().emit("output wire [1:0]                         m_axi_%s_ARBURST,", name);
+        emitter().emit("output wire [1:0]                         m_axi_%s_ARLOCK,", name);
+        emitter().emit("output wire [3:0]                         m_axi_%s_ARCACHE,", name);
+        emitter().emit("output wire [2:0]                         m_axi_%s_ARPROT,", name);
+        emitter().emit("output wire [3:0]                         m_axi_%s_ARQOS,", name);
+        emitter().emit("output wire [3:0]                         m_axi_%s_ARREGION,", name);
+        emitter().emit("output wire [C_M_AXI_%s_ARUSER_WIDTH-1:0] m_axi_%s_ARUSER,", name.toUpperCase(), name);
+        emitter().emit("output wire                               m_axi_%s_ARVALID,", name);
+        emitter().emit("input  wire                               m_axi_%s_ARREADY,", name);
+        emitter().emit("// -- read data channel");
+        emitter().emit("input  wire [C_M_AXI_%s_ID_WIDTH-1:0]     m_axi_%s_RID,", name.toUpperCase(), name);
+        emitter().emit("input  wire [C_M_AXI_%s_DATA_WIDTH-1:0]   m_axi_%s_RDATA,", name.toUpperCase(), name);
+        emitter().emit("input  wire [1:0]                         m_axi_%s_RRESP,", name);
+        emitter().emit("input  wire                               m_axi_%s_RLAST,", name);
+        emitter().emit("input  wire [C_M_AXI_%s_RUSER_WIDTH-1:0]  m_axi_%s_RUSER,", name.toUpperCase(), name);
+        emitter().emit("input  wire                               m_axi_%s_RVALID,", name);
+        emitter().emit("output wire                               m_axi_%s_RREADY,", name);
     }
 
 
@@ -130,37 +179,37 @@ public interface TopKernel {
         // -- Network input ports
         if (!network.getInputPorts().isEmpty()) {
             for (PortDecl port : network.getInputPorts()) {
-                getAxiMasterPorts(port);
+                getAxiMasterPorts(port.getName());
             }
         }
 
         // -- Network Output ports
         if (!network.getOutputPorts().isEmpty()) {
             for (PortDecl port : network.getOutputPorts()) {
-                getAxiMasterPorts(port);
+                getAxiMasterPorts(port.getName());
             }
         }
 
         // -- AXI4-Lite Control IO
         emitter().emit("// -- AXI4-Lite slave interface");
         // AXI4-Lite slave interface
-        emitter().emit("input   wire    s_axi_control_awvalid,");
-        emitter().emit("output  wire    s_axi_control_awready,");
-        emitter().emit("input   wire    [C_S_AXI_CONTROL_ADDR_WIDTH-1:0]    s_axi_control_awaddr,");
-        emitter().emit("input   wire    s_axi_control_wvalid,");
-        emitter().emit("output  wire    s_axi_control_wready,");
-        emitter().emit("input   wire    [C_S_AXI_CONTROL_DATA_WIDTH-1:0]    s_axi_control_wdata,");
-        emitter().emit("input   wire    [C_S_AXI_CONTROL_DATA_WIDTH/8-1:0]  s_axi_control_wstrb,");
-        emitter().emit("input   wire    s_axi_control_arvalid,");
-        emitter().emit("output  wire    s_axi_control_arready,");
-        emitter().emit("input   wire    [C_S_AXI_CONTROL_ADDR_WIDTH-1:0]    s_axi_control_araddr,");
-        emitter().emit("output  wire    s_axi_control_rvalid,");
-        emitter().emit("input   wire    s_axi_control_rready,");
-        emitter().emit("output  wire    [C_S_AXI_CONTROL_DATA_WIDTH-1:0]    s_axi_control_rdata,");
-        emitter().emit("output  wire    [2-1:0] s_axi_control_rresp,");
-        emitter().emit("output  wire    s_axi_control_bvalid,");
-        emitter().emit("input   wire    s_axi_control_bready,");
-        emitter().emit("output  wire    [2-1:0] s_axi_control_bresp,");
+        emitter().emit("input   wire    s_axi_control_AWVALID,");
+        emitter().emit("output  wire    s_axi_control_AWREADY,");
+        emitter().emit("input   wire    [C_S_AXI_CONTROL_ADDR_WIDTH-1:0]    s_axi_control_AWADDR,");
+        emitter().emit("input   wire    s_axi_control_WVALID,");
+        emitter().emit("output  wire    s_axi_control_WREADY,");
+        emitter().emit("input   wire    [C_S_AXI_CONTROL_DATA_WIDTH-1:0]    s_axi_control_WDATA,");
+        emitter().emit("input   wire    [C_S_AXI_CONTROL_DATA_WIDTH/8-1:0]  s_axi_control_WSTRB,");
+        emitter().emit("input   wire    s_axi_control_ARVALID,");
+        emitter().emit("output  wire    s_axi_control_ARREADY,");
+        emitter().emit("input   wire    [C_S_AXI_CONTROL_ADDR_WIDTH-1:0]    s_axi_control_ARADDR,");
+        emitter().emit("output  wire    s_axi_control_RVALID,");
+        emitter().emit("input   wire    s_axi_control_RREADY,");
+        emitter().emit("output  wire    [C_S_AXI_CONTROL_DATA_WIDTH-1:0]    s_axi_control_RDATA,");
+        emitter().emit("output  wire    [2-1:0] s_axi_control_RRESP,");
+        emitter().emit("output  wire    s_axi_control_BVALID,");
+        emitter().emit("input   wire    s_axi_control_BREADY,");
+        emitter().emit("output  wire    [2-1:0] s_axi_control_BRESP,");
         emitter().emit("output  wire    interrupt");
     }
 
@@ -173,6 +222,7 @@ public interface TopKernel {
         emitter().emit("(* DONT_TOUCH = \"yes\" *)");
         emitter().emit("reg     areset = 1'b0;");
         emitter().emit("wire    ap_start;");
+        emitter().emit("wire    ap_ready;");
         emitter().emit("wire    ap_idle;");
         emitter().emit("wire    ap_done;");
         if (!network.getInputPorts().isEmpty()) {
@@ -212,8 +262,8 @@ public interface TopKernel {
         emitter().emit("%s_control_s_axi #(", identifier);
         {
             emitter().increaseIndentation();
-            emitter().emit(".C_S_AXI_CONTROL_ADDR_WIDTH ( C_S_AXI_CONTROL_ADDR_WIDTH ),");
-            emitter().emit(".C_S_AXI_CONTROL_DATA_WIDTH ( C_S_AXI_CONTROL_DATA_WIDTH )");
+            emitter().emit(".C_S_AXI_ADDR_WIDTH ( C_S_AXI_CONTROL_ADDR_WIDTH ),");
+            emitter().emit(".C_S_AXI_DATA_WIDTH ( C_S_AXI_CONTROL_DATA_WIDTH )");
             emitter().decreaseIndentation();
         }
         emitter().emit(")");
@@ -221,26 +271,27 @@ public interface TopKernel {
         {
             emitter().increaseIndentation();
 
-            emitter().emit(".aclk( ap_clk ),");
-            emitter().emit(".areset( areset ),");
-            emitter().emit(".aclk_en( 1'b1 ),");
-            emitter().emit(".awvalid( s_axi_control_awvalid ),");
-            emitter().emit(".awready( s_axi_control_awready ),");
-            emitter().emit(".awaddr( s_axi_control_awaddr ),");
-            emitter().emit(".wvalid( s_axi_control_wvalid  ),");
-            emitter().emit(".wready( s_axi_control_wready ),");
-            emitter().emit(".wdata( s_axi_control_wdata ),");
-            emitter().emit(".wstrb( s_axi_control_wstrb ),");
-            emitter().emit(".arvalid( s_axi_control_arvalid ),");
-            emitter().emit(".arready( s_axi_control_arready ),");
-            emitter().emit(".araddr( s_axi_control_araddr ),");
-            emitter().emit(".rvalid( s_axi_control_rvalid ),");
-            emitter().emit(".rready( s_axi_control_rready ),");
-            emitter().emit(".rdata( s_axi_control_rdata ),");
-            emitter().emit(".rresp( s_axi_control_rresp ),");
-            emitter().emit(".bvalid( s_axi_control_bvalid ),");
-            emitter().emit(".bready( s_axi_control_bready ),");
-            emitter().emit(".bresp( s_axi_control_bresp ),");
+            emitter().emit(".ACLK(ap_clk),");
+            emitter().emit(".ARESET(areset),");
+            emitter().emit(".ACLK_EN(1'b1),");
+            emitter().emit(".AWVALID(s_axi_control_AWVALID),");
+            emitter().emit(".AWREADY(s_axi_control_AWREADY),");
+            emitter().emit(".AWADDR(s_axi_control_AWADDR),");
+            emitter().emit(".WVALID(s_axi_control_WVALID),");
+            emitter().emit(".WREADY(s_axi_control_WREADY),");
+            emitter().emit(".WDATA(s_axi_control_WDATA),");
+            emitter().emit(".WSTRB(s_axi_control_WSTRB),");
+            emitter().emit(".ARVALID(s_axi_control_ARVALID),");
+            emitter().emit(".ARREADY(s_axi_control_ARREADY),");
+            emitter().emit(".ARADDR(s_axi_control_ARADDR),");
+            emitter().emit(".RVALID(s_axi_control_RVALID),");
+            emitter().emit(".RREADY(s_axi_control_RREADY),");
+            emitter().emit(".RDATA(s_axi_control_RDATA),");
+            emitter().emit(".RRESP(s_axi_control_RRESP),");
+            emitter().emit(".BVALID(s_axi_control_BVALID),");
+            emitter().emit(".BREADY(s_axi_control_BREADY),");
+            emitter().emit(".BRESP(s_axi_control_BRESP),");
+
             if (!network.getInputPorts().isEmpty()) {
                 for (PortDecl port : network.getInputPorts()) {
                     emitter().emit(".%s_requested_size( %1$s_requested_size ),", port.getName());
@@ -257,7 +308,8 @@ public interface TopKernel {
             }
             emitter().emit(".interrupt( interrupt ),");
             emitter().emit(".ap_start( ap_start ),");
-            emitter().emit(".ap_done( ap_done),");
+            emitter().emit(".ap_done( ap_done ),");
+            emitter().emit(".ap_ready( ap_ready ),");
             emitter().emit(".ap_idle( ap_idle )");
             emitter().decreaseIndentation();
         }
@@ -300,12 +352,12 @@ public interface TopKernel {
 
             if (!network.getInputPorts().isEmpty()) {
                 for (PortDecl port : network.getInputPorts()) {
-                    getAxiMasterConnection(port);
+                    getAxiMasterConnection(port.getName());
                 }
             }
             if (!network.getOutputPorts().isEmpty()) {
                 for (PortDecl port : network.getOutputPorts()) {
-                    getAxiMasterConnection(port);
+                    getAxiMasterConnection(port.getName());
                 }
             }
 
@@ -325,6 +377,7 @@ public interface TopKernel {
             }
             emitter().emit(".ap_start( ap_start ),");
             emitter().emit(".ap_done( ap_done),");
+            emitter().emit(".ap_ready( ap_ready),");
             emitter().emit(".ap_idle( ap_idle )");
             emitter().decreaseIndentation();
         }
@@ -332,25 +385,53 @@ public interface TopKernel {
     }
 
     // -- Helpers
-    default void getAxiMasterConnection(PortDecl port){
-        emitter().emit(".m_axi_%s_awvalid ( m_axi_%1$s_awvalid ),", port.getName());
-        emitter().emit(".m_axi_%s_awready ( m_axi_%1$s_awready ),", port.getName());
-        emitter().emit(".m_axi_%s_awaddr ( m_axi_%1$s_awaddr ),", port.getName());
-        emitter().emit(".m_axi_%s_awlen ( m_axi_%1$s_awlen ),", port.getName());
-        emitter().emit(".m_axi_%s_wvalid ( m_axi_%1$s_wvalid ),", port.getName());
-        emitter().emit(".m_axi_%s_wready ( m_axi_%1$s_wready ),", port.getName());
-        emitter().emit(".m_axi_%s_wdata ( m_axi_%1$s_wdata ),", port.getName());
-        emitter().emit(".m_axi_%s_wstrb ( m_axi_%1$s_wstrb ),", port.getName());
-        emitter().emit(".m_axi_%s_wlast ( m_axi_%1$s_wlast ),", port.getName());
-        emitter().emit(".m_axi_%s_bvalid ( m_axi_%1$s_bvalid ),", port.getName());
-        emitter().emit(".m_axi_%s_bready ( m_axi_%1$s_bready ),", port.getName());
-        emitter().emit(".m_axi_%s_arvalid ( m_axi_%1$s_arvalid ),", port.getName());
-        emitter().emit(".m_axi_%s_arready ( m_axi_%1$s_arready ),", port.getName());
-        emitter().emit(".m_axi_%s_araddr ( m_axi_%1$s_araddr ),", port.getName());
-        emitter().emit(".m_axi_%s_arlen ( m_axi_%1$s_arlen ),", port.getName());
-        emitter().emit(".m_axi_%s_rvalid ( m_axi_%1$s_rvalid ),", port.getName());
-        emitter().emit(".m_axi_%s_rready ( m_axi_%1$s_rready ),", port.getName());
-        emitter().emit(".m_axi_%s_rdata ( m_axi_%1$s_rdata ),", port.getName());
-        emitter().emit(".m_axi_%s_rlast ( m_axi_%1$s_rlast ),", port.getName());
+    default void getAxiMasterConnection(String name) {
+        emitter().emit(".m_axi_%s_AWVALID(m_axi_%1$s_AWVALID),", name);
+        emitter().emit(".m_axi_%s_AWREADY(m_axi_%1$s_AWREADY),", name);
+        emitter().emit(".m_axi_%s_AWADDR(m_axi_%1$s_AWADDR),", name);
+        emitter().emit(".m_axi_%s_AWID(m_axi_%1$s_AWID),", name);
+        emitter().emit(".m_axi_%s_AWLEN(m_axi_%1$s_AWLEN),", name);
+        emitter().emit(".m_axi_%s_AWSIZE(m_axi_%1$s_AWSIZE),", name);
+        emitter().emit(".m_axi_%s_AWBURST(m_axi_%1$s_AWBURST),", name);
+        emitter().emit(".m_axi_%s_AWLOCK(m_axi_%1$s_AWLOCK),", name);
+        emitter().emit(".m_axi_%s_AWCACHE(m_axi_%1$s_AWCACHE),", name);
+        emitter().emit(".m_axi_%s_AWPROT(m_axi_%1$s_AWPROT),", name);
+        emitter().emit(".m_axi_%s_AWQOS(m_axi_%1$s_AWQOS),", name);
+        emitter().emit(".m_axi_%s_AWREGION(m_axi_%1$s_AWREGION),", name);
+        emitter().emit(".m_axi_%s_AWUSER(m_axi_%1$s_AWUSER),", name);
+        emitter().emit(".m_axi_%s_WVALID(m_axi_%1$s_WVALID),", name);
+        emitter().emit(".m_axi_%s_WREADY(m_axi_%1$s_WREADY),", name);
+        emitter().emit(".m_axi_%s_WDATA(m_axi_%1$s_WDATA),", name);
+        emitter().emit(".m_axi_%s_WSTRB(m_axi_%1$s_WSTRB),", name);
+        emitter().emit(".m_axi_%s_WLAST(m_axi_%1$s_WLAST),", name);
+        emitter().emit(".m_axi_%s_WID(m_axi_%1$s_WID),", name);
+        emitter().emit(".m_axi_%s_WUSER(m_axi_%1$s_WUSER),", name);
+        emitter().emit(".m_axi_%s_ARVALID(m_axi_%1$s_ARVALID),", name);
+        emitter().emit(".m_axi_%s_ARREADY(m_axi_%1$s_ARREADY),", name);
+        emitter().emit(".m_axi_%s_ARADDR(m_axi_%1$s_ARADDR),", name);
+        emitter().emit(".m_axi_%s_ARID(m_axi_%1$s_ARID),", name);
+        emitter().emit(".m_axi_%s_ARLEN(m_axi_%1$s_ARLEN),", name);
+        emitter().emit(".m_axi_%s_ARSIZE(m_axi_%1$s_ARSIZE),", name);
+        emitter().emit(".m_axi_%s_ARBURST(m_axi_%1$s_ARBURST),", name);
+        emitter().emit(".m_axi_%s_ARLOCK(m_axi_%1$s_ARLOCK),", name);
+        emitter().emit(".m_axi_%s_ARCACHE(m_axi_%1$s_ARCACHE),", name);
+        emitter().emit(".m_axi_%s_ARPROT(m_axi_%1$s_ARPROT),", name);
+        emitter().emit(".m_axi_%s_ARQOS(m_axi_%1$s_ARQOS),", name);
+        emitter().emit(".m_axi_%s_ARREGION(m_axi_%1$s_ARREGION),", name);
+        emitter().emit(".m_axi_%s_ARUSER(m_axi_%1$s_ARUSER),", name);
+        emitter().emit(".m_axi_%s_RVALID(m_axi_%1$s_RVALID),", name);
+        emitter().emit(".m_axi_%s_RREADY(m_axi_%1$s_RREADY),", name);
+        emitter().emit(".m_axi_%s_RDATA(m_axi_%1$s_RDATA),", name);
+        emitter().emit(".m_axi_%s_RLAST(m_axi_%1$s_RLAST),", name);
+        emitter().emit(".m_axi_%s_RID(m_axi_%1$s_RID),", name);
+        emitter().emit(".m_axi_%s_RUSER(m_axi_%1$s_RUSER),", name);
+        emitter().emit(".m_axi_%s_RRESP(m_axi_%1$s_RRESP),", name);
+        emitter().emit(".m_axi_%s_BVALID(m_axi_%1$s_BVALID),", name);
+        emitter().emit(".m_axi_%s_BREADY(m_axi_%1$s_BREADY),", name);
+        emitter().emit(".m_axi_%s_BRESP(m_axi_%1$s_BRESP),", name);
+        emitter().emit(".m_axi_%s_BID(m_axi_%1$s_BID),", name);
+        emitter().emit(".m_axi_%s_BUSER(m_axi_%1$s_BUSER),", name);
+
+
     }
 }

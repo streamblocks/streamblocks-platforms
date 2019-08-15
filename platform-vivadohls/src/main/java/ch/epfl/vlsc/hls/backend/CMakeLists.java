@@ -38,7 +38,7 @@ public interface CMakeLists {
         emitter().emitNewLine();
 
         // -- SDAccel Kernel Option
-        emitter().emit("option(SDACCEL_KERNEL \"Build an RTL OpenCL Kernel for SDAccel\" OFF)");
+        emitter().emit("option(SDACCEL_KERNEL \"Build an RTL OpenCL Kernel for SDAccel\" ON)");
 
         // -- Set FPGA name
         emitter().emit("set(FPGA_NAME \"xcku115-flvb2104-2-e\" CACHE STRING \"Name of Xilinx FPGA\")");
@@ -180,7 +180,7 @@ public interface CMakeLists {
                 emitter().increaseIndentation();
 
                 emitter().emit("OUTPUT  ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${DEVICE}.xclbin");
-                emitter().emit("COMMAND ${SDACCEL_XOCC} -t ${TARGET} --platform ${DEVICE} --save-temps  -lo ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${DEVICE}.xclbin ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${DEVICE}.xo  > ${CMAKE_PROJECT_NAME}_kernel_xclbin.log");
+                emitter().emit("COMMAND ${SDACCEL_XOCC} -g -t ${TARGET} --platform ${DEVICE} --save-temps  -lo ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${DEVICE}.xclbin ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${DEVICE}.xo  > ${CMAKE_PROJECT_NAME}_kernel_xclbin.log");
                 emitter().emit("DEPENDS ${CMAKE_PROJECT_NAME}_kernel_xo");
 
                 emitter().decreaseIndentation();

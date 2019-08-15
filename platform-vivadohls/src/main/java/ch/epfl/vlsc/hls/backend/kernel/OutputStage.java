@@ -57,7 +57,7 @@ public interface OutputStage {
         ports.add("bool core_done");
         ports.add(String.format("uint32_t %s_available_size", port.getName()));
         ports.add(String.format("uint32_t *%s_size", port.getName()));
-        ports.add(String.format("uint64_t *%s_buffer", port.getName()));
+        ports.add(String.format("%s *%s_buffer",  backend().declarations().declaration(backend().types().declaredPortType(port), ""), port.getName()));
 
         return String.join(", ", ports);
     }

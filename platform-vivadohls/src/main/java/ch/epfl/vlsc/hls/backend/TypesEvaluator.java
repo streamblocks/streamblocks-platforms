@@ -20,6 +20,66 @@ public interface TypesEvaluator {
 
     String type(Type type);
 
+    String cltype(Type type);
+
+    default String KernelXmlType(Type type){
+        if(type instanceof IntType){
+            IntType t = (IntType) type;
+            if (t.getSize().isPresent()) {
+                int originalSize = t.getSize().getAsInt();
+                int targetSize = 8;
+                while (originalSize > targetSize) {
+                    targetSize = targetSize * 2;
+                }
+                if(targetSize == 8){
+                    return String.format(t.isSigned() ? "char" : "unsigned char");
+                }else if(targetSize == 16){
+                    return String.format(t.isSigned() ? "short" : "unsigned short");
+                }else if(targetSize == 32){
+                    return String.format(t.isSigned() ? "int" : "unsigned int");
+                }else{
+                    return String.format(t.isSigned() ? "long" : "unsigned long");
+                }
+            } else {
+                return t.isSigned() ? "int" : "unsigned int ";
+            }
+        }else{
+           return type(type);
+        }
+    }
+
+    default String cltype(IntType type){
+            if (type.getSize().isPresent()) {
+                int originalSize = type.getSize().getAsInt();
+                int targetSize = 8;
+                while (originalSize > targetSize) {
+                    targetSize = targetSize * 2;
+                }
+                if(targetSize == 8){
+                    return String.format(type.isSigned() ? "cl_char" : "cl_uchar");
+                }else if(targetSize == 16){
+                    return String.format(type.isSigned() ? "cl_short" : "cl_ushort");
+                }else if(targetSize == 32){
+                    return String.format(type.isSigned() ? "cl_int" : "cl_uint");
+                }else{
+                    return String.format(type.isSigned() ? "cl_long" : "cl_ulong");
+                }
+            } else {
+                return type.isSigned() ? "cl_int" : "cl_uint ";
+            }
+    }
+
+    default String cltype(RealType type) {
+        switch (type.getSize()) {
+            case 32:
+                return "cl_float";
+            case 64:
+                return "cl_double";
+            default:
+                throw new UnsupportedOperationException("Unknown real type.");
+        }
+    }
+
     default String type(IntType type) {
         if (type.getSize().isPresent()) {
             int originalSize = type.getSize().getAsInt();
@@ -48,7 +108,7 @@ public interface TypesEvaluator {
         return "void";
     }
 
-    default String type(ListType type) {
+    default String  type(ListType type) {
 
         Type innerType = innerType(type.getElementType());
 

@@ -61,14 +61,14 @@ private:
 	T buffer[BURST_SIZE];
 
 public:
-	uint32_t operator()(hls::stream< T > &STREAM, bool core_done, uint32_t available_size, uint32_t *size, uint64_t *output);
+	uint32_t operator()(hls::stream< T > &STREAM, bool core_done, uint32_t available_size, uint32_t *size, T *output);
 
 
 
 };
 
 template<typename T>
-uint32_t class_output_stage<T>::operator()(hls::stream< T > &STREAM, bool core_done, uint32_t available_size, uint32_t *size, uint64_t *output) {
+uint32_t class_output_stage<T>::operator()(hls::stream< T > &STREAM, bool core_done, uint32_t available_size, uint32_t *size, T *output) {
 #pragma HLS INLINE
 
 	int ret = RECEIVING;

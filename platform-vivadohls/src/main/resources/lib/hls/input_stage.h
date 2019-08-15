@@ -60,12 +60,12 @@ private:
 
 public:
 	uint32_t operator()(bool core_done, uint32_t requested_size, uint32_t *size,
-			uint64_t *input, hls::stream<T> &STREAM);
+			T *input, hls::stream<T> &STREAM);
 };
 
 template<typename T>
 uint32_t class_input_stage<T>::operator()(bool core_done, uint32_t requested_size,
-		uint32_t *size, uint64_t *input, hls::stream<T> &STREAM) {
+		uint32_t *size, T *input, hls::stream<T> &STREAM) {
 #pragma HLS INLINE
 
 	int ret = SENDING;

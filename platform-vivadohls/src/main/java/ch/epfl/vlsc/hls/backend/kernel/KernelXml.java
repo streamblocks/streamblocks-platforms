@@ -3,11 +3,13 @@ package ch.epfl.vlsc.hls.backend.kernel;
 import ch.epfl.vlsc.hls.backend.VivadoHLSBackend;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.PathUtils;
+import ch.epfl.vlsc.platformutils.utils.TypeUtils;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.network.Network;
+import se.lth.cs.tycho.type.Type;
 
 @Module
 public interface KernelXml {
@@ -44,12 +46,16 @@ public interface KernelXml {
 
                     // -- Input ports
                     for(PortDecl port : network.getInputPorts()){
-                        emitter().emit("<port name=\"m_axi_%s\" mode=\"master\" range=\"0xFFFFFFFFFFFFFFFF\" dataWidth=\"%d\" portType=\"addressable\" base=\"0x0\"/>", port.getName(), 256);
+                        Type type = backend().types().declaredPortType(port);
+                        int bitSize = TypeUtils.sizeOfBits(type);
+                        emitter().emit("<port name=\"m_axi_%s\" mode=\"master\" range=\"0xFFFFFFFFFFFFFFFF\" dataWidth=\"%d\" portType=\"addressable\" base=\"0x0\"/>", port.getName(), Math.max(bitSize, 32));
                     }
 
                     // -- Output ports
                     for(PortDecl port : network.getOutputPorts()){
-                        emitter().emit("<port name=\"m_axi_%s\" mode=\"master\" range=\"0xFFFFFFFFFFFFFFFF\" dataWidth=\"%d\" portType=\"addressable\" base=\"0x0\"/>", port.getName(), 256);
+                        Type type = backend().types().declaredPortType(port);
+                        int bitSize = TypeUtils.sizeOfBits(type);
+                        emitter().emit("<port name=\"m_axi_%s\" mode=\"master\" range=\"0xFFFFFFFFFFFFFFFF\" dataWidth=\"%d\" portType=\"addressable\" base=\"0x0\"/>", port.getName(), Math.max(bitSize, 32));
                     }
                     emitter().decreaseIndentation();
                 }
@@ -63,29 +69,30 @@ public interface KernelXml {
                     int offset = 16;
                     // -- Input ports
                     for(PortDecl port : network.getInputPorts()){
-                        emitter().emit("<arg name=\"%s_requested_size\" addressQualifier=\"0\" id=\"%d\" port=\"s_axi_control\" size=\"0x4\" offset=\"%s\" hostOffset=\"0x0\" hostSize=\"0x4\" type=\"uint\"/>", port.getName(), idCounter++, String.format("%03x", offset));
-                        offset+=4;
-                    }
-                    for(PortDecl port : network.getOutputPorts()){
-                        emitter().emit("<arg name=\"%s_available_size\" addressQualifier=\"0\" id=\"%d\" port=\"s_axi_control\" size=\"0x4\" offset=\"%s\" hostOffset=\"0x0\" hostSize=\"0x4\" type=\"uint\"/>", port.getName(), idCounter++, String.format("%03x", offset));
-                        offset+=4;
+                        emitter().emit("<arg id=\"%d\" name=\"%s_requested_size\" addressQualifier=\"0\" port=\"s_axi_control\" size=\"0x4\" offset=\"%s\" hostOffset=\"0x0\" hostSize=\"0x4\" type=\"uint\"/>", idCounter++, port.getName() , String.format("%03x", offset));
+                        offset+=8;
                     }
 
+                    for(PortDecl port : network.getOutputPorts()){
+                        emitter().emit("<arg id=\"%d\"  name=\"%s_available_size\" addressQualifier=\"0\" port=\"s_axi_control\" size=\"0x4\" offset=\"%s\" hostOffset=\"0x0\" hostSize=\"0x4\" type=\"uint\"/>", idCounter++, port.getName(),  String.format("%03x", offset));
+                        offset+=8;
+                    }
                     // -- Increase by 4 for reserved offset
-                    offset+=4;
                     for(PortDecl port : network.getInputPorts()){
-                        emitter().emit("<arg name=\"%s_size\" addressQualifier=\"1\" id=\"%d\" port=\"m_axi_%1$s\" size=\"%s\" offset=\"%s\" hostOffset=\"0x0\" hostSize=\"%s\" type=\"%s\"/>", port.getName(), idCounter++, String.format("0x%01x", 8), String.format("0x%03X", offset), String.format("%01x", 8), "int*");
-                        offset+=8;
-                        emitter().emit("<arg name=\"%s_buffer\" addressQualifier=\"1\" id=\"%d\" port=\"m_axi_%1$s\" size=\"%s\" offset=\"%s\" hostOffset=\"0x0\" hostSize=\"%s\" type=\"%s\"/>", port.getName(), idCounter++, String.format("0x%01x", 8), String.format("0x%03X", offset), String.format("%01x", 8), "int*");
-                        offset+=8;
+                        Type type = backend().types().declaredPortType(port);
+                        emitter().emit("<arg id=\"%d\" name=\"%s_size\" addressQualifier=\"1\" port=\"m_axi_%2$s\" size=\"%s\" offset=\"%s\" hostOffset=\"0x0\" hostSize=\"%s\" type=\"%s*\"/>", idCounter++, port.getName(),  String.format("0x%01x", 8), String.format("0x%03X", offset), String.format("0x%01x", 8), "unsigned int");
+                        offset+=12;
+                        emitter().emit("<arg id=\"%d\" name=\"%s_buffer\" addressQualifier=\"1\" port=\"m_axi_%2$s\" size=\"%s\" offset=\"%s\" hostOffset=\"0x0\" hostSize=\"%s\" type=\"%s*\"/>", idCounter++, port.getName(),  String.format("0x%01x", 8), String.format("0x%03X", offset), String.format("0x%01x", 8), backend().typeseval().KernelXmlType(type));
+                        offset+=12;
                     }
 
                     // -- Output ports
                     for(PortDecl port : network.getOutputPorts()){
-                        emitter().emit("<arg name=\"%s_size\" addressQualifier=\"1\" id=\"%d\" port=\"m_axi_%1$s\" size=\"%s\" offset=\"%s\" hostOffset=\"0x0\" hostSize=\"%s\" type=\"%s\"/>", port.getName(), idCounter++, String.format("0x%01x", 8), String.format("0x%03X", offset), String.format("%01x", 8), "int*");
-                        offset+=8;
-                        emitter().emit("<arg name=\"%s_buffer\" addressQualifier=\"1\" id=\"%d\" port=\"m_axi_%1$s\" size=\"%s\" offset=\"%s\" hostOffset=\"0x0\" hostSize=\"%s\" type=\"%s\"/>", port.getName(), idCounter++, String.format("0x%01x", 8), String.format("0x%03X", offset), String.format("%01x", 8), "int*");
-                        offset+=8;
+                        Type type = backend().types().declaredPortType(port);
+                        emitter().emit("<arg id=\"%d\" name=\"%s_size\" addressQualifier=\"1\"  port=\"m_axi_%2$s\" size=\"%s\" offset=\"%s\" hostOffset=\"0x0\" hostSize=\"%s\" type=\"%s*\"/>", idCounter++, port.getName(),  String.format("0x%01x", 8), String.format("0x%03X", offset), String.format("0x%01x", 8), "unsigned int");
+                        offset+=12;
+                        emitter().emit("<arg id=\"%d\" name=\"%s_buffer\" addressQualifier=\"1\" port=\"m_axi_%2$s\" size=\"%s\" offset=\"%s\" hostOffset=\"0x0\" hostSize=\"%s\" type=\"%s*\"/>", idCounter++, port.getName(),  String.format("0x%01x", 8), String.format("0x%03X", offset), String.format("0x%01x", 8), backend().typeseval().KernelXmlType(type));
+                        offset+=12;
                     }
 
                     emitter().decreaseIndentation();

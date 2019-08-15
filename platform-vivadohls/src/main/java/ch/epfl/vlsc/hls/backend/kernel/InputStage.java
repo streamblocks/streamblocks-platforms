@@ -58,7 +58,7 @@ public interface InputStage {
         ports.add("bool core_done");
         ports.add(String.format("uint32_t %s_requested_size", port.getName()));
         ports.add(String.format("uint32_t *%s_size", port.getName()));
-        ports.add(String.format("uint64_t *%s_buffer", port.getName()));
+        ports.add(String.format("%s *%s_buffer", backend().declarations().declaration(backend().types().declaredPortType(port), ""), port.getName()));
 
         ports.add(backend().declarations().portDeclaration(port));
         return String.join(", ", ports);

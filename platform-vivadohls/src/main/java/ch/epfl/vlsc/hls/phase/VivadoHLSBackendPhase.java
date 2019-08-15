@@ -287,6 +287,7 @@ public class VivadoHLSBackendPhase implements Phase {
             Files.copy(getClass().getResourceAsStream("/lib/cmake/FindVivadoHLS.cmake"), PathUtils.getTargetCmake(backend.context()).resolve("FindVivadoHLS.cmake"), StandardCopyOption.REPLACE_EXISTING);
             Files.copy(getClass().getResourceAsStream("/lib/cmake/FindVivado.cmake"), PathUtils.getTargetCmake(backend.context()).resolve("FindVivado.cmake"), StandardCopyOption.REPLACE_EXISTING);
             Files.copy(getClass().getResourceAsStream("/lib/cmake/FindSDAccel.cmake"), PathUtils.getTargetCmake(backend.context()).resolve("FindSDAccel.cmake"), StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(getClass().getResourceAsStream("/lib/cmake/FindXRT.cmake"), PathUtils.getTargetCmake(backend.context()).resolve("FindXRT.cmake"), StandardCopyOption.REPLACE_EXISTING);
 
             // -- Input Stage Header
             Files.copy(getClass().getResourceAsStream("/lib/hls/input_stage.h"), PathUtils.getTargetCodeGenInclude(backend.context()).resolve("input_stage.h"), StandardCopyOption.REPLACE_EXISTING);
