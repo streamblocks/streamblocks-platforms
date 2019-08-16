@@ -296,14 +296,14 @@ public interface TopKernel {
                 for (PortDecl port : network.getInputPorts()) {
                     emitter().emit(".%s_requested_size( %1$s_requested_size ),", port.getName());
                     emitter().emit(".%s_size( %1$s_size ),", port.getName());
-                    emitter().emit(".%s_buffer( %1$s_size ),", port.getName());
+                    emitter().emit(".%s_buffer( %1$s_buffer ),", port.getName());
                 }
             }
             if (!network.getOutputPorts().isEmpty()) {
                 for (PortDecl port : network.getOutputPorts()) {
                     emitter().emit(".%s_available_size( %1$s_available_size ),", port.getName());
                     emitter().emit(".%s_size( %1$s_size ),", port.getName());
-                    emitter().emit(".%s_buffer( %1$s_size ),", port.getName());
+                    emitter().emit(".%s_buffer( %1$s_buffer ),", port.getName());
                 }
             }
             emitter().emit(".interrupt( interrupt ),");
@@ -365,14 +365,14 @@ public interface TopKernel {
                 for (PortDecl port : network.getInputPorts()) {
                     emitter().emit(".%s_requested_size( %1$s_requested_size ),", port.getName());
                     emitter().emit(".%s_size( %1$s_size ),", port.getName());
-                    emitter().emit(".%s_buffer( %1$s_size ),", port.getName());
+                    emitter().emit(".%s_buffer( %1$s_buffer ),", port.getName());
                 }
             }
             if (!network.getOutputPorts().isEmpty()) {
                 for (PortDecl port : network.getOutputPorts()) {
                     emitter().emit(".%s_available_size( %1$s_available_size ),", port.getName());
                     emitter().emit(".%s_size( %1$s_size ),", port.getName());
-                    emitter().emit(".%s_buffer( %1$s_size ),", port.getName());
+                    emitter().emit(".%s_buffer( %1$s_buffer ),", port.getName());
                 }
             }
             emitter().emit(".ap_start( ap_start ),");
@@ -431,7 +431,5 @@ public interface TopKernel {
         emitter().emit(".m_axi_%s_BRESP(m_axi_%1$s_BRESP),", name);
         emitter().emit(".m_axi_%s_BID(m_axi_%1$s_BID),", name);
         emitter().emit(".m_axi_%s_BUSER(m_axi_%1$s_BUSER),", name);
-
-
     }
 }

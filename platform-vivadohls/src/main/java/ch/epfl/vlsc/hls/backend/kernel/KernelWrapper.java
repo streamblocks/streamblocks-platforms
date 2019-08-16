@@ -349,6 +349,7 @@ public interface KernelWrapper {
             emitter().emit(".ap_done(),");
             emitter().emit(".ap_idle(),");
             emitter().emit(".ap_ready(),");
+            emitter().emit(".core_done(core_done),");
             // -- AXI Master
             getAxiMasterConnections(port);
             // -- Direct address
