@@ -416,7 +416,7 @@ public interface VerilogNetwork {
                     Entity entity = entityDecl.getEntity();
                     return entity instanceof ActorMachine;
                 })
-                .map(i -> "(" + i.getInstanceName() + "_ap_return == `RETURN_EXECUTED)")
+                .map(i -> "(" + i.getInstanceName() + "_ap_return === `RETURN_EXECUTED)")
                 .collect(Collectors.toList())));
         emitter().emitNewLine();
     }
