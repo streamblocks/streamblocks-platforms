@@ -199,6 +199,20 @@ public interface KernelWrapper {
             emitter().emit("wire    %s_read;", port.getName());
         }
         emitter().emit("wire    core_done;");
+
+        // -- I/O Stage
+        emitter().emit("// -- AP for I/O Stage", backend().task().getIdentifier().getLast().toString());
+        for(PortDecl port : network.getInputPorts()){
+            emitter().emit("wire    %s_input_stage_ap_start;", port.getName());
+            emitter().emit("wire    %s_input_stage_ap_done;", port.getName());
+            emitter().emit("wire    [31:0] %s_input_stage_ap_return;", port.getName());
+        }
+        for(PortDecl port : network.getOutputPorts()){
+            emitter().emit("wire    %s_output_stage_ap_start;", port.getName());
+            emitter().emit("wire    %s_output_stage_ap_done;", port.getName());
+            emitter().emit("wire    [31:0] %s_output_stage_ap_return;", port.getName());
+        }
+
         emitter().emitNewLine();
 
     }
@@ -323,6 +337,10 @@ public interface KernelWrapper {
 
     default void getInputStage(PortDecl port) {
         emitter().emit("// -- Input stage for port : %s", port.getName());
+        emitter().emitNewLine();
+        emitter().emit("assign %s_input_stage_ap_start = (%1$s_input_stage_ap_return === `STAGE_DONE) ? 1'b0 : 1'b1;", port.getName());
+        emitter().emitNewLine();
+
         emitter().emit("%s_input_stage #(", port.getName());
         {
             emitter().increaseIndentation();
@@ -345,10 +363,11 @@ public interface KernelWrapper {
             // -- Ap control
             emitter().emit(".ap_clk(ap_clk),");
             emitter().emit(".ap_rst_n(ap_rst_n),");
-            emitter().emit(".ap_start(ap_start_pulse),");
-            emitter().emit(".ap_done(),");
+            emitter().emit(".ap_start(%s_input_stage_ap_start),", port.getName());
+            emitter().emit(".ap_done(%s_input_stage_ap_done),", port.getName());
             emitter().emit(".ap_idle(),");
             emitter().emit(".ap_ready(),");
+            emitter().emit(".ap_return(%s_input_stage_ap_return),", port.getName());
             emitter().emit(".core_done(core_done),");
             // -- AXI Master
             getAxiMasterConnections(port);
@@ -397,6 +416,11 @@ public interface KernelWrapper {
     // -- Output Stages instantiation
     default void getOutputStage(PortDecl port) {
         emitter().emit("// -- Output stage for port : %s", port.getName());
+        emitter().emitNewLine();
+
+        emitter().emit("assign %s_output_stage_ap_start = (%1$s_output_stage_ap_return === `STAGE_DONE) ? 1'b0 : 1'b1;", port.getName());
+        emitter().emitNewLine();
+
         emitter().emit("%s_output_stage #(", port.getName());
         {
             emitter().increaseIndentation();
@@ -419,11 +443,11 @@ public interface KernelWrapper {
             // -- Ap control
             emitter().emit(".ap_clk(ap_clk),");
             emitter().emit(".ap_rst_n(ap_rst_n),");
-            emitter().emit(".ap_start(ap_start_pulse),");
-            emitter().emit(".ap_done(),");
+            emitter().emit(".ap_start(%s_output_stage_ap_start),", port.getName());
+            emitter().emit(".ap_done(%s_output_stage_ap_done),", port.getName());
             emitter().emit(".ap_idle(),");
             emitter().emit(".ap_ready(),");
-            emitter().emit(".ap_return(),");
+            emitter().emit(".ap_return(%s_output_stage_ap_return),", port.getName());
             emitter().emit(".core_done(core_done),");
             // -- AXI Master
             getAxiMasterConnections(port);
