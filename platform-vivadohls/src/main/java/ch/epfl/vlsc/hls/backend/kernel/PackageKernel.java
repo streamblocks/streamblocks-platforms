@@ -44,12 +44,12 @@ public interface PackageKernel {
 
         emitter().emitSharpBlockComment("Import Input/Output stages");
         for (PortDecl port : network.getInputPorts()) {
-            importVivadoHLSIOStage(port, "_input_stage_mem");
-            importVivadoHLSIOStage(port, "_input_stage_pass");
+            importVivadoHLSIOStage(port, "input_stage_mem");
+            importVivadoHLSIOStage(port, "input_stage_pass");
         }
         for (PortDecl port : network.getOutputPorts()) {
-            importVivadoHLSIOStage(port, "_output_stage_control");
-            importVivadoHLSIOStage(port, "_output_stage_mem");
+            importVivadoHLSIOStage(port, "output_stage_control");
+            importVivadoHLSIOStage(port, "output_stage_mem");
         }
 
         // -- Package project

@@ -75,6 +75,9 @@ public interface VerilogNetwork {
             // -- Instances
             getInstances(network.getInstances());
 
+            // -- Ap done logic
+            getApDoneLogic();
+
             // -- Assignments
             getAssignments(network);
 
@@ -138,6 +141,19 @@ public interface VerilogNetwork {
         emitter().emit("// -- Parameters");
         emitter().emitNewLine();
         getQueueDepthParameters(network.getConnections());
+
+        emitter().emit("// -- AP done state machine");
+        emitter().emit("localparam [1:0]");
+        {
+            emitter().increaseIndentation();
+
+            emitter().emit("_WAIT_ = 0, ");
+            emitter().emit("_INIT_ = 1, ");
+            emitter().emit("_INIT_ = 2, ");
+            emitter().emit("_DONE_ = 3; ");
+
+            emitter().decreaseIndentation();
+        }
     }
 
     default void getQueueDepthParameters(List<Connection> connections) {
@@ -156,17 +172,22 @@ public interface VerilogNetwork {
     default void getWires(Network network) {
         // -- Fifo Queue Wires
         emitter().emit("// ------------------------------------------------------------------------");
-        emitter().emit("// -- Wires");
+        emitter().emit("// -- Wires & Regs");
         emitter().emitNewLine();
 
         // -- Queue wires
         getFifoQueueWires(network.getConnections());
         emitter().emitNewLine();
 
+        // -- Ap done state machine
+        emitter().emit("// -- state for ap done logic");
+        emitter().emit("reg [1:0] state = _WAIT_, next_state;");
+
         // -- Instance AP cotrol wires
         getInstanceApControlWires(network.getInstances());
 
         // -- Network is being executed wire
+        emitter().emit("wire active_instances;");
         emitter().emit("wire network_is_executing;");
         emitter().emitNewLine();
     }
@@ -294,7 +315,7 @@ public interface VerilogNetwork {
         Entity entity = entityDecl.getEntity();
 
         emitter().emit("// -- Instance : %s", qidName);
-        if(entity instanceof ActorMachine) {
+        if (entity instanceof ActorMachine) {
             emitter().emit("wire %s_ap_start;", qidName);
             emitter().emit("wire %s_available_data = %s;", qidName,
                     String.join(" || ", entity.getInputPorts()
@@ -319,7 +340,7 @@ public interface VerilogNetwork {
             }
             emitter().emit(");");
             emitter().emitNewLine();
-        }else{
+        } else {
             emitter().emit("wire %s_ap_start = %s;", qidName,
                     String.join(" || ", entity.getInputPorts()
                             .stream().map(p -> String.format("q_%s_%s_empty_n", name, p.getName()))
@@ -377,7 +398,7 @@ public interface VerilogNetwork {
 
 
             // -- Vivado HLS control signals
-            emitter().emit(".ap_start(%s_ap_start),",qidName);
+            emitter().emit(".ap_start(%s_ap_start),", qidName);
             emitter().emit(".ap_done(%s_ap_done),", name);
             emitter().emit(".ap_idle(%s_ap_idle),", name);
             emitter().emit(".ap_ready(%s_ap_ready),", name);
@@ -409,7 +430,7 @@ public interface VerilogNetwork {
 
     default void getNeworkIsBeingExecutingAssignment(Network network) {
         emitter().emit("// -- Network is executing");
-        emitter().emit("assign network_is_executing = %s;", String.join(" || ", network.getInstances()
+        emitter().emit("assign active_instances = %s;", String.join(" || ", network.getInstances()
                 .stream()
                 .filter(i -> {
                     GlobalEntityDecl entityDecl = backend().globalnames().entityDecl(i.getEntityName(), true);
@@ -418,6 +439,8 @@ public interface VerilogNetwork {
                 })
                 .map(i -> "(" + i.getInstanceName() + "_ap_return === `RETURN_EXECUTED)")
                 .collect(Collectors.toList())));
+
+        emitter().emit("assign network_is_executing = (state == _EXECUTING_);");
         emitter().emitNewLine();
     }
 
@@ -426,10 +449,6 @@ public interface VerilogNetwork {
         emitter().emit("assign ap_idle = %s;", String.join(" & ", network.getInstances()
                 .stream().map(i -> i.getInstanceName() + "_ap_idle")
                 .collect(Collectors.toList())));
-        emitter().emitNewLine();
-
-        emitter().emit("// -- AP Done");
-        emitter().emit("assign ap_done = ~network_is_executing;");
         emitter().emitNewLine();
     }
 
@@ -490,9 +509,126 @@ public interface VerilogNetwork {
         return dataWidth;
     }
 
-
     default int getQueueAddrWidth(Connection connection) {
         return MathUtils.log2Ceil(backend().channelsutils().connectionBufferSize(connection));
+    }
+
+    default void getApDoneLogic() {
+        emitter().emit("// ------------------------------------------------------------------------");
+        emitter().emit("// -- AP done logic");
+        emitter().emitNewLine();
+
+        emitter().emit("// -- Next state");
+        emitter().emit("always @(posedge ap_clk) begin");
+        {
+            emitter().increaseIndentation();
+
+            emitter().emit("if(ap_rst_n == 1'b0)");
+            emitter().emit("\tstate <= _WAIT_;");
+            emitter().emit("else");
+            emitter().emit("\tstate <= next_state;");
+
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("end");
+        emitter().emitNewLine();
+
+        emitter().emit("// -- AP done state machine");
+        emitter().emit("always @(*) begin");
+        {
+            emitter().increaseIndentation();
+
+            emitter().emit("ap_done = 1'b0;");
+            emitter().emitNewLine();
+
+            emitter().emit("case(state)");
+            // -- WAIT
+            {
+                emitter().emit("_WAIT_:");
+                emitter().emit(" begin");
+                {
+                    emitter().increaseIndentation();
+
+                    emitter().emit("ap_done = 1'b0;");
+                    emitter().emit("if(ap_start)");
+                    emitter().emit("\tnext_state = _INIT_;");
+                    emitter().emit("else");
+                    emitter().emit("\tnext_state = _WAIT_;");
+
+                    emitter().decreaseIndentation();
+                }
+                emitter().emit("end");
+            }
+
+            // -- INIT
+            {
+                emitter().emit("_INIT_:");
+                emitter().emit(" begin");
+                {
+                    emitter().increaseIndentation();
+
+                    emitter().emit("ap_done = 1'b0;");
+                    emitter().emit("if(~ap_start)");
+                    emitter().emit("\tnext_state = _EXECUTING_;");
+                    emitter().emit("else");
+                    emitter().emit("\tnext_state = _INIT_;");
+
+                    emitter().decreaseIndentation();
+                }
+                emitter().emit("end");
+            }
+
+            // -- EXEUCTING
+            {
+                emitter().emit("_EXECUTING_:");
+                emitter().emit(" begin");
+                {
+                    emitter().increaseIndentation();
+
+                    emitter().emit("if (active_instances) begin");
+                    emitter().emit("\tap_done = 1'b1;");
+                    emitter().emit("\tnext_state = _DONE_;");
+                    emitter().emit("end else begin");
+                    emitter().emit("\tnext_state = _EXECUTING_;");
+                    emitter().emit("\tap_done = 1'b0;");
+                    emitter().emit("end");
+
+                    emitter().decreaseIndentation();
+                }
+                emitter().emit("end");
+            }
+
+            // -- DONE
+            {
+                emitter().emit("_DONEs_:");
+                emitter().emit(" begin");
+                {
+                    emitter().increaseIndentation();
+
+                    emitter().emit("ap_done = 1'b1;");
+                    emitter().emit("if(ap_start)");
+                    emitter().emit("\tnext_state = _INIT_;");
+                    emitter().emit("else");
+                    emitter().emit("\tnext_state = _DONE_;");
+
+                    emitter().decreaseIndentation();
+                }
+                emitter().emit("end");
+            }
+
+            // -- default
+            {
+                emitter().emit("default: begin");
+                emitter().emit("\tap_done = 1'b0;");
+                emitter().emit("\tnext_state = _WAIT_;");
+                emitter().emit("end");
+            }
+
+            emitter().emit("endcase");
+
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("end");
     }
 
 
