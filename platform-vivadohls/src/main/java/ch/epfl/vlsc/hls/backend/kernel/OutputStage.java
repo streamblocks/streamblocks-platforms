@@ -3,6 +3,7 @@ package ch.epfl.vlsc.hls.backend.kernel;
 import ch.epfl.vlsc.hls.backend.VivadoHLSBackend;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.PathUtils;
+import ch.epfl.vlsc.platformutils.utils.TypeUtils;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
@@ -21,44 +22,186 @@ public interface OutputStage {
         return backend().emitter();
     }
 
-    default void getOutputStage(PortDecl port){
+    default void getOutputStage(PortDecl port) {
         String identifier = port.getName();
 
-        emitter().open(PathUtils.getTargetCodeGenSource(backend().context()).resolve(identifier + "_output_stage.cpp"));
-        backend().includeSystem("stdint.h");
-        backend().includeSystem("hls_stream.h");
-        backend().includeUser("output_stage.h");
+        emitter().open(PathUtils.getTargetCodeGenRtl(backend().context()).resolve(identifier + "_output_stage.v"));
+
+        emitter().emit("`timescale 1ns / 1ps");
+        emitter().emit("`define FINISH 4");
         emitter().emitNewLine();
 
-        emitter().emit("uint32_t %s_output_stage(%s) {", port.getName(), entityPorts(port));
-        emitter().emit("#pragma HLS INTERFACE m_axi port=%s_size offset=direct bundle=%1$s", port.getName());
-        emitter().emit("#pragma HLS INTERFACE m_axi port=%s_buffer offset=direct bundle=%1$s", port.getName());
-        emitter().emit("#pragma HLS INTERFACE ap_ctrl_hs register port=return");
+        Type type = backend().types().declaredPortType(port);
+        int bitSize = TypeUtils.sizeOfBits(type);
+
+        emitter().emit("module %s_input_stage #(", port.getName());
         {
             emitter().increaseIndentation();
 
-            emitter().emit("static class_output_stage< %s > i_%s_output_stage;", backend().declarations().declaration(backend().types().declaredPortType(port), ""), port.getName());
-            emitter().emitNewLine();
-
-            emitter().emit("return i_%s_output_stage(%1$s, core_done, %1$s_available_size, %1$s_size, %1$s_buffer);", port.getName());
-
+            emitter().emit("parameter integer C_M_AXI_%s_ADDR_WIDTH = %d,", port.getName().toUpperCase(), AxiConstants.C_M_AXI_ADDR_WIDTH);
+            emitter().emit("parameter integer C_M_AXI_%s_DATA_WIDTH = %d,", port.getName().toUpperCase(), Math.max(bitSize, 32));
+            emitter().emit("parameter integer C_M_AXI_%s_ID_WIDTH = %d,", port.getName().toUpperCase(), 1);
+            emitter().emit("parameter integer C_M_AXI_%s_AWUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
+            emitter().emit("parameter integer C_M_AXI_%s_ARUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
+            emitter().emit("parameter integer C_M_AXI_%s_WUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
+            emitter().emit("parameter integer C_M_AXI_%s_RUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
+            emitter().emit("parameter integer C_M_AXI_%s_BUSER_WIDTH =  %d", port.getName().toUpperCase(), 1);
 
             emitter().decreaseIndentation();
         }
-        emitter().emit("}");
+        emitter().emit(")");
+        emitter().emit("(");
+        {
+            emitter().increaseIndentation();
+
+            emitter().emit("input wire ap_clk,");
+            emitter().emit("input wire ap_rst_n,");
+            emitter().emit("// -- ap control");
+            emitter().emit("input  wire ap_start,");
+            emitter().emit("output wire ap_idle,");
+            emitter().emit("output wire ap_ready,");
+            emitter().emit("output wire ap_done,");
+            emitter().emit("output wire [31:0] ap_return,");
+            emitter().emit("// -- Network done");
+            emitter().emit("input wire core_done,");
+            backend().topkernel().getAxiMasterPorts(port.getName());
+            emitter().emit("// -- Constant & Addresses");
+            emitter().emit("input  wire [31:0] %s_available_size,", port.getName());
+            emitter().emit("input  wire [63:0] %s_size_r,", port.getName());
+            emitter().emit("input  wire [63:0] %s_buffer,", port.getName());
+            emitter().emit("// -- output stream");
+            emitter().emit("input wire [%d:0] %s_V_dout,", bitSize - 1, port.getName());
+            emitter().emit("input  wire %s_V_empty_n,", port.getName());
+            emitter().emit("output  wire %s_V_read ", port.getName());
+
+            emitter().decreaseIndentation();
+        }
+        emitter().emit(");");
+
+        // -- Wires
+        getWires(port);
+
+        emitter().emitClikeBlockComment("Instantiations");
+        emitter().emitNewLine();
+
+        // -- Output stage pass
+        getOutputStageControl(port);
+
+        // -- Queue
+        backend().inputstage().getQueue("q_tmp", bitSize, "q_tmp_V", "q_tmp_V");
+
+        // -- Input stage mem
+        getOutputStageMem(port);
+
+        emitter().emit("endmodule");
 
         emitter().close();
     }
 
-    default String entityPorts (PortDecl port){
-        Type type = backend().types().declaredPortType(port);
-        List<String> ports = new ArrayList<>();
-        ports.add(backend().declarations().portDeclaration(port));
-        ports.add("bool core_done");
-        ports.add(String.format("uint32_t %s_available_size", port.getName()));
-        ports.add(String.format("uint32_t *%s_size", port.getName()));
-        ports.add(String.format("%s *%s_buffer",  backend().declarations().declaration(backend().types().declaredPortType(port), ""), port.getName()));
+    default void getWires(PortDecl port) {
+        emitter().emitClikeBlockComment("Reg & Wires");
+        emitter().emitNewLine();
 
-        return String.join(", ", ports);
+        emitter().emit("// -- Queue Buffer");
+        Type type = backend().types().declaredPortType(port);
+        int bitSize = TypeUtils.sizeOfBits(type);
+
+        emitter().emit("wire [%d:0] q_tmp_V_din;", bitSize - 1);
+        emitter().emit("wire q_tmp_V_full_n;");
+        emitter().emit("wire q_tmp_V_write;");
+        emitter().emitNewLine();
+        emitter().emit("wire [%d:0] q_tmp_V_dout;", bitSize - 1);
+        emitter().emit("wire q_tmp_V_empty_n;");
+        emitter().emit("wire q_tmp_V_read;");
+        emitter().emit("wire [31:0] q_tmp_V_count;");
+        emitter().emit("wire [31:0] q_tmp_V_size;");
+        emitter().emitNewLine();
+
+        // -- Output stage control
+        emitter().emit("// -- Output stage control");
+        emitter().emit("wire %s_output_stage_control_ap_done;", port.getName());
+        emitter().emit("wire [31:0] %s_output_stage_control_ap_return;", port.getName());
+        emitter().emitNewLine();
+        // -- Output stage mem
+        emitter().emit("// -- Output stage mem");
+        emitter().emit("wire %s_output_stage_control_ap_done;", port.getName());
+        emitter().emit("wire [31:0] %s_output_stage_control_ap_return;", port.getName());
+        emitter().emitNewLine();
     }
+
+    default void getOutputStageControl(PortDecl port) {
+        emitter().emit("// -- Output stage control for port : %s", port.getName());
+        emitter().emit("%s_output_stage_control i_%1$s_output_stage_control(", port.getName());
+        {
+            emitter().increaseIndentation();
+
+            emitter().emit(".ap_clk(ap_clk),");
+            emitter().emit(".ap_rst_n(ap_rst_n),");
+            emitter().emit(".ap_start(ap_start),");
+            emitter().emit(".ap_done(B_output_stage_control_ap_done),");
+            emitter().emit(".ap_idle(),");
+            emitter().emit(".ap_ready(),");
+            emitter().emit(".STREAM_IN_V_dout(%s_V_dout),", port.getName());
+            emitter().emit(".STREAM_IN_V_empty_n(%s_V_empty_n),", port.getName());
+            emitter().emit(".STREAM_IN_V_read(%s_V_read),", port.getName());
+            emitter().emit(".STREAM_OUT_V_din(q_tmp_V_din),");
+            emitter().emit(".STREAM_OUT_V_full_n(q_tmp_V_full_n),");
+            emitter().emit(".STREAM_OUT_V_write(q_tmp_V_write),");
+            emitter().emit(".core_done(core_done),");
+            emitter().emit(".ap_return(%s_output_stage_control_ap_return)", port.getName());
+
+            emitter().decreaseIndentation();
+        }
+        emitter().emit(");");
+        emitter().emitNewLine();
+    }
+
+    default void getOutputStageMem(PortDecl port) {
+        emitter().emit("// -- Output stage mem for port : %s", port.getName());
+        emitter().emit("%s_output_stage_mem #(", port.getName());
+        {
+            emitter().increaseIndentation();
+
+            emitter().emit(".C_M_AXI_%s_ID_WIDTH( C_M_AXI_%s_ID_WIDTH ),", port.getSafeName().toUpperCase(), port.getName().toUpperCase());
+            emitter().emit(".C_M_AXI_%s_ADDR_WIDTH( C_M_AXI_%s_ADDR_WIDTH ),", port.getSafeName().toUpperCase(), port.getName().toUpperCase());
+            emitter().emit(".C_M_AXI_%s_DATA_WIDTH( C_M_AXI_%s_DATA_WIDTH ),", port.getSafeName().toUpperCase(), port.getName().toUpperCase());
+            emitter().emit(".C_M_AXI_%s_AWUSER_WIDTH( C_M_AXI_%s_AWUSER_WIDTH ),", port.getSafeName().toUpperCase(), port.getName().toUpperCase());
+            emitter().emit(".C_M_AXI_%s_ARUSER_WIDTH( C_M_AXI_%s_ARUSER_WIDTH ),", port.getSafeName().toUpperCase(), port.getName().toUpperCase());
+            emitter().emit(".C_M_AXI_%s_WUSER_WIDTH( C_M_AXI_%s_WUSER_WIDTH ),", port.getSafeName().toUpperCase(), port.getName().toUpperCase());
+            emitter().emit(".C_M_AXI_%s_RUSER_WIDTH( C_M_AXI_%s_RUSER_WIDTH ),", port.getSafeName().toUpperCase(), port.getName().toUpperCase());
+            emitter().emit(".C_M_AXI_%s_BUSER_WIDTH( C_M_AXI_%s_BUSER_WIDTH )", port.getSafeName().toUpperCase(), port.getName().toUpperCase());
+
+            emitter().decreaseIndentation();
+        }
+        emitter().emit(")");
+        emitter().emit("i_%s_output_stage_mem(", port.getName());
+        {
+            emitter().increaseIndentation();
+            // -- Ap control
+            emitter().emit(".ap_clk(ap_clk),");
+            emitter().emit(".ap_rst_n(ap_rst_n),");
+            emitter().emit(".ap_start(%s_output_stage_mem_ap_start),", port.getName());
+            emitter().emit(".ap_done(%s_output_stage_ap_done),", port.getName());
+            emitter().emit(".ap_idle(ap_idle),");
+            emitter().emit(".ap_ready(ap_ready),");
+            emitter().emit(".ap_return(ap_return),");
+            // -- AXI Master
+            backend().kernelwrapper().getAxiMasterConnections(port);
+            // -- Direct address
+            emitter().emit(".%s_available_size(%1$s_available_size),", port.getName());
+            emitter().emit(".%s_size_r(%1$s_size),", port.getName());
+            emitter().emit(".%s_buffer(%1$s_buffer),", port.getName());
+            // -- FIFO I/O
+            emitter().emit(".fifo_count(q_tmp_count),");
+            emitter().emit(".%s_V_dout(q_tmp_V_dout),", port.getName());
+            emitter().emit(".%s_V_empty_n(q_tmp_V_empty_n),", port.getName());
+            emitter().emit(".%s_V_read(q_tmp_V_read)", port.getName());
+            emitter().decreaseIndentation();
+        }
+        emitter().emit(");");
+        emitter().emitNewLine();
+
+    }
+
+
 }

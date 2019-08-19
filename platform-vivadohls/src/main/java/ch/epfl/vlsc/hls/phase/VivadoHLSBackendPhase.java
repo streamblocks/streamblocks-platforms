@@ -207,11 +207,15 @@ public class VivadoHLSBackendPhase implements Phase {
 
         // -- Input Stage
         for (PortDecl port : backend.task().getNetwork().getInputPorts()) {
+            backend.inputstagepass().getInputStagePass(port);
+            backend.inputstagemem().getInputStageMem(port);
             backend.inputstage().getInputStage(port);
         }
 
         // -- Output Stage
         for (PortDecl port : backend.task().getNetwork().getOutputPorts()) {
+            backend.outputstagecontrol().getOutputStageControl(port);
+            backend.outputstagemem().getOutputStageMem(port);
             backend.outputstage().getOutputStage(port);
         }
 
@@ -289,11 +293,17 @@ public class VivadoHLSBackendPhase implements Phase {
             Files.copy(getClass().getResourceAsStream("/lib/cmake/FindSDAccel.cmake"), PathUtils.getTargetCmake(backend.context()).resolve("FindSDAccel.cmake"), StandardCopyOption.REPLACE_EXISTING);
             Files.copy(getClass().getResourceAsStream("/lib/cmake/FindXRT.cmake"), PathUtils.getTargetCmake(backend.context()).resolve("FindXRT.cmake"), StandardCopyOption.REPLACE_EXISTING);
 
-            // -- Input Stage Header
-            Files.copy(getClass().getResourceAsStream("/lib/hls/input_stage.h"), PathUtils.getTargetCodeGenInclude(backend.context()).resolve("input_stage.h"), StandardCopyOption.REPLACE_EXISTING);
+            // -- Input Stage pass Header
+            Files.copy(getClass().getResourceAsStream("/lib/hls/input_stage_pass.h"), PathUtils.getTargetCodeGenInclude(backend.context()).resolve("input_stage_pass.h"), StandardCopyOption.REPLACE_EXISTING);
 
-            // -- Output Stage Header
-            Files.copy(getClass().getResourceAsStream("/lib/hls/output_stage.h"), PathUtils.getTargetCodeGenInclude(backend.context()).resolve("output_stage.h"), StandardCopyOption.REPLACE_EXISTING);
+            // -- Input Stage mem Header
+            Files.copy(getClass().getResourceAsStream("/lib/hls/input_stage_mem.h"), PathUtils.getTargetCodeGenInclude(backend.context()).resolve("input_stage_mem.h"), StandardCopyOption.REPLACE_EXISTING);
+
+            // -- Output Stage control Header
+            Files.copy(getClass().getResourceAsStream("/lib/hls/output_stage_control.h"), PathUtils.getTargetCodeGenInclude(backend.context()).resolve("output_stage_control.h"), StandardCopyOption.REPLACE_EXISTING);
+
+            // -- Output Stage mem Header
+            Files.copy(getClass().getResourceAsStream("/lib/hls/output_stage_mem.h"), PathUtils.getTargetCodeGenInclude(backend.context()).resolve("output_stage_mem.h"), StandardCopyOption.REPLACE_EXISTING);
 
             // -- Synthesis script for Vivado HLS as an input to CMake
             Files.copy(getClass().getResourceAsStream("/lib/cmake/Synthesis.tcl.in"), PathUtils.getTargetScripts(backend.context()).resolve("Synthesis.tcl.in"), StandardCopyOption.REPLACE_EXISTING);

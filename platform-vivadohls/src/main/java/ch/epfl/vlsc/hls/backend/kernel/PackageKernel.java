@@ -40,14 +40,16 @@ public interface PackageKernel {
         // -- Import Files
         backend().vivadotcl().importVivadoHLSVerilogFiles(network);
         backend().vivadotcl().importStreamblocksVerilogFiles(identifier);
-        importKernelVerilogFiles(identifier);
+        importKernelVerilogFiles(network, identifier);
 
         emitter().emitSharpBlockComment("Import Input/Output stages");
         for (PortDecl port : network.getInputPorts()) {
-            importVivadoHLSIOStage(port, true);
+            importVivadoHLSIOStage(port, "_input_stage_mem");
+            importVivadoHLSIOStage(port, "_input_stage_pass");
         }
         for (PortDecl port : network.getOutputPorts()) {
-            importVivadoHLSIOStage(port, false);
+            importVivadoHLSIOStage(port, "_output_stage_control");
+            importVivadoHLSIOStage(port, "_output_stage_mem");
         }
 
         // -- Package project
@@ -97,16 +99,22 @@ public interface PackageKernel {
         emitter().close();
     }
 
-    default void importKernelVerilogFiles(String identifier) {
+    default void importKernelVerilogFiles(Network network, String identifier) {
         emitter().emitSharpBlockComment("Import StreamBlocks Kernel Verilog RTL files");
-        emitter().emit("import_files -norecurse {@CMAKE_SOURCE_DIR@/code-gen/rtl/%s_kernel.v}", identifier);
-        emitter().emit("import_files -norecurse {@CMAKE_SOURCE_DIR@/code-gen/rtl/%s_wrapper.sv}", identifier);
+        for (PortDecl port : network.getInputPorts()) {
+            emitter().emit("import_files -norecurse {@CMAKE_SOURCE_DIR@/code-gen/rtl/%s_input_stage.v}", port.getName());
+        }
+        for (PortDecl port : network.getOutputPorts()) {
+            emitter().emit("import_files -norecurse {@CMAKE_SOURCE_DIR@/code-gen/rtl/%s_output_stage.v}", port.getName());
+        }
         emitter().emit("import_files -norecurse {@CMAKE_SOURCE_DIR@/code-gen/rtl/%s_control_s_axi.v}", identifier);
+        emitter().emit("import_files -norecurse {@CMAKE_SOURCE_DIR@/code-gen/rtl/%s_wrapper.sv}", identifier);
+        emitter().emit("import_files -norecurse {@CMAKE_SOURCE_DIR@/code-gen/rtl/%s_kernel.v}", identifier);
         emitter().emitNewLine();
     }
 
-    default void importVivadoHLSIOStage(PortDecl port, boolean isInput) {
-        String ioStageId = port.getName() + (isInput ? "_input" : "_output") + "_stage";
+    default void importVivadoHLSIOStage(PortDecl port, String name) {
+        String ioStageId = port.getName() + "_" + name;
         emitter().emit("# -- Import files for %s", ioStageId);
         emitter().emit("set %s_files [glob -directory @CMAKE_CURRENT_BINARY_DIR@/%1$s/solution/syn/verilog *{v,dat}]", ioStageId);
         emitter().emit("import_files -norecurse $%s_files", ioStageId);

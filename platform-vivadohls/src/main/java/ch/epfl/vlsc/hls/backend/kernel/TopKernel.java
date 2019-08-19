@@ -117,7 +117,7 @@ public interface TopKernel {
     // -- Module Port IO
 
     default void getAxiMasterPorts(String name) {
-        emitter().emit("// --write address channel");
+        emitter().emit("// -- write address channel");
         emitter().emit("output wire [C_M_AXI_%s_ID_WIDTH-1:0]     m_axi_%s_AWID,", name.toUpperCase(), name);
         emitter().emit("output wire [C_M_AXI_%s_ADDR_WIDTH-1:0]   m_axi_%s_AWADDR,", name.toUpperCase(), name);
         emitter().emit("output wire [7:0]                         m_axi_%s_AWLEN,", name);
@@ -131,7 +131,7 @@ public interface TopKernel {
         emitter().emit("output wire [C_M_AXI_%s_AWUSER_WIDTH-1:0] m_axi_%s_AWUSER,", name.toUpperCase(), name);
         emitter().emit("output wire                               m_axi_%s_AWVALID,", name);
         emitter().emit("input  wire                               m_axi_%s_AWREADY,", name);
-        emitter().emit("// write data channel");
+        emitter().emit("// -- write data channel");
         emitter().emit("output wire [C_M_AXI_%s_ID_WIDTH-1:0]     m_axi_%s_WID,", name.toUpperCase(), name);
         emitter().emit("output wire [C_M_AXI_%s_DATA_WIDTH-1:0]   m_axi_%s_WDATA,", name.toUpperCase(), name);
         emitter().emit("output wire [C_M_AXI_%s_DATA_WIDTH/8-1:0] m_axi_%s_WSTRB,", name.toUpperCase(), name);

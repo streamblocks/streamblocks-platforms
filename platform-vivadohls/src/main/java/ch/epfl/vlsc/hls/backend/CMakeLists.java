@@ -123,7 +123,7 @@ public interface CMakeLists {
             if (!entityDecl.getExternal()) {
                 String instanceName = backend().instaceQID(instance.getInstanceName(), "_");
                 String filename = instanceName + ".cpp";
-                entityCustomCommand(instanceName, filename);
+                entityCustomCommand(instanceName, instanceName, filename);
             }
         }
 
@@ -143,16 +143,22 @@ public interface CMakeLists {
             emitter().emit(")");
 
 
-            for(PortDecl port : network.getInputPorts()){
-                String topName = port.getName() + "_input_stage";
+            for (PortDecl port : network.getInputPorts()) {
+                String topName = port.getName() + "_input_stage_mem";
                 String filename = topName + ".cpp";
-                entityStageCustomCommand(topName, filename, true);
+                entityCustomCommand(topName, "input_stage_mem", filename);
+                topName = port.getName() + "_input_stage_pass";
+                filename = topName + ".cpp";
+                entityCustomCommand(topName,"input_stage_pass", filename);
             }
 
-            for(PortDecl port : network.getOutputPorts()){
-                String topName = port.getName() + "_output_stage";
+            for (PortDecl port : network.getOutputPorts()) {
+                String topName = port.getName() + "_output_stage_mem";
                 String filename = topName + ".cpp";
-                entityStageCustomCommand(topName, filename, false);
+                entityCustomCommand(topName,"output_stage_mem", filename);
+                topName = port.getName() + "_output_stage_control";
+                filename = topName + ".cpp";
+                entityCustomCommand(topName,"output_stage_control", filename);
             }
 
             emitter().emit("add_custom_command(");
@@ -165,10 +171,10 @@ public interface CMakeLists {
                         .stream().map(n -> backend().instaceQID(n.getInstanceName(), "_"))
                         .collect(Collectors.toList()));
                 String inputStages = String.join(" ", network.getInputPorts()
-                        .stream().map(p -> p.getName() + "_input_stage")
+                        .stream().map(p -> p.getName() + "_input_stage_mem " + p.getName() + "_input_stage_pass")
                         .collect(Collectors.toList()));
                 String outputStages = String.join(" ", network.getOutputPorts()
-                        .stream().map(p -> p.getName() + "_output_stage")
+                        .stream().map(p -> p.getName() + "_output_stage_mem " + p.getName() + "_output_stage_control")
                         .collect(Collectors.toList()));
                 emitter().emit("DEPENDS %s %s %s emconfig", verilogInstances, inputStages, outputStages);
                 emitter().decreaseIndentation();
@@ -226,14 +232,14 @@ public interface CMakeLists {
 
             emitter().emit("add_custom_target(emconfig ALL DEPENDS ${CMAKE_SOURCE_DIR}/bin/emconfig.json)");
 
-            for(PortDecl port : network.getInputPorts()){
-                String topName = port.getName() + "_input_stage";
-                emitter().emit("add_custom_target(%s ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/%1$s/solution/syn/verilog/%1$s.v)", topName);
+            for (PortDecl port : network.getInputPorts()) {
+                emitter().emit("add_custom_target(%s ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/%1$s/solution/syn/verilog/%1$s.v)", port.getName() + "_input_stage_mem");
+                emitter().emit("add_custom_target(%s ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/%1$s/solution/syn/verilog/%1$s.v)", port.getName() + "_input_stage_pass");
             }
 
-            for(PortDecl port : network.getOutputPorts()){
-                String topName = port.getName() + "_output_stage";
-                emitter().emit("add_custom_target(%s ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/%1$s/solution/syn/verilog/%1$s.v)", topName);
+            for (PortDecl port : network.getOutputPorts()) {
+                emitter().emit("add_custom_target(%s ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/%1$s/solution/syn/verilog/%1$s.v)", port.getName() + "_output_stage_mem");
+                emitter().emit("add_custom_target(%s ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/%1$s/solution/syn/verilog/%1$s.v)", port.getName() + "_output_stage_control");
             }
 
             // -- Generate XO custom target
@@ -254,29 +260,14 @@ public interface CMakeLists {
 
     }
 
-    default void entityCustomCommand(String topName, String filename){
+    default void entityCustomCommand(String topName, String headerName, String filename) {
         emitter().emit("add_custom_command(");
         {
             emitter().increaseIndentation();
 
             emitter().emit("OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/%s/solution/syn/verilog/%1$s.v", topName);
             emitter().emit("COMMAND ${VIVADO_HLS_BINARY} -f Synthesis.tcl -tclargs \\\"%s\\\" \\\"%s\\\"  > %1$s.log", topName, filename);
-            emitter().emit("DEPENDS ${_incpath}/%s.h ${_srcpath}/%1$s.cpp", topName);
-
-            emitter().decreaseIndentation();
-        }
-        emitter().emit(")");
-        emitter().emitNewLine();
-    }
-
-    default void entityStageCustomCommand(String topName, String filename, boolean isInput){
-        emitter().emit("add_custom_command(");
-        {
-            emitter().increaseIndentation();
-
-            emitter().emit("OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/%s/solution/syn/verilog/%1$s.v", topName);
-            emitter().emit("COMMAND ${VIVADO_HLS_BINARY} -f Synthesis.tcl -tclargs \\\"%s\\\" \\\"%s\\\"  > %1$s.log", topName, filename);
-            emitter().emit("DEPENDS ${_incpath}/%s.h ${_srcpath}/%s.cpp", isInput ? "input_stage" : "output_stage", topName);
+            emitter().emit("DEPENDS ${_incpath}/%s.h ${_srcpath}/%s.cpp", headerName, topName);
 
             emitter().decreaseIndentation();
         }

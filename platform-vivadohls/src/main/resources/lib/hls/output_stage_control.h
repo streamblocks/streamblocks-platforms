@@ -1,5 +1,4 @@
-/*
- * Copyright (c) EPFL VLSC, 2019
+ /* Copyright (c) EPFL VLSC, 2019
  * Author: Endri Bezati (endri.bezati@epfl.ch)
  * All rights reserved.
  *
@@ -35,129 +34,72 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _OUTPUT_STAGE_H
-#define _OUTPUT_STAGE_H
+#ifndef _OUTPUT_STAGE_CONTROL_H
+#define _OUTPUT_STAGE_CONTROL_H
 
 #define RECEIVING 0
 #define WAITING_INPUT 1
-#define WRITING_TO_MEMORY 2
-#define BURST_WRITING_TO_MEMORY 3
-#define DONE_RECEIVING 4
+#define FINISH 4
 
 #include <stdint.h>
 #include <hls_stream.h>
 
-#define BURST_SIZE 256
+#define MAX_BUFFER_SIZE 4096
 
 template<typename T>
-class class_output_stage {
-private:
-	int token_counter = 0;
-
-	int burst_counter = 0;
-
-	int program_counter = 0;
-
-	T buffer[BURST_SIZE];
-
+class class_output_stage_control {
 public:
-	uint32_t operator()(hls::stream< T > &STREAM, bool core_done, uint32_t available_size, uint32_t *size, T *output);
-
-
-
+	uint32_t operator()(hls::stream<T> &STREAM_IN, hls::stream<T> &STREAM_OUT,
+			bool core_done);
 };
 
 template<typename T>
-uint32_t class_output_stage<T>::operator()(hls::stream< T > &STREAM, bool core_done, uint32_t available_size, uint32_t *size, T *output) {
+uint32_t class_output_stage_control<T>::operator()(hls::stream<T> &STREAM_IN,
+		hls::stream<T> &STREAM_OUT, bool core_done) {
 #pragma HLS INLINE
 
-	int ret = RECEIVING;
-
-	switch (program_counter) {
-	case 0:
-		goto CHECK_DONE;
-	case 1:
-		goto CHECK_INPUT;
-	}
+	int ret = WAITING_INPUT;
 
 	CHECK_DONE: {
 		if (core_done) {
-			goto DONE_AVAILABLE_DATA;
-		} else {
-			if (burst_counter == BURST_SIZE - 1) {
-				goto BURST_WRITE_TO_MEMORY;
-			} else {
-				goto CHECK_INPUT;
-			}
-		}
-	}
-
-	DONE_AVAILABLE_DATA: {
-		if (STREAM.empty()) {
-			goto WRITE_TO_MEMORY;
-		} else {
-			goto READ;
-		}
-	}
-
-	CHECK_INPUT: {
-		if (STREAM.empty()) {
-			program_counter = 0;
-			ret = WAITING_INPUT;
-			goto OUT;
+			goto READ_REMAINING_DATA;
 		} else {
 			goto READ;
 		}
 	}
 
 	READ: {
-		buffer[burst_counter] = STREAM.read();
-		burst_counter++;
-		program_counter = 0;
-		ret = RECEIVING;
-		goto OUT;
-	}
-
-	BURST_WRITE_TO_MEMORY: {
-		for (int i = 0; i < BURST_SIZE; i++) {
-#pragma HLS PIPELINE
-			output[token_counter + i] = buffer[i];
-		}
-		burst_counter = 0;
-		token_counter += BURST_SIZE;
-		program_counter = 0;
-		ret = BURST_WRITING_TO_MEMORY;
-		// -- Buffer is full --> go to DONE
-		if (token_counter == available_size - 1) {
-			goto DONE;
+		T value;
+		if (STREAM_IN.read_nb(value)) {
+			STREAM_OUT.write(value);
+			ret = RECEIVING;
+			goto OUT;
 		} else {
+			ret = WAITING_INPUT;
 			goto OUT;
 		}
 	}
 
-	WRITE_TO_MEMORY: {
-		for (int i = 0; i < burst_counter; i++) {
-#pragma HLS LOOP_TRIPCOUNT min=0 max=255
-#pragma HLS PIPELINE
-			output[token_counter + i] = buffer[i];
+	READ_REMAINING_DATA: {
+		T value;
+		if (STREAM_IN.read_nb(value)) {
+			STREAM_OUT.write(value);
+			ret = RECEIVING;
+			goto OUT;
+		} else {
+			goto DONE;
 		}
-		token_counter += burst_counter;
-		burst_counter = 0;
-		program_counter = 0;
-		ret = WRITING_TO_MEMORY;
-		goto DONE;
 	}
 
 	DONE: {
-		*size = token_counter;
-		token_counter = 0;
-		burst_counter = 0;
-		program_counter = 0;
-		ret = DONE_RECEIVING;
+		ret = FINISH;
 		goto OUT;
 	}
 
-	OUT: return ret;
+	OUT: {
+		return ret;
+	}
+
 }
 
-#endif //_OUTPUT_STAGE_H
+#endif //_OUTPUT_STAGE_CONTROL_H

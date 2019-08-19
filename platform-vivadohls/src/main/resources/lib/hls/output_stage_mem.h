@@ -35,86 +35,57 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _INPUT_STAGE_H
-#define _INPUT_STAGE_H
+#ifndef _OUTPUT_STAGE_MEM_H
+#define _OUTPUT_STAGE_MEM_H
 
-#define SENDING 0
-#define READ_FROM_MEMORY 2
-#define DONE_SENDING 4
+#define DONE_RECEIVING 2
+#define FINISH 4
 
 #include <stdint.h>
 #include <hls_stream.h>
-#include <string.h>
 
 #define MAX_BUFFER_SIZE 4096
 
 template<typename T>
-class class_input_stage {
+class class_output_stage_mem {
 private:
-    size_t token_counter = 0;
-
-    uint32_t program_counter = 0;
-
-    T buffer[MAX_BUFFER_SIZE];
-
+	uint64_t pointer = 0;
+	const int c_size = MAX_BUFFER_SIZE;
 public:
-    uint32_t operator()(uint32_t requested_size, volatile uint32_t *size,
-                        volatile T *input, hls::stream<T> &STREAM);
+	uint32_t operator()(hls::stream<T> &STREAM, uint32_t fifo_count,
+			uint32_t available_size, uint32_t *size, T *output);
 };
 
 template<typename T>
-uint32_t class_input_stage<T>::operator()(uint32_t requested_size,
-                                          volatile uint32_t *size, volatile T *input, hls::stream<T> &STREAM) {
+uint32_t class_output_stage_mem<T>::operator()(hls::stream<T> &STREAM,
+		uint32_t fifo_count, uint32_t available_size, uint32_t *size,
+		T *output) {
 #pragma HLS INLINE
 
-    int ret = SENDING;
+	uint32_t rest = available_size - pointer;
+	uint64_t to_send =
+			rest > fifo_count ?
+					fifo_count : rest;
 
-    switch (program_counter) {
-        case 0:
-            goto READING;
-        case 1:
-            goto CHECK_OUTPUT;
-        case 2:
-            goto DONE;
-    }
+	if (available_size == 0) {
+		return DONE_RECEIVING;
+	}
 
-    READING: {
-    for (int i = 0; i < requested_size; i++) {
-#pragma HLS LOOP_TRIPCOUNT min=0 max=4096
-#pragma HLS PIPELINE
-        buffer[i] = input[i];
-    }
-    program_counter = 1;
-    goto OUT;
+	if (available_size == pointer) {
+		size[0] = pointer;
+		pointer = 0;
+		return FINISH;
+	}
+
+	mem_wr: for (uint64_t i = 0; i < to_send; i++) {
+#pragma HLS pipeline
+#pragma HLS LOOP_TRIPCOUNT min=c_size max=c_size
+		output[i + pointer] = STREAM.read();
+	}
+
+	pointer += to_send;
+
+	return DONE_RECEIVING;
 }
 
-    CHECK_OUTPUT: {
-    if ((token_counter == requested_size) || STREAM.full()) {
-        program_counter = 2;
-        goto OUT;
-    } else {
-        goto SEND;
-    }
-}
-
-    SEND: {
-    T value = (T) buffer[token_counter];
-    STREAM.write(value);
-    token_counter++;
-    program_counter = 1;
-    ret = SENDING;
-    goto OUT;
-}
-
-    DONE: {
-    *size = token_counter;
-    program_counter = 0;
-    token_counter = 0;
-    ret = DONE_SENDING;
-    goto OUT;
-}
-
-    OUT: return ret;
-}
-
-#endif //_INPUT_STAGE_H
+#endif //_OUTPUT_STAGE_MEM_H

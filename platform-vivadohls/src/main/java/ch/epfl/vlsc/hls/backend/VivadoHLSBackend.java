@@ -205,9 +205,25 @@ public interface VivadoHLSBackend {
     @Binding(LAZY)
     default KernelWrapper kernelwrapper() {return MultiJ.from(KernelWrapper.class).bind("backend").to(this).instance();}
 
+    // -- Input Stage Pass
+    @Binding(LAZY)
+    default InputStagePass inputstagepass() {return MultiJ.from(InputStagePass.class).bind("backend").to(this).instance();}
+
+    // -- Input Stage Mem
+    @Binding(LAZY)
+    default InputStageMem inputstagemem() {return MultiJ.from(InputStageMem.class).bind("backend").to(this).instance();}
+
     // -- Input Stage
     @Binding(LAZY)
     default InputStage inputstage() {return MultiJ.from(InputStage.class).bind("backend").to(this).instance();}
+
+    // -- Output Stage Control
+    @Binding(LAZY)
+    default OutputStageControl outputstagecontrol() {return MultiJ.from(OutputStageControl.class).bind("backend").to(this).instance();}
+
+    // -- Output Stage Mem
+    @Binding(LAZY)
+    default OutputStageMem outputstagemem() {return MultiJ.from(OutputStageMem.class).bind("backend").to(this).instance();}
 
     // -- Output Stage
     @Binding(LAZY)
