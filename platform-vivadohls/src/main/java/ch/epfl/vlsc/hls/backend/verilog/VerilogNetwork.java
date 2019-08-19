@@ -129,7 +129,7 @@ public interface VerilogNetwork {
         emitter().emit("input  wire ap_rst_n,");
         emitter().emit("input  wire ap_start,");
         emitter().emit("output wire ap_idle,");
-        emitter().emit("output wire ap_done");
+        emitter().emit("output reg wire ap_done");
     }
 
     // ------------------------------------------------------------------------
@@ -149,7 +149,7 @@ public interface VerilogNetwork {
 
             emitter().emit("_WAIT_ = 0, ");
             emitter().emit("_INIT_ = 1, ");
-            emitter().emit("_INIT_ = 2, ");
+            emitter().emit("_EXECUTING_ = 2, ");
             emitter().emit("_DONE_ = 3; ");
 
             emitter().decreaseIndentation();
@@ -578,14 +578,14 @@ public interface VerilogNetwork {
                 emitter().emit("end");
             }
 
-            // -- EXEUCTING
+            // -- EXECUTING
             {
                 emitter().emit("_EXECUTING_:");
                 emitter().emit(" begin");
                 {
                     emitter().increaseIndentation();
 
-                    emitter().emit("if (active_instances) begin");
+                    emitter().emit("if (~active_instances) begin");
                     emitter().emit("\tap_done = 1'b1;");
                     emitter().emit("\tnext_state = _DONE_;");
                     emitter().emit("end else begin");
@@ -600,7 +600,7 @@ public interface VerilogNetwork {
 
             // -- DONE
             {
-                emitter().emit("_DONEs_:");
+                emitter().emit("_DONE_:");
                 emitter().emit(" begin");
                 {
                     emitter().increaseIndentation();
