@@ -65,7 +65,7 @@ uint32_t class_input_stage_mem<T>::operator()(uint32_t requested_size, uint32_t 
 
 	uint32_t available_size = fifo_size - fifo_count;
 	uint64_t rest = requested_size - pointer;
-	uint64_t to_read = rest > available_size ?  available_size : requested_size;
+	uint64_t to_read = rest > available_size ?  available_size : rest;
 
 	if(requested_size == 0){
 		size[0] = pointer;
