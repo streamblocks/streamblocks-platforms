@@ -91,7 +91,7 @@ public interface InputStage {
         getQueue("q_tmp", bitSize, "q_tmp_V", "q_tmp_V");
 
         // -- Input stage pass
-        getInputStagePass(port);
+        getStagePass(port);
 
         emitter().emit("endmodule");
 
@@ -209,8 +209,8 @@ public interface InputStage {
         emitter().emitNewLine();
     }
 
-    default void getInputStagePass(PortDecl port) {
-        emitter().emit("%s_input_stage_pass i_%1$s_input_stage_pass(", port.getName());
+    default void getStagePass(PortDecl port) {
+        emitter().emit("%s_stage_pass i_%1$s_stage_pass(", port.getName());
         {
             emitter().increaseIndentation();
 

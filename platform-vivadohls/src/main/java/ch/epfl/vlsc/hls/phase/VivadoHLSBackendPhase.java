@@ -207,14 +207,14 @@ public class VivadoHLSBackendPhase implements Phase {
 
         // -- Input Stage
         for (PortDecl port : backend.task().getNetwork().getInputPorts()) {
-            backend.inputstagepass().getInputStagePass(port);
+            backend.stagepass().getStagePass(port);
             backend.inputstagemem().getInputStageMem(port);
             backend.inputstage().getInputStage(port);
         }
 
         // -- Output Stage
         for (PortDecl port : backend.task().getNetwork().getOutputPorts()) {
-            backend.outputstagecontrol().getOutputStageControl(port);
+            backend.stagepass().getStagePass(port);
             backend.outputstagemem().getOutputStageMem(port);
             backend.outputstage().getOutputStage(port);
         }
@@ -294,13 +294,10 @@ public class VivadoHLSBackendPhase implements Phase {
             Files.copy(getClass().getResourceAsStream("/lib/cmake/FindXRT.cmake"), PathUtils.getTargetCmake(backend.context()).resolve("FindXRT.cmake"), StandardCopyOption.REPLACE_EXISTING);
 
             // -- Input Stage pass Header
-            Files.copy(getClass().getResourceAsStream("/lib/hls/input_stage_pass.h"), PathUtils.getTargetCodeGenInclude(backend.context()).resolve("input_stage_pass.h"), StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(getClass().getResourceAsStream("/lib/hls/stage_pass.h"), PathUtils.getTargetCodeGenInclude(backend.context()).resolve("stage_pass.h"), StandardCopyOption.REPLACE_EXISTING);
 
             // -- Input Stage mem Header
             Files.copy(getClass().getResourceAsStream("/lib/hls/input_stage_mem.h"), PathUtils.getTargetCodeGenInclude(backend.context()).resolve("input_stage_mem.h"), StandardCopyOption.REPLACE_EXISTING);
-
-            // -- Output Stage control Header
-            Files.copy(getClass().getResourceAsStream("/lib/hls/output_stage_control.h"), PathUtils.getTargetCodeGenInclude(backend.context()).resolve("output_stage_control.h"), StandardCopyOption.REPLACE_EXISTING);
 
             // -- Output Stage mem Header
             Files.copy(getClass().getResourceAsStream("/lib/hls/output_stage_mem.h"), PathUtils.getTargetCodeGenInclude(backend.context()).resolve("output_stage_mem.h"), StandardCopyOption.REPLACE_EXISTING);

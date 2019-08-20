@@ -45,10 +45,10 @@ public interface PackageKernel {
         emitter().emitSharpBlockComment("Import Input/Output stages");
         for (PortDecl port : network.getInputPorts()) {
             importVivadoHLSIOStage(port, "input_stage_mem");
-            importVivadoHLSIOStage(port, "input_stage_pass");
+            importVivadoHLSIOStage(port, "stage_pass");
         }
         for (PortDecl port : network.getOutputPorts()) {
-            importVivadoHLSIOStage(port, "output_stage_control");
+            importVivadoHLSIOStage(port, "stage_pass");
             importVivadoHLSIOStage(port, "output_stage_mem");
         }
 

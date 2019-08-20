@@ -13,7 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Module
-public interface InputStagePass {
+public interface StagePass {
 
     @Binding(BindingKind.INJECTED)
     VivadoHLSBackend backend();
@@ -22,24 +22,24 @@ public interface InputStagePass {
         return backend().emitter();
     }
 
-    default void getInputStagePass(PortDecl port){
+    default void getStagePass(PortDecl port){
         String identifier = port.getName();
 
-        emitter().open(PathUtils.getTargetCodeGenSource(backend().context()).resolve(identifier + "_input_stage_pass.cpp"));
+        emitter().open(PathUtils.getTargetCodeGenSource(backend().context()).resolve(identifier + "_stage_pass.cpp"));
         backend().includeSystem("stdint.h");
         backend().includeSystem("hls_stream.h");
-        backend().includeUser("input_stage_pass.h");
+        backend().includeUser("stage_pass.h");
         emitter().emitNewLine();
 
-        emitter().emit("void %s_input_stage_pass(%s) {", port.getName(), entityPorts(port));
+        emitter().emit("void %s_stage_pass(%s) {", port.getName(), entityPorts(port));
         emitter().emit("#pragma HLS INTERFACE ap_ctrl_none port=return name=return");
         {
             emitter().increaseIndentation();
 
-            emitter().emit("static class_input_stage_pass< %s > i_%s_input_stage_pass;", backend().declarations().declaration(backend().types().declaredPortType(port), ""), port.getName());
+            emitter().emit("static class_stage_pass< %s > i_%s_stage_pass;", backend().declarations().declaration(backend().types().declaredPortType(port), ""), port.getName());
             emitter().emitNewLine();
 
-            emitter().emit("return i_%s_input_stage_pass(STREAM_IN, STREAM_OUT);", port.getName());
+            emitter().emit("return i_%s_stage_pass(STREAM_IN, STREAM_OUT);", port.getName());
 
             emitter().decreaseIndentation();
         }

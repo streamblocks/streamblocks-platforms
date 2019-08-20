@@ -42,14 +42,14 @@
 #include <hls_stream.h>
 
 template<typename T>
-class class_input_stage_pass {
+class class_stage_pass {
 
 public:
 	void operator()(hls::stream<T> &STREAM_IN, hls::stream<T> &STREAM_OUT);
 };
 
 template<typename T>
-void class_input_stage_pass<T>::operator()(hls::stream<T> &STREAM_IN, hls::stream<T> &STREAM_OUT) {
+void class_stage_pass<T>::operator()(hls::stream<T> &STREAM_IN, hls::stream<T> &STREAM_OUT) {
 #pragma HLS INLINE
 	T value = STREAM_IN.read();
 	STREAM_OUT.write(value);

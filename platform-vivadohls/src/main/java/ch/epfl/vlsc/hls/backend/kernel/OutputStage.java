@@ -34,7 +34,7 @@ public interface OutputStage {
         Type type = backend().types().declaredPortType(port);
         int bitSize = TypeUtils.sizeOfBits(type);
 
-        emitter().emit("module %s_input_stage #(", port.getName());
+        emitter().emit("module %s_output_stage #(", port.getName());
         {
             emitter().increaseIndentation();
 
@@ -85,7 +85,7 @@ public interface OutputStage {
         emitter().emitNewLine();
 
         // -- Output stage pass
-        getOutputStageControl(port);
+        backend().inputstage().getStagePass(port);
 
         // -- Queue
         backend().inputstage().getQueue("q_tmp", bitSize, "q_tmp_V", "q_tmp_V");
@@ -117,42 +117,10 @@ public interface OutputStage {
         emitter().emit("wire [31:0] q_tmp_V_size;");
         emitter().emitNewLine();
 
-        // -- Output stage control
-        emitter().emit("// -- Output stage control");
-        emitter().emit("wire %s_output_stage_control_ap_done;", port.getName());
-        emitter().emit("wire [31:0] %s_output_stage_control_ap_return;", port.getName());
-        emitter().emitNewLine();
         // -- Output stage mem
         emitter().emit("// -- Output stage mem");
         emitter().emit("wire %s_output_stage_control_ap_done;", port.getName());
         emitter().emit("wire [31:0] %s_output_stage_control_ap_return;", port.getName());
-        emitter().emitNewLine();
-    }
-
-    default void getOutputStageControl(PortDecl port) {
-        emitter().emit("// -- Output stage control for port : %s", port.getName());
-        emitter().emit("%s_output_stage_control i_%1$s_output_stage_control(", port.getName());
-        {
-            emitter().increaseIndentation();
-
-            emitter().emit(".ap_clk(ap_clk),");
-            emitter().emit(".ap_rst_n(ap_rst_n),");
-            emitter().emit(".ap_start(ap_start),");
-            emitter().emit(".ap_done(B_output_stage_control_ap_done),");
-            emitter().emit(".ap_idle(),");
-            emitter().emit(".ap_ready(),");
-            emitter().emit(".STREAM_IN_V_dout(%s_V_dout),", port.getName());
-            emitter().emit(".STREAM_IN_V_empty_n(%s_V_empty_n),", port.getName());
-            emitter().emit(".STREAM_IN_V_read(%s_V_read),", port.getName());
-            emitter().emit(".STREAM_OUT_V_din(q_tmp_V_din),");
-            emitter().emit(".STREAM_OUT_V_full_n(q_tmp_V_full_n),");
-            emitter().emit(".STREAM_OUT_V_write(q_tmp_V_write),");
-            emitter().emit(".core_done(core_done),");
-            emitter().emit(".ap_return(%s_output_stage_control_ap_return)", port.getName());
-
-            emitter().decreaseIndentation();
-        }
-        emitter().emit(");");
         emitter().emitNewLine();
     }
 
