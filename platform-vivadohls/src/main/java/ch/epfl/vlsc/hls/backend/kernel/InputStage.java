@@ -156,7 +156,7 @@ public interface InputStage {
             emitter().emit(".ap_ready(ap_ready),");
             emitter().emit(".ap_return(ap_return),");
             // -- AXI Master
-            backend().kernelwrapper().getAxiMasterConnections(port);
+            backend().kernelwrapper().getAxiMasterConnections(port,true);
             // -- Direct address
             emitter().emit(".%s_requested_size(%1$s_requested_size),", port.getName());
             emitter().emit(".%s_size_r(%1$s_size),", port.getName());

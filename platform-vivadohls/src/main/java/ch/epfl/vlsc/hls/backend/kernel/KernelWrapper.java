@@ -202,12 +202,12 @@ public interface KernelWrapper {
 
         // -- I/O Stage
         emitter().emit("// -- AP for I/O Stage", backend().task().getIdentifier().getLast().toString());
-        for(PortDecl port : network.getInputPorts()){
+        for (PortDecl port : network.getInputPorts()) {
             emitter().emit("wire    %s_input_stage_ap_start;", port.getName());
             emitter().emit("wire    %s_input_stage_ap_done;", port.getName());
             emitter().emit("wire    [31:0] %s_input_stage_ap_return;", port.getName());
         }
-        for(PortDecl port : network.getOutputPorts()){
+        for (PortDecl port : network.getOutputPorts()) {
             emitter().emit("wire    %s_output_stage_ap_start;", port.getName());
             emitter().emit("wire    %s_output_stage_ap_done;", port.getName());
             emitter().emit("wire    [31:0] %s_output_stage_ap_return;", port.getName());
@@ -284,52 +284,61 @@ public interface KernelWrapper {
         emitter().emitNewLine();
     }
 
-    default void getAxiMasterConnections(PortDecl port) {
-        emitter().emit(".m_axi_%s_AWVALID(m_axi_%s_AWVALID),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_AWREADY(m_axi_%s_AWREADY),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_AWADDR(m_axi_%s_AWADDR),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_AWID(m_axi_%s_AWID),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_AWLEN(m_axi_%s_AWLEN),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_AWSIZE(m_axi_%s_AWSIZE),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_AWBURST(m_axi_%s_AWBURST),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_AWLOCK(m_axi_%s_AWLOCK),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_AWCACHE(m_axi_%s_AWCACHE),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_AWPROT(m_axi_%s_AWPROT),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_AWQOS(m_axi_%s_AWQOS),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_AWREGION(m_axi_%s_AWREGION),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_AWUSER(m_axi_%s_AWUSER),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_WVALID(m_axi_%s_WVALID),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_WREADY(m_axi_%s_WREADY),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_WDATA(m_axi_%s_WDATA),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_WSTRB(m_axi_%s_WSTRB),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_WLAST(m_axi_%s_WLAST),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_WID(m_axi_%s_WID),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_WUSER(m_axi_%s_WUSER),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_ARVALID(m_axi_%s_ARVALID),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_ARREADY(m_axi_%s_ARREADY),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_ARADDR(m_axi_%s_ARADDR),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_ARID(m_axi_%s_ARID),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_ARLEN(m_axi_%s_ARLEN),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_ARSIZE(m_axi_%s_ARSIZE),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_ARBURST(m_axi_%s_ARBURST),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_ARLOCK(m_axi_%s_ARLOCK),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_ARCACHE(m_axi_%s_ARCACHE),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_ARPROT(m_axi_%s_ARPROT),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_ARQOS(m_axi_%s_ARQOS),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_ARREGION(m_axi_%s_ARREGION),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_ARUSER(m_axi_%s_ARUSER),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_RVALID(m_axi_%s_RVALID),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_RREADY(m_axi_%s_RREADY),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_RDATA(m_axi_%s_RDATA),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_RLAST(m_axi_%s_RLAST),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_RID(m_axi_%s_RID),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_RUSER(m_axi_%s_RUSER),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_RRESP(m_axi_%s_RRESP),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_BVALID(m_axi_%s_BVALID),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_BREADY(m_axi_%s_BREADY),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_BRESP(m_axi_%s_BRESP),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_BID(m_axi_%s_BID),", port.getSafeName(), port.getName());
-        emitter().emit(".m_axi_%s_BUSER(m_axi_%s_BUSER),", port.getSafeName(), port.getName());
+    default void getAxiMasterConnections(PortDecl port, boolean safeName) {
+        if (safeName) {
+            getAxiMasterByPort(port.getSafeName(), port.getName());
+        } else {
+            getAxiMasterByPort(port.getName(), port.getName());
+        }
+
+    }
+
+    default void getAxiMasterByPort(String safeName, String name) {
+        emitter().emit(".m_axi_%s_AWVALID(m_axi_%s_AWVALID),", safeName, name);
+        emitter().emit(".m_axi_%s_AWREADY(m_axi_%s_AWREADY),", safeName, name);
+        emitter().emit(".m_axi_%s_AWADDR(m_axi_%s_AWADDR),", safeName, name);
+        emitter().emit(".m_axi_%s_AWID(m_axi_%s_AWID),", safeName, name);
+        emitter().emit(".m_axi_%s_AWLEN(m_axi_%s_AWLEN),", safeName, name);
+        emitter().emit(".m_axi_%s_AWSIZE(m_axi_%s_AWSIZE),", safeName, name);
+        emitter().emit(".m_axi_%s_AWBURST(m_axi_%s_AWBURST),", safeName, name);
+        emitter().emit(".m_axi_%s_AWLOCK(m_axi_%s_AWLOCK),", safeName, name);
+        emitter().emit(".m_axi_%s_AWCACHE(m_axi_%s_AWCACHE),", safeName, name);
+        emitter().emit(".m_axi_%s_AWPROT(m_axi_%s_AWPROT),", safeName, name);
+        emitter().emit(".m_axi_%s_AWQOS(m_axi_%s_AWQOS),", safeName, name);
+        emitter().emit(".m_axi_%s_AWREGION(m_axi_%s_AWREGION),", safeName, name);
+        emitter().emit(".m_axi_%s_AWUSER(m_axi_%s_AWUSER),", safeName, name);
+        emitter().emit(".m_axi_%s_WVALID(m_axi_%s_WVALID),", safeName, name);
+        emitter().emit(".m_axi_%s_WREADY(m_axi_%s_WREADY),", safeName, name);
+        emitter().emit(".m_axi_%s_WDATA(m_axi_%s_WDATA),", safeName, name);
+        emitter().emit(".m_axi_%s_WSTRB(m_axi_%s_WSTRB),", safeName, name);
+        emitter().emit(".m_axi_%s_WLAST(m_axi_%s_WLAST),", safeName, name);
+        emitter().emit(".m_axi_%s_WID(m_axi_%s_WID),", safeName, name);
+        emitter().emit(".m_axi_%s_WUSER(m_axi_%s_WUSER),", safeName, name);
+        emitter().emit(".m_axi_%s_ARVALID(m_axi_%s_ARVALID),", safeName, name);
+        emitter().emit(".m_axi_%s_ARREADY(m_axi_%s_ARREADY),", safeName, name);
+        emitter().emit(".m_axi_%s_ARADDR(m_axi_%s_ARADDR),", safeName, name);
+        emitter().emit(".m_axi_%s_ARID(m_axi_%s_ARID),", safeName, name);
+        emitter().emit(".m_axi_%s_ARLEN(m_axi_%s_ARLEN),", safeName, name);
+        emitter().emit(".m_axi_%s_ARSIZE(m_axi_%s_ARSIZE),", safeName, name);
+        emitter().emit(".m_axi_%s_ARBURST(m_axi_%s_ARBURST),", safeName, name);
+        emitter().emit(".m_axi_%s_ARLOCK(m_axi_%s_ARLOCK),", safeName, name);
+        emitter().emit(".m_axi_%s_ARCACHE(m_axi_%s_ARCACHE),", safeName, name);
+        emitter().emit(".m_axi_%s_ARPROT(m_axi_%s_ARPROT),", safeName, name);
+        emitter().emit(".m_axi_%s_ARQOS(m_axi_%s_ARQOS),", safeName, name);
+        emitter().emit(".m_axi_%s_ARREGION(m_axi_%s_ARREGION),", safeName, name);
+        emitter().emit(".m_axi_%s_ARUSER(m_axi_%s_ARUSER),", safeName, name);
+        emitter().emit(".m_axi_%s_RVALID(m_axi_%s_RVALID),", safeName, name);
+        emitter().emit(".m_axi_%s_RREADY(m_axi_%s_RREADY),", safeName, name);
+        emitter().emit(".m_axi_%s_RDATA(m_axi_%s_RDATA),", safeName, name);
+        emitter().emit(".m_axi_%s_RLAST(m_axi_%s_RLAST),", safeName, name);
+        emitter().emit(".m_axi_%s_RID(m_axi_%s_RID),", safeName, name);
+        emitter().emit(".m_axi_%s_RUSER(m_axi_%s_RUSER),", safeName, name);
+        emitter().emit(".m_axi_%s_RRESP(m_axi_%s_RRESP),", safeName, name);
+        emitter().emit(".m_axi_%s_BVALID(m_axi_%s_BVALID),", safeName, name);
+        emitter().emit(".m_axi_%s_BREADY(m_axi_%s_BREADY),", safeName, name);
+        emitter().emit(".m_axi_%s_BRESP(m_axi_%s_BRESP),", safeName, name);
+        emitter().emit(".m_axi_%s_BID(m_axi_%s_BID),", safeName, name);
+        emitter().emit(".m_axi_%s_BUSER(m_axi_%s_BUSER),", safeName, name);
     }
 
     // ------------------------------------------------------------------------
@@ -369,7 +378,7 @@ public interface KernelWrapper {
             emitter().emit(".ap_ready(),");
             emitter().emit(".ap_return(%s_input_stage_ap_return),", port.getName());
             // -- AXI Master
-            getAxiMasterConnections(port);
+            getAxiMasterConnections(port, false);
             // -- Direct address
             emitter().emit(".%s_requested_size(%1$s_requested_size),", port.getName());
             emitter().emit(".%s_size_r(%1$s_size),", port.getName());
@@ -449,7 +458,7 @@ public interface KernelWrapper {
             emitter().emit(".ap_return(%s_output_stage_ap_return),", port.getName());
             emitter().emit(".core_done(core_done),");
             // -- AXI Master
-            getAxiMasterConnections(port);
+            getAxiMasterConnections(port, false);
             // -- Direct address
             emitter().emit(".%s_available_size(%1$s_available_size),", port.getName());
             emitter().emit(".%s_size_r(%1$s_size),", port.getName());

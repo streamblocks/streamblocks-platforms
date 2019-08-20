@@ -154,7 +154,7 @@ public interface OutputStage {
             emitter().emit(".ap_ready(ap_ready),");
             emitter().emit(".ap_return(ap_return),");
             // -- AXI Master
-            backend().kernelwrapper().getAxiMasterConnections(port);
+            backend().kernelwrapper().getAxiMasterConnections(port,true);
             // -- Direct address
             emitter().emit(".%s_available_size(%1$s_available_size),", port.getName());
             emitter().emit(".%s_size_r(%1$s_size),", port.getName());
