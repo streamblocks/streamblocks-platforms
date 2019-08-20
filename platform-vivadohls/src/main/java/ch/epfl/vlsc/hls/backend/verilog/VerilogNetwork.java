@@ -129,7 +129,7 @@ public interface VerilogNetwork {
         emitter().emit("input  wire ap_rst_n,");
         emitter().emit("input  wire ap_start,");
         emitter().emit("output wire ap_idle,");
-        emitter().emit("output reg wire ap_done");
+        emitter().emit("output reg  ap_done");
     }
 
     // ------------------------------------------------------------------------
@@ -147,10 +147,9 @@ public interface VerilogNetwork {
         {
             emitter().increaseIndentation();
 
-            emitter().emit("_WAIT_ = 0, ");
-            emitter().emit("_INIT_ = 1, ");
-            emitter().emit("_EXECUTING_ = 2, ");
-            emitter().emit("_DONE_ = 3; ");
+            emitter().emit("_INIT_ = 0, ");
+            emitter().emit("_EXECUTING_ = 1, ");
+            emitter().emit("_DONE_ = 2; ");
 
             emitter().decreaseIndentation();
         }
@@ -181,7 +180,7 @@ public interface VerilogNetwork {
 
         // -- Ap done state machine
         emitter().emit("// -- state for ap done logic");
-        emitter().emit("reg [1:0] state = _WAIT_, next_state;");
+        emitter().emit("reg [1:0] state = _INIT_, next_state;");
 
         // -- Instance AP cotrol wires
         getInstanceApControlWires(network.getInstances());
@@ -437,7 +436,7 @@ public interface VerilogNetwork {
                     Entity entity = entityDecl.getEntity();
                     return entity instanceof ActorMachine;
                 })
-                .map(i -> "(" + i.getInstanceName() + "_ap_return === `RETURN_EXECUTED)")
+                .map(i -> "(~" + i.getInstanceName() + "_ap_idle)")
                 .collect(Collectors.toList())));
 
         emitter().emit("assign network_is_executing = (state == _EXECUTING_);");
@@ -524,7 +523,7 @@ public interface VerilogNetwork {
             emitter().increaseIndentation();
 
             emitter().emit("if(ap_rst_n == 1'b0)");
-            emitter().emit("\tstate <= _WAIT_;");
+            emitter().emit("\tstate <= _INIT_;");
             emitter().emit("else");
             emitter().emit("\tstate <= next_state;");
 
@@ -542,23 +541,6 @@ public interface VerilogNetwork {
             emitter().emitNewLine();
 
             emitter().emit("case(state)");
-            // -- WAIT
-            {
-                emitter().emit("_WAIT_:");
-                emitter().emit(" begin");
-                {
-                    emitter().increaseIndentation();
-
-                    emitter().emit("ap_done = 1'b0;");
-                    emitter().emit("if(ap_start)");
-                    emitter().emit("\tnext_state = _INIT_;");
-                    emitter().emit("else");
-                    emitter().emit("\tnext_state = _WAIT_;");
-
-                    emitter().decreaseIndentation();
-                }
-                emitter().emit("end");
-            }
 
             // -- INIT
             {
@@ -568,7 +550,7 @@ public interface VerilogNetwork {
                     emitter().increaseIndentation();
 
                     emitter().emit("ap_done = 1'b0;");
-                    emitter().emit("if(~ap_start)");
+                    emitter().emit("if(ap_start)");
                     emitter().emit("\tnext_state = _EXECUTING_;");
                     emitter().emit("else");
                     emitter().emit("\tnext_state = _INIT_;");
@@ -605,11 +587,8 @@ public interface VerilogNetwork {
                 {
                     emitter().increaseIndentation();
 
-                    emitter().emit("ap_done = 1'b1;");
-                    emitter().emit("if(ap_start)");
-                    emitter().emit("\tnext_state = _INIT_;");
-                    emitter().emit("else");
-                    emitter().emit("\tnext_state = _DONE_;");
+                    emitter().emit("ap_done = 1'b0;");
+                    emitter().emit("next_state = _INIT_;");
 
                     emitter().decreaseIndentation();
                 }
@@ -620,7 +599,7 @@ public interface VerilogNetwork {
             {
                 emitter().emit("default: begin");
                 emitter().emit("\tap_done = 1'b0;");
-                emitter().emit("\tnext_state = _WAIT_;");
+                emitter().emit("\tnext_state = _INIT_;");
                 emitter().emit("end");
             }
 
