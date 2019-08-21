@@ -67,35 +67,21 @@ public class ControllerToGraphviz {
         void instruction(Instruction instruction, int currentState, int instrCount, Map<State, Integer> stateNumbers);
 
         default void instruction(Exec exec, int currentState, int instrCount, Map<State, Integer> stateNumbers) {
-            emitter().emit(" i%d [shape=rectangle, label=\"%d\"];", instrCount, exec.transition());
-            emitter().emit(" %d -> i%d -> %d;", currentState, instrCount, stateNumbers.get(exec.target()));
+            emitter().emit("i%d [shape=square, width=.5, label=<<B>t<SUB>%d</SUB></B>>];", instrCount, exec.transition());
+            emitter().emit("%d -> i%d -> %d;", currentState, instrCount, stateNumbers.get(exec.target()));
         }
 
         default void instruction(Wait wait, int currentState, int instrCount, Map<State, Integer> stateNumbers) {
-            emitter().emit(" i%d [shape=doublecircle,label=\"\",width=\"0.2\",heigth=\"0.2\"];", instrCount);
-            emitter().emit(" %d -> i%d -> %d;", currentState, instrCount, stateNumbers.get(wait.target()));
+            emitter().emit("i%d [shape=doublecircle,label=\"\",width=\"0.2\",heigth=\"0.2\"];", instrCount);
+            emitter().emit("%d -> i%d -> %d;", currentState, instrCount, stateNumbers.get(wait.target()));
 
         }
 
         default void instruction(Test test, int currentState, int instrCount, Map<State, Integer> stateNumbers) {
-            emitter().emit(" i%d [shape=diamond,label=\"%s\"]", instrCount, condition(actorMachine().getCondition(test.condition())));
-            emitter().emit(" %d -> i%d;", currentState, instrCount);
-            emitter().emit(" i%d -> %d [style=dashed];", instrCount, stateNumbers.get(test.targetFalse()));
-            emitter().emit(" i%d -> %d;", instrCount, stateNumbers.get(test.targetTrue()));
-        }
-
-        String condition(Condition condition);
-
-        default String condition(PortCondition condition) {
-            if (condition.isInputCondition()) {
-                return "tokens(" + condition.getPortName().getName() + ", " + condition.N() + ")";
-            } else {
-                return "space(" + condition.getPortName().getName() + ", " + condition.N() + ")";
-            }
-        }
-
-        default String condition(PredicateCondition condition) {
-            return "(guard)";
+            emitter().emit("i%d [fontsize = 12, shape=diamond,label=<<B>c<SUB>%d</SUB></B>>]", instrCount, test.condition());
+            emitter().emit("%d -> i%d;", currentState, instrCount);
+            emitter().emit("i%d -> %d [style=dashed];", instrCount, stateNumbers.get(test.targetFalse()));
+            emitter().emit("i%d -> %d;", instrCount, stateNumbers.get(test.targetTrue()));
         }
 
         default Map<State, Integer> stateMap(List<? extends State> stateList) {
@@ -115,9 +101,12 @@ public class ControllerToGraphviz {
 
             emitter().open(path);
             emitter().emit("digraph %s{", name());
+            emitter().emit("rankdir=LR; ");
+
+            emitter().increaseIndentation();
 
             for (State state : actorMachine().controller().getStateList()) {
-                emitter().emit(" %d [shape=circle,style=filled];", currentState);
+                emitter().emit("%d [fontsize = 10, shape=circle,style=filled, label=<<B>%1$d</B>>];", currentState);
                 if (state != null) {
                     for (Instruction inst : state.getInstructions()) {
                         instruction(inst, currentState, instrCount, stateMap);
@@ -126,6 +115,8 @@ public class ControllerToGraphviz {
                 }
                 currentState++;
             }
+
+            emitter().decreaseIndentation();
 
             emitter().emit("}");
             emitter().close();
