@@ -44,7 +44,6 @@ public interface VerilogNetwork {
 
         emitter().emit("`timescale 1ns/1ps");
         emitter().emit("//`default_nettype none");
-        emitter().emit("`define RETURN_EXECUTED 5");
         emitter().emitNewLine();
 
         // -- Network module
@@ -74,9 +73,6 @@ public interface VerilogNetwork {
 
             // -- Instances
             getInstances(network.getInstances());
-
-            // -- Ap done logic
-            getApDoneLogic();
 
             // -- Assignments
             getAssignments(network);
@@ -129,7 +125,8 @@ public interface VerilogNetwork {
         emitter().emit("input  wire ap_rst_n,");
         emitter().emit("input  wire ap_start,");
         emitter().emit("output wire ap_idle,");
-        emitter().emit("output reg  ap_done");
+        emitter().emit("output wire  ap_done,");
+        emitter().emit("input wire input_idle");
     }
 
     // ------------------------------------------------------------------------
@@ -142,17 +139,6 @@ public interface VerilogNetwork {
         emitter().emitNewLine();
         getQueueDepthParameters(network.getConnections());
 
-        emitter().emit("// -- AP done state machine");
-        emitter().emit("localparam [1:0]");
-        {
-            emitter().increaseIndentation();
-
-            emitter().emit("_INIT_ = 0, ");
-            emitter().emit("_EXECUTING_ = 1, ");
-            emitter().emit("_DONE_ = 2; ");
-
-            emitter().decreaseIndentation();
-        }
     }
 
     default void getQueueDepthParameters(List<Connection> connections) {
@@ -178,16 +164,10 @@ public interface VerilogNetwork {
         getFifoQueueWires(network.getConnections());
         emitter().emitNewLine();
 
-        // -- Ap done state machine
-        emitter().emit("// -- state for ap done logic");
-        emitter().emit("reg [1:0] state = _INIT_, next_state;");
-
-        // -- Instance AP cotrol wires
+        emitter().emitNewLine();
+        // -- Instance AP control wires
         getInstanceApControlWires(network.getInstances());
 
-        // -- Network is being executed wire
-        emitter().emit("wire active_instances;");
-        emitter().emit("wire network_is_executing;");
         emitter().emitNewLine();
     }
 
@@ -300,14 +280,31 @@ public interface VerilogNetwork {
         emitter().emit("// ------------------------------------------------------------------------");
         emitter().emit("// -- Instances");
         emitter().emitNewLine();
+        List<String> idleList = instances.stream()
+                    .map(
+                        inst->backend().instaceQID(inst.getInstanceName(), "_") + "_ap_idle"
+                    )
+                    .collect(Collectors.toList());
+        idleList.add("input_idle");
+
+
+
         for (Instance instance : instances) {
-            getInstance(instance);
+            String qidName = getInstance(instance);
+            emitter().emit("// -- network idle condition for %s", qidName);
+            emitter().emit("assign %s_network_idle = %s;", qidName,
+                    String.join(" & ", idleList.stream()
+                            .filter(inst->!inst.equals(qidName + "_ap_idle"))
+                            .collect(Collectors.toList())
+                    )
+            );
         }
     }
 
-    default void getInstance(Instance instance) {
+    default String getInstance(Instance instance) {
         // -- Instance name
         String qidName = backend().instaceQID(instance.getInstanceName(), "_");
+
         String name = instance.getInstanceName();
         // -- Entity
         GlobalEntityDecl entityDecl = backend().globalnames().entityDecl(instance.getEntityName(), true);
@@ -315,25 +312,41 @@ public interface VerilogNetwork {
 
         emitter().emit("// -- Instance : %s", qidName);
         if (entity instanceof ActorMachine) {
-            emitter().emit("wire %s_ap_start;", qidName);
-            emitter().emit("wire %s_available_data = %s;", qidName,
-                    String.join(" || ", entity.getInputPorts()
-                            .stream().map(p -> String.format("q_%s_%s_empty_n", name, p.getName()))
-                            .collect(Collectors.toList())));
+            // -- Actor trigger wires
+            emitter().emit("// -- Signals for the trigger module");
+            emitter().emit("wire    %s_trigger_ap_done;", qidName);
+            emitter().emit("wire    %s_trigger_ap_idle;", qidName);
+            emitter().emit("wire    %s_trigger_ap_ready;\t// currently inactive", qidName);
+            emitter().emit("wire    %s_network_idle;", qidName);
+            emitter().emit("// -- Signals for the module");
+            emitter().emit("wire    %s_ap_start;", qidName);
+            emitter().emit("wire    %s_ap_idle;", qidName);
+            emitter().emit("wire    %s_ap_done;", qidName);
+            emitter().emit("wire    [31 : 0] %s_ap_return;", qidName);
+
+
             emitter().emitNewLine();
 
-            emitter().emit("df_controller i_control_%s(", qidName);
+            emitter().emit("trigger i_%s_trigger #(.mode(ACTOR_TRIGGER))(", qidName);
             {
                 emitter().increaseIndentation();
 
-                emitter().emit(".clk(ap_clk),");
-                emitter().emit(".rst_n(ap_rst_n),");
+                emitter().emit(".ap_clk(ap_clk),");
+                emitter().emit(".ap_rst_n(ap_rst_n),");
                 emitter().emit(".ap_start(ap_start),");
-                emitter().emit(".ap_done(%s_ap_done),", name);
-                emitter().emit(".ap_return(%s_ap_return),", name);
-                emitter().emit(".others_executing(network_is_executing),");
-                emitter().emit(".available_data(%s_available_data),", qidName);
-                emitter().emit(".start(%s_ap_start)", qidName);
+                emitter().emit(".ap_done(%s_trigger_ap_done),", qidName);
+                emitter().emit(".ap_idle(%s_trigger_ap_idle),", qidName);
+                emitter().emit(".ap_ready(%s_trigger_ap_ready),", qidName);
+                emitter().emit(".ap_ready(%s_trigger_ap_ready),", qidName);
+                emitter().emit(".ap_return(%s_ap_return),", qidName);
+                emitter().emit(".network_idle(%s_network_idle),", qidName);
+                emitter().emit(".actor_return(%s_ap_return),", qidName);
+                emitter().emit(".actor_done(%s_ap_done),", qidName);
+                emitter().emit(".actor_ready(%s_ap_ready),", qidName);
+                emitter().emit(".actor_idle(%s_ap_idle),", qidName);
+                emitter().emit(".actor_launch_predicate(),");
+                emitter().emit(".actor_start(%s_ap_start)", qidName);
+
 
                 emitter().decreaseIndentation();
             }
@@ -398,10 +411,10 @@ public interface VerilogNetwork {
 
             // -- Vivado HLS control signals
             emitter().emit(".ap_start(%s_ap_start),", qidName);
-            emitter().emit(".ap_done(%s_ap_done),", name);
-            emitter().emit(".ap_idle(%s_ap_idle),", name);
-            emitter().emit(".ap_ready(%s_ap_ready),", name);
-            emitter().emit(".ap_return(%s_ap_return),", name);
+            emitter().emit(".ap_done(%s_ap_done),", qidName);
+            emitter().emit(".ap_idle(%s_ap_idle),", qidName);
+            emitter().emit(".ap_ready(%s_ap_ready),", qidName);
+            emitter().emit(".ap_return(%s_ap_return),", qidName);
             emitter().emitNewLine();
             emitter().emit(".ap_clk(ap_clk),");
             emitter().emit(".ap_rst_n(ap_rst_n)");
@@ -409,6 +422,7 @@ public interface VerilogNetwork {
             emitter().decreaseIndentation();
         }
         emitter().emit(");");
+        return qidName;
     }
 
     // ------------------------------------------------------------------------
@@ -419,8 +433,6 @@ public interface VerilogNetwork {
         emitter().emit("// -- Assignments");
         emitter().emitNewLine();
 
-        // -- Network is executing
-        getNeworkIsBeingExecutingAssignment(network);
 
         // -- AP Control
         getApControlAssignments(network);
@@ -444,9 +456,16 @@ public interface VerilogNetwork {
     }
 
     default void getApControlAssignments(Network network) {
+
+        // -- AP Done
+        emitter().emit("// -- AP Done");
+        emitter().emitClikeBlockComment("Done not yet supported");
+        emitter().emitNewLine();
+
+        // -- AP Idle
         emitter().emit("// -- AP Idle");
         emitter().emit("assign ap_idle = %s;", String.join(" & ", network.getInstances()
-                .stream().map(i -> i.getInstanceName() + "_ap_idle")
+                .stream().map(i -> backend().instaceQID(i.getInstanceName(),"_") + "_ap_idle")
                 .collect(Collectors.toList())));
         emitter().emitNewLine();
     }

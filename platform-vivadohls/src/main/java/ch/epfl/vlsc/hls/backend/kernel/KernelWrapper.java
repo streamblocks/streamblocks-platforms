@@ -7,9 +7,13 @@ import ch.epfl.vlsc.platformutils.utils.TypeUtils;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
+import se.lth.cs.tycho.ir.Port;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.network.Network;
+import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.type.Type;
+
+import java.util.stream.Collectors;
 
 @Module
 public interface KernelWrapper {
@@ -31,7 +35,7 @@ public interface KernelWrapper {
         emitter().open(PathUtils.getTargetCodeGenRtl(backend().context()).resolve(identifier + "_wrapper.sv"));
 
         emitter().emit("`default_nettype none");
-        emitter().emit("`define STAGE_DONE 4");
+
         emitter().emitNewLine();
 
         // -- Network wrappermodule
@@ -175,14 +179,12 @@ public interface KernelWrapper {
         emitter().emit("// -- AP Control");
         emitter().emit("logic   ap_start_pulse;");
         emitter().emit("logic   ap_start_r = 1'b0;");
-        emitter().emit("logic   ap_idle_r = 1'b1;");
-        emitter().emit("logic   ap_ready_r = 1'b0;");
-        emitter().emit("logic   ap_done_r = 1'b0;");
         emitter().emitNewLine();
 
 
         // -- Network I/O
-        emitter().emit("// -- Network I/O for %s module", backend().task().getIdentifier().getLast().toString());
+        String moduleName = backend().task().getIdentifier().getLast().toString();
+        emitter().emit("// -- Network I/O for %s module", moduleName);
         for (PortDecl port : network.getInputPorts()) {
             Type type = backend().types().declaredPortType(port);
             int bitSize = TypeUtils.sizeOfBits(type);
@@ -198,21 +200,33 @@ public interface KernelWrapper {
             emitter().emit("wire    %s_empty_n;", port.getName());
             emitter().emit("wire    %s_read;", port.getName());
         }
-        emitter().emit("wire    core_done;");
+        emitter().emit("wire    %s_ap_idle;", moduleName);
+        emitter().emit("wire    %s_ap_done;", moduleName);
+        emitter().emit("wire    %s_network_idle;", moduleName);
 
         // -- I/O Stage
         emitter().emit("// -- AP for I/O Stage", backend().task().getIdentifier().getLast().toString());
         for (PortDecl port : network.getInputPorts()) {
             emitter().emit("wire    %s_input_stage_ap_start;", port.getName());
             emitter().emit("wire    %s_input_stage_ap_done;", port.getName());
+            emitter().emit("wire    %s_input_stage_ap_idle;", port.getName());
             emitter().emit("wire    [31:0] %s_input_stage_ap_return;", port.getName());
         }
+        emitter().emitNewLine();
+        emitter().emit("wire    input_stage_idle;");
+        emitter().emit("wire    input_stage_done;");
+        emitter().emitNewLine();
         for (PortDecl port : network.getOutputPorts()) {
             emitter().emit("wire    %s_output_stage_ap_start;", port.getName());
             emitter().emit("wire    %s_output_stage_ap_done;", port.getName());
+            emitter().emit("wire    %s_output_stage_ap_idle;", port.getName());
             emitter().emit("wire    [31:0] %s_output_stage_ap_return;", port.getName());
         }
-
+        emitter().emitNewLine();
+        emitter().emit("wire    output_stage_idle;");
+        emitter().emit("wire    output_stage_done;");
+        emitter().emit("logic   [31 : 0] output_stage_done_count; ");
+        emitter().emit("wire    output_stage_done_count_enable;");
         emitter().emitNewLine();
 
     }
@@ -222,7 +236,7 @@ public interface KernelWrapper {
     default void getApLogic(Network network) {
         // -- pulse ap_start
         emitter().emit("// -- Pulse ap_start");
-        emitter().emit("always @(posedge ap_clk) begin");
+        emitter().emit("always_ff @(posedge ap_clk) begin");
         emitter().emit("\tap_start_r <= ap_start;");
         emitter().emit("end");
         emitter().emitNewLine();
@@ -231,56 +245,36 @@ public interface KernelWrapper {
 
         // -- ap_idle
         emitter().emit("// -- ap_idle");
-        emitter().emit("always @(posedge ap_clk) begin");
-        {
-            emitter().increaseIndentation();
+        emitter().emit("assign ap_idle = output_stage_idle & %s_network_idle;",
+                backend().task().getIdentifier().getLast().toString());
 
-            emitter().emit("if (ap_rst_n == 1'b0)");
-            emitter().emit("\tap_idle_r <= 1'b1;");
-            emitter().emit("else");
-            emitter().emit("\tap_idle_r <= ap_done ? 1'b1 : ap_start_pulse ? 1'b0 : ap_idle;");
-
-            emitter().decreaseIndentation();
-        }
-        emitter().emit("end");
         emitter().emitNewLine();
-        emitter().emit("assign ap_idle = ap_idle_r;");
+        emitter().emit("// -- input stage idle signal");
+        emitter().emit("assign input_stage_idle = %s;", String.join(" & ", network.getInputPorts()
+                .stream().map(i -> i.getName() + "_input_stage_ap_idle")
+                .collect(Collectors.toList())));
+        emitter().emitNewLine();
+
+
+        emitter().emit("// -- output stage idle signal");
+        emitter().emit("assign output_stage_idle = %s;", String.join(" & ", network.getOutputPorts()
+        .stream().map(i -> i.getName() + "_output_stage_ap_idle")
+        .collect(Collectors.toList())));
+        emitter().emitNewLine();
+
+        emitter().emit("// -- network idle signal");
+        emitter().emit("assign %s_network_idle = input_stage_idle;",
+                backend().task().getIdentifier().getLast().toString());
         emitter().emitNewLine();
 
         // -- ap_ready
         emitter().emit("// -- ap_ready");
-        emitter().emit("always @(posedge ap_clk) begin");
-        {
-            emitter().increaseIndentation();
-
-            emitter().emit("if (ap_rst_n == 1'b0)");
-            emitter().emit("\tap_ready_r <= 1'b1;");
-            emitter().emit("else");
-            emitter().emit("\tap_ready_r <= 1'b0;");
-
-            emitter().decreaseIndentation();
-        }
-        emitter().emit("end");
-        emitter().emitNewLine();
-        emitter().emit("assign ap_ready = ap_ready_r;");
+        emitter().emitClikeBlockComment("Currently not supported");
         emitter().emitNewLine();
 
         // -- ap_done
         emitter().emit("// -- ap_done");
-        emitter().emit("always @(posedge ap_clk) begin");
-        {
-            emitter().increaseIndentation();
-
-            emitter().emit("if (ap_rst_n == 1'b0)");
-            emitter().emit("\tap_done_r <= 1'b0;");
-            emitter().emit("else");
-            emitter().emit("\tap_done_r <= 1'b0; // TODO");
-
-            emitter().decreaseIndentation();
-        }
-        emitter().emit("end");
-        emitter().emitNewLine();
-        emitter().emit("assign ap_done = ap_done_r;");
+        emitter().emitClikeBlockComment("Currently not supported");
         emitter().emitNewLine();
     }
 
@@ -347,21 +341,21 @@ public interface KernelWrapper {
     default void getInputStage(PortDecl port) {
         emitter().emit("// -- Input stage for port : %s", port.getName());
         emitter().emitNewLine();
-        emitter().emit("assign %s_input_stage_ap_start = ((%1$s_input_stage_ap_return === `STAGE_DONE) ? 1'b0 : 1'b1) && ap_start;", port.getName());
+        emitter().emit("assign %s_input_stage_ap_start = ap_start_pulse;", port.getName());
         emitter().emitNewLine();
 
         emitter().emit("%s_input_stage #(", port.getName());
         {
             emitter().increaseIndentation();
 
-            emitter().emit(".C_M_AXI_%s_ID_WIDTH( C_M_AXI_%s_ID_WIDTH ),", port.getSafeName().toUpperCase(), port.getName().toUpperCase());
-            emitter().emit(".C_M_AXI_%s_ADDR_WIDTH( C_M_AXI_%s_ADDR_WIDTH ),", port.getSafeName().toUpperCase(), port.getName().toUpperCase());
-            emitter().emit(".C_M_AXI_%s_DATA_WIDTH( C_M_AXI_%s_DATA_WIDTH ),", port.getSafeName().toUpperCase(), port.getName().toUpperCase());
-            emitter().emit(".C_M_AXI_%s_AWUSER_WIDTH( C_M_AXI_%s_AWUSER_WIDTH ),", port.getSafeName().toUpperCase(), port.getName().toUpperCase());
-            emitter().emit(".C_M_AXI_%s_ARUSER_WIDTH( C_M_AXI_%s_ARUSER_WIDTH ),", port.getSafeName().toUpperCase(), port.getName().toUpperCase());
-            emitter().emit(".C_M_AXI_%s_WUSER_WIDTH( C_M_AXI_%s_WUSER_WIDTH ),", port.getSafeName().toUpperCase(), port.getName().toUpperCase());
-            emitter().emit(".C_M_AXI_%s_RUSER_WIDTH( C_M_AXI_%s_RUSER_WIDTH ),", port.getSafeName().toUpperCase(), port.getName().toUpperCase());
-            emitter().emit(".C_M_AXI_%s_BUSER_WIDTH( C_M_AXI_%s_BUSER_WIDTH )", port.getSafeName().toUpperCase(), port.getName().toUpperCase());
+            emitter().emit(".C_M_AXI_%s_ID_WIDTH( C_M_AXI_%s_ID_WIDTH ),", port.getName().toUpperCase(), port.getName().toUpperCase());
+            emitter().emit(".C_M_AXI_%s_ADDR_WIDTH( C_M_AXI_%s_ADDR_WIDTH ),", port.getName().toUpperCase(), port.getName().toUpperCase());
+            emitter().emit(".C_M_AXI_%s_DATA_WIDTH( C_M_AXI_%s_DATA_WIDTH ),", port.getName().toUpperCase(), port.getName().toUpperCase());
+            emitter().emit(".C_M_AXI_%s_AWUSER_WIDTH( C_M_AXI_%s_AWUSER_WIDTH ),", port.getName().toUpperCase(), port.getName().toUpperCase());
+            emitter().emit(".C_M_AXI_%s_ARUSER_WIDTH( C_M_AXI_%s_ARUSER_WIDTH ),", port.getName().toUpperCase(), port.getName().toUpperCase());
+            emitter().emit(".C_M_AXI_%s_WUSER_WIDTH( C_M_AXI_%s_WUSER_WIDTH ),", port.getName().toUpperCase(), port.getName().toUpperCase());
+            emitter().emit(".C_M_AXI_%s_RUSER_WIDTH( C_M_AXI_%s_RUSER_WIDTH ),", port.getName().toUpperCase(), port.getName().toUpperCase());
+            emitter().emit(".C_M_AXI_%s_BUSER_WIDTH( C_M_AXI_%s_BUSER_WIDTH )", port.getName().toUpperCase(), port.getName().toUpperCase());
 
             emitter().decreaseIndentation();
         }
@@ -374,7 +368,7 @@ public interface KernelWrapper {
             emitter().emit(".ap_rst_n(ap_rst_n),");
             emitter().emit(".ap_start(%s_input_stage_ap_start),", port.getName());
             emitter().emit(".ap_done(%s_input_stage_ap_done),", port.getName());
-            emitter().emit(".ap_idle(),");
+            emitter().emit(".ap_idle(%s_input_stage_ap_idle),", port.getName());
             emitter().emit(".ap_ready(),");
             emitter().emit(".ap_return(%s_input_stage_ap_return),", port.getName());
             // -- AXI Master
@@ -396,7 +390,8 @@ public interface KernelWrapper {
     // ------------------------------------------------------------------------
     // -- Network instantiation
     default void getNetwork(Network network) {
-        emitter().emit("%s i_%1$s(", backend().task().getIdentifier().getLast().toString());
+        String instanceName = backend().task().getIdentifier().getLast().toString();
+        emitter().emit("%s i_%1$s(", instanceName);
         {
             emitter().increaseIndentation();
             for (PortDecl port : network.getInputPorts()) {
@@ -412,8 +407,9 @@ public interface KernelWrapper {
             emitter().emit(".ap_clk(ap_clk),");
             emitter().emit(".ap_rst_n(ap_rst_n),");
             emitter().emit(".ap_start(ap_start_pulse),");
-            emitter().emit(".ap_idle(),");
-            emitter().emit(".ap_done(core_done)");
+            emitter().emit(".ap_idle(%s_ap_idle),", instanceName);
+            emitter().emit(".ap_done(%s_ap_done),", instanceName);
+            emitter().emit(".input_idle(%s_network_idle)", instanceName);
             emitter().decreaseIndentation();
         }
         emitter().emit(");");
@@ -426,7 +422,7 @@ public interface KernelWrapper {
         emitter().emit("// -- Output stage for port : %s", port.getName());
         emitter().emitNewLine();
 
-        emitter().emit("assign %s_output_stage_ap_start = ((%1$s_output_stage_ap_return === `STAGE_DONE) ? 1'b0 : 1'b1) && ap_start;", port.getName());
+        emitter().emit("assign %s_output_stage_ap_start = ap_start_pulse;", port.getName());
         emitter().emitNewLine();
 
         emitter().emit("%s_output_stage #(", port.getName());
@@ -453,10 +449,9 @@ public interface KernelWrapper {
             emitter().emit(".ap_rst_n(ap_rst_n),");
             emitter().emit(".ap_start(%s_output_stage_ap_start),", port.getName());
             emitter().emit(".ap_done(%s_output_stage_ap_done),", port.getName());
-            emitter().emit(".ap_idle(),");
+            emitter().emit(".ap_idle(%s_output_stage_ap_idle),", port.getName());
             emitter().emit(".ap_ready(),");
             emitter().emit(".ap_return(%s_output_stage_ap_return),", port.getName());
-            emitter().emit(".core_done(core_done),");
             // -- AXI Master
             getAxiMasterConnections(port, false);
             // -- Direct address

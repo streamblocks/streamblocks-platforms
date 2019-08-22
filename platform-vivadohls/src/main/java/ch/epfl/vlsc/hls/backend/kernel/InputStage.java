@@ -72,7 +72,7 @@ public interface InputStage {
             emitter().emit("// -- output stream");
             emitter().emit("output wire [%d:0] %s_V_din,", bitSize - 1, port.getName());
             emitter().emit("input  wire %s_V_full_n,", port.getName());
-            emitter().emit("input  wire %s_V_write ", port.getName());
+            emitter().emit("output  wire %s_V_write ", port.getName());
 
             emitter().decreaseIndentation();
         }
@@ -162,8 +162,8 @@ public interface InputStage {
             emitter().emit(".%s_size_r(%1$s_size),", port.getName());
             emitter().emit(".%s_buffer(%1$s_buffer),", port.getName());
             // -- FIFO I/O
-            emitter().emit(".fifo_count(q_tmp_count),");
-            emitter().emit(".fifo_size(q_tmp_size),");
+            emitter().emit(".fifo_count(q_tmp_V_count),");
+            emitter().emit(".fifo_size(q_tmp_V_size),");
             emitter().emit(".%s_V_din(q_tmp_V_din),", port.getName());
             emitter().emit(".%s_V_full_n(q_tmp_V_full_n),", port.getName());
             emitter().emit(".%s_V_write(q_tmp_V_write)", port.getName());
