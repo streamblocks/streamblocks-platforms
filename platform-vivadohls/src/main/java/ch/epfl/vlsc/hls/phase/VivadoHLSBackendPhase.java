@@ -312,6 +312,8 @@ public class VivadoHLSBackendPhase implements Phase {
             // -- sdaccel ini
             Files.copy(getClass().getResourceAsStream("/lib/cmake/sdaccel.ini.in"), PathUtils.getTargetScripts(backend.context()).resolve("sdaccel.ini.in"), StandardCopyOption.REPLACE_EXISTING);
 
+            // -- sdaccel example host code
+            Files.copy(getClass().getResourceAsStream("/lib/hls/Host.cpp"), PathUtils.getTargetCodeGenSource(backend.context()).resolve("Host.cpp"), StandardCopyOption.REPLACE_EXISTING);
 
         } catch (IOException e) {
             throw new CompilationException(new Diagnostic(Diagnostic.Kind.ERROR, "Could not copy backend resources"));

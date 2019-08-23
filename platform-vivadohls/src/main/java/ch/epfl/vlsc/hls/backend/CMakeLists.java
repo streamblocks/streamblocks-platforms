@@ -39,6 +39,7 @@ public interface CMakeLists {
 
         // -- SDAccel Kernel Option
         emitter().emit("option(SDACCEL_KERNEL \"Build an RTL OpenCL Kernel for SDAccel\" ON)");
+        emitter().emit("option(SDACCEL_HOST \"Build an example OpenCL Host executable for SDAccel\" OFF)");
 
         // -- Set FPGA name
         emitter().emit("set(FPGA_NAME \"xcku115-flvb2104-2-e\" CACHE STRING \"Name of Xilinx FPGA\")");
@@ -255,7 +256,30 @@ public interface CMakeLists {
         String xprProject = String.format("${CMAKE_SOURCE_DIR}/output/%s/%1$s.xpr", identifier);
 
         emitter().emit("add_custom_target(%s ALL DEPENDS %s)", identifier, xprProject);
+        // -- Host example
 
+        emitter().emit("if (SDACCEL_HOST)");
+        {
+            emitter().increaseIndentation();
+            emitter().emit("find_package(XRT REQUIRED)");
+            emitter().emitSharpBlockComment("Replace Host.cpp with your own host code");
+            emitter().emit("set(EXECUTABLE_OUTPUT_PATH ${CMAKE_SOURCE_DIR}/bin)");
+            emitter().emit("include_directories(");
+            emitter().increaseIndentation();
+            emitter().emit("\t${XRT_INCLUDE_DIRS}");
+            emitter().decreaseIndentation();
+            emitter().emit(")");
+            emitter().emit("set(host_filenames\n\tcode-gen/src/Host.cpp\n)");
+
+            emitter().emit("add_executable(Host ${host_filenames})");
+
+            emitter().emit("target_include_directories(Host PRIVATE code-gen/include)");
+            emitter().emit("target_link_directories(Host PRIVATE ${XRT_LIBRARY_DIR})");
+            emitter().emit("target_link_libraries(Host xilinxopencl rt stdc++)");
+            emitter().decreaseIndentation();
+
+        }
+        emitter().emit("endif()");
         emitter().close();
 
     }

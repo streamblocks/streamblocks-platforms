@@ -175,6 +175,7 @@ public interface VerilogNetwork {
     }
 
     default void getFifoQueueWires(List<Connection> connections) {
+
         for (Connection connection : connections) {
             int dataWidth = getQueueDataWidth(connection);
             String queueName = queueNames().get(connection);
