@@ -102,10 +102,10 @@ public interface PackageKernel {
     default void importKernelVerilogFiles(Network network, String identifier) {
         emitter().emitSharpBlockComment("Import StreamBlocks Kernel Verilog RTL files");
         for (PortDecl port : network.getInputPorts()) {
-            emitter().emit("import_files -norecurse {@CMAKE_SOURCE_DIR@/code-gen/rtl/%s_input_stage.v}", port.getName());
+            emitter().emit("import_files -norecurse {@CMAKE_SOURCE_DIR@/code-gen/rtl/%s_input_stage.sv}", port.getName());
         }
         for (PortDecl port : network.getOutputPorts()) {
-            emitter().emit("import_files -norecurse {@CMAKE_SOURCE_DIR@/code-gen/rtl/%s_output_stage.v}", port.getName());
+            emitter().emit("import_files -norecurse {@CMAKE_SOURCE_DIR@/code-gen/rtl/%s_output_stage.sv}", port.getName());
         }
         emitter().emit("import_files -norecurse {@CMAKE_SOURCE_DIR@/code-gen/rtl/%s_control_s_axi.v}", identifier);
         emitter().emit("import_files -norecurse {@CMAKE_SOURCE_DIR@/code-gen/rtl/%s_wrapper.sv}", identifier);

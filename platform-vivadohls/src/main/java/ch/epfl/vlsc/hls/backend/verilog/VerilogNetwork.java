@@ -40,10 +40,11 @@ public interface VerilogNetwork {
         Network network = backend().task().getNetwork();
 
         // -- Network file
-        emitter().open(PathUtils.getTargetCodeGenRtl(backend().context()).resolve(identifier + ".v"));
+        emitter().open(PathUtils.getTargetCodeGenRtl(backend().context()).resolve(identifier + ".sv"));
 
-        emitter().emit("`timescale 1ns/1ps");
-        emitter().emit("//`default_nettype none");
+        emitter().emit("`include \"TriggerTypes.sv\"");
+        emitter().emit("import TriggerTypes::*;");
+
         emitter().emitNewLine();
 
         // -- Network module
@@ -61,7 +62,8 @@ public interface VerilogNetwork {
         {
             // -- Components
             emitter().increaseIndentation();
-
+            emitter().emit("timeunit 1ps;");
+            emitter().emit("timeprecision 1ps;");
             // -- Parameters
             getParameters(network);
 
@@ -136,6 +138,7 @@ public interface VerilogNetwork {
         // -- Queue depth parameters
         emitter().emit("// ------------------------------------------------------------------------");
         emitter().emit("// -- Parameters");
+        emitter().emit("localparam mode_t trigger_mode = ACTOR_TRIGGER;");
         emitter().emitNewLine();
         getQueueDepthParameters(network.getConnections());
 
@@ -327,7 +330,7 @@ public interface VerilogNetwork {
 
             emitter().emitNewLine();
 
-            emitter().emit("trigger i_%s_trigger #(.mode(ACTOR_TRIGGER))(", qidName);
+            emitter().emit("trigger #(.mode(trigger_mode)) i_%s_trigger (", qidName);
             {
                 emitter().increaseIndentation();
 
@@ -337,8 +340,6 @@ public interface VerilogNetwork {
                 emitter().emit(".ap_done(%s_trigger_ap_done),", qidName);
                 emitter().emit(".ap_idle(%s_trigger_ap_idle),", qidName);
                 emitter().emit(".ap_ready(%s_trigger_ap_ready),", qidName);
-                emitter().emit(".ap_ready(%s_trigger_ap_ready),", qidName);
-                emitter().emit(".ap_return(%s_ap_return),", qidName);
                 emitter().emit(".network_idle(%s_network_idle),", qidName);
                 emitter().emit(".actor_return(%s_ap_return),", qidName);
                 emitter().emit(".actor_done(%s_ap_done),", qidName);

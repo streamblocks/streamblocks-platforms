@@ -28,9 +28,11 @@ public interface InputStage {
     default void getInputStage(PortDecl port) {
         String identifier = port.getName();
 
-        emitter().open(PathUtils.getTargetCodeGenRtl(backend().context()).resolve(identifier + "_input_stage.v"));
+        emitter().open(PathUtils.getTargetCodeGenRtl(backend().context()).resolve(identifier + "_input_stage.sv"));
 
-        emitter().emit("`timescale 1ns / 1ps");
+        emitter().emit("`include \"TriggerTypes.sv\"");
+        emitter().emit("import TriggerTypes::*;");
+
         emitter().emitNewLine();
 
         Type type = backend().types().declaredPortType(port);
@@ -77,13 +79,18 @@ public interface InputStage {
             emitter().decreaseIndentation();
         }
         emitter().emit(");");
+        emitter().increaseIndentation();
 
+        emitter().emit("timeunit 1ps;");
+        emitter().emit("timeprecision 1ps;");
         // -- Wires
         getWires(port);
 
         emitter().emitClikeBlockComment("Instantiations");
         emitter().emitNewLine();
 
+        // -- Input stage trigger
+        getTriggerModule(port);
         // -- Input stage mem
         getInputStageMem(port);
 
@@ -119,8 +126,47 @@ public interface InputStage {
 
         // -- Input stage mem
         emitter().emit("// -- Input stage mem");
-        emitter().emit("wire %s_input_stage_mem_ap_start = ( (q_tmp_size - q_tmp_count >> 1) == (q_tmp_V_size  >> 1) ) && ap_start;", port.getName());
 
+        emitter().emit("wire    %s_input_stage_ap_start;", port.getName());
+        emitter().emit("wire    %s_Input_stage_ap_done;", port.getName());
+        emitter().emit("wire    %s_input_stage_ap_idle;", port.getName());
+        emitter().emit("wire    [31 : 0] %s_input_stage_ap_return;", port.getName());
+        emitter().emit("wire    %s_input_stage_launch_predicate;", port.getName());
+        emitter().emit("wire    %s_at_least_half_empty;", port.getName());
+        emitter().emit("localparam mode_t trigger_mode = INPUT_TRIGGER;");
+        emitter().emitNewLine();
+        emitter().emit("assign %s_at_least_half_empty = q_tmp_V_count <= (q_tmp_V_size >> 1);", port.getName());
+        emitter().emit("assign %s_input_stage_launch_predicate = %s_at_least_half_empty;", port.getName(),
+                port.getName());
+        emitter().emitNewLine();
+    }
+    default void getTriggerModule(PortDecl port) {
+
+        emitter().emit("// -- Trigger control for port : %s", port.getName());
+        emitter().emitNewLine();
+
+        emitter().emit("trigger #(.mode(trigger_mode)) %s_trigger (", port.getName());
+        {
+            emitter().increaseIndentation();
+
+            emitter().emit(".ap_clk(ap_clk),");
+            emitter().emit(".ap_rst_n(ap_rst_n),");
+            emitter().emit(".ap_start(ap_start),");
+            emitter().emit(".ap_done(ap_done),");
+            emitter().emit(".ap_idle(ap_idle),");
+            emitter().emit(".ap_ready(ap_ready),");
+            emitter().emit(".network_idle(),");
+            emitter().emit(".actor_return(%s_input_stage_ap_return),", port.getName());
+            emitter().emit(".actor_done(%s_input_stage_ap_done),", port.getName());
+            emitter().emit(".actor_ready(%s_input_stage_ap_ready),", port.getName());
+            emitter().emit(".actor_idle(%s_input_stage_ap_idle),", port.getName());
+            emitter().emit(".actor_launch_predicate(%s_input_stage_launch_predicate),", port.getName());
+            emitter().emit(".actor_start(%s_input_stage_ap_start)", port.getName());
+
+
+            emitter().decreaseIndentation();
+        }
+        emitter().emit(");");
         emitter().emitNewLine();
     }
 
@@ -150,11 +196,11 @@ public interface InputStage {
             // -- Ap control
             emitter().emit(".ap_clk(ap_clk),");
             emitter().emit(".ap_rst_n(ap_rst_n),");
-            emitter().emit(".ap_start(%s_input_stage_mem_ap_start),", port.getName());
+            emitter().emit(".ap_start(%s_input_stage_ap_start),", port.getName());
             emitter().emit(".ap_done(%s_input_stage_ap_done),", port.getName());
-            emitter().emit(".ap_idle(ap_idle),");
-            emitter().emit(".ap_ready(ap_ready),");
-            emitter().emit(".ap_return(ap_return),");
+            emitter().emit(".ap_idle(%s_input_stage_ap_idle),", port.getName());
+            emitter().emit(".ap_ready(%s_input_stage_ap_ready),", port.getName());
+            emitter().emit(".ap_return(%s_input_stage_ap_return),", port.getName());
             // -- AXI Master
             backend().kernelwrapper().getAxiMasterConnections(port,true);
             // -- Direct address
@@ -199,8 +245,8 @@ public interface InputStage {
             emitter().emit(".if_dout(%s_dout),", outputName);
             emitter().emitNewLine();
             emitter().emit(".peek(),");
-            emitter().emit(".count(%s_count),", name);
-            emitter().emit(".size(%s_size) ", name);
+            emitter().emit(".count(%s_V_count),", name);
+            emitter().emit(".size(%s_V_size) ", name);
 
             emitter().decreaseIndentation();
         }
@@ -219,9 +265,29 @@ public interface InputStage {
             emitter().emit(".STREAM_IN_V_dout(q_tmp_V_dout),");
             emitter().emit(".STREAM_IN_V_empty_n(q_tmp_V_empty_n),");
             emitter().emit(".STREAM_IN_V_read(q_tmp_V_read),");
-            emitter().emit(".STREAM_OUT_V_din(q_tmp_V_din),");
-            emitter().emit(".STREAM_OUT_V_full_n(q_tmp_V_full_n),");
-            emitter().emit(".STREAM_OUT_V_write(q_tmp_V_write)");
+            emitter().emit(".STREAM_OUT_V_din(BYTE_V_din),");
+            emitter().emit(".STREAM_OUT_V_full_n(BYTE_V_full_n),");
+            emitter().emit(".STREAM_OUT_V_write(BYTE_V_write)");
+
+            emitter().decreaseIndentation();
+        }
+        emitter().emit(");");
+
+        emitter().emitNewLine();
+    }
+    default void getStagePassNamed(String name, int dataWidth, String inputName, String outputName) {
+        emitter().emit("%s_stage_pass i_%1$s_stage_pass(", name);
+        {
+            emitter().increaseIndentation();
+
+            emitter().emit(".ap_clk(ap_clk),");
+            emitter().emit(".ap_rst_n(ap_rst_n),");
+            emitter().emit(".STREAM_IN_V_dout(%s_dout),", inputName);
+            emitter().emit(".STREAM_IN_V_empty_n(%s_empty_n),", inputName);
+            emitter().emit(".STREAM_IN_V_read(%s_read),", inputName);
+            emitter().emit(".STREAM_OUT_V_din(%s_din),", outputName);
+            emitter().emit(".STREAM_OUT_V_full_n(%s_full_n),", outputName);
+            emitter().emit(".STREAM_OUT_V_write(%s_write)", outputName);
 
             emitter().decreaseIndentation();
         }

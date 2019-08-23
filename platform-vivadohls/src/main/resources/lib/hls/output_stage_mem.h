@@ -1,6 +1,7 @@
 /*
  * Copyright (c) EPFL VLSC, 2019
  * Author: Endri Bezati (endri.bezati@epfl.ch)
+ *         Mahyar Emami (mahyar.emami@epfl.ch)
  * All rights reserved.
  *
  * License terms:
@@ -38,11 +39,16 @@
 #ifndef _OUTPUT_STAGE_MEM_H
 #define _OUTPUT_STAGE_MEM_H
 
-#define DONE_RECEIVING 2
-#define FINISH 4
+#define RETURN_IDLE 0
+#define RETURN_WAIT_PREDICATE 1
+#define RETURN_WAIT_INPUT 2
+#define RETURN_WAIT_OUTPUT 3
+#define RETURN_WAIT_GUARD 4
+#define RETURN_EXECUTED 5
 
 #include <stdint.h>
 #include <hls_stream.h>
+
 
 #define MAX_BUFFER_SIZE 4096
 
@@ -67,25 +73,25 @@ uint32_t class_output_stage_mem<T>::operator()(hls::stream<T> &STREAM,
 			rest > fifo_count ?
 					fifo_count : rest;
 
-	if (available_size == 0) {
-		return DONE_RECEIVING;
-	}
-
-	if (available_size == pointer) {
+	if (available_size == 0 || available_size == pointer) {
 		size[0] = pointer;
 		pointer = 0;
-		return FINISH;
+		return RETURN_IDLE;
 	}
-
 	mem_wr: for (uint64_t i = 0; i < to_send; i++) {
-#pragma HLS pipeline
-#pragma HLS LOOP_TRIPCOUNT min=c_size max=c_size
-		output[i + pointer] = STREAM.read();
-	}
-
+	#pragma HLS pipeline
+	#pragma HLS LOOP_TRIPCOUNT min=c_size max=c_size
+			output[i + pointer] = STREAM.read();
+		}
 	pointer += to_send;
 
-	return DONE_RECEIVING;
+
+	if (available_size == pointer) {
+		pointer = 0;
+		return RETURN_IDLE;
+	}
+	return RETURN_EXECUTED;
+
 }
 
 #endif //_OUTPUT_STAGE_MEM_H

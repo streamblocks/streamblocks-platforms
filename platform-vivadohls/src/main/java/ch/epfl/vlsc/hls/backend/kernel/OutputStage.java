@@ -25,10 +25,10 @@ public interface OutputStage {
     default void getOutputStage(PortDecl port) {
         String identifier = port.getName();
 
-        emitter().open(PathUtils.getTargetCodeGenRtl(backend().context()).resolve(identifier + "_output_stage.v"));
+        emitter().open(PathUtils.getTargetCodeGenRtl(backend().context()).resolve(identifier + "_output_stage.sv"));
 
-        emitter().emit("`timescale 1ns / 1ps");
-        emitter().emit("`define FINISH 4");
+        emitter().emit("`include \"TriggerTypes.sv\"");
+        emitter().emit("import TriggerTypes::*;");
         emitter().emitNewLine();
 
         Type type = backend().types().declaredPortType(port);
@@ -62,8 +62,6 @@ public interface OutputStage {
             emitter().emit("output wire ap_ready,");
             emitter().emit("output wire ap_done,");
             emitter().emit("output wire [31:0] ap_return,");
-            emitter().emit("// -- Network done");
-            emitter().emit("input wire core_done,");
             backend().topkernel().getAxiMasterPorts(port.getName());
             emitter().emit("// -- Constant & Addresses");
             emitter().emit("input  wire [31:0] %s_available_size,", port.getName());
@@ -72,11 +70,16 @@ public interface OutputStage {
             emitter().emit("// -- output stream");
             emitter().emit("input wire [%d:0] %s_V_dout,", bitSize - 1, port.getName());
             emitter().emit("input  wire %s_V_empty_n,", port.getName());
-            emitter().emit("output  wire %s_V_read ", port.getName());
+            emitter().emit("output  wire %s_V_read, ", port.getName());
+            emitter().emit("// -- Network idle");
+            emitter().emit("input wire network_idle");
 
             emitter().decreaseIndentation();
         }
         emitter().emit(");");
+
+        emitter().emit("timeunit 1ps;");
+        emitter().emit("timeprecision 1ps;");
 
         // -- Wires
         getWires(port);
@@ -85,12 +88,17 @@ public interface OutputStage {
         emitter().emitNewLine();
 
         // -- Output stage pass
-        backend().inputstage().getStagePass(port);
+        backend().inputstage().getStagePassNamed(String.format("%s", port.getName()), bitSize,
+                String.format("%s_V", port.getName()), "q_tmp_V");
 
         // -- Queue
         backend().inputstage().getQueue("q_tmp", bitSize, "q_tmp_V", "q_tmp_V");
 
-        // -- Input stage mem
+        // -- Output stage trigger
+
+        getTriggerModule(port);
+
+        // -- Output stage mem
         getOutputStageMem(port);
 
         emitter().emit("endmodule");
@@ -119,11 +127,49 @@ public interface OutputStage {
 
         // -- Output stage mem
         emitter().emit("// -- Output stage mem");
-        emitter().emit("wire %s_output_stage_control_ap_done;", port.getName());
-        emitter().emit("wire [31:0] %s_output_stage_control_ap_return;", port.getName());
+        emitter().emit("wire   %s_output_stage_ap_start;", port.getName());
+        emitter().emit("wire   %s_output_stage_ap_done;", port.getName());
+        emitter().emit("wire   %s_output_stage_ap_idle;", port.getName());
+        emitter().emit("wire   %s_output_stage_ap_ready;", port.getName());
+        emitter().emit("wire   [31 : 0] %s_output_stage_ap_return;", port.getName());
+        emitter().emit("wire   %s_output_stage_launch_predicate;", port.getName());
+        emitter().emit("localparam mode_t trigger_mode = OUTPUT_TRIGGER;");
+        emitter().emitNewLine();
+        emitter().emit("assign %s_output_stage_launch_predicate = ~q_tmp_V_full_n || network_idle;",
+                port.getName());
+
         emitter().emitNewLine();
     }
 
+    default void getTriggerModule(PortDecl port) {
+
+        emitter().emit("// -- Trigger control for port : %s", port.getName());
+        emitter().emitNewLine();
+
+        emitter().emit("trigger #(.mode(trigger_mode)) %s_trigger (", port.getName());
+        {
+            emitter().increaseIndentation();
+
+            emitter().emit(".ap_clk(ap_clk),");
+            emitter().emit(".ap_rst_n(ap_rst_n),");
+            emitter().emit(".ap_start(ap_start),");
+            emitter().emit(".ap_done(ap_done),");
+            emitter().emit(".ap_idle(ap_idle),");
+            emitter().emit(".ap_ready(ap_ready),");
+            emitter().emit(".network_idle(),");
+            emitter().emit(".actor_return(%s_output_stage_ap_return),", port.getName());
+            emitter().emit(".actor_done(%s_output_stage_ap_done),", port.getName());
+            emitter().emit(".actor_ready(%s_output_stage_ap_ready),", port.getName());
+            emitter().emit(".actor_idle(%s_output_stage_ap_idle),", port.getName());
+            emitter().emit(".actor_launch_predicate(%s_output_stage_launch_predicate),", port.getName());
+            emitter().emit(".actor_start(%s_output_stage_ap_start)", port.getName());
+
+
+            emitter().decreaseIndentation();
+        }
+        emitter().emit(");");
+        emitter().emitNewLine();
+    }
     default void getOutputStageMem(PortDecl port) {
         emitter().emit("// -- Output stage mem for port : %s", port.getName());
         emitter().emit("%s_output_stage_mem #(", port.getName());
@@ -148,11 +194,11 @@ public interface OutputStage {
             // -- Ap control
             emitter().emit(".ap_clk(ap_clk),");
             emitter().emit(".ap_rst_n(ap_rst_n),");
-            emitter().emit(".ap_start(%s_output_stage_mem_ap_start),", port.getName());
+            emitter().emit(".ap_start(%s_output_stage_ap_start),", port.getName());
             emitter().emit(".ap_done(%s_output_stage_ap_done),", port.getName());
-            emitter().emit(".ap_idle(ap_idle),");
-            emitter().emit(".ap_ready(ap_ready),");
-            emitter().emit(".ap_return(ap_return),");
+            emitter().emit(".ap_idle(%s_output_stage_ap_idle),", port.getName());
+            emitter().emit(".ap_ready(%s_output_stage_ap_ready),", port.getName());
+            emitter().emit(".ap_return(%s_output_stage_ap_return),", port.getName());
             // -- AXI Master
             backend().kernelwrapper().getAxiMasterConnections(port,true);
             // -- Direct address
@@ -160,7 +206,7 @@ public interface OutputStage {
             emitter().emit(".%s_size_r(%1$s_size),", port.getName());
             emitter().emit(".%s_buffer(%1$s_buffer),", port.getName());
             // -- FIFO I/O
-            emitter().emit(".fifo_count(q_tmp_count),");
+            emitter().emit(".fifo_count(q_tmp_V_count),");
             emitter().emit(".%s_V_dout(q_tmp_V_dout),", port.getName());
             emitter().emit(".%s_V_empty_n(q_tmp_V_empty_n),", port.getName());
             emitter().emit(".%s_V_read(q_tmp_V_read)", port.getName());

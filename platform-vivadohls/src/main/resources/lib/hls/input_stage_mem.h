@@ -1,6 +1,7 @@
 /*
  * Copyright (c) EPFL VLSC, 2019
  * Author: Endri Bezati (endri.bezati@epfl.ch)
+ *         Mahyar Emami (mahyar.emami@epfl.ch)
  * All rights reserved.
  *
  * License terms:
@@ -39,8 +40,12 @@
 #define _INPUT_STAGE_MEM_H
 
 
-#define DONE_SENDING 2
-#define FINISH 4
+#define RETURN_IDLE 0
+#define RETURN_WAIT_PREDICATE 1
+#define RETURN_WAIT_INPUT 2
+#define RETURN_WAIT_OUTPUT 3
+#define RETURN_WAIT_GUARD 4
+#define RETURN_EXECUTED 5
 
 #include <stdint.h>
 #include <hls_stream.h>
@@ -69,18 +74,15 @@ uint32_t class_input_stage_mem<T>::operator()(uint32_t requested_size, uint32_t 
 
 	if(requested_size == 0){
 		size[0] = pointer;
-		return FINISH;
+		pointer = 0;
+		return RETURN_IDLE;
 	}
 
-	if(available_size == 0){
-	    size[0] = pointer;
-		return FINISH;
-	}
 
 	if(requested_size == pointer){
 		size[0] = pointer;
 		pointer = 0;
-		return FINISH;
+		return RETURN_IDLE;
 	}
 
 	mem_rd: for(uint64_t i = 0; i < to_read; i++){
@@ -90,8 +92,11 @@ uint32_t class_input_stage_mem<T>::operator()(uint32_t requested_size, uint32_t 
 	}
 
 	pointer+= to_read;
-
-	return DONE_SENDING;
+	if (requested_size == pointer) {
+		pointer = 0;
+		return RETURN_IDLE;
+	}
+	return RETURN_EXECUTED;
 }
 
 #endif //_INPUT_STAGE_MEM_H

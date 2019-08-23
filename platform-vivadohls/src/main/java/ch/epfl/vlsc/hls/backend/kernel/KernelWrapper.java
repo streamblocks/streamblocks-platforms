@@ -409,7 +409,7 @@ public interface KernelWrapper {
             emitter().emit(".ap_start(ap_start_pulse),");
             emitter().emit(".ap_idle(%s_ap_idle),", instanceName);
             emitter().emit(".ap_done(%s_ap_done),", instanceName);
-            emitter().emit(".input_idle(%s_network_idle)", instanceName);
+            emitter().emit(".input_idle(input_stage_idle)");
             emitter().decreaseIndentation();
         }
         emitter().emit(");");
@@ -461,7 +461,9 @@ public interface KernelWrapper {
             // -- FIFO I/O
             emitter().emit(".%s_V_dout(%1$s_dout),", port.getName());
             emitter().emit(".%s_V_empty_n(%1$s_empty_n),", port.getName());
-            emitter().emit(".%s_V_read(%1$s_read)", port.getName());
+            emitter().emit(".%s_V_read(%1$s_read),", port.getName());
+            emitter().emit(".network_idle(%s_network_idle)",
+                    backend().task().getIdentifier().getLast().toString());
             emitter().decreaseIndentation();
         }
         emitter().emit(");");
