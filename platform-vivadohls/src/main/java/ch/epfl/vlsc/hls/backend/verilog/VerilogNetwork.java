@@ -74,7 +74,7 @@ public interface VerilogNetwork {
             getQueues(network.getConnections());
 
             // -- Instances
-            getInstances(network.getInstances());
+            getInstances(network.getInstances(), network.getConnections());
 
             // -- Assignments
             getAssignments(network);
@@ -128,7 +128,8 @@ public interface VerilogNetwork {
         emitter().emit("input  wire ap_start,");
         emitter().emit("output wire ap_idle,");
         emitter().emit("output wire  ap_done,");
-        emitter().emit("input wire input_idle");
+        emitter().emit("input wire input_idle,");
+        emitter().emit("input wire output_idle");
     }
 
     // ------------------------------------------------------------------------
@@ -280,28 +281,42 @@ public interface VerilogNetwork {
     // ------------------------------------------------------------------------
     // -- Instances
 
-    default void getInstances(List<Instance> instances) {
+    default void getInstances(List<Instance> instances, List<Connection> connections) {
         emitter().emit("// ------------------------------------------------------------------------");
         emitter().emit("// -- Instances");
         emitter().emitNewLine();
         List<String> idleList = instances.stream()
                     .map(
-                        inst->backend().instaceQID(inst.getInstanceName(), "_") + "_ap_idle"
+                        inst->backend().instaceQID(inst.getInstanceName(), "_") + "_sleeping"
                     )
                     .collect(Collectors.toList());
         idleList.add("input_idle");
 
-
+        List<Connection> emptyNList = connections.stream().filter(
+                con->con.getTarget().getInstance().isPresent()).collect(Collectors.toList());
+//                ).map(
+//                        con-> String.format("q_%s_%s_empty_n", con.getTarget().getInstance().get(), con.getTarget().getPort())
+//                )
+//                .collect(Collectors.toList());
 
         for (Instance instance : instances) {
             String qidName = getInstance(instance);
             emitter().emit("// -- network idle condition for %s", qidName);
-            emitter().emit("assign %s_network_idle = %s;", qidName,
+            emitter().emit("assign %s_others_sleeping = %s;", qidName,
                     String.join(" & ", idleList.stream()
-                            .filter(inst->!inst.equals(qidName + "_ap_idle"))
+                            .filter(inst->!inst.equals(qidName + "_sleeping"))
                             .collect(Collectors.toList())
                     )
             );
+            emitter().emit("assign %s_has_tokens = %s;", qidName,
+                    String.join(" | ", emptyNList.stream()
+                            .filter(con->con.getTarget().getInstance().get().equals(instance.getInstanceName()))
+                            .map(con->"q_"+ instance.getInstanceName() + "_" + con.getTarget().getPort() + "_empty_n")
+                            .collect(Collectors.toList()))
+                    );
+
+            //emitter().emit("assign %s_network_idle = %s_others_idle & (~%s_has_tokens);", qidName, qidName, qidName);
+            //emitter().emit("assign %s_network_idle = input_idle & output_idle;", qidName);
         }
     }
 
@@ -322,6 +337,9 @@ public interface VerilogNetwork {
             emitter().emit("wire    %s_trigger_ap_idle;", qidName);
             emitter().emit("wire    %s_trigger_ap_ready;\t// currently inactive", qidName);
             emitter().emit("wire    %s_network_idle;", qidName);
+            emitter().emit("wire    %s_has_tokens;", qidName);
+            emitter().emit("wire    %s_others_idle;", qidName);
+            emitter().emit("wire    %s_sleeping;", qidName);
             emitter().emit("// -- Signals for the module");
             emitter().emit("wire    %s_ap_start;", qidName);
             emitter().emit("wire    %s_ap_idle;", qidName);
@@ -341,13 +359,15 @@ public interface VerilogNetwork {
                 emitter().emit(".ap_done(%s_trigger_ap_done),", qidName);
                 emitter().emit(".ap_idle(%s_trigger_ap_idle),", qidName);
                 emitter().emit(".ap_ready(%s_trigger_ap_ready),", qidName);
-                emitter().emit(".network_idle(%s_network_idle),", qidName);
+                emitter().emit(".network_idle(%s_others_sleeping),", qidName);
                 emitter().emit(".actor_return(%s_ap_return),", qidName);
                 emitter().emit(".actor_done(%s_ap_done),", qidName);
                 emitter().emit(".actor_ready(%s_ap_ready),", qidName);
                 emitter().emit(".actor_idle(%s_ap_idle),", qidName);
                 emitter().emit(".actor_launch_predicate(),");
-                emitter().emit(".actor_start(%s_ap_start)", qidName);
+                emitter().emit(".actor_start(%s_ap_start),", qidName);
+                emitter().emit(".has_tokens(%s_has_tokens),", qidName);
+                emitter().emit(".sleeping(%s_sleeping)", qidName);
 
 
                 emitter().decreaseIndentation();
@@ -467,7 +487,7 @@ public interface VerilogNetwork {
         // -- AP Idle
         emitter().emit("// -- AP Idle");
         emitter().emit("assign ap_idle = %s;", String.join(" & ", network.getInstances()
-                .stream().map(i -> backend().instaceQID(i.getInstanceName(),"_") + "_ap_idle")
+                .stream().map(i -> backend().instaceQID(i.getInstanceName(),"_") + "_trigger_ap_idle")
                 .collect(Collectors.toList())));
         emitter().emitNewLine();
     }

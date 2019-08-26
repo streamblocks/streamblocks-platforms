@@ -48,51 +48,102 @@ module trigger
     output wire ap_idle,
 
     input wire network_idle,
+		input wire has_tokens,
 
     input wire[31:0] actor_return,
     input wire actor_done,
     input wire actor_ready,
     input wire actor_idle,
 		input wire actor_launch_predicate,
-    output wire actor_start
+    output wire actor_start,
+		output wire sleeping
 
 );
 	timeunit 1ps;
 	timeprecision 1ps;
 	parameter mode_t mode = ACTOR_TRIGGER;
 	state_t state = STAND_BY;
-	wire can_finish;
+	state_t next_state;
+
 	wire can_launch;
-	wire can_relaunch;
-	wire can_sleep;
-	wire executed;
+
 	always_ff @(posedge ap_clk) begin
         if (~ap_rst_n)
                 state <= STAND_BY;
         else
-            state <= nextState(state, ap_start, actor_done, can_finish, can_sleep, can_launch, can_relaunch);
+            state <= next_state;
 	end
 
+	state_t RE_LAUNCH = (mode == ACTOR_TRIGGER) ? LAUNCH : TRY_LAUNCH;
 
-	assign executed = (actor_return == EXECUTED);
 	generate
 		if (mode == ACTOR_TRIGGER) begin
 			assign can_launch = actor_idle && ~ap_start;
-			assign can_finish = (~executed) && network_idle && actor_done;
-			assign can_sleep = ((executed) || (~network_idle)) && actor_done;
-			assign can_relaunch = can_sleep;
+
 		end
 		else if (mode == INPUT_TRIGGER || mode == OUTPUT_TRIGGER) begin
 			assign can_launch = actor_idle && ~ap_start && actor_launch_predicate;
-			assign can_finish = ~executed && actor_done;
-			assign can_sleep = executed && actor_done;
-			assign can_relaunch = can_sleep && actor_launch_predicate;
+
 		end
 	endgenerate
 
 
 	assign actor_start = (state == LAUNCH);
 	assign ap_idle = (state == STAND_BY);
-	assign ap_done = (state == CHECK_RETURN && can_finish);
+	assign ap_done = (state == CHECK_RETURN | state == PROBE_INPUT) & (next_state == STAND_BY);
+	assign sleeping = state == PROBE_INPUT;
+
+
+	always_comb begin
+		case (state)
+			STAND_BY: begin
+				if (ap_start)
+					next_state = TRY_LAUNCH;
+				else
+					next_state = STAND_BY;
+			end
+			TRY_LAUNCH: begin
+				if (can_launch)
+					next_state = LAUNCH;
+				else
+					next_state = TRY_LAUNCH;
+			end
+			LAUNCH: begin
+				if(~actor_done)
+					next_state = CHECK_RETURN;
+				else if (actor_done && actor_return == EXECUTED)
+					next_state = RE_LAUNCH;
+				else if (actor_done && actor_return == WAIT_INPUT)
+					next_state = PROBE_INPUT;
+				else
+					next_state = TRY_LAUNCH;
+			end
+			CHECK_RETURN: begin
+				if (~actor_done)
+					next_state = CHECK_RETURN;
+				else if (actor_done && actor_return == EXECUTED)
+					next_state = RE_LAUNCH;
+				else if (actor_done && actor_return == WAIT_INPUT)
+					next_state = PROBE_INPUT;
+				else if (actor_done && ~network_idle) begin
+					next_state = RE_LAUNCH;
+				end
+				else
+					next_state = STAND_BY;
+
+			end
+			PROBE_INPUT:begin
+				if(has_tokens)
+					next_state = LAUNCH;
+				else if (~has_tokens && network_idle)
+					next_state = STAND_BY;
+				else
+					next_state = PROBE_INPUT;
+			end
+			default:
+				next_state = state;
+		endcase
+
+	end
 
 endmodule : trigger

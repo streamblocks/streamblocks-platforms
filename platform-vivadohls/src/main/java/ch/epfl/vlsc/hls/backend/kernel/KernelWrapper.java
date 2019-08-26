@@ -225,8 +225,9 @@ public interface KernelWrapper {
         emitter().emitNewLine();
         emitter().emit("wire    output_stage_idle;");
         emitter().emit("wire    output_stage_done;");
-        emitter().emit("logic   [31 : 0] output_stage_done_count; ");
-        emitter().emit("wire    output_stage_done_count_enable;");
+        emitter().emit("logic    output_stage_done_r;");
+        emitter().emit("wire    output_stage_ready;");
+        emitter().emit("logic   [$clog2(%d) : 0] output_stage_done_count; ", network.getOutputPorts().size());
         emitter().emitNewLine();
 
     }
@@ -238,6 +239,7 @@ public interface KernelWrapper {
         emitter().emit("// -- Pulse ap_start");
         emitter().emit("always_ff @(posedge ap_clk) begin");
         emitter().emit("\tap_start_r <= ap_start;");
+        emitter().emit("\toutput_stage_done_r <= output_stage_done;");
         emitter().emit("end");
         emitter().emitNewLine();
         emitter().emit("assign ap_start_pulse = ap_start & ~ap_start_r;");
@@ -245,7 +247,7 @@ public interface KernelWrapper {
 
         // -- ap_idle
         emitter().emit("// -- ap_idle");
-        emitter().emit("assign ap_idle = output_stage_idle & %s_network_idle;",
+        emitter().emit("assign ap_idle = %s_network_idle & output_stage_idle & input_stage_idle;",
                 backend().task().getIdentifier().getLast().toString());
 
         emitter().emitNewLine();
@@ -262,20 +264,33 @@ public interface KernelWrapper {
         .collect(Collectors.toList())));
         emitter().emitNewLine();
 
-        emitter().emit("// -- network idle signal");
-        emitter().emit("assign %s_network_idle = input_stage_idle;",
-                backend().task().getIdentifier().getLast().toString());
-        emitter().emitNewLine();
+//        emitter().emit("// -- network idle signal");
+//        emitter().emit("assign %s_network_idle = input_stage_idle & output_stage_idle;",
+//                backend().task().getIdentifier().getLast().toString());
+//        emitter().emitNewLine();
 
         // -- ap_ready
         emitter().emit("// -- ap_ready");
-        emitter().emitClikeBlockComment("Currently not supported");
+        emitter().emit("assign ap_ready = output_stage_done && ~output_stage_done_r;");
+
         emitter().emitNewLine();
 
         // -- ap_done
         emitter().emit("// -- ap_done");
-        emitter().emitClikeBlockComment("Currently not supported");
+        emitter().emit("assign ap_done = output_stage_done && ~output_stage_done_r;");
         emitter().emitNewLine();
+
+        // -- output_stage_done;
+        emitter().emit("assign output_stage_done = %s;", String.join(
+                " & ", network.getOutputPorts().stream().map(port->port.getName() + "_output_stage_ap_idle")
+                .collect(Collectors.toList())
+                )
+        );
+
+
+        emitter().increaseIndentation();
+
+
     }
 
     default void getAxiMasterConnections(PortDecl port, boolean safeName) {
@@ -407,9 +422,10 @@ public interface KernelWrapper {
             emitter().emit(".ap_clk(ap_clk),");
             emitter().emit(".ap_rst_n(ap_rst_n),");
             emitter().emit(".ap_start(ap_start_pulse),");
-            emitter().emit(".ap_idle(%s_ap_idle),", instanceName);
+            emitter().emit(".ap_idle(%s_network_idle),", instanceName);
             emitter().emit(".ap_done(%s_ap_done),", instanceName);
-            emitter().emit(".input_idle(input_stage_idle)");
+            emitter().emit(".input_idle(input_stage_idle),");
+            emitter().emit(".output_idle(output_stage_idle)");
             emitter().decreaseIndentation();
         }
         emitter().emit(");");
@@ -462,8 +478,7 @@ public interface KernelWrapper {
             emitter().emit(".%s_V_dout(%1$s_dout),", port.getName());
             emitter().emit(".%s_V_empty_n(%1$s_empty_n),", port.getName());
             emitter().emit(".%s_V_read(%1$s_read),", port.getName());
-            emitter().emit(".network_idle(%s_network_idle)",
-                    backend().task().getIdentifier().getLast().toString());
+            emitter().emit(".network_idle(input_stage_idle & %s_network_idle)", backend().task().getIdentifier().getLast().toString());
             emitter().decreaseIndentation();
         }
         emitter().emit(");");

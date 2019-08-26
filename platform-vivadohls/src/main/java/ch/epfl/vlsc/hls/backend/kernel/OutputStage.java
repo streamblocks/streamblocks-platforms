@@ -88,7 +88,7 @@ public interface OutputStage {
         emitter().emitNewLine();
 
         // -- Output stage pass
-        backend().inputstage().getStagePassNamed(String.format("%s", port.getName()), bitSize,
+        backend().inputstage().getStagePassNamed(String.format("%s", port.getName()),
                 String.format("%s_V", port.getName()), "q_tmp_V");
 
         // -- Queue
@@ -156,7 +156,8 @@ public interface OutputStage {
             emitter().emit(".ap_done(ap_done),");
             emitter().emit(".ap_idle(ap_idle),");
             emitter().emit(".ap_ready(ap_ready),");
-            emitter().emit(".network_idle(),");
+            emitter().emit(".network_idle(network_idle),");
+            emitter().emit(".has_tokens(1'b1),");
             emitter().emit(".actor_return(%s_output_stage_ap_return),", port.getName());
             emitter().emit(".actor_done(%s_output_stage_ap_done),", port.getName());
             emitter().emit(".actor_ready(%s_output_stage_ap_ready),", port.getName());

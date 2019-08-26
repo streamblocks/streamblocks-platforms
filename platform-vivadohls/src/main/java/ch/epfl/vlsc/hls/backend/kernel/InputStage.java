@@ -98,7 +98,7 @@ public interface InputStage {
         getQueue("q_tmp", bitSize, "q_tmp_V", "q_tmp_V");
 
         // -- Input stage pass
-        getStagePass(port);
+        getStagePassNamed(port.getName(),  "q_tmp" + "_V", port.getName() + "_V");
 
         emitter().emit("endmodule");
 
@@ -155,7 +155,8 @@ public interface InputStage {
             emitter().emit(".ap_done(ap_done),");
             emitter().emit(".ap_idle(ap_idle),");
             emitter().emit(".ap_ready(ap_ready),");
-            emitter().emit(".network_idle(),");
+            emitter().emit(".network_idle(1'b1),");
+            emitter().emit(".has_tokens(1'b1),");
             emitter().emit(".actor_return(%s_input_stage_ap_return),", port.getName());
             emitter().emit(".actor_done(%s_input_stage_ap_done),", port.getName());
             emitter().emit(".actor_ready(%s_input_stage_ap_ready),", port.getName());
@@ -275,7 +276,7 @@ public interface InputStage {
 
         emitter().emitNewLine();
     }
-    default void getStagePassNamed(String name, int dataWidth, String inputName, String outputName) {
+    default void getStagePassNamed(String name, String inputName, String outputName) {
         emitter().emit("%s_stage_pass i_%1$s_stage_pass(", name);
         {
             emitter().increaseIndentation();
