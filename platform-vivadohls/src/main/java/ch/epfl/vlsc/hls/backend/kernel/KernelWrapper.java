@@ -227,7 +227,6 @@ public interface KernelWrapper {
         emitter().emit("wire    output_stage_done;");
         emitter().emit("logic    output_stage_done_r;");
         emitter().emit("wire    output_stage_ready;");
-        emitter().emit("logic   [$clog2(%d) : 0] output_stage_done_count; ", network.getOutputPorts().size());
         emitter().emitNewLine();
 
     }
