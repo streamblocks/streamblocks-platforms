@@ -93,6 +93,7 @@ uint32_t class_input_stage_mem<T>::operator()(uint32_t requested_size, uint32_t 
 
 	pointer+= to_read;
 	if (requested_size == pointer) {
+		size[0] = pointer;
 		pointer = 0;
 		return RETURN_IDLE;
 	}

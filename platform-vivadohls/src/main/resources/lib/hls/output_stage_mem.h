@@ -86,7 +86,8 @@ uint32_t class_output_stage_mem<T>::operator()(hls::stream<T> &STREAM,
 	pointer += to_send;
 
 
-	if (available_size == pointer) {
+	if (available_size == pointer || to_send == 0) {
+	    size[0] = pointer;
 		pointer = 0;
 		return RETURN_IDLE;
 	}

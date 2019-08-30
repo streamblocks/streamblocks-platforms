@@ -1,6 +1,7 @@
 /*
  * Copyright (c) EPFL VLSC, 2019
  * Author: Mahyar Emami (mahyar.emami@epfl.ch)
+           Endri Bezati (endri.bezati@epfl.ch)
  * All rights reserved.
  *
  * License terms:
@@ -134,7 +135,7 @@ module trigger
 			end
 			PROBE_INPUT:begin
 				if(has_tokens)
-					next_state = LAUNCH;
+					next_state = RE_LAUNCH;
 				else if (~has_tokens && network_idle)
 					next_state = STAND_BY;
 				else

@@ -206,7 +206,7 @@ public interface InputStage {
             backend().kernelwrapper().getAxiMasterConnections(port,true);
             // -- Direct address
             emitter().emit(".%s_requested_size(%1$s_requested_size),", port.getName());
-            emitter().emit(".%s_size_r(%1$s_size),", port.getName());
+            emitter().emit(".%s_size_r(%1$s_size_r),", port.getName());
             emitter().emit(".%s_buffer(%1$s_buffer),", port.getName());
             // -- FIFO I/O
             emitter().emit(".fifo_count(q_tmp_V_count),");
