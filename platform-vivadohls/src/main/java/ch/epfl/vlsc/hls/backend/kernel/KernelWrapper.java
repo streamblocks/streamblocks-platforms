@@ -225,8 +225,9 @@ public interface KernelWrapper {
         emitter().emitNewLine();
         emitter().emit("wire    output_stage_idle;");
         emitter().emit("wire    output_stage_done;");
-        emitter().emit("logic    output_stage_done_r;");
-        emitter().emit("wire    output_stage_ready;");
+        emitter().emit("logic    input_stage_idle_r = 1'b1;");
+        emitter().emit("logic    output_stage_idle_r = 1'b1;");
+        emitter().emit("logic    %s_network_idle_r = 1'b1;", backend().task().getIdentifier().getLast().toString());
         emitter().emitNewLine();
 
     }
@@ -238,7 +239,11 @@ public interface KernelWrapper {
         emitter().emit("// -- Pulse ap_start");
         emitter().emit("always_ff @(posedge ap_clk) begin");
         emitter().emit("\tap_start_r <= ap_start;");
-        emitter().emit("\toutput_stage_done_r <= output_stage_done;");
+        emitter().emit("\tinput_stage_idle_r <= input_stage_idle;");
+        emitter().emit("\toutput_stage_idle_r <= output_stage_idle;");
+        emitter().emit("\t%s_network_idle_r <= %s_network_idle;",
+                backend().task().getIdentifier().getLast().toString(),
+                backend().task().getIdentifier().getLast().toString());
         emitter().emit("end");
         emitter().emitNewLine();
         emitter().emit("assign ap_start_pulse = ap_start & ~ap_start_r;");
@@ -246,8 +251,15 @@ public interface KernelWrapper {
 
         // -- ap_idle
         emitter().emit("// -- ap_idle");
-        emitter().emit("assign ap_idle = %s_network_idle & output_stage_idle & input_stage_idle;",
+        emitter().emit("assign ap_idle = %s_network_idle_r & output_stage_idle_r & input_stage_idle_r;",
                 backend().task().getIdentifier().getLast().toString());
+        // -- ap_read
+        emitter().emit("// -- ap_ready");
+        emitter().emit("assign ap_ready = input_stage_idle & ~input_stage_idle_r;");
+        // -- ap_done
+        emitter().emit("// -- ap_done");
+        emitter().emit("assign ap_done = output_stage_idle & ~output_stage_idle_r;");
+        emitter().emitNewLine();
 
         emitter().emitNewLine();
         emitter().emit("// -- input stage idle signal");
@@ -263,28 +275,6 @@ public interface KernelWrapper {
         .collect(Collectors.toList())));
         emitter().emitNewLine();
 
-//        emitter().emit("// -- network idle signal");
-//        emitter().emit("assign %s_network_idle = input_stage_idle & output_stage_idle;",
-//                backend().task().getIdentifier().getLast().toString());
-//        emitter().emitNewLine();
-
-        // -- ap_ready
-        emitter().emit("// -- ap_ready");
-        emitter().emit("assign ap_ready = output_stage_done && ~output_stage_done_r;");
-
-        emitter().emitNewLine();
-
-        // -- ap_done
-        emitter().emit("// -- ap_done");
-        emitter().emit("assign ap_done = output_stage_done && ~output_stage_done_r;");
-        emitter().emitNewLine();
-
-        // -- output_stage_done;
-        emitter().emit("assign output_stage_done = %s;", String.join(
-                " & ", network.getOutputPorts().stream().map(port->port.getName() + "_output_stage_ap_idle")
-                .collect(Collectors.toList())
-                )
-        );
 
 
         emitter().increaseIndentation();
@@ -444,14 +434,14 @@ public interface KernelWrapper {
         {
             emitter().increaseIndentation();
 
-            emitter().emit(".C_M_AXI_%s_ID_WIDTH( C_M_AXI_%s_ID_WIDTH ),", port.getSafeName().toUpperCase(), port.getName().toUpperCase());
-            emitter().emit(".C_M_AXI_%s_ADDR_WIDTH( C_M_AXI_%s_ADDR_WIDTH ),", port.getSafeName().toUpperCase(), port.getName().toUpperCase());
-            emitter().emit(".C_M_AXI_%s_DATA_WIDTH( C_M_AXI_%s_DATA_WIDTH ),", port.getSafeName().toUpperCase(), port.getName().toUpperCase());
-            emitter().emit(".C_M_AXI_%s_AWUSER_WIDTH( C_M_AXI_%s_AWUSER_WIDTH ),", port.getSafeName().toUpperCase(), port.getName().toUpperCase());
-            emitter().emit(".C_M_AXI_%s_ARUSER_WIDTH( C_M_AXI_%s_ARUSER_WIDTH ),", port.getSafeName().toUpperCase(), port.getName().toUpperCase());
-            emitter().emit(".C_M_AXI_%s_WUSER_WIDTH( C_M_AXI_%s_WUSER_WIDTH ),", port.getSafeName().toUpperCase(), port.getName().toUpperCase());
-            emitter().emit(".C_M_AXI_%s_RUSER_WIDTH( C_M_AXI_%s_RUSER_WIDTH ),", port.getSafeName().toUpperCase(), port.getName().toUpperCase());
-            emitter().emit(".C_M_AXI_%s_BUSER_WIDTH( C_M_AXI_%s_BUSER_WIDTH )", port.getSafeName().toUpperCase(), port.getName().toUpperCase());
+            emitter().emit(".C_M_AXI_%s_ID_WIDTH( C_M_AXI_%s_ID_WIDTH ),", port.getName().toUpperCase(), port.getName().toUpperCase());
+            emitter().emit(".C_M_AXI_%s_ADDR_WIDTH( C_M_AXI_%s_ADDR_WIDTH ),", port.getName().toUpperCase(), port.getName().toUpperCase());
+            emitter().emit(".C_M_AXI_%s_DATA_WIDTH( C_M_AXI_%s_DATA_WIDTH ),", port.getName().toUpperCase(), port.getName().toUpperCase());
+            emitter().emit(".C_M_AXI_%s_AWUSER_WIDTH( C_M_AXI_%s_AWUSER_WIDTH ),", port.getName().toUpperCase(), port.getName().toUpperCase());
+            emitter().emit(".C_M_AXI_%s_ARUSER_WIDTH( C_M_AXI_%s_ARUSER_WIDTH ),", port.getName().toUpperCase(), port.getName().toUpperCase());
+            emitter().emit(".C_M_AXI_%s_WUSER_WIDTH( C_M_AXI_%s_WUSER_WIDTH ),", port.getName().toUpperCase(), port.getName().toUpperCase());
+            emitter().emit(".C_M_AXI_%s_RUSER_WIDTH( C_M_AXI_%s_RUSER_WIDTH ),", port.getName().toUpperCase(), port.getName().toUpperCase());
+            emitter().emit(".C_M_AXI_%s_BUSER_WIDTH( C_M_AXI_%s_BUSER_WIDTH )", port.getName().toUpperCase(), port.getName().toUpperCase());
 
             emitter().decreaseIndentation();
         }
