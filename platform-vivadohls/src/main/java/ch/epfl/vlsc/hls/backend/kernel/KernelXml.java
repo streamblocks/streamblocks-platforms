@@ -71,29 +71,29 @@ public interface KernelXml {
                     int offset = 16;
                     // -- Input ports
                     for(PortDecl port : network.getInputPorts()){
-                        xmlArg(idCounter++, port.getName() + "_requested_size", 0, "s_axi_control", "0x0", "0x4", String.format("0x%02X", offset), "0x4", "unsigned int");
+                        xmlArg(idCounter++, port.getName() + "_requested_size", 0, "s_axi_control", "0x0", "0x4", String.format("0x%X", offset), "0x4", "unsigned int");
                         offset+=8;
                     }
 
                     for(PortDecl port : network.getOutputPorts()){
-                        xmlArg(idCounter++, port.getName() + "_available_size", 0, "s_axi_control", "0x0", "0x4", String.format("0x%02X", offset), "0x4", "unsigned int");
+                        xmlArg(idCounter++, port.getName() + "_available_size", 0, "s_axi_control", "0x0", "0x4", String.format("0x%X", offset), "0x4", "unsigned int");
                         offset+=8;
                     }
                     // -- Increase by 4 for reserved offset
                     for(PortDecl port : network.getInputPorts()){
                         Type type = backend().types().declaredPortType(port);
-                        xmlArg(idCounter++, port.getName() +"_size", 1, "m_axi_" + port.getName(), "0x0", "0x8", String.format("0x%02X", offset), "0x8", "unsigned int*");
+                        xmlArg(idCounter++, port.getName() +"_size", 1, "m_axi_" + port.getName(), "0x0", "0x8", String.format("0x%X", offset), "0x8", "unsigned int*");
                         offset+=12;
-                        xmlArg(idCounter++, port.getName() +"_buffer", 1, "m_axi_" + port.getName(), "0x0", "0x8", String.format("0x%02X", offset), "0x8", backend().typeseval().KernelXmlType(type) + "*");
+                        xmlArg(idCounter++, port.getName() +"_buffer", 1, "m_axi_" + port.getName(), "0x0", "0x8", String.format("0x%X", offset), "0x8", backend().typeseval().KernelXmlType(type) + "*");
                         offset+=12;
                     }
 
                     // -- Output ports
                     for(PortDecl port : network.getOutputPorts()){
                         Type type = backend().types().declaredPortType(port);
-                        xmlArg(idCounter++, port.getName() +"_size", 1, "m_axi_" + port.getName(), "0x0", "0x8", String.format("0x%02X", offset), "0x8", "unsigned int*");
+                        xmlArg(idCounter++, port.getName() +"_size", 1, "m_axi_" + port.getName(), "0x0", "0x8", String.format("0x%X", offset), "0x8", "unsigned int*");
                         offset+=12;
-                        xmlArg(idCounter++, port.getName() +"_buffer", 1, "m_axi_" + port.getName(), "0x0", "0x8", String.format("0x%02X", offset), "0x8", backend().typeseval().KernelXmlType(type) + "*");
+                        xmlArg(idCounter++, port.getName() +"_buffer", 1, "m_axi_" + port.getName(), "0x0", "0x8", String.format("0x%X", offset), "0x8", backend().typeseval().KernelXmlType(type) + "*");
                         offset+=12;
                     }
 

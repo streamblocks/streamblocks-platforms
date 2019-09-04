@@ -109,7 +109,7 @@ public interface TopKernel {
             }
         }
         // -- AXI4-Lite Control
-        emitter().emit("parameter integer C_S_AXI_CONTROL_ADDR_WIDTH = %d,", AxiConstants.C_S_AXI_CONTROL_ADDR_WIDTH);
+        emitter().emit("parameter integer C_S_AXI_CONTROL_ADDR_WIDTH = %d,", backend().axilitecontrol().getAddressBitWidth(network));
         emitter().emit("parameter integer C_S_AXI_CONTROL_DATA_WIDTH = %s", AxiConstants.C_S_AXI_CONTROL_DATA_WIDTH);
     }
 

@@ -3,6 +3,7 @@ package ch.epfl.vlsc.hls.backend.kernel;
 import ch.epfl.vlsc.hls.backend.VivadoHLSBackend;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.PathUtils;
+import ch.epfl.vlsc.platformutils.utils.MathUtils;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
@@ -85,7 +86,7 @@ public interface AxiLiteControl {
 
     default void getParameters(Network network) {
         // -- AXI4-Lite Address and data width
-        emitter().emit("parameter integer C_S_AXI_ADDR_WIDTH = %d,", AxiConstants.C_S_AXI_CONTROL_ADDR_WIDTH);
+        emitter().emit("parameter integer C_S_AXI_ADDR_WIDTH = %d,", getAddressBitWidth(network));
         emitter().emit("parameter integer C_S_AXI_DATA_WIDTH = %s", AxiConstants.C_S_AXI_CONTROL_DATA_WIDTH);
     }
 
@@ -145,54 +146,56 @@ public interface AxiLiteControl {
         emitter().emitNewLine();
         emitter().emit("localparam");
         emitter().increaseIndentation();
+        int addressWidth = getAddressBitWidth(network);
         int value = 0;
-        emitter().emit("ADDR_AP_CTRL = 32'h%s,", String.format("%08x", value));
+        emitter().emit("ADDR_AP_CTRL = %d'h%s,", addressWidth, String.format("%x", value));
         value += 4;
-        emitter().emit("ADDR_GIE = 32'h%s,", String.format("%08x", value));
+        emitter().emit("ADDR_GIE = %d'h%s,", addressWidth, String.format("%x", value));
         value += 4;
-        emitter().emit("ADDR_IER = 32'h%s,", String.format("%08x", value));
+        emitter().emit("ADDR_IER = %d'h%s,", addressWidth, String.format("%x", value));
         value += 4;
-        emitter().emit("ADDR_ISR = 32'h%s,", String.format("%08x", value));
+        emitter().emit("ADDR_ISR = %d'h%s,", addressWidth, String.format("%x", value));
         value += 4;
         for (PortDecl port : network.getInputPorts()) {
-            emitter().emit("ADDR_%s_REQUESTED_SIZE_DATA_0 = 32'h%s,", port.getName().toUpperCase(), String.format("%08x", value));
+            emitter().emit("ADDR_%s_REQUESTED_SIZE_DATA_0 = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
             value += 4;
-            emitter().emit("ADDR_%s_REQUESTED_SIZE_CTRL = 32'h%s,", port.getName().toUpperCase(), String.format("%08x", value));
+            emitter().emit("ADDR_%s_REQUESTED_SIZE_CTRL = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
             value += 4;
         }
         for (PortDecl port : network.getOutputPorts()) {
-            emitter().emit("ADDR_%s_AVAILABLE_SIZE_DATA_0 = 32'h%s,", port.getName().toUpperCase(), String.format("%08x", value));
+            emitter().emit("ADDR_%s_AVAILABLE_SIZE_DATA_0 = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
             value += 4;
-            emitter().emit("ADDR_%s_AVAILABLE_SIZE_CTRL = 32'h%s,", port.getName().toUpperCase(), String.format("%08x", value));
+            emitter().emit("ADDR_%s_AVAILABLE_SIZE_CTRL = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
             value += 4;
         }
 
         for (PortDecl port : network.getInputPorts()) {
-            emitter().emit("ADDR_%s_SIZE_DATA_0 = 32'h%s,", port.getName().toUpperCase(), String.format("%08x", value));
+            emitter().emit("ADDR_%s_SIZE_DATA_0 = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
             value += 4;
-            emitter().emit("ADDR_%s_SIZE_DATA_1 = 32'h%s,", port.getName().toUpperCase(), String.format("%08x", value));
+            emitter().emit("ADDR_%s_SIZE_DATA_1 = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
             value += 4;
-            emitter().emit("ADDR_%s_SIZE_CTRL = 32'h%s,", port.getName().toUpperCase(), String.format("%08x", value));
+            emitter().emit("ADDR_%s_SIZE_CTRL = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
             value += 4;
-            emitter().emit("ADDR_%s_BUFFER_DATA_0 = 32'h%s,", port.getName().toUpperCase(), String.format("%08x", value));
+            emitter().emit("ADDR_%s_BUFFER_DATA_0 = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
             value += 4;
-            emitter().emit("ADDR_%s_BUFFER_DATA_1 = 32'h%s,", port.getName().toUpperCase(), String.format("%08x", value));
+            emitter().emit("ADDR_%s_BUFFER_DATA_1 = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
             value += 4;
-            emitter().emit("ADDR_%s_BUFFER_CTRL = 32'h%s,", port.getName().toUpperCase(), String.format("%08x", value));
+            emitter().emit("ADDR_%s_BUFFER_CTRL = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
             value += 4;
         }
+
         for (PortDecl port : network.getOutputPorts()) {
-            emitter().emit("ADDR_%s_SIZE_DATA_0 = 32'h%s,", port.getName().toUpperCase(), String.format("%08x", value));
+            emitter().emit("ADDR_%s_SIZE_DATA_0 = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
             value += 4;
-            emitter().emit("ADDR_%s_SIZE_DATA_1 = 32'h%s,", port.getName().toUpperCase(), String.format("%08x", value));
+            emitter().emit("ADDR_%s_SIZE_DATA_1 = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
             value += 4;
-            emitter().emit("ADDR_%s_SIZE_CTRL = 32'h%s,", port.getName().toUpperCase(), String.format("%08x", value));
+            emitter().emit("ADDR_%s_SIZE_CTRL = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
             value += 4;
-            emitter().emit("ADDR_%s_BUFFER_DATA_0 = 32'h%s,", port.getName().toUpperCase(), String.format("%08x", value));
+            emitter().emit("ADDR_%s_BUFFER_DATA_0 = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
             value += 4;
-            emitter().emit("ADDR_%s_BUFFER_DATA_1 = 32'h%s,", port.getName().toUpperCase(), String.format("%08x", value));
+            emitter().emit("ADDR_%s_BUFFER_DATA_1 = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
             value += 4;
-            emitter().emit("ADDR_%s_BUFFER_CTRL = 32'h%s,", port.getName().toUpperCase(), String.format("%08x", value));
+            emitter().emit("ADDR_%s_BUFFER_CTRL = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
             value += 4;
         }
 
@@ -203,7 +206,7 @@ public interface AxiLiteControl {
         emitter().emit("RDIDLE = 2'd0,");
         emitter().emit("RDDATA = 2'd1,");
         emitter().emit("RDRESET = 2'd2,");
-        emitter().emit("ADDR_BITS = %d;", AxiConstants.C_S_AXI_CONTROL_ADDR_WIDTH);
+        emitter().emit("ADDR_BITS = %d;", addressWidth);
         emitter().decreaseIndentation();
 
         emitter().emitNewLine();
@@ -873,7 +876,6 @@ public interface AxiLiteControl {
         emitter().emitNewLine();
 
 
-
         for (PortDecl port : network.getInputPorts()) {
             // -- requested size
             getReg32Bit(port.getName(), "requested_size");
@@ -903,7 +905,7 @@ public interface AxiLiteControl {
 
     }
 
-    default void getReg32Bit(String port, String name){
+    default void getReg32Bit(String port, String name) {
         emitter().emit("// -- int_%s_%s[31:0]", port, name);
         emitter().emit("always @(posedge ACLK) begin");
         {
@@ -939,7 +941,7 @@ public interface AxiLiteControl {
                 emitter().increaseIndentation();
 
                 emitter().emit("if (ARESET)");
-                emitter().emit("\tint_%s_%s[%d:%d] <= 0;", port,name, 31 + bits, bits);
+                emitter().emit("\tint_%s_%s[%d:%d] <= 0;", port, name, 31 + bits, bits);
                 emitter().emit("else if (ACLK_EN) begin");
                 {
                     emitter().increaseIndentation();
@@ -957,6 +959,13 @@ public interface AxiLiteControl {
             emitter().emitNewLine();
             bits += 32;
         }
+    }
+
+    // -- Helper Methods
+
+    default int getAddressBitWidth(Network network) {
+        int value = 16 + network.getInputPorts().size() * 8 + network.getOutputPorts().size() * 8 + network.getInputPorts().size() * 24 + network.getOutputPorts().size() * 24;
+        return MathUtils.countBit(value);
     }
 
 }
