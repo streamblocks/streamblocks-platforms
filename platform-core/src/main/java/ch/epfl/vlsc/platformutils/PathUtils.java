@@ -86,6 +86,8 @@ public class PathUtils {
         return directory.toPath();
     }
 
+
+
     /**
      * Get the code-gen target output directory
      *
@@ -132,6 +134,16 @@ public class PathUtils {
         return directory.toPath();
     }
 
+    /**
+     * Get the code-gen source target output directory
+     *
+     * @param context
+     * @return
+     */
+    public static Path getTargetCodeGenHost(Context context) {
+        File directory = new File(getTargetCodeGen(context).toFile(), "host");
+        return directory.toPath();
+    }
 
     /**
      * Get the code-gen source target output directory

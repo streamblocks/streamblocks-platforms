@@ -1,5 +1,6 @@
 package ch.epfl.vlsc.hls.backend;
 
+import ch.epfl.vlsc.hls.backend.host.DeviceHandle;
 import ch.epfl.vlsc.hls.backend.kernel.*;
 import ch.epfl.vlsc.hls.backend.scripts.VivadoTCL;
 import ch.epfl.vlsc.hls.backend.simulators.WcfgWaveform;
@@ -165,6 +166,12 @@ public interface VivadoHLSBackend {
     @Binding(LAZY)
     default Globals globals() {
         return MultiJ.from(Globals.class).bind("backend").to(this).instance();
+    }
+    
+    // -- DeviceHandle
+    @Binding(LAZY)
+    default DeviceHandle devicehandle() {
+        return MultiJ.from(DeviceHandle.class).bind("backend").to(this).instance();
     }
 
     // -- CMakeLists

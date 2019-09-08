@@ -95,6 +95,8 @@ public class VivadoHLSBackendPhase implements Phase {
         // -- Source testbench path
         PathUtils.createDirectory(codeGenPath, "src-tb");
 
+        PathUtils.createDirectory(codeGenPath, "host");
+
         // -- WCFG path
         PathUtils.createDirectory(codeGenPath, "wcfg");
 
@@ -143,6 +145,9 @@ public class VivadoHLSBackendPhase implements Phase {
 
         // -- Generate Globals
         generateGlobals(backend);
+        
+        // -- Generate devicehandle
+        generateDeviceHandle(backend);
 
         // -- Generate Network
         generateNetwork(backend);
@@ -238,6 +243,17 @@ public class VivadoHLSBackendPhase implements Phase {
     }
 
     /**
+     * Generate host DeviceHandle
+     *
+     * @param backend
+     */
+    private void generateDeviceHandle(VivadoHLSBackend backend) {
+
+        // -- Globals Header
+        backend.devicehandle().generateDeviceHandle();
+    }
+
+    /**
      * Generate tesbenches for Network and Instances
      *
      * @param backend
@@ -274,6 +290,7 @@ public class VivadoHLSBackendPhase implements Phase {
         // -- Project CMakeLists
         backend.cmakelists().projectCMakeLists();
     }
+
 
     /**
      * Copy the backend resources
