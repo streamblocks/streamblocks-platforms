@@ -286,6 +286,7 @@ public interface VerilogNetwork {
         emitter().emit("// -- Instances");
         emitter().emitNewLine();
         List<String> idleList = instances.stream()
+                    .filter(inst->(backend().globalnames().entityDecl(inst.getEntityName(), true).getEntity() instanceof ActorMachine))
                     .map(
                         inst->backend().instaceQID(inst.getInstanceName(), "_") + "_sleeping"
                     )
@@ -294,29 +295,32 @@ public interface VerilogNetwork {
 
         List<Connection> emptyNList = connections.stream().filter(
                 con->con.getTarget().getInstance().isPresent()).collect(Collectors.toList());
-//                ).map(
-//                        con-> String.format("q_%s_%s_empty_n", con.getTarget().getInstance().get(), con.getTarget().getPort())
-//                )
-//                .collect(Collectors.toList());
+
 
         for (Instance instance : instances) {
             String qidName = getInstance(instance);
-            emitter().emit("// -- network idle condition for %s", qidName);
-            emitter().emit("assign %s_others_sleeping = %s;", qidName,
-                    String.join(" & ", idleList.stream()
-                            .filter(inst->!inst.equals(qidName + "_sleeping"))
-                            .collect(Collectors.toList())
-                    )
-            );
-            emitter().emit("assign %s_has_tokens = %s;", qidName,
-                    String.join(" | ", emptyNList.stream()
-                            .filter(con->con.getTarget().getInstance().get().equals(instance.getInstanceName()))
-                            .map(con->"q_"+ instance.getInstanceName() + "_" + con.getTarget().getPort() + "_empty_n")
-                            .collect(Collectors.toList()))
-                    );
-
-            //emitter().emit("assign %s_network_idle = %s_others_idle & (~%s_has_tokens);", qidName, qidName, qidName);
-            //emitter().emit("assign %s_network_idle = input_idle & output_idle;", qidName);
+            
+        }
+        // Assignements
+        for (Instance instance : instances) {
+            String qidName = backend().instaceQID(instance.getInstanceName(), "_");
+            GlobalEntityDecl entityDecl = backend().globalnames().entityDecl(instance.getEntityName(), true);
+            Entity entity = entityDecl.getEntity();
+            if (entity instanceof ActorMachine) {
+                emitter().emit("// -- network idle condition for %s", qidName);
+                emitter().emit("assign %s_others_sleeping = %s;", qidName,
+                        String.join(" & ", idleList.stream()
+                                .filter(inst->!inst.equals(qidName + "_sleeping"))
+                                .collect(Collectors.toList())
+                        )
+                );
+                emitter().emit("assign %s_has_tokens = %s;", qidName,
+                        String.join(" | ", emptyNList.stream()
+                                .filter(con->con.getTarget().getInstance().get().equals(instance.getInstanceName()))
+                                .map(con->"q_"+ instance.getInstanceName() + "_" + con.getTarget().getPort() + "_empty_n")
+                                .collect(Collectors.toList()))
+                        );
+            }   
         }
     }
 
@@ -332,18 +336,20 @@ public interface VerilogNetwork {
         emitter().emit("// -- Instance : %s", qidName);
         if (entity instanceof ActorMachine) {
             // -- Actor trigger wires
+           
             emitter().emit("// -- Signals for the trigger module");
             emitter().emit("wire    %s_trigger_ap_done;", qidName);
             emitter().emit("wire    %s_trigger_ap_idle;", qidName);
             emitter().emit("wire    %s_trigger_ap_ready;\t// currently inactive", qidName);
             emitter().emit("wire    %s_network_idle;", qidName);
             emitter().emit("wire    %s_has_tokens;", qidName);
-            emitter().emit("wire    %s_others_idle;", qidName);
+            emitter().emit("wire    %s_others_sleeping;", qidName);
             emitter().emit("wire    %s_sleeping;", qidName);
             emitter().emit("// -- Signals for the module");
             emitter().emit("wire    %s_ap_start;", qidName);
             emitter().emit("wire    %s_ap_idle;", qidName);
             emitter().emit("wire    %s_ap_done;", qidName);
+            emitter().emit("wire    %s_ap_ready;", qidName);
             emitter().emit("wire    [31 : 0] %s_ap_return;", qidName);
 
 
@@ -487,7 +493,9 @@ public interface VerilogNetwork {
         // -- AP Idle
         emitter().emit("// -- AP Idle");
         emitter().emit("assign ap_idle = %s;", String.join(" & ", network.getInstances()
-                .stream().map(i -> backend().instaceQID(i.getInstanceName(),"_") + "_trigger_ap_idle")
+                .stream()
+                .filter(inst->(backend().globalnames().entityDecl(inst.getEntityName(), true).getEntity() instanceof ActorMachine))
+                .map(i -> backend().instaceQID(i.getInstanceName(),"_") + "_trigger_ap_idle")
                 .collect(Collectors.toList())));
         emitter().emitNewLine();
     }
