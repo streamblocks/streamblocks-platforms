@@ -79,7 +79,13 @@ public interface DeviceHandle {
     default Emitter emitter() {
         return backend().emitter();
     }
+    default void OCL_MSG(String format, Object... values) {
 
+        emitter().emit("OCL_MSG(\"%s\");", String.format(format, values));
+    }
+    default void OCL_ERR(String format, Object... values) {
+        emitter().emit("OCL_ERR(\"%s\");", String.format(format, values));
+    }
     default void generateDeviceHandle() {
         // -- Identifier
         String identifier = backend().task().getIdentifier().getLast().toString();
@@ -95,6 +101,9 @@ public interface DeviceHandle {
 
         // -- header files
         getIncludes();
+
+        // -- OCL MACROS
+        getOCLMacros();
 
         // -- DeviceHandle class
         getDeviceHandleClass(network);
@@ -112,6 +121,54 @@ public interface DeviceHandle {
             emitter().emit("#include <%s>", include);
         }
 
+    }
+
+    default void getOCLMacros() {
+        // -- OCL_CHECK
+        emitter().emitNewLine();
+        emitter().emit("#define OCL_CHECK(call)\t\t\\");
+        emitter().increaseIndentation();
+        {
+            emitter().emit("do {\t\t\\");
+            emitter().increaseIndentation();
+            {
+                emitter().emit("cl_int err = call;\t\t\\");
+                emitter().emit("if (err != CL_SUCCESS) { \t\t\\");
+                emitter().increaseIndentation();
+                {
+                    emitter().emit("fprintf(stderr, \"Error calling\" #call \", error code is: %%d\", err);\t\t\\");
+                    emitter().emit("exit(EXIT_FAILURE);\t\t\\");
+                    emitter().emit("}\t\t\\");
+                }
+                emitter().decreaseIndentation();
+                emitter().emit("} while (0);");
+            }
+            emitter().decreaseIndentation();
+        }
+        emitter().decreaseIndentation();
+        emitter().emitNewLine();
+        getOCLMSG("OCL_MSG", "OCL_VERBOSE", "stdout");
+        emitter().emitNewLine();
+        getOCLMSG("OCL_DEBUG", "OCL_DEBUG", "stderr");
+        emitter().emitNewLine();
+    }
+
+    default void getOCLMSG(String name, String predicate, String stream) {
+        // -- OC_MSG
+        emitter().emit("#define OCL_%s(fmt, args...)\t\t\\", name);
+        emitter().increaseIndentation();
+        {
+            emitter().emit("do {\t\t\\");
+            emitter().increaseIndentation();
+            {
+                emitter().emit("cl_int err = call;\t\t\\");
+                emitter().emit("if (%s)\t\t\\", predicate);
+                emitter().emit("\tfprintf(%s, \"OCL_MSG:%%s():%%d: \" fmt, __func__, __LINE__, ##args);   \\", stream);
+                emitter().emit("} while (0);");
+            }
+            emitter().decreaseIndentation();
+        }
+        emitter().decreaseIndentation();
     }
 
     default void getDeviceHandleClass(Network network) {
@@ -141,6 +198,30 @@ public interface DeviceHandle {
     }
 
     default void getConstructor() {
+        emitter().emit("DeviceHandle%s (char *kernel_name) {", backend().task().getIdentifier().getLast().toString());
+        emitter().increaseIndentation();
+        {
+            emitter().emit("c_int\terr;");
+            emitter().emit("buffer_size = %s;", bufferSizeDefine());
+            emitter().emit("num_inputs = %s;", numInputsDefine());
+            emitter().emit("num_outputs = %s", numOutputsDefine());
+            emitter().emit("mem_alignment = %s", memAlignmentDefine());
+            emitter().emit("world = xcl_world_singe();");
+            emitter().emit("program = xcl_import_binary(world, kernel_name);");
+            emitter().emit("clReleaseCommandQueue(world.command_queue);");
+            emitter().emit(
+                    "world.command_queue = clCreateCommandQueue(world.context, world.device_id, CL_QUEUE_PROFILING_ENABLE | CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, &err);");
+            emitter().emit("kernel = xcl_get_kernel(program, kernel_name);");
+            OCL_MSG("Kernel_loaded");
+            emitter().emit("global = 1;");
+            emitter().emit("local = 1;");
+            emitter().emit("pending_status = false;");
+            OCL_MSG("Allocating buffer");
+            emitter().emit("allocate_buffers();");
+            emitter().emit("initEvents();");
+        }
+        emitter().decreaseIndentation();
+        emitter().emit("}");
 
     }
 
@@ -193,9 +274,12 @@ public interface DeviceHandle {
         getDeviceBufferDeclration(network.getOutputPorts());
 
         // -- events
-
         emitter().emit("// -- events");
         getEventsDeclration();
+
+        // -- pending status;
+        emitter().emit("// -- pending status");
+        emitter().emit("bool pending_status;");
 
     }
 
