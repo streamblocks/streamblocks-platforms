@@ -261,20 +261,19 @@ public interface CMakeLists {
         emitter().emit("if (SDACCEL_HOST)");
         {
             emitter().increaseIndentation();
-            emitter().emit("find_package(XRT REQUIRED)");
-            emitter().emitSharpBlockComment("Replace Host.cpp with your own host code");
             emitter().emit("set(EXECUTABLE_OUTPUT_PATH ${CMAKE_SOURCE_DIR}/bin)");
-            emitter().emit("include_directories(");
-            emitter().increaseIndentation();
-            emitter().emit("\t${XRT_INCLUDE_DIRS}");
-            emitter().decreaseIndentation();
-            emitter().emit(")");
-            emitter().emit("set(host_filenames\n\tcode-gen/src/Host.cpp\n)");
+            emitter().emit("set(host_filenames\n\tcode-gen/host/Host.cpp\n\tcode-gen/host/device_handle.cpp\n)");
 
             emitter().emit("add_executable(Host ${host_filenames})");
 
-            emitter().emit("target_include_directories(Host PRIVATE code-gen/include)");
-            emitter().emit("target_link_directories(Host PRIVATE ${XRT_LIBRARY_DIR})");
+            emitter().emit("target_include_directories(Host PRIVATE code-gen/host)");
+            emitter().emit("target_link_directories(Host PRIVATE ${SDACCEL_LIBRARY_DIR})");
+
+            emitter().emit("set_target_properties(Host PROPERTIES");
+            emitter().emit("\tCXX_STANDARD 11");
+            emitter().emit("\tCXX_STANDARD_REQUIRED YES");
+            emitter().emit("\tCXX_EXTENSIONS NO)");
+
             emitter().emit("target_link_libraries(Host xilinxopencl rt stdc++)");
             emitter().decreaseIndentation();
 
