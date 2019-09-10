@@ -96,6 +96,8 @@ public interface NodeScripts {
 
         // -- Connections
         for (Connection connection : connections) {
+            if (!connection.getSource().getInstance().isPresent() || !connection.getTarget().getInstance().isPresent())
+                continue;
             // -- Source instance
             String srcInstanceName = connection.getSource().getInstance().get();
             Instance srcInstance = network.getInstances().stream().
@@ -203,6 +205,8 @@ public interface NodeScripts {
 
         // -- Connections
         for (Connection connection : connections) {
+            if (!connection.getSource().getInstance().isPresent() || !connection.getTarget().getInstance().isPresent())
+                continue;
             // -- Source instance
             String srcInstanceName = connection.getSource().getInstance().get();
             Instance srcInstance = network.getInstances().stream().
