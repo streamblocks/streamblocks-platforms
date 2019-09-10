@@ -169,7 +169,7 @@ DeviceHandle::DeviceHandle(char *kernel_name, char *target_device_name,
     exit(EXIT_FAILURE);
   }
 
-  kernel = clCreateKernel(program, "SW_kernel", &err);
+  kernel = clCreateKernel(program, kernel_name, &err);
 
   if (!kernel || err != CL_SUCCESS) {
     OCL_ERR("Failed to create compute kernel!\n");
