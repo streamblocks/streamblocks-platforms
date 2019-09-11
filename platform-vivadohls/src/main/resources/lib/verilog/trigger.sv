@@ -92,7 +92,7 @@ module trigger
 	assign actor_start = (state == LAUNCH);
 	assign ap_idle = (state == STAND_BY);
 	assign ap_done = (state == CHECK_RETURN | state == PROBE_INPUT) & (next_state == STAND_BY);
-	assign sleeping = state == PROBE_INPUT;
+	assign sleeping = (state == PROBE_INPUT) || (state == STAND_BY);
 
 
 	always_comb begin
@@ -114,7 +114,7 @@ module trigger
 					next_state = CHECK_RETURN;
 				else if (actor_done && actor_return == EXECUTED)
 					next_state = RE_LAUNCH;
-				else if (actor_done && actor_return == WAIT_INPUT)
+				else if (actor_done && (actor_return == WAIT_INPUT || ~network_idle))
 					next_state = PROBE_INPUT;
 				else
 					next_state = TRY_LAUNCH;
@@ -127,16 +127,16 @@ module trigger
 				else if (actor_done && actor_return == WAIT_INPUT)
 					next_state = PROBE_INPUT;
 				else if (actor_done && ~network_idle) begin
-					next_state = RE_LAUNCH;
+					next_state = PROBE_INPUT;
 				end
 				else
 					next_state = STAND_BY;
 
 			end
 			PROBE_INPUT:begin
-				if(has_tokens)
+				if(has_tokens && ~network_idle)
 					next_state = RE_LAUNCH;
-				else if (~has_tokens && network_idle)
+				else if (network_idle)
 					next_state = STAND_BY;
 				else
 					next_state = PROBE_INPUT;
