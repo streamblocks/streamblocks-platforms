@@ -243,6 +243,8 @@ void DeviceHandle::terminate() {
 
 void DeviceHandle::waitForDevice() {
   clWaitForEvents(num_inputs + 2 * num_outputs, read_events);
+  releaseReadEvents();
+  releaseKernelEvent();
   pending_status = false;
 }
 
@@ -275,4 +277,24 @@ void DeviceHandle::setRequestSize(uint32_t *req_sz) {
   for (int i = 0; i < num_inputs; i++) {
     request_size[i] = req_sz[i];
   }
+}
+
+void DeviceHandle::releaseReadEvents() {
+  OCL_MSG("Releasing read events\n");
+  for (int i = 0; i < num_inputs + 2 * num_outputs; i ++) {
+    OCL_CHECK(clReleaseEvent(read_events[i]));
+  }
+  
+}
+
+void DeviceHandle::releaseWriteEvents() {
+  OCL_MSG("Releasing write events\n");
+  for (int i = 0; i < num_inputs; i++) {
+    OCL_CHECK(clReleaseEvent(write_events[i]));
+  }
+}
+
+void DeviceHandle::releaseKernelEvent() {
+  OCL_MSG("Releasing kernel event\n");
+  OCL_CHECK(clReleaseEvent(kernel_event));
 }

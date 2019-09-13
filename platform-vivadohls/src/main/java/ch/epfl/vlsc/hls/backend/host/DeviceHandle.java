@@ -162,6 +162,7 @@ public interface DeviceHandle {
         getSetArgs();
         getEnqueueMigrateToDevice();
         getEnqueueMigrateToHost();
+        getReleaseMemObjets();
         emitter().close();
 
         // -- Host template
@@ -359,6 +360,11 @@ public interface DeviceHandle {
         emitter().emit("void waitForDevice();");
         emitter().emit("void initEvents();");
         emitter().emit("void setRequestSize(%s *req_sz);", defaultIntType());
+        emitter().emit("void releaseMemObjects();");
+        emitter().emit("void releaseReadEvents();");
+        emitter().emit("void releaseKernelEvent();");
+        emitter().emit("void releaseWriteEvents();");
+
 
         Network network = backend().task().getNetwork();
         emitter().emitNewLine();
@@ -617,7 +623,7 @@ public interface DeviceHandle {
             OCL_MSG("Enqueueing migration to host\\n");
             int eventIndex = 0;
             for (PortDecl port : network.getInputPorts()) {
-                OCL_MSG("Enqueueing %s_size", port.getName());
+                OCL_MSG("Enqueueing %s_size\\n", port.getName());
                 emitter().emit("OCL_CHECK(");
                 emitter().emit("\tclEnqueueMigrateMemObjects(world.command_queue, 1,");
                 emitter().emit("\t\t&%s_cl_size, CL_MIGRATE_MEM_OBJECT_HOST, 1,", port.getName());
@@ -649,12 +655,36 @@ public interface DeviceHandle {
 
                 eventIndex++;
             }
+            emitter().emitNewLine();
+            emitter().emit("releaseWriteEvents();");
         }
         emitter().decreaseIndentation();
         emitter().emit("}");
 
     }
+    default void getReleaseMemObjets() {
 
+        Network  network = backend().task().getNetwork();
+        emitter().emit("void DeviceHandle::releaseMemObjects() {");
+        emitter().increaseIndentation();
+        {
+            OCL_MSG("Releasing mem objects\\n");
+            getReleasePorts(network.getInputPorts());
+            getReleasePorts(network.getOutputPorts());
+            OCL_MSG("Mem objects released\\n");
+        
+        }
+        emitter().decreaseIndentation();
+        emitter().emit("}");
+
+    }
+    default void getReleasePorts(List<PortDecl> ports) {
+        
+        for (PortDecl port : ports) {
+            emitter().emit("OCL_CHECK(clReleaseMemObject(%s_cl_buffer));", port.getName());
+            emitter().emit("OCL_CHECK(clReleaseMemObject(%s_cl_size));", port.getName());
+        }
+    }
     default void getHostMain() {
         String identifier = backend().task().getIdentifier().getLast().toString();
         Network network = backend().task().getNetwork();
