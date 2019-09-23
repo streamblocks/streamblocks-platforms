@@ -113,35 +113,51 @@ public interface VivadoHLSBackend {
 
     // -- Types evaluator
     @Binding(LAZY)
-    default TypesEvaluator typeseval() {return MultiJ.from(TypesEvaluator.class).bind("backend").to(this).instance();}
+    default TypesEvaluator typeseval() {
+        return MultiJ.from(TypesEvaluator.class).bind("backend").to(this).instance();
+    }
 
     // -- Declarations
     @Binding(LAZY)
-    default Declarations declarations() {return MultiJ.from(Declarations.class).bind("backend").to(this).instance();}
+    default Declarations declarations() {
+        return MultiJ.from(Declarations.class).bind("backend").to(this).instance();
+    }
 
     // -- Variables
     @Binding(LAZY)
-    default Variables variables() {return MultiJ.from(Variables.class).bind("backend").to(this).instance();}
+    default Variables variables() {
+        return MultiJ.from(Variables.class).bind("backend").to(this).instance();
+    }
 
     // -- ChannelUtils
     @Binding(LAZY)
-    default LValues lvalues() {return MultiJ.from(LValues.class).bind("backend").to(this).instance();}
+    default LValues lvalues() {
+        return MultiJ.from(LValues.class).bind("backend").to(this).instance();
+    }
 
     // -- Expression Evaluator
     @Binding(LAZY)
-    default ExpressionEvaluator expressioneval() {return MultiJ.from(ExpressionEvaluator.class).bind("backend").to(this).instance();}
+    default ExpressionEvaluator expressioneval() {
+        return MultiJ.from(ExpressionEvaluator.class).bind("backend").to(this).instance();
+    }
 
     // -- Statements
     @Binding(LAZY)
-    default Statements statements() {return MultiJ.from(Statements.class).bind("backend").to(this).instance();}
+    default Statements statements() {
+        return MultiJ.from(Statements.class).bind("backend").to(this).instance();
+    }
 
     // -- Callables
     @Binding(LAZY)
-    default CallablesInActors callables() {return MultiJ.from(CallablesInActors.class).bind("backend").to(this).instance();}
+    default CallablesInActors callables() {
+        return MultiJ.from(CallablesInActors.class).bind("backend").to(this).instance();
+    }
 
     // -- ChannelUtils
     @Binding(LAZY)
-    default ChannelsUtils channelsutils() {return MultiJ.from(ChannelsUtils.class).bind("backend").to(this).instance();}
+    default ChannelsUtils channelsutils() {
+        return MultiJ.from(ChannelsUtils.class).bind("backend").to(this).instance();
+    }
 
     // -- Instance generator
     @Binding(LAZY)
@@ -155,7 +171,6 @@ public interface VivadoHLSBackend {
         return MultiJ.from(Controllers.class).bind("backend").to(this).instance();
     }
 
-
     // -- Verilog Network generator
     @Binding(LAZY)
     default VerilogNetwork vnetwork() {
@@ -167,7 +182,7 @@ public interface VivadoHLSBackend {
     default Globals globals() {
         return MultiJ.from(Globals.class).bind("backend").to(this).instance();
     }
-    
+
     // -- DeviceHandle
     @Binding(LAZY)
     default DeviceHandle devicehandle() {
@@ -202,43 +217,69 @@ public interface VivadoHLSBackend {
     // -- Kernel Wrapper
     // -- Top Kernel
     @Binding(LAZY)
-    default TopKernel topkernel() {return MultiJ.from(TopKernel.class).bind("backend").to(this).instance();}
+    default TopKernel topkernel() {
+        return MultiJ.from(TopKernel.class).bind("backend").to(this).instance();
+    }
 
     // -- AXI Lite Control
     @Binding(LAZY)
-    default AxiLiteControl axilitecontrol() {return MultiJ.from(AxiLiteControl.class).bind("backend").to(this).instance();}
+    default AxiLiteControl axilitecontrol() {
+        return MultiJ.from(AxiLiteControl.class).bind("backend").to(this).instance();
+    }
 
     // -- Kernel Wrapper (input/output stages and network)
     @Binding(LAZY)
-    default KernelWrapper kernelwrapper() {return MultiJ.from(KernelWrapper.class).bind("backend").to(this).instance();}
+    default KernelWrapper kernelwrapper() {
+        return MultiJ.from(KernelWrapper.class).bind("backend").to(this).instance();
+    }
 
     // -- Input Stage Pass
     @Binding(LAZY)
-    default StagePass stagepass() {return MultiJ.from(StagePass.class).bind("backend").to(this).instance();}
+    default StagePass stagepass() {
+        return MultiJ.from(StagePass.class).bind("backend").to(this).instance();
+    }
 
     // -- Input Stage Mem
     @Binding(LAZY)
-    default InputStageMem inputstagemem() {return MultiJ.from(InputStageMem.class).bind("backend").to(this).instance();}
+    default InputStageMem inputstagemem() {
+        return MultiJ.from(InputStageMem.class).bind("backend").to(this).instance();
+    }
 
     // -- Input Stage
     @Binding(LAZY)
-    default InputStage inputstage() {return MultiJ.from(InputStage.class).bind("backend").to(this).instance();}
+    default InputStage inputstage() {
+        return MultiJ.from(InputStage.class).bind("backend").to(this).instance();
+    }
 
     // -- Output Stage Mem
     @Binding(LAZY)
-    default OutputStageMem outputstagemem() {return MultiJ.from(OutputStageMem.class).bind("backend").to(this).instance();}
+    default OutputStageMem outputstagemem() {
+        return MultiJ.from(OutputStageMem.class).bind("backend").to(this).instance();
+    }
 
     // -- Output Stage
     @Binding(LAZY)
-    default OutputStage outputstage() {return MultiJ.from(OutputStage.class).bind("backend").to(this).instance();}
+    default OutputStage outputstage() {
+        return MultiJ.from(OutputStage.class).bind("backend").to(this).instance();
+    }
 
     // -- OpenCL Kernel XML
     @Binding(LAZY)
-    default KernelXml kernelxml() {return MultiJ.from(KernelXml.class).bind("backend").to(this).instance();}
+    default KernelXml kernelxml() {
+        return MultiJ.from(KernelXml.class).bind("backend").to(this).instance();
+    }
 
     // -- TCL script for packaging the OpenCL kernel
     @Binding(LAZY)
-    default PackageKernel packagekernel() {return MultiJ.from(PackageKernel.class).bind("backend").to(this).instance();}
+    default PackageKernel packagekernel() {
+        return MultiJ.from(PackageKernel.class).bind("backend").to(this).instance();
+    }
+
+    // -- Network to DOT
+    @Binding(LAZY)
+    default NetworkToDot netoworkToDot() {
+        return MultiJ.from(NetworkToDot.class).bind("backend").to(this).instance();
+    }
 
     // -- Utils
     default QID taskIdentifier() {

@@ -104,7 +104,6 @@ public interface Instances {
 
         String name = backend().instaceQID(instance.getInstanceName(), "_");
         emitter().emit("int %s(%s) {", name, entityPorts(withIO));
-        emitter().emit("#pragma HLS INTERFACE ap_ctrl_hs register port=return");
         emitter().increaseIndentation();
 
         String className = "class_" + backend().instaceQID(instance.getInstanceName(), "_");

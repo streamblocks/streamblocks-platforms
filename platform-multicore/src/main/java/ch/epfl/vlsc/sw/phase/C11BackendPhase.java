@@ -121,6 +121,9 @@ public class C11BackendPhase implements Phase {
                 .instance();
 
 
+        // -- Generate Auxiliary
+        generateAuxiliary(backend);
+
         // -- Copy MulticoreBackend resources
         copyBackendResources(backend);
 
@@ -139,8 +142,6 @@ public class C11BackendPhase implements Phase {
         // -- Generate Node scripts
         generateNodeScripts(backend);
 
-        // -- Generate Auxiliary
-        generateAuxiliary(backend);
         return task;
     }
 

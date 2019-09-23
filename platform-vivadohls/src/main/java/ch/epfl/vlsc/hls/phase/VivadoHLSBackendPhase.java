@@ -51,6 +51,11 @@ public class VivadoHLSBackendPhase implements Phase {
      */
     private Path scriptsPath;
 
+    /**
+     * Auxiliary Path
+     */
+    private Path auxiliaryPath;
+
     @Override
     public String getDescription() {
         return "StreamBlocks Vivado HLS Platform for Tycho compiler";
@@ -82,6 +87,9 @@ public class VivadoHLSBackendPhase implements Phase {
 
         // -- RTL path
         rtlPath = PathUtils.createDirectory(codeGenPath, "rtl");
+
+        // -- Auxiliary path
+        auxiliaryPath = PathUtils.createDirectory(codeGenPath, "auxiliary");
 
         // -- RTL testbench path
         PathUtils.createDirectory(codeGenPath, "rtl-tb");
@@ -167,6 +175,8 @@ public class VivadoHLSBackendPhase implements Phase {
         // -- Generate CMake Script
         generateCmakeScript(backend);
 
+        // -- Generate Auxiliary
+        generateAuxiliary(backend);
 
         return task;
     }
@@ -289,6 +299,23 @@ public class VivadoHLSBackendPhase implements Phase {
     private void generateCmakeLists(VivadoHLSBackend backend) {
         // -- Project CMakeLists
         backend.cmakelists().projectCMakeLists();
+    }
+
+    private void generateAuxiliary(VivadoHLSBackend backend) {
+
+        // -- Network to DOT
+        backend.netoworkToDot().generateNetworkDot();
+/*
+        // -- Actor Machine Controllers to DOT
+        for (Instance instance : backend.task().getNetwork().getInstances()) {
+            String instanceWithQID = backend.instaceQID(instance.getInstanceName(), "_");
+            GlobalEntityDecl entityDecl = backend.globalnames().entityDecl(instance.getEntityName(), true);
+
+            if (entityDecl.getEntity() instanceof ActorMachine) {
+                ControllerToGraphviz dot = new ControllerToGraphviz(entityDecl, instanceWithQID, PathUtils.getAuxiliary(backend.context()).resolve(instanceWithQID + ".dot"));
+                dot.print();
+            }
+        }*/
     }
 
 

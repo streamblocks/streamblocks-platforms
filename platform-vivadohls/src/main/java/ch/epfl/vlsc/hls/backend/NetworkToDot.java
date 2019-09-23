@@ -1,4 +1,4 @@
-package ch.epfl.vlsc.sw.backend;
+package ch.epfl.vlsc.hls.backend;
 
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.PathUtils;
@@ -23,7 +23,7 @@ import java.util.Map;
 public interface NetworkToDot {
 
     @Binding(BindingKind.INJECTED)
-    MulticoreBackend backend();
+    VivadoHLSBackend backend();
 
     default Emitter emitter() {
         return backend().emitter();
@@ -71,12 +71,12 @@ public interface NetworkToDot {
             emitter().increaseIndentation();
             {
                 emitter().emit("<table border=\"0\" cellborder=\"1\" cellspacing=\"0\">");
-                emitter().emit("<tr><td bgcolor=\"#7ba79d\"><font point-size=\"25\" color=\"#ffffff\"> INPUTS </font></td></tr>");
+                emitter().emit("<tr><td bgcolor=\"black\"><font color=\"#ffffff\"> INPUTS </font></td></tr>");
                 emitter().emit("<tr><td>");
                 emitter().increaseIndentation();
                 emitter().emit("<table border=\"0\" cellborder=\"0\" cellspacing=\"0\">");
                 for (PortDecl port : network.getInputPorts()) {
-                    emitter().emit("\t<tr><td align=\"right\" port=\"%s\"> <font point-size=\"15\"> %1$s </font> </td></tr>", port.getName());
+                    emitter().emit("\t<tr><td align=\"right\" port=\"%s\"> %1$s </td></tr>", port.getName());
                 }
                 emitter().emit("</table>");
                 emitter().decreaseIndentation();
@@ -99,12 +99,12 @@ public interface NetworkToDot {
             emitter().increaseIndentation();
             {
                 emitter().emit("<table border=\"0\" cellborder=\"1\" cellspacing=\"0\">");
-                emitter().emit("<tr><td bgcolor=\"#7ba79d\"><font point-size=\"25\" color=\"#ffffff\"> OUTPUTS </font></td></tr>");
+                emitter().emit("<tr><td bgcolor=\"black\"><font color=\"#ffffff\"> OUTPUTS </font></td></tr>");
                 emitter().emit("<tr><td>");
                 emitter().increaseIndentation();
                 emitter().emit("<table border=\"0\" cellborder=\"0\" cellspacing=\"0\">");
                 for (PortDecl port : network.getOutputPorts()) {
-                    emitter().emit("\t<tr><td align=\"left\" port=\"%s\"> <font point-size=\"15\"> %1$s </font> </td></tr>", port.getName());
+                    emitter().emit("\t<tr><td align=\"left\" port=\"%s\"> %1$s </td></tr>", port.getName());
                 }
                 emitter().emit("</table>");
                 emitter().decreaseIndentation();
@@ -132,13 +132,13 @@ public interface NetworkToDot {
         emitter().increaseIndentation();
 
         emitter().emit("<table border=\"0\" cellborder=\"1\" cellspacing=\"0\">");
-        emitter().emit("<tr><td bgcolor=\"black\"><font point-size=\"30\" color=\"#ffffff\"> %s </font></td></tr>", instanceName);
+        emitter().emit("<tr><td bgcolor=\"black\"><font color=\"#ffffff\"> %s </font></td></tr>", instanceName);
 
         emitter().emit("<tr><td>");
         emitter().increaseIndentation();
         emitter().emit("<table border=\"1\" cellborder=\"0\" cellspacing=\"0\">");
         emitter().increaseIndentation();
-        emitter().emit("<tr><td colspan=\"2\"><font point-size=\"15\">[%s]</font></td></tr>", entityDecl.getName());
+        emitter().emit("<tr><td colspan=\"2\"><font point-size=\"8\">[%s]</font></td></tr>", entityDecl.getName());
 
         int rows = entity.getInputPorts().size() > entity.getOutputPorts().size() ? entity.getInputPorts().size() : entity.getOutputPorts().size();
 
@@ -146,7 +146,7 @@ public interface NetworkToDot {
         for (int i = 0; i < rows; i++) {
             String in = i < entity.getInputPorts().size() ? entity.getInputPorts().get(i).getName() : "";
             String out = i < entity.getOutputPorts().size() ? entity.getOutputPorts().get(i).getName() : "";
-            emitter().emit("<tr><td align=\"left\" port=\"%s\"> %1$s </td><td align=\"right\" port=\"%s\"> <font point-size=\"15\"> %2$s </font> </td></tr>", in, out);
+            emitter().emit("<tr><td align=\"left\" port=\"%s\"> %1$s </td><td align=\"right\" port=\"%s\"> %2$s </td></tr>", in, out);
         }
 
         emitter().decreaseIndentation();
@@ -206,4 +206,6 @@ public interface NetworkToDot {
         return "#" + String.format("%06x", color.getRGB() & 0xffffff);
 
     }
+
+
 }
