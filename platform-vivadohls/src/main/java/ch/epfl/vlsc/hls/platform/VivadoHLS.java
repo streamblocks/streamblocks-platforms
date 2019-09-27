@@ -22,8 +22,6 @@ public class VivadoHLS implements Platform {
         return "StreamBlocks code-generator for VivadoHLS.";
     }
 
-
-
     public static List<Phase> networkElaborationPhases() {
         return ImmutableList.of(
                 new CreateNetworkPhase(),
@@ -36,7 +34,6 @@ public class VivadoHLS implements Platform {
                 new RemoveUnusedGlobalDeclarations()
         );
     }
-
 
     public static List<Phase> actorMachinePhases() {
         return ImmutableList.of(

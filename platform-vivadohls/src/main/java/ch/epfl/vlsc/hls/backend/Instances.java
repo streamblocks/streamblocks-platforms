@@ -215,20 +215,20 @@ public interface Instances {
      * Struct IO
      */
 
-    default void structIO(ActorMachine actor){
+    default void structIO(ActorMachine actor) {
         // -- Struct IO
         emitter().emit("// -- Struct IO");
         emitter().emit("struct IO {");
         {
             emitter().increaseIndentation();
 
-            for(PortDecl port : actor.getInputPorts()){
+            for (PortDecl port : actor.getInputPorts()) {
                 Type type = backend().types().declaredPortType(port);
-                emitter().emit("%s;",backend().declarations().declaration(type, String.format("%s_peek",port.getName())));
+                emitter().emit("%s;", backend().declarations().declaration(type, String.format("%s_peek", port.getName())));
                 emitter().emit("int %s_count;", port.getName());
             }
 
-            for(PortDecl port : actor.getOutputPorts()){
+            for (PortDecl port : actor.getOutputPorts()) {
                 emitter().emit("int %s_size;", port.getName());
                 emitter().emit("int %s_count;", port.getName());
             }
@@ -263,7 +263,7 @@ public interface Instances {
                     backend().callables().callablePrototypes(instanceName, var.getValue());
                 } else {
                     String decl = declarations().declaration(types().declaredType(var), backend().variables().declarationName(var));
-                    if (var.getValue() != null ) {
+                    if (var.getValue() != null) {
                         emitter().emit("%s = %s;", decl, backend().expressioneval().evaluate(var.getValue()));
                     } else {
                         emitter().emit("%s;", decl);
@@ -305,10 +305,14 @@ public interface Instances {
                         } else {
                             String decl = declarations().declaration(types().declaredType(var), backend().variables().declarationName(var));
                             if (var.getValue() != null && !(var.getValue() instanceof ExprInput)) {
-                                if(var.getValue() instanceof ExprList){
-                                    emitter().emit("%s = {%s};", decl, backend().expressioneval().evaluateExprList(var.getValue()));
-                                }else {
-                                    emitter().emit("%s = %s;", decl, backend().expressioneval().evaluate(var.getValue()));
+                                if (scope.isPersistent()) {
+                                    if (var.getValue() instanceof ExprList) {
+                                        emitter().emit("%s = {%s};", decl, backend().expressioneval().evaluateExprList(var.getValue()));
+                                    } else {
+                                        emitter().emit("%s = %s;", decl, backend().expressioneval().evaluate(var.getValue()));
+                                    }
+                                }else{
+                                    emitter().emit("%s;", decl);
                                 }
                             } else {
                                 emitter().emit("%s;", decl);
@@ -467,7 +471,7 @@ public interface Instances {
         return "IO io";
     }
 
-    default String scopeArguments(Scope scope){
+    default String scopeArguments(Scope scope) {
         return "io";
     }
 
@@ -507,15 +511,15 @@ public interface Instances {
 
     default String evaluateCondition(PortCondition condition) {
         if (condition.isInputCondition()) {
-            if(condition.N() > 1){
+            if (condition.N() > 1) {
                 return String.format("(pinAvailIn(%s, io) >= %d) && !%1$s.empty()", channelutils().definedInputPort(condition.getPortName()), condition.N());
-            }else {
+            } else {
                 return String.format("!%1$s.empty()", channelutils().definedInputPort(condition.getPortName()), condition.N());
             }
         } else {
-            if(condition.N() > 1){
+            if (condition.N() > 1) {
                 return String.format("(pinAvailOut(%s, io) >= %d) && !%1$s.full()", channelutils().definedOutputPort(condition.getPortName()), condition.N());
-            }else{
+            } else {
                 return String.format("!%1$s.full()", channelutils().definedOutputPort(condition.getPortName()), condition.N());
             }
 

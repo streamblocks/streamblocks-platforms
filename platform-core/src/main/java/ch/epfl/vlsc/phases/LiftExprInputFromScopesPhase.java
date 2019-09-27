@@ -97,7 +97,20 @@ public class LiftExprInputFromScopesPhase implements Phase {
                         Type type = types().declaredType(decl);
                         newDecls.add(decl.withValue(null).withType(TypeToTypeExpr.convert(type)));
                     }else{
-                        newDecls.add(decl);
+                        boolean found = false;
+                        for (VarDecl toBeRemovedDecl : toBeRemoved) {
+                            if (decl.getValue() instanceof ExprVariable) {
+                                ExprVariable exprVariable = (ExprVariable) decl.getValue();
+                                if (exprVariable.getVariable().getName().equals(toBeRemovedDecl.getName())) {
+                                    Type type = types().declaredType(decl);
+                                    newDecls.add(decl.withValue(null).withType(TypeToTypeExpr.convert(type)));
+                                    found = true;
+                                }
+                            }
+                        }
+                        if (!found) {
+                            newDecls.add(decl);
+                        }
                     }
                 }
                 return scope.copy(newDecls.build(), scope.isPersistent());
