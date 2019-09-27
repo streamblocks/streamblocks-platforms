@@ -163,6 +163,9 @@ public class VivadoHLSBackendPhase implements Phase {
         // -- Generate Kernel
         generateKernel(backend);
 
+        // -- Generate kernels 
+        generateKernels(backend);
+        
         // -- Generate Testbenches
         generateTestbenches(backend);
 
@@ -240,7 +243,21 @@ public class VivadoHLSBackendPhase implements Phase {
         // -- TCL script for packaging the OpenCL RTL Kernel
         backend.packagekernel().getPackageKernel();
     }
+    /**
+     * Generate Verilog network wrapper for OpenCL Kernels
+     *
+     * @param backend
+     */
+    private void generateKernels(VivadoHLSBackend backend) {
+        // -- Top Kernel
+        backend.kernel().generateKernel("core");
 
+        // -- Input Kernel
+        backend.kernel().generateKernel("input");
+
+        // -- Output kernel
+        backend.kernel().generateKernel("output");
+    }
     /**
      * Generate gloabals
      *

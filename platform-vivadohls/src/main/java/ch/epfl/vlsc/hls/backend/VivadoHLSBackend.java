@@ -221,6 +221,13 @@ public interface VivadoHLSBackend {
         return MultiJ.from(TopKernel.class).bind("backend").to(this).instance();
     }
 
+    // -----------------------------------
+    // -- Input Kernel
+    @Binding(LAZY)
+    default Kernel kernel() {
+        return MultiJ.from(Kernel.class).bind("backend").to(this).instance();
+    }
+
     // -- AXI Lite Control
     @Binding(LAZY)
     default AxiLiteControl axilitecontrol() {
