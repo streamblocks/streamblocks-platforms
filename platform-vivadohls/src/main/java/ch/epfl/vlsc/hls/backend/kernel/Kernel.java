@@ -24,7 +24,6 @@ public interface Kernel {
         return backend().emitter();
     }
 
-
     default void generateKernel(String kernelType) {
         // -- Identifier
         String identifier = backend().task().getIdentifier().getLast().toString();
@@ -32,14 +31,15 @@ public interface Kernel {
         // -- Network
         Network network = backend().task().getNetwork();
 
-        Optional< ImmutableList<PortDecl> > kernelArgs = Optional.empty();
-        if (kernelType.compareTo("input") == 0){
+        Optional<ImmutableList<PortDecl>> kernelArgs = Optional.empty();
+        if (kernelType.compareTo("input") == 0) {
             kernelArgs = Optional.of(network.getInputPorts());
         } else if (kernelType.compareTo("output") == 0) {
             kernelArgs = Optional.of(network.getOutputPorts());
         }
         // -- Network file
-        emitter().open(PathUtils.getTargetCodeGenRtl(backend().context()).resolve(identifier + "_" + kernelType +"_kernel.v"));
+        emitter().open(PathUtils.getTargetCodeGenRtl(backend().context())
+                .resolve(identifier + "_" + kernelType + "_kernel.v"));
 
         // -- Default net type
         emitter().emit("`default_nettype none");
@@ -64,6 +64,15 @@ public interface Kernel {
         {
             emitter().increaseIndentation();
 
+            if (kernelType == "input") {
+                getStreamPortNames(kernelArgs.get(), true);
+            } else if (kernelType == "output") {
+                getStreamPortNames(kernelArgs.get(), false);
+            } else {
+                getStreamPortNames(network.getInputPorts(), false);
+                getStreamPortNames(network.getOutputPorts(), true);
+            }
+
             getModulePortNames(network, kernelArgs);
 
             emitter().decreaseIndentation();
@@ -73,9 +82,13 @@ public interface Kernel {
         {
             getWires(network, kernelArgs);
 
-            getAxiLiteControllerInstance(network, kernelArgs);
+            getAxiLiteControllerInstance(network, kernelArgs, kernelType == "input");
 
             getKernelWrapper(network, kernelArgs);
+            if (kernelType == "core")
+                getCoreKernelWrapper(network);
+            else
+                getIOKernelWrapper(network, network.getInputPorts(), kernelType);
         }
 
         emitter().emitNewLine();
@@ -88,13 +101,14 @@ public interface Kernel {
     // -- Parameters
     default void getParameters(Network network, Optional<ImmutableList<PortDecl>> kernelArgs) {
 
-        
         if (kernelArgs.isPresent()) {
             for (PortDecl port : kernelArgs.get()) {
                 Type type = backend().types().declaredPortType(port);
                 int bitSize = TypeUtils.sizeOfBits(type);
-                emitter().emit("parameter integer C_M_AXI_%s_ADDR_WIDTH = %d,", port.getName().toUpperCase(), AxiConstants.C_M_AXI_ADDR_WIDTH);
-                emitter().emit("parameter integer C_M_AXI_%s_DATA_WIDTH = %d,", port.getName().toUpperCase(), Math.max(bitSize, 32));
+                emitter().emit("parameter integer C_M_AXI_%s_ADDR_WIDTH = %d,", port.getName().toUpperCase(),
+                        AxiConstants.C_M_AXI_ADDR_WIDTH);
+                emitter().emit("parameter integer C_M_AXI_%s_DATA_WIDTH = %d,", port.getName().toUpperCase(),
+                        Math.max(bitSize, 32));
                 emitter().emit("parameter integer C_M_AXI_%s_ID_WIDTH = %d,", port.getName().toUpperCase(), 1);
                 emitter().emit("parameter integer C_M_AXI_%s_AWUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
                 emitter().emit("parameter integer C_M_AXI_%s_ARUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
@@ -105,7 +119,8 @@ public interface Kernel {
             }
         }
         // -- AXI4-Lite Control
-        emitter().emit("parameter integer C_S_AXI_CONTROL_ADDR_WIDTH = %d,", backend().axilitecontrol().getAddressBitWidth(network));
+        emitter().emit("parameter integer C_S_AXI_CONTROL_ADDR_WIDTH = %d,",
+                backend().axilitecontrol().getAddressBitWidth(network));
         emitter().emit("parameter integer C_S_AXI_CONTROL_DATA_WIDTH = %s", AxiConstants.C_S_AXI_CONTROL_DATA_WIDTH);
     }
 
@@ -168,14 +183,6 @@ public interface Kernel {
     // ---------------------------------------------------------------------------------------------------------
     // -- module stream ports
 
-    default void getStreamPorts(Optional<ImmutableList<PortDecl>> kernelArgs, String dir) {
-        emitter().emit("// -- stream interface");
-        if (kernelArgs.isPresent())
-            for (PortDecl port : kernelArgs.get()) {
-                emitter().emit("%s wire [")   
-            }
-    }
-
     default void getModulePortNames(Network network, Optional<ImmutableList<PortDecl>> kernelArgs) {
 
         // -- System signals
@@ -188,7 +195,7 @@ public interface Kernel {
                 getAxiMasterPorts(port.getName());
             }
         }
-        getStreamMasterPorts(kernelArgs);
+        // getStreamMasterPorts(kernelArgs);
         // -- AXI4-Lite Control IO
         emitter().emit("// -- AXI4-Lite slave interface");
         // AXI4-Lite slave interface
@@ -212,6 +219,17 @@ public interface Kernel {
         emitter().emit("output  wire    interrupt");
     }
 
+    default void getStreamPortNames(ImmutableList<PortDecl> kernelArgs, boolean isInput) {
+
+        emitter().emit("// -- network inputs");
+        for (PortDecl port : kernelArgs) {
+            emitter().emit("%s\twire\t[C_M_AXI_%s_DATA_WIDTH - 1: 0]\t%s_TDATA, ", isInput ? "output" : "input",
+                    port.getName().toUpperCase(), port.getName());
+            emitter().emit("%s\twire\t\t%s_TVALID, ", isInput ? "output" : "input", port.getName());
+            emitter().emit("%s\twire\t\t%s_TREADY, ", isInput ? "input" : "output", port.getName());
+        }
+    }
+
     // ------------------------------------------------------------------------
     // -- Get wires
     default void getWires(Network network, Optional<ImmutableList<PortDecl>> kernelArgs) {
@@ -231,7 +249,7 @@ public interface Kernel {
                 emitter().emit("wire    [64 - 1 : 0] %s_buffer;", port.getName());
             }
         }
-        
+
         emitter().emitNewLine();
 
         emitter().emit("// -- Invert reset signal");
@@ -247,7 +265,8 @@ public interface Kernel {
 
     // ------------------------------------------------------------------------
     // -- AXI Lite controller instance
-    default void getAxiLiteControllerInstance(Network network, Optional<ImmutableList<PortDecl>> kernelArgs) {
+    default void getAxiLiteControllerInstance(Network network, Optional<ImmutableList<PortDecl>> kernelArgs,
+            boolean isInput) {
         emitter().emitClikeBlockComment("AXI4-Lite Control");
         emitter().emitNewLine();
         // -- Identifier
@@ -287,12 +306,13 @@ public interface Kernel {
 
             if (!kernelArgs.isEmpty()) {
                 for (PortDecl port : kernelArgs.get()) {
-                    emitter().emit(".%s_requested_size( %1$s_requested_size ),", port.getName());
+                    emitter().emit(".%s_requested_size( %1$s_%s ),", port.getName(),
+                            isInput ? "requested_size" : "available_size");
                     emitter().emit(".%s_size( %1$s_size ),", port.getName());
                     emitter().emit(".%s_buffer( %1$s_buffer ),", port.getName());
                 }
             }
-    
+
             emitter().emit(".interrupt( interrupt ),");
             emitter().emit(".ap_start( ap_start ),");
             emitter().emit(".ap_done( ap_done ),");
@@ -318,7 +338,8 @@ public interface Kernel {
                 for (PortDecl port : kernelArgs.get()) {
                     boolean lastElement = (kernelArgs.get().size() - 1 == kernelArgs.get().indexOf(port));
                     emitter().emit(".C_M_AXI_%s_ADDR_WIDTH(C_M_AXI_%1$s_ADDR_WIDTH),", port.getName().toUpperCase());
-                    emitter().emit(".C_M_AXI_%s_DATA_WIDTH(C_M_AXI_%1$s_DATA_WIDTH)%s", port.getName().toUpperCase(), lastElement ? "" : ",");
+                    emitter().emit(".C_M_AXI_%s_DATA_WIDTH(C_M_AXI_%1$s_DATA_WIDTH)%s", port.getName().toUpperCase(),
+                            lastElement ? "" : ",");
                 }
             }
             emitter().decreaseIndentation();
@@ -345,6 +366,72 @@ public interface Kernel {
             emitter().emit(".ap_ready( ap_ready),");
             emitter().emit(".ap_idle( ap_idle )");
             emitter().decreaseIndentation();
+        }
+        emitter().emit(");");
+    }
+
+    default void getCoreKernelWrapper(Network network) {
+        emitter().emitClikeBlockComment("Core kernel wrapper");
+        emitter().emitNewLine();
+
+        String identifier = backend().task().getIdentifier().getLast().toString();
+
+        emitter().emit("%s_core_wrapper inst_core_wrapper (", identifier);
+        {
+            emitter().increaseIndentation();
+            emitter().emit(".ap_clk( ap_clk ),");
+            emitter().emit(".ap_rst_n( ap_rst_n ),");
+            emitter().emit(".ap_start( ap_start ),");
+            emitter().emit(".ap_done( ap_done),");
+            emitter().emit(".ap_ready( ap_ready),");
+            emitter().emit(".ap_idle( ap_idle )");
+            emitter().decreaseIndentation();
+
+        }
+        emitter().emit(");");
+    }
+
+    default void getIOKernelWrapper(Network network, ImmutableList<PortDecl> kernelArgs, String kernelType) {
+
+        emitter().emitClikeBlockComment(kernelType + " kernel wrapper");
+        emitter().emitNewLine();
+
+        String identifier = backend().task().getIdentifier().getLast().toString();
+
+        emitter().emit("%s_%s_wrapper #(", identifier, kernelType);
+        {
+            emitter().increaseIndentation();
+            for (PortDecl port : kernelArgs) {
+                boolean lastElement = (kernelArgs.size() - 1 == kernelArgs.indexOf(port));
+                emitter().emit(".C_M_AXI_%s_ADDR_WIDTH(C_M_AXI_%1$s_ADDR_WIDTH),", port.getName().toUpperCase());
+                emitter().emit(".C_M_AXI_%s_DATA_WIDTH(C_M_AXI_%1$s_DATA_WIDTH)%s", port.getName().toUpperCase(),
+                        lastElement ? "" : ",");
+            }
+            emitter().decreaseIndentation();
+        }
+        emitter().emit(")");
+        emitter().emit("%s_inst_wrapper (", kernelType);
+        {
+            emitter().increaseIndentation();
+
+            for (PortDecl port : kernelArgs) {
+                getAxiMasterConnection(port.getName());
+            }
+            for (PortDecl port : kernelArgs) {
+                emitter().emit(".%s_requested_size( %1$s_%s ),", port.getName(),
+                        kernelType == "input" ? "requested_size" : "available_size");
+                emitter().emit(".%s_size( %1$s_size ),", port.getName());
+                emitter().emit(".%s_buffer( %1$s_buffer ),", port.getName());
+            }
+
+            emitter().emit(".ap_clk( ap_clk ),");
+            emitter().emit(".ap_rst_n( ap_rst_n ),");
+            emitter().emit(".ap_start( ap_start ),");
+            emitter().emit(".ap_done( ap_done),");
+            emitter().emit(".ap_ready( ap_ready),");
+            emitter().emit(".ap_idle( ap_idle )");
+            emitter().decreaseIndentation();
+
         }
         emitter().emit(");");
     }
