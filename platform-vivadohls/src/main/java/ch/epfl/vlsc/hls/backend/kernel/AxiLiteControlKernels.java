@@ -12,15 +12,28 @@ import se.lth.cs.tycho.ir.network.Network;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 
 @Module
-public interface AxiLiteControlKernel {
+public interface AxiLiteControlKernels {
     @Binding(BindingKind.INJECTED)
     VivadoHLSBackend backend();
 
     default Emitter emitter() {
         return backend().emitter();
     }
+    default void generateAxiLiteContollers() {
+        
+        Network network = backend().task().getNetwork();
+        String identifier = backend().task().getIdentifier().getLast().toString();
 
-    default void getAxiLiteControlKernel(String identifier, ImmutableList<PortDecl> kernelArgs) {
+        getAxiLiteControlKernel(identifier + "_core", ImmutableList.of(), "core");
+        getAxiLiteControlKernel(identifier + "_input", network.getInputPorts(), "input");
+        getAxiLiteControlKernel(identifier + "_output", network.getOutputPorts(), "output");
+
+    }
+
+    default String availableOrRequested(String kernelType) {
+        return (kernelType == "input") ? "requested_size" : "available_size";
+    }
+    default void getAxiLiteControlKernel(String identifier, ImmutableList<PortDecl> kernelArgs, String kernelType) {
 
         // -- Network
         Network network = backend().task().getNetwork();
@@ -50,7 +63,7 @@ public interface AxiLiteControlKernel {
         {
             emitter().increaseIndentation();
 
-            getAxiSlaveIO(kernelArgs);
+            getAxiSlaveIO(kernelArgs, kernelType);
 
             emitter().decreaseIndentation();
         }
@@ -58,10 +71,10 @@ public interface AxiLiteControlKernel {
         emitter().emitNewLine();
 
         // -- Local parameters
-        getLocalParameters(kernelArgs);
+        getLocalParameters(kernelArgs, kernelType);
 
         // -- Wires and variables
-        getWiresAndVariables(kernelArgs);
+        getWiresAndVariables(kernelArgs, kernelType);
 
         // -- RTL Body
         emitter().emitClikeBlockComment("Begin RTL Body");
@@ -71,10 +84,10 @@ public interface AxiLiteControlKernel {
         getAxiWriteFSM();
 
         // -- AXI Read FSM
-        getAxiReadFSM(kernelArgs);
+        getAxiReadFSM(kernelArgs, kernelType);
 
         // -- Register Logic
-        getRegisterLogic(kernelArgs);
+        getRegisterLogic(kernelArgs, kernelType);
 
         emitter().emitNewLine();
         emitter().emit("endmodule");
@@ -89,7 +102,7 @@ public interface AxiLiteControlKernel {
         emitter().emit("parameter integer C_S_AXI_DATA_WIDTH = %s", AxiConstants.C_S_AXI_CONTROL_DATA_WIDTH);
     }
 
-    default void getAxiSlaveIO(ImmutableList<PortDecl> kernelArgs) {
+    default void getAxiSlaveIO(ImmutableList<PortDecl> kernelArgs, String kernelType) {
         // -- System signals
 
         emitter().emit("// -- axi4 lite slave signals");
@@ -116,7 +129,7 @@ public interface AxiLiteControlKernel {
 
         emitter().emit("// user kernel signals");
         for (PortDecl port : kernelArgs) {
-            emitter().emit("output  wire    [31 : 0]    %s_requested_size,", port.getName());
+            emitter().emit("output  wire    [31 : 0]    %s_%s,", port.getName(), availableOrRequested(kernelType));
             emitter().emit("output  wire    [63 : 0]    %s_size,", port.getName());
             emitter().emit("output  wire    [63 : 0]    %s_buffer,", port.getName());
         }
@@ -131,7 +144,7 @@ public interface AxiLiteControlKernel {
 
     }
 
-    default void getLocalParameters(ImmutableList<PortDecl> kernelArgs) {
+    default void getLocalParameters(ImmutableList<PortDecl> kernelArgs, String kernelType) {
         emitter().emitClikeBlockComment("Local Parameters");
         emitter().emitNewLine();
         emitter().emit("localparam");
@@ -148,10 +161,10 @@ public interface AxiLiteControlKernel {
         value += 4;
 
         for (PortDecl port : kernelArgs) {
-            emitter().emit("ADDR_%s_REQUESTED_SIZE_DATA_0 = %d'h%s,", port.getName().toUpperCase(), addressWidth,
+            emitter().emit("ADDR_%s_%s_DATA_0 = %d'h%s,", port.getName().toUpperCase(), availableOrRequested(kernelType).toUpperCase() ,addressWidth,
                     String.format("%x", value));
             value += 4;
-            emitter().emit("ADDR_%s_REQUESTED_SIZE_CTRL = %d'h%s,", port.getName().toUpperCase(), addressWidth,
+            emitter().emit("ADDR_%s_%s_CTRL = %d'h%s,", port.getName().toUpperCase(), availableOrRequested(kernelType).toUpperCase(), addressWidth,
                     String.format("%x", value));
             value += 4;
         }
@@ -190,7 +203,7 @@ public interface AxiLiteControlKernel {
         emitter().emitNewLine();
     }
 
-    default void getWiresAndVariables(ImmutableList<PortDecl> kernelArgs) {
+    default void getWiresAndVariables(ImmutableList<PortDecl> kernelArgs, String kernelType) {
         emitter().emitClikeBlockComment("Wires and Variables");
         emitter().emitNewLine();
 
@@ -220,7 +233,7 @@ public interface AxiLiteControlKernel {
 
         emitter().emit("// -- Internal Registers for addresses for I/O");
         for (PortDecl port : kernelArgs) {
-            emitter().emit("reg [31 : 0]    int_%s_requested_size = 32'd0;", port.getName());
+            emitter().emit("reg [31 : 0]    int_%s_%s = 32'd0;", port.getName(), availableOrRequested(kernelType));
             emitter().emit("reg [63 : 0]    int_%s_size = 64'd0;", port.getName());
             emitter().emit("reg [63 : 0]    int_%s_buffer = 64'd0;", port.getName());
         }
@@ -339,7 +352,7 @@ public interface AxiLiteControlKernel {
         emitter().emitNewLine();
     }
 
-    default void getAxiReadFSM(ImmutableList<PortDecl> kernelArgs) {
+    default void getAxiReadFSM(ImmutableList<PortDecl> kernelArgs, String kernelType) {
         emitter().emit("// ------------------------------------------------------------------------");
         emitter().emit("// -- AXI Read FSM");
 
@@ -484,7 +497,7 @@ public interface AxiLiteControlKernel {
                             {
                                 emitter().increaseIndentation();
 
-                                emitter().emit("rdata <= int_%s_requested_size[31:0];", port.getName());
+                                emitter().emit("rdata <= int_%s_%s[31:0];", port.getName(), availableOrRequested(kernelType));
 
                                 emitter().decreaseIndentation();
                             }
@@ -549,13 +562,13 @@ public interface AxiLiteControlKernel {
         emitter().emitNewLine();
     }
 
-    default void getRegisterLogic(ImmutableList<PortDecl> kernelArgs) {
+    default void getRegisterLogic(ImmutableList<PortDecl> kernelArgs, String kernelType) {
         emitter().emitClikeBlockComment("Register Logic");
         emitter().emit("assign interrupt    = int_gie & (|int_isr);");
         emitter().emit("assign event_start  = int_event_start;");
         emitter().emit("assign ap_start     = int_ap_start;");
         for (PortDecl port : kernelArgs) {
-            emitter().emit("assign %s_requested_size = int_%1$s_requested_size;", port.getName());
+            emitter().emit("assign %s_%s = int_%1$s_%2$s;", port.getName(), availableOrRequested(kernelType));
             emitter().emit("assign %s_size = int_%1$s_size;", port.getName());
             emitter().emit("assign %s_buffer = int_%1$s_buffer;", port.getName());
         }
@@ -789,7 +802,7 @@ public interface AxiLiteControlKernel {
 
         for (PortDecl port : kernelArgs) {
             // -- requested size
-            getReg32Bit(port.getName(), "requested_size");
+            getReg32Bit(port.getName(), availableOrRequested(kernelType));
         }
 
         for (PortDecl port : kernelArgs) {

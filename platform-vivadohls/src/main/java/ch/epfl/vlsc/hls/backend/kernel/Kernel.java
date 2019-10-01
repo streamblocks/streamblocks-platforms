@@ -52,8 +52,13 @@ public interface Kernel {
         // -- Parameters
         {
             emitter().increaseIndentation();
-
-            getMasterParameters(network, kernelArgs, ",");
+            
+            if (kernelType == "core") {
+                getMasterParameters(network, Optional.of(network.getInputPorts()), ",");
+                getMasterParameters(network, Optional.of(network.getOutputPorts()), ",");
+            } else {
+                getMasterParameters(network, kernelArgs, ",");
+            }
             getSlaveParameters(network);
 
             emitter().decreaseIndentation();
@@ -126,7 +131,7 @@ public interface Kernel {
     default void getSlaveParameters(Network network) {
         // -- AXI4-Lite Control
         emitter().emit("parameter integer C_S_AXI_CONTROL_ADDR_WIDTH = %d,",
-                backend().axilitecontrol().getAddressBitWidth(network));
+                backend().axilitecontrolkernels().getAddressBitWidth(network));
         emitter().emit("parameter integer C_S_AXI_CONTROL_DATA_WIDTH = %s", AxiConstants.C_S_AXI_CONTROL_DATA_WIDTH);
     }
 

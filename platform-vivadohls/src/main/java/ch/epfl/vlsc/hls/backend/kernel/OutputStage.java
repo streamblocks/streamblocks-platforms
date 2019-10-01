@@ -62,7 +62,7 @@ public interface OutputStage {
             emitter().emit("output wire ap_ready,");
             emitter().emit("output wire ap_done,");
             emitter().emit("output wire [31:0] ap_return,");
-            backend().topkernel().getAxiMasterPorts(port.getName());
+            backend().kernel().getAxiMasterPorts(port.getName());
             emitter().emit("// -- Constant & Addresses");
             emitter().emit("input  wire [31:0] %s_available_size,", port.getName());
             emitter().emit("input  wire [63:0] %s_size_r,", port.getName());
@@ -201,7 +201,7 @@ public interface OutputStage {
             emitter().emit(".ap_ready(%s_output_stage_ap_ready),", port.getName());
             emitter().emit(".ap_return(%s_output_stage_ap_return),", port.getName());
             // -- AXI Master
-            backend().kernelwrapper().getAxiMasterConnections(port,true);
+            backend().kernel().getAxiMasterConnection(port.getName());
             // -- Direct address
             emitter().emit(".%s_available_size(%1$s_available_size),", port.getName());
             emitter().emit(".%s_size_r(%1$s_size_r),", port.getName());

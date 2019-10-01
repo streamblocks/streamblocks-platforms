@@ -160,9 +160,6 @@ public class VivadoHLSBackendPhase implements Phase {
         // -- Generate Network
         generateNetwork(backend);
 
-        // -- Generate Kernel
-        generateKernel(backend);
-
         // -- Generate kernels 
         generateKernels(backend);
         
@@ -209,41 +206,6 @@ public class VivadoHLSBackendPhase implements Phase {
     }
 
     /**
-     * Generate Verilog network wrapper for OpenCL Kernel
-     *
-     * @param backend
-     */
-    private void generateKernel(VivadoHLSBackend backend) {
-        // -- Top Kernel
-        backend.topkernel().generateTopKernel();
-
-        // -- AXI4-Lite Control
-        backend.axilitecontrol().getAxiLiteControl();
-
-        // -- Kernel Wrapper
-        backend.kernelwrapper().getKernelWrapper();
-
-        // -- Input Stage
-        for (PortDecl port : backend.task().getNetwork().getInputPorts()) {
-            backend.stagepass().getStagePass(port);
-            backend.inputstagemem().getInputStageMem(port);
-            backend.inputstage().getInputStage(port);
-        }
-
-        // -- Output Stage
-        for (PortDecl port : backend.task().getNetwork().getOutputPorts()) {
-            backend.stagepass().getStagePass(port);
-            backend.outputstagemem().getOutputStageMem(port);
-            backend.outputstage().getOutputStage(port);
-        }
-
-        // -- Kernel XML
-        backend.kernelxml().getKernelXml();
-
-        // -- TCL script for packaging the OpenCL RTL Kernel
-        backend.packagekernel().getPackageKernel();
-    }
-    /**
      * Generate Verilog network wrapper for OpenCL Kernels
      *
      * @param backend
@@ -266,6 +228,28 @@ public class VivadoHLSBackendPhase implements Phase {
 
         // -- Output kernel wrapper
         backend.iokernelwrapper().generateIOKernelWrapper(false);
+
+        // -- Axi lite controllers
+        backend.axilitecontrolkernels().generateAxiLiteContollers();
+
+        for (PortDecl port : backend.task().getNetwork().getInputPorts()) {
+            backend.stagepass().getStagePass(port);
+            backend.inputstagemem().getInputStageMem(port);
+            backend.inputstage().getInputStage(port);
+        }
+
+        // -- Output Stage
+        for (PortDecl port : backend.task().getNetwork().getOutputPorts()) {
+            backend.stagepass().getStagePass(port);
+            backend.outputstagemem().getOutputStageMem(port);
+            backend.outputstage().getOutputStage(port);
+        }
+
+        // -- Kernel XML
+        backend.kernelxml().getKernelXml();
+
+        // -- TCL script for packaging the OpenCL RTL Kernel
+        backend.packagekernel().getPackageKernel();
 
     }
     /**

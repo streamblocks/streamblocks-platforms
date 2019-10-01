@@ -214,28 +214,20 @@ public interface VivadoHLSBackend {
     }
 
     // -----------------------------------
-    // -- Kernel Wrapper
-    // -- Top Kernel
-    @Binding(LAZY)
-    default TopKernel topkernel() {
-        return MultiJ.from(TopKernel.class).bind("backend").to(this).instance();
-    }
-
-    // -----------------------------------
-    // -- Kernels
+    // -- Kernels top
     @Binding(LAZY)
     default Kernel kernel() {
         return MultiJ.from(Kernel.class).bind("backend").to(this).instance();
     }
     
     // -----------------------------------
-    // -- Kernels
+    // -- Core kernel
     @Binding(LAZY) 
     default CoreKernelWrapper corekernelwrapper() {
         return MultiJ.from(CoreKernelWrapper.class).bind("backend").to(this).instance();
     }
     // ------------------------------------
-    // -- input kernel
+    // -- IO kernel
     @Binding(LAZY) 
     default IOKernelWrapper iokernelwrapper() {
         return MultiJ.from(IOKernelWrapper.class).bind("backend").to(this).instance();
@@ -243,15 +235,10 @@ public interface VivadoHLSBackend {
 
     // -- AXI Lite Control
     @Binding(LAZY)
-    default AxiLiteControl axilitecontrol() {
-        return MultiJ.from(AxiLiteControl.class).bind("backend").to(this).instance();
+    default AxiLiteControlKernels axilitecontrolkernels() {
+        return MultiJ.from(AxiLiteControlKernels.class).bind("backend").to(this).instance();
     }
 
-    // -- Kernel Wrapper (input/output stages and network)
-    @Binding(LAZY)
-    default KernelWrapper kernelwrapper() {
-        return MultiJ.from(KernelWrapper.class).bind("backend").to(this).instance();
-    }
 
     // -- Input Stage Pass
     @Binding(LAZY)
