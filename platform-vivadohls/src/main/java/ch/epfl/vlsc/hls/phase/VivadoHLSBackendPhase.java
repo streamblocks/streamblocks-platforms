@@ -249,14 +249,24 @@ public class VivadoHLSBackendPhase implements Phase {
      * @param backend
      */
     private void generateKernels(VivadoHLSBackend backend) {
-        // -- Top Kernel
+        // -- Core Kernel
         backend.kernel().generateKernel("core");
+
+        // -- Core kernel wrapper
+        backend.corekernelwrapper().generateCoreKernelWrapper();
 
         // -- Input Kernel
         backend.kernel().generateKernel("input");
 
+        // -- Input kernel Wrapper
+        backend.iokernelwrapper().generateIOKernelWrapper(true);
+
         // -- Output kernel
         backend.kernel().generateKernel("output");
+
+        // -- Output kernel wrapper
+        backend.iokernelwrapper().generateIOKernelWrapper(false);
+
     }
     /**
      * Generate gloabals

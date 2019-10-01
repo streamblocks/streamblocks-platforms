@@ -53,7 +53,8 @@ public interface Kernel {
         {
             emitter().increaseIndentation();
 
-            getParameters(network, kernelArgs);
+            getMasterParameters(network, kernelArgs, ",");
+            getSlaveParameters(network);
 
             emitter().decreaseIndentation();
         }
@@ -84,7 +85,6 @@ public interface Kernel {
 
             getAxiLiteControllerInstance(network, kernelArgs, kernelType == "input");
 
-            getKernelWrapper(network, kernelArgs);
             if (kernelType == "core")
                 getCoreKernelWrapper(network);
             else
@@ -99,12 +99,13 @@ public interface Kernel {
 
     // ------------------------------------------------------------------------
     // -- Parameters
-    default void getParameters(Network network, Optional<ImmutableList<PortDecl>> kernelArgs) {
+    default void getMasterParameters(Network network, Optional<ImmutableList<PortDecl>> kernelArgs, String delimiter) {
 
         if (kernelArgs.isPresent()) {
             for (PortDecl port : kernelArgs.get()) {
                 Type type = backend().types().declaredPortType(port);
                 int bitSize = TypeUtils.sizeOfBits(type);
+                boolean lastElement = (kernelArgs.get().size() - 1 == kernelArgs.get().indexOf(port));
                 emitter().emit("parameter integer C_M_AXI_%s_ADDR_WIDTH = %d,", port.getName().toUpperCase(),
                         AxiConstants.C_M_AXI_ADDR_WIDTH);
                 emitter().emit("parameter integer C_M_AXI_%s_DATA_WIDTH = %d,", port.getName().toUpperCase(),
@@ -114,10 +115,15 @@ public interface Kernel {
                 emitter().emit("parameter integer C_M_AXI_%s_ARUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
                 emitter().emit("parameter integer C_M_AXI_%s_WUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
                 emitter().emit("parameter integer C_M_AXI_%s_RUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
-                emitter().emit("parameter integer C_M_AXI_%s_BUSER_WIDTH =  %d,", port.getName().toUpperCase(), 1);
+                emitter().emit("parameter integer C_M_AXI_%s_BUSER_WIDTH =  %d%s", port.getName().toUpperCase(), 1,
+                        lastElement ? delimiter : ",");
 
             }
         }
+
+    }
+
+    default void getSlaveParameters(Network network) {
         // -- AXI4-Lite Control
         emitter().emit("parameter integer C_S_AXI_CONTROL_ADDR_WIDTH = %d,",
                 backend().axilitecontrol().getAddressBitWidth(network));
@@ -221,9 +227,9 @@ public interface Kernel {
 
     default void getStreamPortNames(ImmutableList<PortDecl> kernelArgs, boolean isInput) {
 
-        emitter().emit("// -- network inputs");
+        emitter().emit("// -- network streams");
         for (PortDecl port : kernelArgs) {
-            emitter().emit("%s\twire\t[C_M_AXI_%s_DATA_WIDTH - 1: 0]\t%s_TDATA, ", isInput ? "output" : "input",
+            emitter().emit("%s\twire\t[C_M_AXI_%s_DATA_WIDTH - 1: 0]\t\t%s_TDATA, ", isInput ? "output" : "input",
                     port.getName().toUpperCase(), port.getName());
             emitter().emit("%s\twire\t\t%s_TVALID, ", isInput ? "output" : "input", port.getName());
             emitter().emit("%s\twire\t\t%s_TREADY, ", isInput ? "input" : "output", port.getName());
@@ -403,9 +409,7 @@ public interface Kernel {
             emitter().increaseIndentation();
             for (PortDecl port : kernelArgs) {
                 boolean lastElement = (kernelArgs.size() - 1 == kernelArgs.indexOf(port));
-                emitter().emit(".C_M_AXI_%s_ADDR_WIDTH(C_M_AXI_%1$s_ADDR_WIDTH),", port.getName().toUpperCase());
-                emitter().emit(".C_M_AXI_%s_DATA_WIDTH(C_M_AXI_%1$s_DATA_WIDTH)%s", port.getName().toUpperCase(),
-                        lastElement ? "" : ",");
+                getBindMasterParameters(port, lastElement ? " " : ",");
             }
             emitter().decreaseIndentation();
         }
@@ -418,12 +422,16 @@ public interface Kernel {
                 getAxiMasterConnection(port.getName());
             }
             for (PortDecl port : kernelArgs) {
-                emitter().emit(".%s_requested_size( %1$s_%s ),", port.getName(),
+                emitter().emit(".%s_%s( %1$s_%2$s ),", port.getName(),
                         kernelType == "input" ? "requested_size" : "available_size");
                 emitter().emit(".%s_size( %1$s_size ),", port.getName());
                 emitter().emit(".%s_buffer( %1$s_buffer ),", port.getName());
             }
-
+            for (PortDecl port : kernelArgs) {
+                emitter().emit(".%s_TDATA(%1$s_TDATA)", port.getName());
+                emitter().emit(".%s_TVALID(%1$s_TVALID)", port.getName());
+                emitter().emit(".%s_TREADY(%1$s_TREADY)", port.getName());
+            }
             emitter().emit(".ap_clk( ap_clk ),");
             emitter().emit(".ap_rst_n( ap_rst_n ),");
             emitter().emit(".ap_start( ap_start ),");
@@ -436,6 +444,17 @@ public interface Kernel {
         emitter().emit(");");
     }
 
+    default void getBindMasterParameters(PortDecl port, String delimiter) {
+        emitter().emit(".C_M_AXI_%s_ADDR_WIDTH(C_M_AXI_%1$s_ADDR_WIDTH),", port.getName().toUpperCase());
+        emitter().emit(".C_M_AXI_%s_DATA_WIDTH(C_M_AXI_%1$s_DATA_WIDTH),", port.getName().toUpperCase());
+        emitter().emit(".C_M_AXI_%s_ID_WIDTH(C_M_AXI_%1$s_ID_WIDTH),", port.getName().toUpperCase());
+        emitter().emit(".C_M_AXI_%S_AWUSER_WIDTH(C_M_AXI_%1$s_AWUSER_WIDTH),", port.getName().toUpperCase());
+        emitter().emit(".C_M_AXI_%S_ARUSER_WIDTH(C_M_AXI_%1$s_ARUSER_WIDTH),", port.getName().toUpperCase());
+        emitter().emit(".C_M_AXI_%S_WUSER_WIDTH(C_M_AXI_%1$s_WUSER_WIDTH),", port.getName().toUpperCase());
+        emitter().emit(".C_M_AXI_%S_RUSER_WIDTH(C_M_AXI_%1$s_RUSER_WIDTH),", port.getName().toUpperCase());
+        emitter().emit(".C_M_AXI_%S_BUSER_WIDTH(C_M_AXI_%1$s_BUSER_WIDTH)%s", port.getName().toUpperCase(),
+                delimiter);
+    }
     // -- Helpers
     default void getAxiMasterConnection(String name) {
         emitter().emit(".m_axi_%s_AWVALID(m_axi_%1$s_AWVALID),", name);

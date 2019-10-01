@@ -222,10 +222,23 @@ public interface VivadoHLSBackend {
     }
 
     // -----------------------------------
-    // -- Input Kernel
+    // -- Kernels
     @Binding(LAZY)
     default Kernel kernel() {
         return MultiJ.from(Kernel.class).bind("backend").to(this).instance();
+    }
+    
+    // -----------------------------------
+    // -- Kernels
+    @Binding(LAZY) 
+    default CoreKernelWrapper corekernelwrapper() {
+        return MultiJ.from(CoreKernelWrapper.class).bind("backend").to(this).instance();
+    }
+    // ------------------------------------
+    // -- input kernel
+    @Binding(LAZY) 
+    default IOKernelWrapper iokernelwrapper() {
+        return MultiJ.from(IOKernelWrapper.class).bind("backend").to(this).instance();
     }
 
     // -- AXI Lite Control
