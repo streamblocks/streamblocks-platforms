@@ -5,8 +5,12 @@ import ch.epfl.vlsc.settings.PlatformSettings;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
+import se.lth.cs.tycho.attribute.Ports;
 import se.lth.cs.tycho.attribute.ScopeLiveness;
+import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.entity.am.ActorMachine;
+import se.lth.cs.tycho.ir.entity.am.PortCondition;
+import se.lth.cs.tycho.ir.entity.am.PredicateCondition;
 import se.lth.cs.tycho.ir.entity.am.ctrl.*;
 import se.lth.cs.tycho.settings.Configuration;
 import se.lth.cs.tycho.settings.OnOffSetting;
@@ -19,6 +23,8 @@ public interface Controllers {
     @Binding(BindingKind.INJECTED)
     MulticoreBackend backend();
 
+    @Binding(BindingKind.INJECTED)
+    Ports ports();
 
     default Emitter emitter() {
         return backend().emitter();
@@ -62,7 +68,7 @@ public interface Controllers {
             initialize.apply(instruction).stream().forEach(scope ->
                     emitter().emit("%s_init_scope_%d(context, thisActor);", name, scope)
             );
-            emitInstruction(name, instruction, stateMap);
+            emitInstruction(actorMachine, name, instruction, stateMap);
         }
 
         emitter().emit("out:");
@@ -82,29 +88,42 @@ public interface Controllers {
         return result;
     }
 
-    void emitInstruction(String name, Instruction instruction, Map<State, Integer> stateNumbers);
+    void emitInstruction(ActorMachine am, String name, Instruction instruction, Map<State, Integer> stateNumbers);
 
-    default void emitInstruction(String name, Test test, Map<State, Integer> stateNumbers) {
+    default void emitInstruction(ActorMachine am, String name, Test test, Map<State, Integer> stateNumbers) {
+        String exitCode = "";
+        if (am.getCondition(test.condition()) instanceof PortCondition) {
+            PortCondition condition = (PortCondition) am.getCondition(test.condition());
+            PortDecl port = ports().declaration(condition.getPortName());
+            if (condition.isInputCondition()) {
+                exitCode = String.format("static const int exitCode[] = {EXITCODE_BLOCK(1), %d, %d};", am.getInputPorts().indexOf(port), condition.N());
+            } else {
+                exitCode = String.format("static const int exitCode[] = {EXITCODE_BLOCK(1), %d, %d};", am.getOutputPorts().indexOf(port), condition.N());
+            }
+        } else {
+            exitCode = String.format("static const int exitCode[] = {EXIT_CODE_PREDICATE, EXITCODE_PREDICATE(%d)};", test.condition());
+        }
         emitter().emit("if (ART_TEST_CONDITION(%s_condition_%d)) {", name, test.condition());
         emitter().increaseIndentation();
         emitter().emit("goto S%d;", stateNumbers.get(test.targetTrue()));
         emitter().decreaseIndentation();
         emitter().emit("} else {");
         emitter().increaseIndentation();
+        emitter().emit("%s", exitCode);
+        emitter().emit("result = exitCode;");
         emitter().emit("goto S%d;", stateNumbers.get(test.targetFalse()));
         emitter().decreaseIndentation();
         emitter().emit("}");
         emitter().emit("");
     }
 
-    default void emitInstruction(String name, Wait wait, Map<State, Integer> stateNumbers) {
+    default void emitInstruction(ActorMachine am, String name, Wait wait, Map<State, Integer> stateNumbers) {
         emitter().emit("thisActor->program_counter = %d;", stateNumbers.get(wait.target()));
-        emitter().emit("result = exitcode_block_Any;");
         emitter().emit("goto out;");
         emitter().emit("");
     }
 
-    default void emitInstruction(String name, Exec exec, Map<State, Integer> stateNumbers) {
+    default void emitInstruction(ActorMachine am, String name, Exec exec, Map<State, Integer> stateNumbers) {
         emitter().emit("ART_EXEC_TRANSITION(%s_transition_%d);", name, exec.transition());
         emitter().emit("goto S%d;", stateNumbers.get(exec.target()));
         emitter().emit("");

@@ -159,7 +159,7 @@ public interface MulticoreBackend {
     // -- Controllers
     @Binding(LAZY)
     default Controllers controllers() {
-        return MultiJ.from(Controllers.class).bind("backend").to(this).instance();
+        return MultiJ.from(Controllers.class).bind("backend").to(this).bind("ports").to(task().getModule(Ports.key)).instance();
     }
 
     // -- Globals

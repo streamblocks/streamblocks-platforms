@@ -1172,8 +1172,7 @@ static void show_usage(char *name) {
            "--with-bandwidth        Output per-connection bandwidth (#tokens)\n"
            "                        in configuration file (see --generate).\n"
            "                        Note: wraps around at 4G tokens\n"
-            // FIXME: termination report is broken
-            // "--termination-report    Describe network state at termination\n"
+           "--termination-report    Describe network state at termination\n"
     );
 }
 
@@ -1311,10 +1310,8 @@ int executeNetwork(int argc,
     }
     if (result == 0) {
         buffer_report(runtime_data);
-        // FIXME: deadlock is no longer correctly identified
-        // problem is that actors don't give useful exit codes anymore
-        // if (buffer_report(runtime_data) || terminationReport)
-        //   deadlock_report(runtime_data,numInstances,terminationReport);
+        if (buffer_report(runtime_data) || terminationReport)
+            deadlock_report(runtime_data, numInstances, terminationReport);
         run_destructors(runtime_data);
         show_result(runtime_data, show_statistics, show_timing);
     }

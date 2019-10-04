@@ -249,15 +249,20 @@ static void blocking_report(AbstractActorInstance *actor) {
         printf("%s has terminated\n", actor->name);
     } else {
         const int *exitCode = getExitCode(actor);
-        int N = *exitCode++;
+        int N;
         int nInputPorts = actor->inputs;
         int p;
 
         if (exitCode == EXIT_CODE_YIELD)
             printf("%s has yielded\n", actor->name);
-        else
+        else if (*exitCode == EXIT_CODE_PREDICATE) {
+            int C = *++exitCode;
+            printf("%s blocked on predicate: %d\n", actor->name, C);
+            return;
+        } else {
             printf("%s blocked on:\n", actor->name);
-
+            N = *exitCode++;
+        }
         for (p = 0; p < N; ++p, exitCode += 2) {
             int portIndex = exitCode[0];
             int nTokens = exitCode[1];

@@ -247,6 +247,8 @@ extern const int exit_code_yield[];
 #define EXITCODE_TERMINATE exit_code_terminate
 #define EXITCODE_BLOCK(n)  (n)
 #define EXIT_CODE_YIELD    exit_code_yield
+#define EXITCODE_PREDICATE(n) (n)
+#define EXIT_CODE_PREDICATE -2
 
 
 extern AbstractActorInstance *actorInstance[];
@@ -387,7 +389,7 @@ extern void setParameterBytes(AbstractActorInstance *pInstance,
   context->fired++; \
   actionTrace((AbstractActorInstance*)thisActor,index,#name)
 #else
-#define ART_ACTION_ENTER(name, index)		\
+#define ART_ACTION_ENTER(name, index)        \
   context->fired++
 #endif
 
