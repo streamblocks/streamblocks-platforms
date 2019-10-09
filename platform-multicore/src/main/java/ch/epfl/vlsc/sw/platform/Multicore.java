@@ -40,6 +40,7 @@ public class Multicore implements Platform {
     private static final List<Phase> phases = ImmutableList.<Phase>builder()
             .addAll(Compiler.frontendPhases())
             .addAll(Compiler.networkElaborationPhases())
+            .addAll(Compiler.nameAndTypeAnalysis())
             .addAll(Compiler.actorMachinePhases())
             .add(new RemoveUnusedEntityDeclsPhase())
             .add(new C11BackendPhase())
