@@ -232,6 +232,7 @@ public class VivadoHLSBackendPhase implements Phase {
         // -- Axi lite controllers
         backend.axilitecontrolkernels().generateAxiLiteContollers();
 
+        // -- Input Stage
         for (PortDecl port : backend.task().getNetwork().getInputPorts()) {
             backend.stagepass().getStagePass(port);
             backend.inputstagemem().getInputStageMem(port);

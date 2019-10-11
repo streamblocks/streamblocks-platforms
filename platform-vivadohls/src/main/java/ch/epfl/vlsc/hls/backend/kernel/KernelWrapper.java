@@ -137,14 +137,14 @@ public interface KernelWrapper {
         // -- Network input ports
         if (!network.getInputPorts().isEmpty()) {
             for (PortDecl port : network.getInputPorts()) {
-                backend().topkernel().getAxiMasterPorts(port.getName());
+                backend().kernel().getAxiMasterPorts(port.getName());
             }
         }
 
         // -- Network Output ports
         if (!network.getOutputPorts().isEmpty()) {
             for (PortDecl port : network.getOutputPorts()) {
-                backend().topkernel().getAxiMasterPorts(port.getName());
+                backend().kernel().getAxiMasterPorts(port.getName());
             }
         }
 

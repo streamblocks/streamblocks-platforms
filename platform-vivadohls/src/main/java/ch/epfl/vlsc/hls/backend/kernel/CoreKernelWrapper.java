@@ -87,6 +87,8 @@ public interface CoreKernelWrapper {
         // -- stream signals
         backend().kernel().getStreamPortNames(network.getInputPorts(), false);
         backend().kernel().getStreamPortNames(network.getOutputPorts(), true);
+        // -- prev stage done
+        emitter().emit("input    wire prev_done,");
         // -- System signals
         emitter().emit("// -- system signals");
         emitter().emit("input   wire    ap_clk,");
@@ -95,6 +97,7 @@ public interface CoreKernelWrapper {
         emitter().emit("output  wire    ap_ready,");
         emitter().emit("output  wire    ap_idle,");
         emitter().emit("output  wire    ap_done");
+        
     }
 
     // ------------------------------------------------------------------------
@@ -137,8 +140,7 @@ public interface CoreKernelWrapper {
             emitter().emit(".ap_start(ap_start_pulse),");
             emitter().emit(".ap_idle(ap_idle),");
             emitter().emit(".ap_done(ap_done),");
-            emitter().emit(".input_idle(1'b1),");
-            emitter().emit(".output_idle(1'b1)");
+            emitter().emit(".input_idle(prev_done)");
             emitter().decreaseIndentation();
         }
         emitter().emit(");");

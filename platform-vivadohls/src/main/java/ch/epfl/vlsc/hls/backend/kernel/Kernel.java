@@ -24,6 +24,9 @@ public interface Kernel {
         return backend().emitter();
     }
 
+    default String requestOrAvailable(boolean isInput) {
+        return isInput ? "requested_size" : "available_size";
+    }
     default void generateKernel(String kernelType) {
         // -- Identifier
         String identifier = backend().task().getIdentifier().getLast().toString();
@@ -72,11 +75,15 @@ public interface Kernel {
 
             if (kernelType == "input") {
                 getStreamPortNames(kernelArgs.get(), true);
+                getDoneStreamPort("input_stage", false);
             } else if (kernelType == "output") {
                 getStreamPortNames(kernelArgs.get(), false);
+                getDoneStreamPort("core_stage", true);
             } else {
                 getStreamPortNames(network.getInputPorts(), false);
                 getStreamPortNames(network.getOutputPorts(), true);
+                getDoneStreamPort("input_stage", true);
+                getDoneStreamPort("core_stage", false);
             }
 
             getModulePortNames(network, kernelArgs);
@@ -84,16 +91,29 @@ public interface Kernel {
             emitter().decreaseIndentation();
         }
         emitter().emit(");");
+
+        // Network
         emitter().emitNewLine();
         {
-            getWires(network, kernelArgs);
+            getWires(network, kernelArgs, kernelType == "input");
 
             getAxiLiteControllerInstance(network, kernelArgs, kernelType == "input");
 
-            if (kernelType == "core")
+            if (kernelType == "core") {
                 getCoreKernelWrapper(network);
-            else
+                getDoneTokenCapture("input_stage");
+                getDoneTokenGenerator("core_stage");
+            }
+            else {
                 getIOKernelWrapper(network, network.getInputPorts(), kernelType);
+                if (kernelType == "input") 
+                    getDoneTokenGenerator("input_stage");
+                else 
+                    getDoneTokenCapture("core_stage");
+            }
+                
+            
+            
         }
 
         emitter().emitNewLine();
@@ -241,9 +261,17 @@ public interface Kernel {
         }
     }
 
+    default void getDoneStreamPort(String name, boolean isInput) {
+        
+        emitter().emit("// -- kernel done token stream");
+        emitter().emit("%s\twire\t[7:0]\t%s_done_TDATA,", isInput ? "input" : "output", name);
+        emitter().emit("%s\twire\t\t%s_done_TVALID,", isInput ? "input" : "output", name);
+        emitter().emit("%s\twire\t%s_done_TREADY,", isInput ? "output" : "input", name);
+
+    }
     // ------------------------------------------------------------------------
     // -- Get wires
-    default void getWires(Network network, Optional<ImmutableList<PortDecl>> kernelArgs) {
+    default void getWires(Network network, Optional<ImmutableList<PortDecl>> kernelArgs, boolean isInput) {
         emitter().emitClikeBlockComment("Reg & Wires");
         emitter().emitNewLine();
 
@@ -253,9 +281,11 @@ public interface Kernel {
         emitter().emit("wire    ap_ready;");
         emitter().emit("wire    ap_idle;");
         emitter().emit("wire    ap_done;");
+        emitter().emit("wire prev_done;");
+
         if (kernelArgs.isPresent()) {
             for (PortDecl port : kernelArgs.get()) {
-                emitter().emit("wire    [32 - 1 : 0] %s_requested_size;", port.getName());
+                emitter().emit("wire    [32 - 1 : 0] %s_%s;", port.getName(), requestOrAvailable(isInput));
                 emitter().emit("wire    [64 - 1 : 0] %s_size;", port.getName());
                 emitter().emit("wire    [64 - 1 : 0] %s_buffer;", port.getName());
             }
@@ -271,6 +301,8 @@ public interface Kernel {
             emitter().decreaseIndentation();
         }
         emitter().emit("end");
+
+        
         emitter().emitNewLine();
     }
 
@@ -390,6 +422,7 @@ public interface Kernel {
         emitter().emit("%s_core_wrapper inst_core_wrapper (", identifier);
         {
             emitter().increaseIndentation();
+            emitter().emit(".prev_done(prev_done),");
             emitter().emit(".ap_clk( ap_clk ),");
             emitter().emit(".ap_rst_n( ap_rst_n ),");
             emitter().emit(".ap_start( ap_start ),");
@@ -428,7 +461,7 @@ public interface Kernel {
             }
             for (PortDecl port : kernelArgs) {
                 emitter().emit(".%s_%s( %1$s_%2$s ),", port.getName(),
-                        kernelType == "input" ? "requested_size" : "available_size");
+                        requestOrAvailable(kernelType == "input"));
                 emitter().emit(".%s_size( %1$s_size ),", port.getName());
                 emitter().emit(".%s_buffer( %1$s_buffer ),", port.getName());
             }
@@ -437,6 +470,7 @@ public interface Kernel {
                 emitter().emit(".%s_TVALID(%1$s_TVALID)", port.getName());
                 emitter().emit(".%s_TREADY(%1$s_TREADY)", port.getName());
             }
+            emitter().emit(".prev_done(prev_done),");
             emitter().emit(".ap_clk( ap_clk ),");
             emitter().emit(".ap_rst_n( ap_rst_n ),");
             emitter().emit(".ap_start( ap_start ),");
@@ -507,5 +541,49 @@ public interface Kernel {
         emitter().emit(".m_axi_%s_BRESP(m_axi_%1$s_BRESP),", name);
         emitter().emit(".m_axi_%s_BID(m_axi_%1$s_BID),", name);
         emitter().emit(".m_axi_%s_BUSER(m_axi_%1$s_BUSER),", name);
+    }
+
+    default void getDoneTokenGenerator(String name) {
+        emitter().emitNewLine();
+        emitter().emit("// -- Done token logic");
+        emitter().emit("reg is_done;");
+        emitter().emitNewLine();
+        emitter().emit("always @(posedge ap_clk) begin");
+        {
+            emitter().increaseIndentation();
+            emitter().emit("if (ap_rst)");
+                emitter().emit("\tis_done <= 0;");
+            emitter().emit("else if (ap_done)");
+                emitter().emit("\tis_done <= 8'b1");
+            emitter().emit("else if (is_done && %s_done_TREADY)", name);
+                emitter().emit("\tis_done <= 0;");
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("end");
+        emitter().emitNewLine();
+        emitter().emit("assign %s_done_TVALID = is_done;", name);
+        emitter().emit("assign %s_done_TDATA = {7'b0, is_done};", name);
+        emitter().emitNewLine();
+    }
+
+    default void getDoneTokenCapture(String name) {
+        emitter().emitNewLine();
+        emitter().emit("// -- Done token capture");
+        emitter().emit("reg done_captured;");
+        emitter().emit("always @(posedge ap_clk) begin");
+        {
+            emitter().increaseIndentation();
+            emitter().emit("if (ap_rst || ap_done)");
+                emitter().emit("\tdone_captured <= 1'b0;");
+            emitter().emit("else if (%s_done_TVALID)", name);
+                emitter().emit("\tdone_capture <= 1'b1;");
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("end");
+        emitter().emitNewLine();
+        emitter().emit("assign %s_done_TREADY = done_captured;", name);
+        emitter().emit("assign prev_done = done_captured;");
+        emitter().emitNewLine();
+        
     }
 }

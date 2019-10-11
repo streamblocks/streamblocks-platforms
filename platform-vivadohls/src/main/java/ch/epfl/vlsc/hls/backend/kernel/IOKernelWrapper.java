@@ -32,7 +32,8 @@ public interface IOKernelWrapper {
 
         String identifier = backend().task().getIdentifier().getLast().toString();
         Network network = backend().task().getNetwork();
-        emitter().open(PathUtils.getTargetCodeGenRtl(backend().context()).resolve(identifier + "_input_wrapper.sv"));
+        emitter().open(PathUtils.getTargetCodeGenRtl(backend().context())
+                .resolve(identifier + "_" + (isInput ? "input" : "output") + "_wrapper.sv"));
 
         ImmutableList<PortDecl> ports = (isInput) ? network.getInputPorts() : network.getOutputPorts();
 
@@ -48,13 +49,27 @@ public interface IOKernelWrapper {
         // -- Ports I/O
         emitter().emit("(");
         {
-            
+
             emitter().increaseIndentation();
+
+           
+
             backend().kernel().getStreamPortNames(ports, isInput);
             for (PortDecl port : ports) {
                 backend().kernel().getAxiMasterPorts(port.getName());
             }
-
+            if (!isInput) {
+                emitter().emit("// -- prev stage done");
+                emitter().emit("input    wire prev_done,");
+            }
+            // -- System signals
+            emitter().emit("// -- system signals");
+            emitter().emit("input   wire    ap_clk,");
+            emitter().emit("input   wire    ap_rst_n,");
+            emitter().emit("input   wire    ap_start,");
+            emitter().emit("output  wire    ap_ready,");
+            emitter().emit("output  wire    ap_idle,");
+            emitter().emit("output  wire    ap_done");
             emitter().decreaseIndentation();
         }
         emitter().emit(");");
@@ -62,7 +77,7 @@ public interface IOKernelWrapper {
         {
             emitter().increaseIndentation();
             for (PortDecl port : ports) {
-                getIOStage(port, true);
+                getIOStage(port, isInput);
             }
             emitter().decreaseIndentation();
         }
@@ -89,14 +104,12 @@ public interface IOKernelWrapper {
             backend().kernel().getAxiMasterConnection(port.getName());
 
             emitter().emit("// -- kernel args");
-            if (isInput)
-                emitter().emit(".%s_requested_size($1$s_requested_size),", port.getName());
-            else 
-                emitter().emit(".%s_available_size($1$s_available_size),", port.getName());
 
-            emitter().emit(".%s_size($1$s_requested_size),", port.getName());
-            emitter().emit(".%s_buffer($1$s_requested_size)", port.getName());
-            
+            emitter().emit(".%s_%s(%1$s_%2$s),", port.getName(), backend().kernel().requestOrAvailable(isInput));
+
+            emitter().emit(".%s_size(%1$s_size),", port.getName());
+            emitter().emit(".%s_buffer(%1$s_buffer)", port.getName());
+
             emitter().emit("// -- axi stream");
             if (isInput) {
                 emitter().emit(".%s_V_din(%1$s_TDATA),", port.getName());
@@ -106,11 +119,10 @@ public interface IOKernelWrapper {
             } else {
                 emitter().emit(".%s_V_dout(%1$s_TDATA),", port.getName());
                 emitter().emit(".%s_V_empty_n(%1$s_TVALID),", port.getName());
-                emitter().emit(".%s_V_read(%1s_TREADY), ", port.getName());
+                emitter().emit(".%s_V_read(%1$s_TREADY), ", port.getName());
             }
-            
-            
 
+            emitter().emit(".network_idle(prev_done),");
             emitter().emit("// -- ap control");
             emitter().emit(".ap_clk( ap_clk ),");
             emitter().emit(".ap_rst_n( ap_rst_n ),");
