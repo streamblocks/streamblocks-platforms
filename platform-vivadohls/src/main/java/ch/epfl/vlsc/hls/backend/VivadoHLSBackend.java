@@ -270,11 +270,11 @@ public interface VivadoHLSBackend {
         return MultiJ.from(OutputStage.class).bind("backend").to(this).instance();
     }
 
-    // -- OpenCL Kernel XML
-    @Binding(LAZY)
-    default KernelXml kernelxml() {
-        return MultiJ.from(KernelXml.class).bind("backend").to(this).instance();
+    @Binding(LAZY) 
+    default KernelsXml kernelsxml() {
+        return MultiJ.from(KernelsXml.class).bind("backend").to(this).instance();
     }
+    
 
     // -- TCL script for packaging the OpenCL kernel
     @Binding(LAZY)

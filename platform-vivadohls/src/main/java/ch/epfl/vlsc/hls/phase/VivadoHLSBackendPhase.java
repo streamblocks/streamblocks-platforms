@@ -247,7 +247,10 @@ public class VivadoHLSBackendPhase implements Phase {
         }
 
         // -- Kernel XML
-        backend.kernelxml().getKernelXml();
+        backend.kernelsxml().getKernelXml("core");
+        backend.kernelsxml().getKernelXml("input");
+        backend.kernelsxml().getKernelXml("output");
+        
 
         // -- TCL script for packaging the OpenCL RTL Kernel
         backend.packagekernel().getPackageKernel();
