@@ -8,9 +8,12 @@ import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.ir.IRNode;
 import se.lth.cs.tycho.ir.Variable;
 import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
+import se.lth.cs.tycho.ir.decl.LocalVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.expr.*;
+import se.lth.cs.tycho.ir.stmt.StmtAssignment;
 import se.lth.cs.tycho.ir.stmt.StmtCall;
+import se.lth.cs.tycho.ir.stmt.lvalue.LValueVariable;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.type.ListType;
 import se.lth.cs.tycho.type.Type;
@@ -296,14 +299,24 @@ public interface ExpressionEvaluator {
 
         IRNode parent = backend().tree().parent(comprehension);
         String name;
-        //if (parent instanceof LocalVarDecl) {
-        //    LocalVarDecl v = (LocalVarDecl) parent;
-        //    name = backend().variables().name(v);
-        //} else {
-        name = variables().generateTemp();
-        String decl = declarations().declarationTemp(t, name);
-        emitter().emit("%s;", decl);
-        //}
+        if (parent instanceof LocalVarDecl) {
+            LocalVarDecl v = (LocalVarDecl) parent;
+            name = backend().variables().name(v);
+        }else if (parent instanceof StmtAssignment){
+            StmtAssignment stmt = (StmtAssignment) parent;
+            if(stmt.getLValue() instanceof LValueVariable){
+                LValueVariable lvalue = (LValueVariable) stmt.getLValue();
+                name = backend().variables().name(lvalue.getVariable());
+            }else{
+                name = variables().generateTemp();
+                String decl = declarations().declarationTemp(t, name);
+                emitter().emit("%s;", decl);
+            }
+        } else {
+            name = variables().generateTemp();
+            String decl = declarations().declarationTemp(t, name);
+            emitter().emit("%s;", decl);
+        }
 
         String index = variables().generateTemp();
         emitter().emit("size_t %s = 0;", index);
@@ -387,6 +400,17 @@ public interface ExpressionEvaluator {
         return value;
     }
 
+    default void evaluateList(VarDecl var, ExprList list){
+        emitter().emit("for(int i = 0; i < %d; i++){",list.getElements().size());
+        emitter().increaseIndentation();
+        int i = 0;
+        for(Expression expr :  list.getElements()){
+            emitter().emit("%s[%d] = %s;", backend().variables().name(var), i, evaluate(expr));
+            i++;
+        }
+        emitter().decreaseIndentation();
+        emitter().emit("}");
+    }
 
     /**
      * Evaluate an indexer expression

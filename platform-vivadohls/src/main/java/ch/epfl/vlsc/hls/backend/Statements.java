@@ -14,6 +14,7 @@ import se.lth.cs.tycho.ir.expr.ExprInput;
 import se.lth.cs.tycho.ir.expr.Expression;
 import se.lth.cs.tycho.ir.stmt.*;
 import se.lth.cs.tycho.ir.stmt.lvalue.LValue;
+import se.lth.cs.tycho.ir.stmt.lvalue.LValueVariable;
 import se.lth.cs.tycho.type.ListType;
 import se.lth.cs.tycho.type.Type;
 
@@ -152,7 +153,11 @@ public interface Statements {
     default void execute(StmtAssignment assign) {
         Type type = types().lvalueType(assign.getLValue());
         String lvalue = lvalues().lvalue(assign.getLValue());
-        copy(type, lvalue, types().type(assign.getExpression()), expressioneval().evaluate(assign.getExpression()));
+        if(type instanceof ListType && assign.getLValue() instanceof LValueVariable){
+            expressioneval().evaluate(assign.getExpression());
+        }else {
+            copy(type, lvalue, types().type(assign.getExpression()), expressioneval().evaluate(assign.getExpression()));
+        }
     }
 
     default void copy(Type lvalueType, String lvalue, Type rvalueType, String rvalue) {
@@ -257,8 +262,9 @@ public interface Statements {
      */
 
     default void execute(StmtWhile stmt) {
-        emitter().emit("while (%s) {", expressioneval().evaluate(stmt.getCondition()));
+        emitter().emit("while (true) {");
         emitter().increaseIndentation();
+        emitter().emit("if (!%s) break;", expressioneval().evaluate(stmt.getCondition()));
         stmt.getBody().forEach(this::execute);
         emitter().decreaseIndentation();
         emitter().emit("}");

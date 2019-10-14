@@ -1,6 +1,7 @@
 package ch.epfl.vlsc.hls.phase;
 
 import ch.epfl.vlsc.hls.backend.VivadoHLSBackend;
+import ch.epfl.vlsc.platformutils.ControllerToGraphviz;
 import ch.epfl.vlsc.platformutils.PathUtils;
 import ch.epfl.vlsc.settings.PlatformSettings;
 import org.multij.MultiJ;
@@ -9,6 +10,7 @@ import se.lth.cs.tycho.compiler.Compiler;
 import se.lth.cs.tycho.compiler.Context;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.entity.PortDecl;
+import se.lth.cs.tycho.ir.entity.am.ActorMachine;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.network.Network;
 import se.lth.cs.tycho.ir.util.ImmutableList;
@@ -305,7 +307,7 @@ public class VivadoHLSBackendPhase implements Phase {
 
         // -- Network to DOT
         backend.netoworkToDot().generateNetworkDot();
-/*
+
         // -- Actor Machine Controllers to DOT
         for (Instance instance : backend.task().getNetwork().getInstances()) {
             String instanceWithQID = backend.instaceQID(instance.getInstanceName(), "_");
@@ -315,7 +317,7 @@ public class VivadoHLSBackendPhase implements Phase {
                 ControllerToGraphviz dot = new ControllerToGraphviz(entityDecl, instanceWithQID, PathUtils.getAuxiliary(backend.context()).resolve(instanceWithQID + ".dot"));
                 dot.print();
             }
-        }*/
+        }
     }
 
 

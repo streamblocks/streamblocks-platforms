@@ -304,19 +304,7 @@ public interface Instances {
                             backend().callables().callablePrototypes(instanceName, var.getValue());
                         } else {
                             String decl = declarations().declaration(types().declaredType(var), backend().variables().declarationName(var));
-                            if (var.getValue() != null && !(var.getValue() instanceof ExprInput)) {
-                                if (scope.isPersistent()) {
-                                    if (var.getValue() instanceof ExprList) {
-                                        emitter().emit("%s = {%s};", decl, backend().expressioneval().evaluateExprList(var.getValue()));
-                                    } else {
-                                        emitter().emit("%s = %s;", decl, backend().expressioneval().evaluate(var.getValue()));
-                                    }
-                                }else{
-                                    emitter().emit("%s;", decl);
-                                }
-                            } else {
-                                emitter().emit("%s;", decl);
-                            }
+                            emitter().emit("%s;", decl);
                         }
                     }
                 }
@@ -347,6 +335,8 @@ public interface Instances {
         {
             emitter().increaseIndentation();
 
+            instanceConstructor(instanceName, actor);
+
             emitter().emit("int operator()(%s);", entityPorts(true));
 
             emitter().decreaseIndentation();
@@ -355,6 +345,37 @@ public interface Instances {
         emitter().emitNewLine();
     }
 
+    default void instanceConstructor(String instanceName, ActorMachine actor) {
+        String className = "class_" + backend().instaceQID(instanceName, "_");
+        emitter().emit("%s(){", className);
+        {
+            emitter().increaseIndentation();
+            for (Scope scope : actor.getScopes()) {
+                if (!scope.getDeclarations().isEmpty()) {
+                    emitter().emit("// -- Scope %d", actor.getScopes().indexOf(scope));
+                    for (VarDecl var : scope.getDeclarations()) {
+                        if (scope.isPersistent()) {
+                            String decl = backend().variables().declarationName(var);
+                            if (var.getValue() != null && !(var.getValue() instanceof ExprInput)) {
+                                if (var.getValue() instanceof ExprList) {
+                                    backend().expressioneval().evaluateList(var, (ExprList) var.getValue());
+                                } else if (var.getValue() instanceof ExprComprehension) {
+                                    backend().expressioneval().evaluate(var.getValue());
+                                } else if (var.getValue() instanceof ExprLambda || var.getValue() instanceof ExprProc) {
+                                    // -- Do nothing
+                                } else {
+                                    emitter().emit("%s = %s;", decl, backend().expressioneval().evaluate(var.getValue()));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("}");
+        emitter().emitNewLine();
+    }
 
     default String entityPorts(boolean withIO) {
         Entity entity = backend().entitybox().get();
