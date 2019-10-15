@@ -405,7 +405,7 @@ extern void setParameterBytes(AbstractActorInstance *pInstance,
 #include "actors-fifo.h"
 
 #undef FIFO_TYPE
-#define FIFO_TYPE _Bool
+#define FIFO_TYPE bool
 
 #include "actors-fifo.h"
 
@@ -487,6 +487,25 @@ extern void setParameterBytes(AbstractActorInstance *pInstance,
 
 #define pinConsume_uint8_t(port)   pinConsume_int8_t(port)
 #define pinConsumeRepeat_uint8_t(port, n)   pinConsumeRepeat_int8_t(port, n)
+
+// Define bool to _Bool
+#define pinAvailIn_bool(port)   pinAvailIn__Bool(port)
+#define pinAvailOut_bool(port)  pinAvailOut__Bool(port)
+#define pinWrite_bool(port, token) pinWrite__Bool(port,(int8_t)(token))
+#define pinWriteRepeat_bool(port, buf, n) \
+                                 pinWriteRepeat__Bool(port,(int8_t*)(buf),n)
+
+#define pinRead_bool(port)        ((uint8_t) pinRead__Bool(port))
+#define pinReadRepeat_bool(port, buf, n)  \
+                                 pinReadRepeat__Bool(port,(int8_t*)buf,n)
+
+#define pinPeekRepeat_bool(port, buf, n) \
+                                 pinPeekRepeat__Bool(port,(int8_t*)buf,n)
+#define pinPeekFront_bool(port)   ((uint8_t) pinPeekFront__Bool(port))
+#define pinPeek_bool(port, offset) ((uint8_t) pinPeek__Bool(port,offset))
+
+#define pinConsume_bool(port)   pinConsume__Bool(port)
+#define pinConsumeRepeat_bool(port, n)   pinConsumeRepeat__Bool(port, n)
 
 #ifdef __cplusplus
 }
