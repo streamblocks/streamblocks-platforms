@@ -85,7 +85,7 @@ public interface NodeScripts {
             String joinQID = instanceQIDs.get(instance);
             String parameters = "";
             for (ValueParameter p : instance.getValueParameters()) {
-                String value = String.format("%s=%s", p.getName(), evaluator().evaluate(p.getValue()));
+                String value = String.format("%s=\"%s\"", p.getName(), evaluator().evaluate(p.getValue()));
                 parameters += value + " ";
             }
 
@@ -192,7 +192,7 @@ public interface NodeScripts {
             //parameters.add(actorClass);
 
             for (ValueParameter p : instance.getValueParameters()) {
-                String value = String.format("%s=%s", p.getName(), evaluator().evaluate(p.getValue()));
+                String value = String.format("%s=\"%s\"", p.getName(), evaluator().evaluate(p.getValue()));
                 parameters.add(value);
             }
 
