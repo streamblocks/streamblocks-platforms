@@ -22,24 +22,25 @@ public interface AxiLiteControlKernels {
     default void generateAxiLiteContollers() {
         
         Network network = backend().task().getNetwork();
-        String identifier = backend().task().getIdentifier().getLast().toString();
+        
 
-        getAxiLiteControlKernel(identifier + "_core", ImmutableList.of(), "core");
-        getAxiLiteControlKernel(identifier + "_input", network.getInputPorts(), "input");
-        getAxiLiteControlKernel(identifier + "_output", network.getOutputPorts(), "output");
+        getAxiLiteControlKernel("core", ImmutableList.of());
+        getAxiLiteControlKernel("input", network.getInputPorts());
+        getAxiLiteControlKernel("output", network.getOutputPorts());
 
     }
 
     default String availableOrRequested(String kernelType) {
         return (kernelType == "input") ? "requested_size" : "available_size";
     }
-    default void getAxiLiteControlKernel(String identifier, ImmutableList<PortDecl> kernelArgs, String kernelType) {
+    default void getAxiLiteControlKernel(String kernelType, ImmutableList<PortDecl> kernelArgs) {
 
         // -- Network
         Network network = backend().task().getNetwork();
-
+        // -- identifier 
+        String identifier = backend().task().getIdentifier().getLast().toString();
         // -- Network file
-        emitter().open(PathUtils.getTargetCodeGenRtl(backend().context()).resolve(identifier + "_control_s_axi.v"));
+        emitter().open(PathUtils.getTargetCodeGenKernel(backend().context(), kernelType).resolve(identifier + "_" + kernelType + "_kernel_control_s_axi.v"));
 
         // -- Default net type
         emitter().emit("`default_nettype none");
@@ -48,7 +49,7 @@ public interface AxiLiteControlKernels {
         emitter().emitNewLine();
 
         // -- AXI4-Lite Control module
-        emitter().emit("module %s_control_s_axi #(", identifier);
+        emitter().emit("module %s_kernel_control_s_axi #(", identifier + "_" + kernelType);
         // -- Parameters
         {
             emitter().increaseIndentation();

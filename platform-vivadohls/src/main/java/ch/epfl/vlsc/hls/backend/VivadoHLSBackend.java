@@ -274,14 +274,14 @@ public interface VivadoHLSBackend {
     default KernelsXml kernelsxml() {
         return MultiJ.from(KernelsXml.class).bind("backend").to(this).instance();
     }
-    
 
-    // -- TCL script for packaging the OpenCL kernel
-    @Binding(LAZY)
-    default PackageKernel packagekernel() {
-        return MultiJ.from(PackageKernel.class).bind("backend").to(this).instance();
+
+    // -- TCL scripts for kernel packaging
+    @Binding(LAZY) 
+    default PackageKernels packagekernels() {
+        return MultiJ.from(PackageKernels.class).bind("backend").to(this).instance();
     }
-
+    
     // -- Network to DOT
     @Binding(LAZY)
     default NetworkToDot netoworkToDot() {

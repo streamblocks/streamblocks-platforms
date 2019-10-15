@@ -40,7 +40,7 @@ public interface VerilogNetwork {
         Network network = backend().task().getNetwork();
 
         // -- Network file
-        emitter().open(PathUtils.getTargetCodeGenRtl(backend().context()).resolve(identifier + ".sv"));
+        emitter().open(PathUtils.getTargetCodeGenKernel(backend().context(), "core").resolve(identifier + ".sv"));
 
         emitter().emit("`include \"TriggerTypes.sv\"");
         emitter().emit("import TriggerTypes::*;");

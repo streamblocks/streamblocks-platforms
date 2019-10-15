@@ -28,7 +28,7 @@ public interface InputStage {
     default void getInputStage(PortDecl port) {
         String identifier = port.getName();
 
-        emitter().open(PathUtils.getTargetCodeGenRtl(backend().context()).resolve(identifier + "_input_stage.sv"));
+        emitter().open(PathUtils.getTargetCodeGenKernel(backend().context(), "input").resolve(identifier + "_input_stage.sv"));
 
         emitter().emit("`include \"TriggerTypes.sv\"");
         emitter().emit("import TriggerTypes::*;");

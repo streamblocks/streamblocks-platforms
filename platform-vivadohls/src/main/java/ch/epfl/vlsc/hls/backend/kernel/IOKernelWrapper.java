@@ -32,8 +32,8 @@ public interface IOKernelWrapper {
 
         String identifier = backend().task().getIdentifier().getLast().toString();
         Network network = backend().task().getNetwork();
-        emitter().open(PathUtils.getTargetCodeGenRtl(backend().context())
-                .resolve(identifier + "_" + (isInput ? "input" : "output") + "_wrapper.sv"));
+        emitter().open(PathUtils.getTargetCodeGenKernel(backend().context(), isInput ? "input" : "output")
+                .resolve(backend().kernel().getKernelName(isInput ? "input" : "output") + "_wrapper.sv"));
 
         ImmutableList<PortDecl> ports = (isInput) ? network.getInputPorts() : network.getOutputPorts();
 

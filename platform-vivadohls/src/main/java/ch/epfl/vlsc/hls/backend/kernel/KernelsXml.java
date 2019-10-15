@@ -35,7 +35,7 @@ public interface KernelsXml {
 
         String kernelName = identifier + "_" + kernelType;
         // -- Network file
-        emitter().open(PathUtils.getTargetCodeGenRtl(backend().context())
+        emitter().open(PathUtils.getTargetCodeGenXml(backend().context())
                 .resolve(identifier + "_" + kernelType + "_kernel.xml"));
         emitter().emit("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
         emitter().emit("<root versionMajor=\"1\" versionMinor=\"0\">");

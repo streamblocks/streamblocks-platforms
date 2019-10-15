@@ -25,7 +25,7 @@ public interface OutputStage {
     default void getOutputStage(PortDecl port) {
         String identifier = port.getName();
 
-        emitter().open(PathUtils.getTargetCodeGenRtl(backend().context()).resolve(identifier + "_output_stage.sv"));
+        emitter().open(PathUtils.getTargetCodeGenKernel(backend().context(), "output").resolve(identifier + "_output_stage.sv"));
 
         emitter().emit("`include \"TriggerTypes.sv\"");
         emitter().emit("import TriggerTypes::*;");

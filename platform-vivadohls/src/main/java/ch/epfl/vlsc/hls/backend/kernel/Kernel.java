@@ -27,6 +27,11 @@ public interface Kernel {
     default String requestOrAvailable(boolean isInput) {
         return isInput ? "requested_size" : "available_size";
     }
+
+    default String getKernelName(String kernelType) {
+        String identifier = backend().task().getIdentifier().getLast().toString();
+        return (identifier + "_" + kernelType + "_kernel");
+    }
     default void generateKernel(String kernelType) {
         // -- Identifier
         String identifier = backend().task().getIdentifier().getLast().toString();
@@ -41,8 +46,8 @@ public interface Kernel {
             kernelArgs = Optional.of(network.getOutputPorts());
         }
         // -- Network file
-        emitter().open(PathUtils.getTargetCodeGenRtl(backend().context())
-                .resolve(identifier + "_" + kernelType + "_kernel.v"));
+        emitter().open(PathUtils.getTargetCodeGenKernel(backend().context(), kernelType)
+                .resolve(getKernelName(kernelType) + ".v"));
 
         // -- Default net type
         emitter().emit("`default_nettype none");
@@ -51,7 +56,7 @@ public interface Kernel {
         emitter().emitNewLine();
 
         // -- Kernel module
-        emitter().emit("module %s_%s_kernel #(", identifier, kernelType);
+        emitter().emit("module %s #(", getKernelName(kernelType));
         // -- Parameters
         {
             emitter().increaseIndentation();

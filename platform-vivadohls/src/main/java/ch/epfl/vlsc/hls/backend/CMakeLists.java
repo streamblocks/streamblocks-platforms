@@ -82,7 +82,8 @@ public interface CMakeLists {
                 emitter().emit("file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/bin/xclbin)");
                 emitter().emit("file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/xclbin)");
                 emitter().emit("set(TARGET \"hw_emu\" CACHE STRING \"SDAccel TARGET : hw_emu, hw\")");
-                emitter().emit("set(DEVICE \"xilinx_kcu1500_dynamic_5_0\" CACHE STRING \"SDAccel supported device name\")");
+                emitter().emit(
+                        "set(DEVICE \"xilinx_kcu1500_dynamic_5_0\" CACHE STRING \"SDAccel supported device name\")");
                 emitter().decreaseIndentation();
             }
             emitter().emit("endif()");
@@ -90,9 +91,9 @@ public interface CMakeLists {
         }
         emitter().emit("endif()");
 
-
         // -- Include directories
-        emitter().emit("include_directories(${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR}/code-gen/include ${VIVADO_HLS_INCLUDE_DIRS})");
+        emitter().emit(
+                "include_directories(${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR}/code-gen/include ${VIVADO_HLS_INCLUDE_DIRS})");
         emitter().emitNewLine();
 
         // -- Synthesis configure file
@@ -102,9 +103,13 @@ public interface CMakeLists {
         {
             emitter().increaseIndentation();
 
-            emitter().emit("configure_file(${CMAKE_SOURCE_DIR}/scripts/package_kernel.tcl.in package_kernel.tcl @ONLY)");
+            configurePackageFile("input");
+            configurePackageFile("core");
+            configurePackageFile("output");
+
             emitter().emit("configure_file(${CMAKE_SOURCE_DIR}/scripts/gen_xo.tcl.in gen_xo.tcl @ONLY)");
-            emitter().emit("configure_file(${CMAKE_SOURCE_DIR}/scripts/sdaccel.ini.in ${CMAKE_SOURCE_DIR}/bin/sdaccel.ini @ONLY)");
+            emitter().emit(
+                    "configure_file(${CMAKE_SOURCE_DIR}/scripts/sdaccel.ini.in ${CMAKE_SOURCE_DIR}/bin/sdaccel.ini @ONLY)");
 
             emitter().decreaseIndentation();
         }
@@ -115,7 +120,6 @@ public interface CMakeLists {
         emitter().emit("set(_srcpath ${CMAKE_CURRENT_SOURCE_DIR}/code-gen/src)");
         emitter().emit("set(_incpath ${CMAKE_CURRENT_SOURCE_DIR}/code-gen/include)");
         emitter().emitNewLine();
-
 
         // -- Custom commands
         emitter().emit("## -- Custom commands");
@@ -138,11 +142,11 @@ public interface CMakeLists {
                 emitter().increaseIndentation();
 
                 emitter().emit("OUTPUT ${CMAKE_SOURCE_DIR}/bin/emconfig.json");
-                emitter().emit("COMMAND ${SDACCEL_EMCONFIGUTIL} --nd 1 --platform ${DEVICE} --od ${CMAKE_SOURCE_DIR}/bin > emconfigutil.log");
+                emitter().emit(
+                        "COMMAND ${SDACCEL_EMCONFIGUTIL} --nd 1 --platform ${DEVICE} --od ${CMAKE_SOURCE_DIR}/bin > emconfigutil.log");
                 emitter().decreaseIndentation();
             }
             emitter().emit(")");
-
 
             for (PortDecl port : network.getInputPorts()) {
                 String topName = port.getName() + "_input_stage_mem";
@@ -150,71 +154,46 @@ public interface CMakeLists {
                 entityCustomCommand(topName, "input_stage_mem", filename);
                 topName = port.getName() + "_stage_pass";
                 filename = topName + ".cpp";
-                entityCustomCommand(topName,"stage_pass", filename);
+                entityCustomCommand(topName, "stage_pass", filename);
             }
 
             for (PortDecl port : network.getOutputPorts()) {
                 String topName = port.getName() + "_output_stage_mem";
                 String filename = topName + ".cpp";
-                entityCustomCommand(topName,"output_stage_mem", filename);
+                entityCustomCommand(topName, "output_stage_mem", filename);
                 topName = port.getName() + "_stage_pass";
                 filename = topName + ".cpp";
-                entityCustomCommand(topName,"stage_pass", filename);
+                entityCustomCommand(topName, "stage_pass", filename);
             }
 
-            emitter().emit("add_custom_command(");
-            {
-                emitter().increaseIndentation();
+            // -- xo custom commands
+            addXoCustomCommand("input");
+            addXoCustomCommand("core");
+            ;
+            addXoCustomCommand("output");
 
-                emitter().emit("OUTPUT  ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${DEVICE}.xo");
-                emitter().emit("COMMAND ${VIVADO_BINARY} -mode batch -source gen_xo.tcl -tclargs ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${DEVICE}.xo ${CMAKE_PROJECT_NAME}_kernel ${TARGET} ${DEVICE}  > ${CMAKE_PROJECT_NAME}_kernel_xo.log");
-                String verilogInstances = String.join(" ", network.getInstances()
-                        .stream().map(n -> backend().instaceQID(n.getInstanceName(), "_"))
-                        .collect(Collectors.toList()));
-                String inputStages = String.join(" ", network.getInputPorts()
-                        .stream().map(p -> p.getName() + "_input_stage_mem " + p.getName() + "_stage_pass")
-                        .collect(Collectors.toList()));
-                String outputStages = String.join(" ", network.getOutputPorts()
-                        .stream().map(p -> p.getName() + "_output_stage_mem " + p.getName() + "_stage_pass")
-                        .collect(Collectors.toList()));
-                emitter().emit("DEPENDS %s %s %s emconfig", verilogInstances, inputStages, outputStages);
-                emitter().decreaseIndentation();
-            }
-            emitter().emit(")");
-
-            emitter().emit("add_custom_command(");
-            {
-                emitter().increaseIndentation();
-
-                emitter().emit("OUTPUT  ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${DEVICE}.xclbin");
-                emitter().emit("COMMAND ${SDACCEL_XOCC} -g -t ${TARGET} --platform ${DEVICE} --save-temps  -lo ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${DEVICE}.xclbin ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${DEVICE}.xo  > ${CMAKE_PROJECT_NAME}_kernel_xclbin.log");
-                emitter().emit("DEPENDS ${CMAKE_PROJECT_NAME}_kernel_xo");
-
-                emitter().decreaseIndentation();
-            }
-            emitter().emit(")");
-
+            // -- xclbin custom commands
+            addXclbinCustomCommand("input");
+            addXclbinCustomCommand("core");
+            addXclbinCustomCommand("output");
 
             emitter().decreaseIndentation();
         }
         emitter().emit("endif()");
 
-        // -- Vivado XO Custom command
         emitter().emit("add_custom_command(");
         {
             emitter().increaseIndentation();
 
             emitter().emit("OUTPUT ${CMAKE_SOURCE_DIR}/output/%s/%1$s.xpr", identifier);
             emitter().emit("COMMAND ${VIVADO_BINARY} -mode batch -source %s.tcl  > %1$s.log", identifier);
-            String verilogInstances = String.join(" ", network.getInstances()
-                    .stream().map(n -> backend().instaceQID(n.getInstanceName(), "_"))
-                    .collect(Collectors.toList()));
+            String verilogInstances = String.join(" ", network.getInstances().stream()
+                    .map(n -> backend().instaceQID(n.getInstanceName(), "_")).collect(Collectors.toList()));
 
             emitter().emit("DEPENDS %s", verilogInstances);
             emitter().decreaseIndentation();
         }
         emitter().emit(")");
-
 
         emitter().emit("## -- Custom targets");
         // -- Instance custom targets
@@ -222,7 +201,9 @@ public interface CMakeLists {
             GlobalEntityDecl entityDecl = backend().globalnames().entityDecl(instance.getEntityName(), true);
             if (!entityDecl.getExternal()) {
                 String instanceName = backend().instaceQID(instance.getInstanceName(), "_");
-                emitter().emit("add_custom_target(%s ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/%1$s/solution/syn/verilog/%1$s.v)", instanceName);
+                emitter().emit(
+                        "add_custom_target(%s ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/%1$s/solution/syn/verilog/%1$s.v)",
+                        instanceName);
             }
         }
 
@@ -234,19 +215,31 @@ public interface CMakeLists {
             emitter().emit("add_custom_target(emconfig ALL DEPENDS ${CMAKE_SOURCE_DIR}/bin/emconfig.json)");
 
             for (PortDecl port : network.getInputPorts()) {
-                emitter().emit("add_custom_target(%s ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/%1$s/solution/syn/verilog/%1$s.v)", port.getName() + "_input_stage_mem");
-                emitter().emit("add_custom_target(%s ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/%1$s/solution/syn/verilog/%1$s.v)", port.getName() + "_stage_pass");
+                emitter().emit(
+                        "add_custom_target(%s ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/%1$s/solution/syn/verilog/%1$s.v)",
+                        port.getName() + "_input_stage_mem");
+                emitter().emit(
+                        "add_custom_target(%s ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/%1$s/solution/syn/verilog/%1$s.v)",
+                        port.getName() + "_stage_pass");
             }
 
             for (PortDecl port : network.getOutputPorts()) {
-                emitter().emit("add_custom_target(%s ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/%1$s/solution/syn/verilog/%1$s.v)", port.getName() + "_output_stage_mem");
-                emitter().emit("add_custom_target(%s ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/%1$s/solution/syn/verilog/%1$s.v)", port.getName() + "_stage_pass");
+                emitter().emit(
+                        "add_custom_target(%s ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/%1$s/solution/syn/verilog/%1$s.v)",
+                        port.getName() + "_output_stage_mem");
+                emitter().emit(
+                        "add_custom_target(%s ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/%1$s/solution/syn/verilog/%1$s.v)",
+                        port.getName() + "_stage_pass");
             }
 
             // -- Generate XO custom target
-            emitter().emit("add_custom_target(${CMAKE_PROJECT_NAME}_kernel_xo ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${DEVICE}.xo)");
+            addXoCustomTarget("input");
+            addXoCustomTarget("core");
+            addXoCustomTarget("output");
             // -- Generate XCLBIN custom target
-            emitter().emit("add_custom_target(${CMAKE_PROJECT_NAME}_kernel_xclbin ALL DEPENDS ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${DEVICE}.xclbin)");
+            addXclbinCustomTarget("input");
+            addXclbinCustomTarget("core");
+            addXclbinCustomTarget("output");
 
             emitter().decreaseIndentation();
         }
@@ -289,7 +282,8 @@ public interface CMakeLists {
             emitter().increaseIndentation();
 
             emitter().emit("OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/%s/solution/syn/verilog/%1$s.v", topName);
-            emitter().emit("COMMAND ${VIVADO_HLS_BINARY} -f Synthesis.tcl -tclargs \\\"%s\\\" \\\"%s\\\"  > %1$s.log", topName, filename);
+            emitter().emit("COMMAND ${VIVADO_HLS_BINARY} -f Synthesis.tcl -tclargs \\\"%s\\\" \\\"%s\\\"  > %1$s.log",
+                    topName, filename);
             emitter().emit("DEPENDS ${_incpath}/%s.h ${_srcpath}/%s.cpp", headerName, topName);
 
             emitter().decreaseIndentation();
@@ -298,4 +292,76 @@ public interface CMakeLists {
         emitter().emitNewLine();
     }
 
+    default void addCustomCommand(String Output, String Command, String Depends) {
+        emitter().emit("add_custom_command(");
+        {
+            emitter().increaseIndentation();
+
+            emitter().emit("OUTPUT " + Output);
+            emitter().emit("COMMAND " + Command);
+            emitter().emit("DEPENDS " + Depends);
+
+            emitter().decreaseIndentation();
+        }
+        emitter().emit(")");
+        emitter().emitNewLine();
+    }
+
+    default void addXoCustomCommand(String kernelType) {
+
+        String output = String.format(
+                "${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_%s_kernel.${TARGET}.${DEVICE}.xo", kernelType);
+        String command = String.format(
+                "${VIVADO_BINARY} -mode batch -source gen_xo.tcl -tclargs ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_%s_kernel.${TARGET}.${DEVICE}.xo ${CMAKE_PROJECT_NAME}_%1$s_kernel ${TARGET} ${DEVICE}  > ${CMAKE_PROJECT_NAME}_%1$s_kernel_xo.log",
+                kernelType);
+        Network network = backend().task().getNetwork();
+        String depends;
+        if (kernelType == "input") {
+            depends = String.join(" ",
+                    network.getInputPorts().stream()
+                            .map(p -> p.getName() + "_input_stage_mem " + p.getName() + "_stage_pass")
+                            .collect(Collectors.toList()));
+        } else if (kernelType == "output") {
+
+            depends = String.join(" ",
+                    network.getOutputPorts().stream()
+                            .map(p -> p.getName() + "_output_stage_mem " + p.getName() + "_stage_pass")
+                            .collect(Collectors.toList()));
+        } else if (kernelType == "core") {
+            depends = String.join(" ", network.getInstances().stream()
+                    .map(n -> backend().instaceQID(n.getInstanceName(), "_")).collect(Collectors.toList()));
+        } else {
+            throw new Error("unknow kernel type " + kernelType);
+        }
+        addCustomCommand(output, command, depends + " emconfig");
+    }
+
+    default void addXoCustomTarget(String kernelType) {
+        emitter().emit(
+                "add_custom_target(${CMAKE_PROJECT_NAME}_%s_kernel_xo ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_%1$s_kernel.${TARGET}.${DEVICE}.xo)",
+                kernelType);
+    }
+
+    default void addXclbinCustomCommand(String kernelType) {
+        String output = "${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_" + kernelType
+                + "_kernel.${TARGET}.${DEVICE}.xclbin";
+        String command = String.format(
+                "${SDACCEL_XOCC} -g -t ${TARGET} --platform ${DEVICE} --save-temps  -lo ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_%s_kernel.${TARGET}.${DEVICE}.xclbin ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_%1$s_kernel.${TARGET}.${DEVICE}.xo  > ${CMAKE_PROJECT_NAME}_%1$s_kernel_xclbin.log",
+                kernelType);
+
+        String depends = "${CMAKE_PROJECT_NAME}_" + kernelType + "_kernel_xo";
+        addCustomCommand(output, command, depends);
+    }
+
+    default void addXclbinCustomTarget(String kernelType) {
+        emitter().emit(
+                "add_custom_target(${CMAKE_PROJECT_NAME}_%s_kernel_xclbin ALL DEPENDS ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_%1$s_kernel.${TARGET}.${DEVICE}.xclbin)",
+                kernelType);
+    }
+
+    default void configurePackageFile(String kernelType) {
+        emitter().emit(
+                "configure_file(${CMAKE_SOURCE_DIR}/scripts/%s.tcl.in %1$s.tcl @ONLY)",
+                backend().packagekernels().getPackageName(kernelType));
+    }
 }

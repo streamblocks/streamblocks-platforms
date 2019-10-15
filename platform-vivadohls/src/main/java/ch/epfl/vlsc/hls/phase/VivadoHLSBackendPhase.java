@@ -1,6 +1,7 @@
 package ch.epfl.vlsc.hls.phase;
 
 import ch.epfl.vlsc.hls.backend.VivadoHLSBackend;
+import ch.epfl.vlsc.hls.backend.kernel.Kernel;
 import ch.epfl.vlsc.platformutils.PathUtils;
 import ch.epfl.vlsc.settings.PlatformSettings;
 import org.multij.MultiJ;
@@ -87,7 +88,13 @@ public class VivadoHLSBackendPhase implements Phase {
 
         // -- RTL path
         rtlPath = PathUtils.createDirectory(codeGenPath, "rtl");
-
+        
+        // -- RTL kernels
+        PathUtils.createDirectory(rtlPath, "core_kernel");
+        PathUtils.createDirectory(rtlPath, "input_kernel");
+        PathUtils.createDirectory(rtlPath, "output_kernel");
+        PathUtils.createDirectory(rtlPath, "xml");
+        
         // -- Auxiliary path
         auxiliaryPath = PathUtils.createDirectory(codeGenPath, "auxiliary");
 
@@ -253,7 +260,7 @@ public class VivadoHLSBackendPhase implements Phase {
         
 
         // -- TCL script for packaging the OpenCL RTL Kernel
-        backend.packagekernel().getPackageKernel();
+        backend.packagekernels().getPackageKernels();
 
     }
     /**

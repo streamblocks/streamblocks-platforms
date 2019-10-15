@@ -168,9 +168,27 @@ public class PathUtils {
         return directory.toPath();
     }
 
-
     /**
-     * Get the code-gen RTL target output directory
+     * Get the kernel rtl directory
+     * @param context
+     * @return Path to the input stage rtl directory
+     */
+    public static Path getTargetCodeGenKernel(Context context, String kernelType) {
+        File directory = new File(getTargetCodeGenRtl(context).toFile(), kernelType + "_kernel");
+        return directory.toPath();
+    }
+    
+    /**
+     * Get the kernel xml directory
+     * @param context
+     * @return kernel xml directory
+     */
+    public static Path getTargetCodeGenXml(Context context) {
+        File directory = new File(getTargetCodeGenRtl(context).toFile(), "xml");
+        return directory.toPath();
+    }
+    /**
+     * Get the code-gen RTL testbench target output directory
      *
      * @param context
      * @return

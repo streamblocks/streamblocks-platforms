@@ -33,7 +33,7 @@ public interface CoreKernelWrapper {
         Network network = backend().task().getNetwork();
 
         // -- Network file
-        emitter().open(PathUtils.getTargetCodeGenRtl(backend().context()).resolve(identifier + "_core_wrapper.sv"));
+        emitter().open(PathUtils.getTargetCodeGenKernel(backend().context(), "core").resolve(backend().kernel().getKernelName("core") + "_wrapper.sv"));
 
         emitter().emitNewLine();
 
