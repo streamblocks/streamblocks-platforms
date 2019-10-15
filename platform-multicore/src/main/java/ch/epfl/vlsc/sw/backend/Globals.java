@@ -39,12 +39,17 @@ public interface Globals {
         emitter().open(globalSourcePath);
 
         backend().includeUser("globals.h");
+        emitter().emitNewLine();
+
+        emitter().emit("// -- Global variables" );
+        globalVariableDefinition(getGlobalVarDecls());
+        emitter().emitNewLine();
 
         emitter().emit("// -- External Callables Definition");
         backend().task().walk().forEach(backend().callablesInActor()::externalCallableDefinition);
         emitter().emitNewLine();
 
-        emitter().emit("// -- Glabal Variable Initilaization");
+        emitter().emit("// -- Glabal Variable Initialization");
         globalVariableInitializer(getGlobalVarDecls());
         globalCallables(getGlobalVarDecls());
         emitter().close();
@@ -76,6 +81,21 @@ public interface Globals {
         backend().includeUser("natives.h");
         emitter().emitNewLine();
 
+        emitter().emit("// -- External Callables Declaration");
+        backend().task().walk().forEach(backend().callablesInActor()::externalCallableDeclaration);
+        emitter().emitNewLine();
+        emitter().emit(" // -- Global Variables Declaration");
+        emitter().emit("void init_global_variables(void);");
+        globalVariableDeclarations(getGlobalVarDecls());
+
+        emitter().emitNewLine();
+        emitter().emit("#endif // __GLOBALS_%s__", backend().task().getIdentifier().getLast().toString().toUpperCase());
+
+
+        emitter().close();
+    }
+
+    default void getArtTypes(){
         // -- Defines
         emitter().emit("#define TRUE 1");
         emitter().emit("#define FALSE 0");
@@ -193,19 +213,8 @@ public interface Globals {
         emitter().emitNewLine();
 
         emitter().emit("*/");
-        emitter().emit("// -- External Callables Declaration");
-        backend().task().walk().forEach(backend().callablesInActor()::externalCallableDeclaration);
-        emitter().emitNewLine();
-        emitter().emit(" // -- Global Variables Declaration");
-        emitter().emit("void init_global_variables(void);");
-        globalVariableDeclarations(getGlobalVarDecls());
-
-        emitter().emitNewLine();
-        emitter().emit("#endif // __GLOBALS_%s__", backend().task().getIdentifier().getLast().toString().toUpperCase());
-
-
-        emitter().close();
     }
+
 
     default Stream<VarDecl> getGlobalVarDecls() {
         return backend().task()
@@ -226,7 +235,7 @@ public interface Globals {
                 }
             } else {
                 String d = backend().declarations().declaration(type, backend().variables().declarationName(decl));
-                emitter().emit("%s;", d);
+                emitter().emit("extern %s;", d);
             }
         });
     }
@@ -258,6 +267,16 @@ public interface Globals {
         });
         emitter().decreaseIndentation();
         emitter().emit("}");
+    }
+
+    default void globalVariableDefinition(Stream<VarDecl> varDecls) {
+        varDecls.forEach(decl -> {
+            Type type = backend().types().declaredType(decl);
+            if (!(type instanceof CallableType)) {
+                String d = backend().declarations().declaration(type, backend().variables().declarationName(decl));
+                emitter().emit("%s;", d);
+            }
+        });
     }
 
 
