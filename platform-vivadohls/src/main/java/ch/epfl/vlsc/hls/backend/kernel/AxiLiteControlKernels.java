@@ -19,10 +19,10 @@ public interface AxiLiteControlKernels {
     default Emitter emitter() {
         return backend().emitter();
     }
+
     default void generateAxiLiteContollers() {
-        
+
         Network network = backend().task().getNetwork();
-        
 
         getAxiLiteControlKernel("core", ImmutableList.of());
         getAxiLiteControlKernel("input", network.getInputPorts());
@@ -30,17 +30,26 @@ public interface AxiLiteControlKernels {
 
     }
 
+    default String getPipePrefix() {
+        return "p_xcl_gv";
+    }
+
     default String availableOrRequested(String kernelType) {
         return (kernelType == "input") ? "requested_size" : "available_size";
+    }
+
+    default String getAxiControlName(String kernelType) {
+        return backend().kernel().getKernelName(kernelType) + "_control_s_axi";
     }
     default void getAxiLiteControlKernel(String kernelType, ImmutableList<PortDecl> kernelArgs) {
 
         // -- Network
         Network network = backend().task().getNetwork();
-        // -- identifier 
+        // -- identifier
         String identifier = backend().task().getIdentifier().getLast().toString();
         // -- Network file
-        emitter().open(PathUtils.getTargetCodeGenKernel(backend().context(), kernelType).resolve(identifier + "_" + kernelType + "_kernel_control_s_axi.v"));
+        emitter().open(PathUtils.getTargetCodeGenKernel(backend().context(), kernelType)
+                .resolve(getAxiControlName(kernelType) + ".v"));
 
         // -- Default net type
         emitter().emit("`default_nettype none");
@@ -49,7 +58,7 @@ public interface AxiLiteControlKernels {
         emitter().emitNewLine();
 
         // -- AXI4-Lite Control module
-        emitter().emit("module %s_kernel_control_s_axi #(", identifier + "_" + kernelType);
+        emitter().emit("module %s #(", getAxiControlName(kernelType));
         // -- Parameters
         {
             emitter().increaseIndentation();
@@ -133,6 +142,7 @@ public interface AxiLiteControlKernels {
             emitter().emit("output  wire    [31 : 0]    %s_%s,", port.getName(), availableOrRequested(kernelType));
             emitter().emit("output  wire    [63 : 0]    %s_size,", port.getName());
             emitter().emit("output  wire    [63 : 0]    %s_buffer,", port.getName());
+            emitter().emit("output  wire    [63 : 0]    p_xcl_gv_%s,", backend().kernel().getPipeName(port));
         }
 
         emitter().emit("// Ap signals");
@@ -141,7 +151,7 @@ public interface AxiLiteControlKernels {
         emitter().emit("input   wire    ap_ready,");
         emitter().emit("input   wire    ap_idle,");
         emitter().emit("output  wire    event_start,");
-        emitter().emit("output  wire    interrupt,");
+        emitter().emit("output  wire    interrupt");
 
     }
 
@@ -162,11 +172,11 @@ public interface AxiLiteControlKernels {
         value += 4;
 
         for (PortDecl port : kernelArgs) {
-            emitter().emit("ADDR_%s_%s_DATA_0 = %d'h%s,", port.getName().toUpperCase(), availableOrRequested(kernelType).toUpperCase() ,addressWidth,
-                    String.format("%x", value));
+            emitter().emit("ADDR_%s_%s_DATA_0 = %d'h%s,", port.getName().toUpperCase(),
+                    availableOrRequested(kernelType).toUpperCase(), addressWidth, String.format("%x", value));
             value += 4;
-            emitter().emit("ADDR_%s_%s_CTRL = %d'h%s,", port.getName().toUpperCase(), availableOrRequested(kernelType).toUpperCase(), addressWidth,
-                    String.format("%x", value));
+            emitter().emit("ADDR_%s_%s_CTRL = %d'h%s,", port.getName().toUpperCase(),
+                    availableOrRequested(kernelType).toUpperCase(), addressWidth, String.format("%x", value));
             value += 4;
         }
 
@@ -188,6 +198,18 @@ public interface AxiLiteControlKernels {
             value += 4;
             emitter().emit("ADDR_%s_BUFFER_CTRL = %d'h%s,", port.getName().toUpperCase(), addressWidth,
                     String.format("%x", value));
+            value += 4;
+        }
+
+        for (PortDecl port : kernelArgs) {
+            emitter().emit("ADDR_%s_%s_DATA_0 = %d'h%x,", getPipePrefix().toUpperCase(),
+                    backend().kernel().getPipeName(port).toUpperCase(), addressWidth, value);
+            value += 4;
+            emitter().emit("ADDR_%s_%s_DATA_1 = %d'h%x,", getPipePrefix().toUpperCase(),
+                    backend().kernel().getPipeName(port).toUpperCase(), addressWidth, value);
+            value += 4;
+            emitter().emit("ADDR_%s_%s_CTRL = %d'h%x,", getPipePrefix().toUpperCase(),
+                    backend().kernel().getPipeName(port).toUpperCase(), addressWidth, value);
             value += 4;
         }
 
@@ -237,6 +259,7 @@ public interface AxiLiteControlKernels {
             emitter().emit("reg [31 : 0]    int_%s_%s = 32'd0;", port.getName(), availableOrRequested(kernelType));
             emitter().emit("reg [63 : 0]    int_%s_size = 64'd0;", port.getName());
             emitter().emit("reg [63 : 0]    int_%s_buffer = 64'd0;", port.getName());
+            emitter().emit("reg [63 : 0]    int_%s_%s;", getPipePrefix(), backend().kernel().getPipeName(port));
         }
         emitter().emitNewLine();
     }
@@ -498,7 +521,8 @@ public interface AxiLiteControlKernels {
                             {
                                 emitter().increaseIndentation();
 
-                                emitter().emit("rdata <= int_%s_%s[31:0];", port.getName(), availableOrRequested(kernelType));
+                                emitter().emit("rdata <= int_%s_%s[31:0];", port.getName(),
+                                        availableOrRequested(kernelType));
 
                                 emitter().decreaseIndentation();
                             }
@@ -543,6 +567,30 @@ public interface AxiLiteControlKernels {
                                 emitter().decreaseIndentation();
                             }
                             emitter().emit("end");
+
+                            emitter().emit("ADDR_%S_%S_DATA_0: begin", getPipePrefix().toUpperCase(),
+                                    backend().kernel().getPipeName(port));
+                            {
+                                emitter().increaseIndentation();
+
+                                emitter().emit("rdata <= int_%s_%s[31:0];", getPipePrefix(),
+                                        backend().kernel().getPipeName(port));
+
+                                emitter().decreaseIndentation();
+                            }
+                            emitter().emit("end");
+
+                            emitter().emit("ADDR_%S_%S_DATA_1: begin", getPipePrefix().toUpperCase(),
+                                    backend().kernel().getPipeName(port));
+                            {
+                                emitter().increaseIndentation();
+
+                                emitter().emit("rdata <= int_%s_%s[63:32];", getPipePrefix(),
+                                        backend().kernel().getPipeName(port));
+
+                                emitter().decreaseIndentation();
+                            }
+                            emitter().emit("end");
                         }
 
                         emitter().decreaseIndentation();
@@ -572,8 +620,9 @@ public interface AxiLiteControlKernels {
             emitter().emit("assign %s_%s = int_%1$s_%2$s;", port.getName(), availableOrRequested(kernelType));
             emitter().emit("assign %s_size = int_%1$s_size;", port.getName());
             emitter().emit("assign %s_buffer = int_%1$s_buffer;", port.getName());
+            emitter().emit("assign %s_%s = int_%1$s_%2$s;", getPipePrefix(), backend().kernel().getPipeName(port));
         }
-    
+
         emitter().emitNewLine();
 
         // int_event_start
@@ -812,8 +861,10 @@ public interface AxiLiteControlKernels {
 
             // -- buffer
             getReg64Bit(port.getName(), "buffer");
-        }
 
+            // -- pipe
+            getReg64Bit(getPipePrefix(), backend().kernel().getPipeName(port));
+        }
 
     }
 

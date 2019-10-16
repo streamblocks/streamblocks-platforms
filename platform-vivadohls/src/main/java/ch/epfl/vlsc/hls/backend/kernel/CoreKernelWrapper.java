@@ -46,6 +46,7 @@ public interface CoreKernelWrapper {
             backend().kernel().getSlaveParameters(network);
             emitter().decreaseIndentation();
         }
+        emitter().emit(")");
         emitter().emit("(");
         {
             emitter().increaseIndentation();

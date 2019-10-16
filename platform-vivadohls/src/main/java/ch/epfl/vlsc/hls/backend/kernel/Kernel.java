@@ -32,6 +32,11 @@ public interface Kernel {
         String identifier = backend().task().getIdentifier().getLast().toString();
         return (identifier + "_" + kernelType + "_kernel");
     }
+
+    default String getPipeName(PortDecl port) {
+        return ("pipe_port_" + port.getName()).toLowerCase();
+    }
+
     default void generateKernel(String kernelType) {
         // -- Identifier
         String identifier = backend().task().getIdentifier().getLast().toString();
@@ -60,7 +65,7 @@ public interface Kernel {
         // -- Parameters
         {
             emitter().increaseIndentation();
-            
+
             if (kernelType == "core") {
                 getMasterParameters(network, Optional.of(network.getInputPorts()), ",");
                 getMasterParameters(network, Optional.of(network.getOutputPorts()), ",");
@@ -102,23 +107,20 @@ public interface Kernel {
         {
             getWires(network, kernelArgs, kernelType == "input");
 
-            getAxiLiteControllerInstance(network, kernelArgs, kernelType == "input");
+            getAxiLiteControllerInstance(network, kernelArgs, kernelType);
 
             if (kernelType == "core") {
                 getCoreKernelWrapper(network);
                 getDoneTokenCapture("input_stage");
                 getDoneTokenGenerator("core_stage");
-            }
-            else {
+            } else {
                 getIOKernelWrapper(network, network.getInputPorts(), kernelType);
-                if (kernelType == "input") 
+                if (kernelType == "input")
                     getDoneTokenGenerator("input_stage");
-                else 
+                else
                     getDoneTokenCapture("core_stage");
             }
-                
-            
-            
+
         }
 
         emitter().emitNewLine();
@@ -260,20 +262,21 @@ public interface Kernel {
         emitter().emit("// -- network streams");
         for (PortDecl port : kernelArgs) {
             emitter().emit("%s\twire\t[C_M_AXI_%s_DATA_WIDTH - 1: 0]\t\t%s_TDATA, ", isInput ? "output" : "input",
-                    port.getName().toUpperCase(), port.getName());
-            emitter().emit("%s\twire\t\t%s_TVALID, ", isInput ? "output" : "input", port.getName());
-            emitter().emit("%s\twire\t\t%s_TREADY, ", isInput ? "input" : "output", port.getName());
+                    port.getName().toUpperCase(), getPipeName(port));
+            emitter().emit("%s\twire\t\t%s_TVALID, ", isInput ? "output" : "input", getPipeName(port));
+            emitter().emit("%s\twire\t\t%s_TREADY, ", isInput ? "input" : "output", getPipeName(port));
         }
     }
 
     default void getDoneStreamPort(String name, boolean isInput) {
-        
+
         emitter().emit("// -- kernel done token stream");
         emitter().emit("%s\twire\t[7:0]\t%s_done_TDATA,", isInput ? "input" : "output", name);
         emitter().emit("%s\twire\t\t%s_done_TVALID,", isInput ? "input" : "output", name);
         emitter().emit("%s\twire\t%s_done_TREADY,", isInput ? "output" : "input", name);
 
     }
+
     // ------------------------------------------------------------------------
     // -- Get wires
     default void getWires(Network network, Optional<ImmutableList<PortDecl>> kernelArgs, boolean isInput) {
@@ -307,19 +310,18 @@ public interface Kernel {
         }
         emitter().emit("end");
 
-        
         emitter().emitNewLine();
     }
 
     // ------------------------------------------------------------------------
     // -- AXI Lite controller instance
     default void getAxiLiteControllerInstance(Network network, Optional<ImmutableList<PortDecl>> kernelArgs,
-            boolean isInput) {
+            String kernelType) {
         emitter().emitClikeBlockComment("AXI4-Lite Control");
         emitter().emitNewLine();
         // -- Identifier
         String identifier = backend().task().getIdentifier().getLast().toString();
-        emitter().emit("%s_control_s_axi #(", identifier);
+        emitter().emit("%s #(", backend().axilitecontrolkernels().getAxiControlName(kernelType));
         {
             emitter().increaseIndentation();
             emitter().emit(".C_S_AXI_ADDR_WIDTH ( C_S_AXI_CONTROL_ADDR_WIDTH ),");
@@ -354,8 +356,8 @@ public interface Kernel {
 
             if (!kernelArgs.isEmpty()) {
                 for (PortDecl port : kernelArgs.get()) {
-                    emitter().emit(".%s_requested_size( %1$s_%s ),", port.getName(),
-                            isInput ? "requested_size" : "available_size");
+                    emitter().emit(".%s_%s( %1$s_%2$s ),", port.getName(),
+                            backend().kernel().requestOrAvailable(kernelType == "input"));
                     emitter().emit(".%s_size( %1$s_size ),", port.getName());
                     emitter().emit(".%s_buffer( %1$s_buffer ),", port.getName());
                 }
@@ -465,15 +467,14 @@ public interface Kernel {
                 getAxiMasterConnection(port.getName());
             }
             for (PortDecl port : kernelArgs) {
-                emitter().emit(".%s_%s( %1$s_%2$s ),", port.getName(),
-                        requestOrAvailable(kernelType == "input"));
+                emitter().emit(".%s_%s( %1$s_%2$s ),", port.getName(), requestOrAvailable(kernelType == "input"));
                 emitter().emit(".%s_size( %1$s_size ),", port.getName());
                 emitter().emit(".%s_buffer( %1$s_buffer ),", port.getName());
             }
             for (PortDecl port : kernelArgs) {
-                emitter().emit(".%s_TDATA(%1$s_TDATA)", port.getName());
-                emitter().emit(".%s_TVALID(%1$s_TVALID)", port.getName());
-                emitter().emit(".%s_TREADY(%1$s_TREADY)", port.getName());
+                emitter().emit(".%s_TDATA(%1$s_TDATA),", getPipeName(port));
+                emitter().emit(".%s_TVALID(%1$s_TVALID),", getPipeName(port));
+                emitter().emit(".%s_TREADY(%1$s_TREADY),", getPipeName(port));
             }
             emitter().emit(".prev_done(prev_done),");
             emitter().emit(".ap_clk( ap_clk ),");
@@ -496,9 +497,9 @@ public interface Kernel {
         emitter().emit(".C_M_AXI_%S_ARUSER_WIDTH(C_M_AXI_%1$s_ARUSER_WIDTH),", port.getName().toUpperCase());
         emitter().emit(".C_M_AXI_%S_WUSER_WIDTH(C_M_AXI_%1$s_WUSER_WIDTH),", port.getName().toUpperCase());
         emitter().emit(".C_M_AXI_%S_RUSER_WIDTH(C_M_AXI_%1$s_RUSER_WIDTH),", port.getName().toUpperCase());
-        emitter().emit(".C_M_AXI_%S_BUSER_WIDTH(C_M_AXI_%1$s_BUSER_WIDTH)%s", port.getName().toUpperCase(),
-                delimiter);
+        emitter().emit(".C_M_AXI_%S_BUSER_WIDTH(C_M_AXI_%1$s_BUSER_WIDTH)%s", port.getName().toUpperCase(), delimiter);
     }
+
     // -- Helpers
     default void getAxiMasterConnection(String name) {
         emitter().emit(".m_axi_%s_AWVALID(m_axi_%1$s_AWVALID),", name);
@@ -556,12 +557,12 @@ public interface Kernel {
         emitter().emit("always @(posedge ap_clk) begin");
         {
             emitter().increaseIndentation();
-            emitter().emit("if (ap_rst)");
-                emitter().emit("\tis_done <= 0;");
+            emitter().emit("if (ap_rst_n == 1'b0)");
+            emitter().emit("\tis_done <= 0;");
             emitter().emit("else if (ap_done)");
-                emitter().emit("\tis_done <= 8'b1");
+            emitter().emit("\tis_done <= 8'b1;");
             emitter().emit("else if (is_done && %s_done_TREADY)", name);
-                emitter().emit("\tis_done <= 0;");
+            emitter().emit("\tis_done <= 0;");
             emitter().decreaseIndentation();
         }
         emitter().emit("end");
@@ -578,10 +579,10 @@ public interface Kernel {
         emitter().emit("always @(posedge ap_clk) begin");
         {
             emitter().increaseIndentation();
-            emitter().emit("if (ap_rst || ap_done)");
-                emitter().emit("\tdone_captured <= 1'b0;");
+            emitter().emit("if (ap_rst_n == 1'b0 || ap_done)");
+            emitter().emit("\tdone_captured <= 1'b0;");
             emitter().emit("else if (%s_done_TVALID)", name);
-                emitter().emit("\tdone_capture <= 1'b1;");
+            emitter().emit("\tdone_capture <= 1'b1;");
             emitter().decreaseIndentation();
         }
         emitter().emit("end");
@@ -589,6 +590,6 @@ public interface Kernel {
         emitter().emit("assign %s_done_TREADY = done_captured;", name);
         emitter().emit("assign prev_done = done_captured;");
         emitter().emitNewLine();
-        
+
     }
 }

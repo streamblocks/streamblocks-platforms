@@ -28,6 +28,9 @@ public interface IOKernelWrapper {
         return backend().emitter();
     }
 
+    default String getPipeName(PortDecl port) {
+        return backend().kernel().getPipeName(port);
+    }
     default void generateIOKernelWrapper(boolean isInput) {
 
         String identifier = backend().task().getIdentifier().getLast().toString();
@@ -108,18 +111,18 @@ public interface IOKernelWrapper {
             emitter().emit(".%s_%s(%1$s_%2$s),", port.getName(), backend().kernel().requestOrAvailable(isInput));
 
             emitter().emit(".%s_size(%1$s_size),", port.getName());
-            emitter().emit(".%s_buffer(%1$s_buffer)", port.getName());
+            emitter().emit(".%s_buffer(%1$s_buffer),", port.getName());
 
             emitter().emit("// -- axi stream");
             if (isInput) {
-                emitter().emit(".%s_V_din(%1$s_TDATA),", port.getName());
-                emitter().emit(".%s_V_full_n(%1$s_TREADY),", port.getName());
-                emitter().emit(".%s_V_write(%1$s_TVALID),", port.getName());
+                emitter().emit(".%s_V_din(%1$s_TDATA),", getPipeName(port));
+                emitter().emit(".%s_V_full_n(%1$s_TREADY),", getPipeName(port));
+                emitter().emit(".%s_V_write(%1$s_TVALID),", getPipeName(port));
 
             } else {
-                emitter().emit(".%s_V_dout(%1$s_TDATA),", port.getName());
-                emitter().emit(".%s_V_empty_n(%1$s_TVALID),", port.getName());
-                emitter().emit(".%s_V_read(%1$s_TREADY), ", port.getName());
+                emitter().emit(".%s_V_dout(%1$s_TDATA),", getPipeName(port));
+                emitter().emit(".%s_V_empty_n(%1$s_TVALID),", getPipeName(port));
+                emitter().emit(".%s_V_read(%1$s_TREADY), ", getPipeName(port));
             }
 
             emitter().emit(".network_idle(prev_done),");
