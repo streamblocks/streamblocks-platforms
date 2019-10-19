@@ -13,6 +13,7 @@ import se.lth.cs.tycho.ir.expr.*;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.stmt.StmtAssignment;
 import se.lth.cs.tycho.ir.stmt.StmtCall;
+import se.lth.cs.tycho.ir.stmt.lvalue.LValueVariable;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.type.ListType;
 import se.lth.cs.tycho.type.Type;
@@ -309,19 +310,19 @@ public interface ExpressionEvaluator {
         String name;
         if(parent instanceof StmtAssignment){
             StmtAssignment stmt = (StmtAssignment) parent;
-            Type lvalueType = types().lvalueType(stmt.getLValue());
-            if(lvalueType instanceof ListType){
-                typeForTmp = lvalueType;
+            if(stmt.getLValue() instanceof LValueVariable){
+                LValueVariable lvalue = (LValueVariable) stmt.getLValue();
+                name = backend().variables().name(lvalue.getVariable());
+            }else{
+                name = variables().generateTemp();
+                String decl = declarations().declarationTemp(t, name);
+                emitter().emit("%s;", decl);
             }
+        }else{
+            name = variables().generateTemp();
+            String decl = declarations().declarationTemp(t, name);
+            emitter().emit("%s;", decl);
         }
-        //if (parent instanceof LocalVarDecl) {
-        //    LocalVarDecl v = (LocalVarDecl) parent;
-        //    name = backend().variables().name(v);
-        //} else {
-        name = variables().generateTemp();
-        String decl = declarations().declarationTemp(typeForTmp, name);
-        emitter().emit("%s;", decl);
-        //}
 
         String index = variables().generateTemp();
         emitter().emit("size_t %s = 0;", index);

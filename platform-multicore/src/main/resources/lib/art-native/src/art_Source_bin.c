@@ -19,7 +19,8 @@ typedef struct {
     unsigned char buf[BUF_SIZE];
     int pos;
     int size;
-    int r;
+    int max_loops;
+    int loops;
 } ActorInstance_art_Source;
 
 static const int exitcode_block_Out_1[] = {EXITCODE_BLOCK(1), 0, 1};
@@ -40,14 +41,14 @@ ART_ACTION_SCHEDULER(art_Source_bin_action_scheduler) {
                                     BUF_SIZE, thisActor->file);
             thisActor->pos = 0;
             if (thisActor->size == 0) {
-                if (thisActor->r == MAX_REPETITIONS) {
+                if (thisActor->loops == thisActor->max_loops) {
                     thisActor->size = 0;
                     result = EXITCODE_TERMINATE;
                     goto out;
                 } else {
                     fseek(thisActor->file, 0, SEEK_SET);
                 }
-                thisActor->r++;
+                thisActor->loops++;
             }
         }
         // Here we are sure that we have data in buffer
@@ -96,7 +97,10 @@ static void constructor(AbstractActorInstance *pBase) {
         }
         thisActor->size = 0;
         thisActor->pos = 0;
-        thisActor->r = 0;
+        thisActor->loops = 0;
+    }
+    if(thisActor->max_loops == NULL){
+        thisActor->max_loops = 0;
     }
 }
 
@@ -112,6 +116,8 @@ static void setParam(AbstractActorInstance *pBase, const char *paramName,
     ActorInstance_art_Source *thisActor = (ActorInstance_art_Source *) pBase;
     if (strcmp(paramName, "fileName") == 0) {
         thisActor->filename = strdup(value);
+    } else if (strcmp(paramName, "loops") == 0) {
+        thisActor->max_loops = atoi(value);
     } else {
         runtimeError(pBase, "No such parameter: %s", paramName);
     }
