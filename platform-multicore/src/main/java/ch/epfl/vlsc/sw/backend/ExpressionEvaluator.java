@@ -11,6 +11,7 @@ import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.expr.*;
 import se.lth.cs.tycho.ir.network.Instance;
+import se.lth.cs.tycho.ir.stmt.StmtAssignment;
 import se.lth.cs.tycho.ir.stmt.StmtCall;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.type.ListType;
@@ -303,16 +304,22 @@ public interface ExpressionEvaluator {
     String evaluateComprehension(ExprComprehension comprehension, Type t);
 
     default String evaluateComprehension(ExprComprehension comprehension, ListType t) {
-
+        Type typeForTmp = t;
         IRNode parent = backend().tree().parent(comprehension);
         String name;
+        if(parent instanceof StmtAssignment){
+            StmtAssignment stmt = (StmtAssignment) parent;
+            Type lvalueType = types().lvalueType(stmt.getLValue());
+            if(lvalueType instanceof ListType){
+                typeForTmp = lvalueType;
+            }
+        }
         //if (parent instanceof LocalVarDecl) {
         //    LocalVarDecl v = (LocalVarDecl) parent;
         //    name = backend().variables().name(v);
         //} else {
-        Type type = types().type(comprehension.getCollection());
         name = variables().generateTemp();
-        String decl = declarations().declarationTemp(t, name);
+        String decl = declarations().declarationTemp(typeForTmp, name);
         emitter().emit("%s;", decl);
         //}
 
