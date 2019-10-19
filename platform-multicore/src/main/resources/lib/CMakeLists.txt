@@ -2,7 +2,9 @@ cmake_minimum_required(VERSION 3.10)
 
 project(art-lib)
 
+# -- Options
 option(DISPLAY "Display on the screen." ON)
+option(TRACE "Generate execution trace." OFF)
 
 find_package(Threads QUIET)
 if(THREADS_FOUND)
@@ -19,6 +21,10 @@ if(LIBXML2_FOUND)
    list(APPEND extra_includes ${LIBXML2_INCLUDE_DIR})
 else()
     message(STATUS "Cannot find LibXml2")
+endif()
+
+if(TRACE)
+    list(APPEND extra_definitions "-DTRACE")
 endif()
 
 
