@@ -16,7 +16,7 @@ typedef struct {
     AbstractActorInstance base;
     char *filename;
     FILE *file;
-    char buf[BUF_SIZE];
+    unsigned char buf[BUF_SIZE];
     int pos;
     int size;
     int r;
@@ -32,7 +32,7 @@ ART_ACTION_SCHEDULER(art_Source_bin_action_scheduler) {
     int n;
     ART_ACTION_SCHEDULER_ENTER(0, 1);
 
-    n = pinAvailOut_int32_t(ART_OUTPUT(0));
+    n = pinAvailOut_uint8_t(ART_OUTPUT(0));
     ART_ACTION_SCHEDULER_LOOP {
         ART_ACTION_SCHEDULER_LOOP_TOP;
         if (thisActor->pos >= thisActor->size) {
@@ -51,10 +51,24 @@ ART_ACTION_SCHEDULER(art_Source_bin_action_scheduler) {
             }
         }
         // Here we are sure that we have data in buffer
-        if (n > 0) {
-            n--;
+        if (n >= 8) {
+            n = n - 8;
             ART_ACTION_ENTER(action1, 0);
-            pinWrite_int32_t(ART_OUTPUT(0), thisActor->buf[thisActor->pos]);
+
+            unsigned char byteRead = thisActor->buf[thisActor->pos];
+            unsigned char Out[8];
+
+            Out[0] = byteRead >> 7;
+            Out[1] = (byteRead >> 6) & 1;
+            Out[2] = (byteRead >> 5) & 1;
+            Out[3] = (byteRead >> 4) & 1;
+            Out[4] = (byteRead >> 3) & 1;
+            Out[5] = (byteRead >> 2) & 1;
+            Out[6] = (byteRead >> 1) & 1;
+            Out[7] = byteRead & 1;
+            pinWriteRepeat_uint8_t(ART_OUTPUT(0), Out, 8);
+
+            //pinWrite_uint8_t(, thisActor->buf[thisActor->pos]);
             thisActor->pos++;
             ART_ACTION_EXIT(action1, 0);
         } else {
@@ -104,7 +118,7 @@ static void setParam(AbstractActorInstance *pBase, const char *paramName,
 }
 
 static const PortDescription outputPortDescriptions[] = {{0, "Out",
-                                                                 sizeof(int32_t)}};
+                                                                 sizeof(uint8_t)}};
 
 static const int portRate_0[] = {0};
 

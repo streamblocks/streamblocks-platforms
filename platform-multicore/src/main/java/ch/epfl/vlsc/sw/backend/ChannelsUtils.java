@@ -23,13 +23,16 @@ public interface ChannelsUtils {
     MulticoreBackend backend();
 
     default String sourceEndTypeSize(Connection.End source) {
+        return backend().typeseval().type(sourceEndType(source));
+    }
+
+    default Type sourceEndType(Connection.End source) {
         Network network = backend().task().getNetwork();
         List<Connection> connections = network.getConnections().stream()
                 .filter(conn -> conn.getSource().equals(source))
                 .collect(Collectors.toList());
         Type type = backend().types().connectionType(network, connections.get(0));
-
-        return backend().typeseval().type(type);
+        return type;
     }
 
     default String targetEndTypeSize(Connection.End target) {
@@ -49,6 +52,11 @@ public interface ChannelsUtils {
     default String outputPortTypeSize(Port port) {
         Connection.End source = new Connection.End(Optional.of(backend().instancebox().get().getInstanceName()), port.getName());
         return sourceEndTypeSize(source);
+    }
+
+    default Type outputPortType(Port port) {
+        Connection.End source = new Connection.End(Optional.of(backend().instancebox().get().getInstanceName()), port.getName());
+        return sourceEndType(source);
     }
 
     default String definedInputPort(Port port) {

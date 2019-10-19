@@ -82,9 +82,26 @@ public interface Statements {
                 emitter().emit("pinWrite_%s(%s, %s);", portType, channelsutils().definedOutputPort(write.getPort()), tmp);
             }
         } else if (write.getValues().size() == 1) {
+            Type valueType = types().type(write.getValues().get(0));
+            Type portType = channelsutils().outputPortType(write.getPort());
             String value = expressioneval().evaluate(write.getValues().get(0));
             String repeat = expressioneval().evaluate(write.getRepeatExpression());
-            emitter().emit("pinWriteRepeat_%s(%s, %s, %s);", channelsutils().outputPortTypeSize(write.getPort()), channelsutils().definedOutputPort(write.getPort()), value, repeat);
+
+            // -- Hack type conversion : to be fixed
+            if(valueType instanceof ListType){
+                ListType listType = (ListType) valueType;
+                if(!listType.getElementType().equals(portType)){
+                    String index = variables().generateTemp();
+                    emitter().emit("for (size_t %1$s = 0; %1$s < (%2$s); %1$s++) {", index, repeat);
+                    emitter().emit("\tpinWrite_%s(%s, %s[%s]);", channelsutils().outputPortTypeSize(write.getPort()), channelsutils().definedOutputPort(write.getPort()), value, index);
+                    emitter().emit("}");
+                }else{
+                    emitter().emit("pinWriteRepeat_%s(%s, %s, %s);", channelsutils().outputPortTypeSize(write.getPort()), channelsutils().definedOutputPort(write.getPort()), value, repeat);
+                }
+            }else{
+                emitter().emit("pinWriteRepeat_%s(%s, %s, %s);", channelsutils().outputPortTypeSize(write.getPort()), channelsutils().definedOutputPort(write.getPort()), value, repeat);
+            }
+
         } else {
             throw new Error("not implemented");
         }
