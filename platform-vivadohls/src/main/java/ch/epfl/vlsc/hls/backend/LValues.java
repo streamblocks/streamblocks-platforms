@@ -14,6 +14,8 @@ import se.lth.cs.tycho.ir.stmt.lvalue.LValueVariable;
 import se.lth.cs.tycho.type.ListType;
 import se.lth.cs.tycho.type.Type;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -53,7 +55,20 @@ public interface LValues {
         if (indexer.getStructure() instanceof LValueIndexer) {
             VarDecl varDecl = backend().varDecls().declaration(var);
             ListType type = (ListType) backend().types().declaredType(varDecl);
-            str = Optional.of(evalLValueIndexStructure((LValueIndexer) indexer.getStructure(), (ListType) type.getElementType()));
+
+            List<Integer> sizeByDim = backend().typeseval().sizeByDimension((ListType) type.getElementType());
+            List<String> indexByDim = getListIndexes((LValueIndexer) indexer.getStructure());
+            Collections.reverse(indexByDim);
+
+            List<String> structureIndex = new ArrayList<>();
+            for (int i = 0; i < indexByDim.size(); i++) {
+                List<String> dims = new ArrayList<>();
+                for (int j = i; j < sizeByDim.size(); j++) {
+                    dims.add(Integer.toString(sizeByDim.get(j)));
+                }
+                structureIndex.add(String.format("%s*%s", String.join("*", dims), indexByDim.get(i)));
+            }
+            str = Optional.of(String.join(" + ", structureIndex));
         }
 
         if (indexer.getIndex() instanceof ExprIndexer) {
@@ -62,34 +77,24 @@ public interface LValues {
             ind = expressioneval().evaluate(indexer.getIndex());
         }
 
-        if(str.isPresent()){
-            return String.format("%s[%s + %s]", variables().name(var), ind, str.get());
-        }else{
+        if (str.isPresent()) {
+            return String.format("%s[%s + %s]", variables().name(var), str.get(), ind);
+        } else {
             return String.format("%s[%s]", variables().name(var), ind);
         }
     }
 
-    default String evalLValueIndexStructure(LValueIndexer indexer, ListType type) {
-        String index = expressioneval().evaluate(indexer.getIndex());
-        String structure;
-        if (indexer.getStructure() instanceof LValueIndexer) {
-            ListType lastListType = getLastListType(type);
-            structure = String.format("%d*%s", lastListType.getSize().getAsInt(), index);
-            structure = String.format("%s + %d*%s", structure, type.getSize().getAsInt(), evalLValueIndexStructure((LValueIndexer) indexer.getStructure(), (ListType) type.getElementType()));
+    default List<String> getListIndexes(LValueIndexer expr) {
+        List<String> indexByDim = new ArrayList<>();
+        if (expr.getStructure() instanceof LValueIndexer) {
+            indexByDim.add(expressioneval().evaluate(expr.getIndex()));
+            getListIndexes((LValueIndexer) expr.getStructure()).stream().forEachOrdered(indexByDim::add);
         } else {
-            structure = String.format("%d*%s", type.getSize().getAsInt(), index);
+            indexByDim.add(expressioneval().evaluate(expr.getIndex()));
         }
-        return structure;
-    }
 
-    default ListType getLastListType(ListType type){
-        if(type.getElementType() instanceof  ListType){
-            return getLastListType((ListType) type.getElementType());
-        }else{
-            return type;
-        }
+        return indexByDim;
     }
-
 
     Variable evalLValueIndexerVar(LValue lvalue);
 

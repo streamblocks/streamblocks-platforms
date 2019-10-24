@@ -422,7 +422,20 @@ public interface ExpressionEvaluator {
         if (indexer.getStructure() instanceof ExprIndexer) {
             VarDecl varDecl = backend().varDecls().declaration(var);
             ListType type = (ListType) backend().types().declaredType(varDecl);
-            str = Optional.of(evalExprIndexStructure((ExprIndexer) indexer.getStructure(),(ListType) type.getElementType()));
+
+            List<Integer> sizeByDim = typeseval().sizeByDimension((ListType) type.getElementType());
+            List<String> indexByDim = getListIndexes((ExprIndexer) indexer.getStructure());
+            Collections.reverse(indexByDim);
+
+            List<String> structureIndex = new ArrayList<>();
+            for (int i = 0; i < indexByDim.size(); i++) {
+                List<String> dims = new ArrayList<>();
+                for (int j = i; j < sizeByDim.size(); j++) {
+                    dims.add(Integer.toString(sizeByDim.get(j)));
+                }
+                structureIndex.add(String.format("%s*%s", String.join("*", dims), indexByDim.get(i)));
+            }
+            str = Optional.of(String.join(" + ", structureIndex));
         }
 
         if (indexer.getIndex() instanceof ExprIndexer) {
@@ -431,16 +444,14 @@ public interface ExpressionEvaluator {
             ind = evaluate(indexer.getIndex());
         }
 
-        if(str.isPresent()){
-            return String.format("%s[%s + %s]", variables().name(var), ind, str.get());
-        }else{
+        if (str.isPresent()) {
+            return String.format("%s[%s + %s]", variables().name(var), str.get(), ind);
+        } else {
             return String.format("%s[%s]", variables().name(var), ind);
         }
     }
 
-
     Variable evalExprIndexVar(Expression expr);
-
 
     default Variable evalExprIndexVar(ExprVariable expr) {
         return expr.getVariable();
@@ -458,29 +469,16 @@ public interface ExpressionEvaluator {
         return evalExprIndexVar(expr.getStructure());
     }
 
-    default String evalExprIndex(Expression expr, int index) {
-        return evaluate(expr);
-    }
-
-    default String evalExprIndexStructure(ExprIndexer expr, ListType type) {
-        String index = evaluate(expr.getIndex());
-        String structure;
+    default List<String> getListIndexes(ExprIndexer expr) {
+        List<String> indexByDim = new ArrayList<>();
         if (expr.getStructure() instanceof ExprIndexer) {
-            ListType lastListType = getLastListType(type);
-            structure = String.format("%d*%s",  lastListType.getSize().getAsInt(), index);
-            structure = String.format("%s + %d*%s", structure, type.getSize().getAsInt(), evalExprIndexStructure((ExprIndexer) expr.getStructure(), (ListType) type.getElementType()));
+            indexByDim.add(evaluate(expr.getIndex()));
+            getListIndexes((ExprIndexer) expr.getStructure()).stream().forEachOrdered(indexByDim::add);
         } else {
-            structure = String.format("%d*%s", type.getSize().getAsInt(), index);
+            indexByDim.add(evaluate(expr.getIndex()));
         }
-        return structure;
-    }
 
-    default ListType getLastListType(ListType type){
-        if(type.getElementType() instanceof  ListType){
-            return getLastListType((ListType) type.getElementType());
-        }else{
-            return type;
-        }
+        return indexByDim;
     }
 
     /**
