@@ -88,9 +88,21 @@ static const int portRate_1[] = {
         1
 };
 
+// -- State Variables Description
+static const StateVariableDescription stateVariableDescription[] = {};
+
+// -- Uses by Transition
+static const int uses_in_action1[] = {};
+
+// -- Defines by Transition
+static const int defines_in_action1[] = {};
+
 static const ActionDescription actionDescriptions[] = {
-        {"action1", portRate_1, 0}
+        {"action1", portRate_1, 0, uses_in_action1, defines_in_action1}
 };
+
+// -- Condition Description
+static const ConditionDescription conditionDescription[] = {};
 
 ActorClass ActorClass_art_Sink_bin = INIT_ActorClass(
         "art_Sink_bin",
@@ -101,5 +113,7 @@ ActorClass ActorClass_art_Sink_bin = INIT_ActorClass(
         destructor,
         1, inputPortDescriptions,
         0, 0,
-        1, actionDescriptions
+        1, actionDescriptions,
+        0, conditionDescription,
+        0, stateVariableDescription
 );

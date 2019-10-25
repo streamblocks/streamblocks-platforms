@@ -1,15 +1,19 @@
 package ch.epfl.vlsc.sw.backend;
 
+import ch.epfl.vlsc.attributes.Defines;
+import ch.epfl.vlsc.attributes.Uses;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.PathUtils;
 import ch.epfl.vlsc.settings.PlatformSettings;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
+import org.multij.MultiJ;
 import se.lth.cs.tycho.attribute.GlobalNames;
 import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.ir.Port;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
+import se.lth.cs.tycho.ir.decl.LocalVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
@@ -72,6 +76,7 @@ public interface Instances {
     default void generateInstance(Instance instance) {
         // -- Add instance to box
         backend().instancebox().set(instance);
+        stateVariables().clear();
 
         // -- Get Entity
         GlobalEntityDecl entityDecl = globalnames().entityDecl(instance.getEntityName(), true);
@@ -85,9 +90,9 @@ public interface Instances {
 
         // -- Target file Path
         Path instanceTarget;
-        if(backend().context().getConfiguration().get(PlatformSettings.runOnNode)){
+        if (backend().context().getConfiguration().get(PlatformSettings.runOnNode)) {
             instanceTarget = PathUtils.getTargetCodeGenSourceCC(backend().context()).resolve(backend().instaceQID(instance.getInstanceName(), "_") + ".cc");
-        }else{
+        } else {
             instanceTarget = PathUtils.getTargetCodeGenSource(backend().context()).resolve(backend().instaceQID(instance.getInstanceName(), "_") + ".c");
         }
 
@@ -114,11 +119,23 @@ public interface Instances {
         // -- Port Description
         portDescription(instanceName, entity);
 
+        // -- State Variable Description
+        stateVariableDescription(instanceName, entity);
+
         // -- Port Rate
         portRate(instanceName, entity);
 
+        // -- Use / Defines
+        usesDefines(instanceName, entity);
+
         // -- Action/Transitions Description
         acttransDescription(instanceName, entity);
+
+        // -- Used state vars in conditions
+        usedVariablesInConditions(instanceName, entity);
+
+        // -- Conditions description
+        conditionDescription(instanceName, entity);
 
         // -- Scopes
         if (entity instanceof ActorMachine) {
@@ -348,7 +365,7 @@ public interface Instances {
     void portRate(String instanceName, Entity entity);
 
     default void portRate(String instanceName, ActorMachine am) {
-        emitter().emit("// -- Input/ Output Port Rate by Transition");
+        emitter().emit("// -- Input / Output Port Rate by Transition");
         for (Transition transition : am.getTransitions()) {
             List<String> inputRates = new ArrayList<>(am.getInputPorts().size());
             List<String> outputRates = new ArrayList<>(am.getOutputPorts().size());
@@ -390,6 +407,83 @@ public interface Instances {
         }
     }
 
+    void usesDefines(String instanceName, Entity entity);
+
+    default void usesDefines(String instanceName, ActorMachine am) {
+        emitter().emit("// -- Uses & defines in Transition");
+        for (Transition transition : am.getTransitions()) {
+            Uses uses = MultiJ.from(Uses.class)
+                    .bind("stateVariables").to(stateVariables())
+                    .bind("vardecls").to(backend().varDecls())
+                    .instance();
+            Defines defines = MultiJ.from(Defines.class)
+                    .bind("stateVariables").to(stateVariables())
+                    .bind("vardecls").to(backend().varDecls())
+                    .instance();
+
+            List<VarDecl> usedVar = uses.uses(transition);
+            List<VarDecl> definesVar = defines.defines(transition);
+
+            List<String> usedVarsInTransition = new ArrayList<>(stateVariables().size());
+            List<String> definesVarsInTransition = new ArrayList<>(stateVariables().size());
+
+            for (VarDecl varDecl : stateVariables()) {
+                if (usedVar.contains(varDecl)) {
+                    usedVarsInTransition.add("1");
+                } else {
+                    usedVarsInTransition.add("0");
+                }
+
+                if (definesVar.contains(varDecl)) {
+                    definesVarsInTransition.add("1");
+                } else {
+                    definesVarsInTransition.add("0");
+                }
+            }
+
+            String transitionName = instanceName + "_transition_" + am.getTransitions().indexOf(transition);
+            emitter().emit("static const int uses_in_%s[] = {%s};", transitionName, String.join(", ", usedVarsInTransition));
+            emitter().emitNewLine();
+            emitter().emit("static const int defines_in_%s[] = {%s};", transitionName, String.join(", ", definesVarsInTransition));
+            emitter().emitNewLine();
+        }
+    }
+
+    /*
+     * State variable description
+     */
+
+    @Binding(BindingKind.LAZY)
+    default List<VarDecl> stateVariables() {
+        return new ArrayList<>();
+    }
+
+    void stateVariableDescription(String instanceName, Entity entity);
+
+    default void stateVariableDescription(String instanceName, ActorMachine am) {
+        emitter().emit("// -- State Variable Description");
+        emitter().emit("static const StateVariableDescription stateVariableDescription[] = {");
+        emitter().increaseIndentation();
+
+        for (Scope scope : am.getScopes()) {
+            for (VarDecl var : scope.getDeclarations()) {
+                String variableName = backend().variables().declarationName(var);
+                Type type = types().declaredType(var);
+                if (var.isExternal() && type instanceof CallableType) {
+                    // -- Do nothing
+                } else {
+                    emitter().emit("{\"%s\", \"%s\", sizeof(%s)},", variableName, var.getOriginalName(), typeseval().type(type));
+                    stateVariables().add(var);
+                }
+            }
+        }
+
+        emitter().decreaseIndentation();
+        emitter().emit("};");
+        emitter().emitNewLine();
+    }
+
+
     /*
      * Transitions Description
      */
@@ -403,13 +497,75 @@ public interface Instances {
 
         for (Transition transition : am.getTransitions()) {
             String transitionName = instanceName + "_transition_" + am.getTransitions().indexOf(transition);
-            emitter().emit("{\"%s\", portRate_in_%1$s, portRate_out_%1$s},", transitionName);
+            emitter().emit("{\"%s\", portRate_in_%1$s, portRate_out_%1$s, uses_in_%1$s, defines_in_%1$s},", transitionName);
         }
 
         emitter().decreaseIndentation();
         emitter().emit("};");
         emitter().emitNewLine();
     }
+
+
+    void usedVariablesInConditions(String instanceName, Entity entity);
+
+    default void usedVariablesInConditions(String instanceName, ActorMachine am) {
+        emitter().emit("// -- State variables in Condition");
+        for (Condition condition : am.getConditions()) {
+            if (condition.kind() == Condition.ConditionKind.predicate) {
+                Uses uses = MultiJ.from(Uses.class)
+                        .bind("stateVariables").to(stateVariables())
+                        .bind("vardecls").to(backend().varDecls())
+                        .instance();
+
+                List<VarDecl> usedVar = uses.uses(condition);
+
+
+                List<String> usedVarsInTransition = new ArrayList<>(stateVariables().size());
+
+                for (VarDecl varDecl : stateVariables()) {
+                    if (usedVar.contains(varDecl)) {
+                        usedVarsInTransition.add("1");
+                    } else {
+                        usedVarsInTransition.add("0");
+                    }
+
+                }
+
+                String conditionName = instanceName + "_condition_" + am.getConditions().indexOf(condition);
+                emitter().emit("static const int state_var_in_%s[] = {%s};", conditionName, String.join(", ", usedVarsInTransition));
+                emitter().emitNewLine();
+            }
+        }
+    }
+
+    /*
+     * Condition description
+     */
+
+    void conditionDescription(String instanceName, Entity entity);
+
+    default void conditionDescription(String instanceName, ActorMachine am) {
+        emitter().emit("// -- Condition description");
+        emitter().emit("static const ConditionDescription conditionDescription[] = {");
+        emitter().increaseIndentation();
+
+        for (Condition condition : am.getConditions()) {
+            String conditionName = instanceName + "_condition_" + am.getConditions().indexOf(condition);
+            if (condition.kind() == Condition.ConditionKind.input) {
+                emitter().emit("{\"%s\", INPUT_KIND, %d, %d, NULL},", conditionName, am.getInputPorts().indexOf(backend().ports().declaration(((PortCondition) condition).getPortName())), ((PortCondition) condition).N());
+            } else if (condition.kind() == Condition.ConditionKind.output) {
+                emitter().emit("{\"%s\", OUTPUT_KIND, %d, %d, NULL},", conditionName, am.getInputPorts().indexOf(backend().ports().declaration(((PortCondition) condition).getPortName())), ((PortCondition) condition).N());
+            } else {
+                emitter().emit("{\"%s\", PREDICATE_KIND, -1, -1, state_var_in_%1$s},", conditionName);
+            }
+        }
+
+        emitter().decreaseIndentation();
+        emitter().emit("};");
+        emitter().emitNewLine();
+    }
+
+
 
     /*
      * Scopes
@@ -468,8 +624,10 @@ public interface Instances {
             String conditionName = instanceName + "_condition_" + am.getConditions().indexOf(condition);
             emitter().emit("ART_CONDITION(%s, %s){", conditionName, actorInstanceName);
             emitter().increaseIndentation();
-
-            emitter().emit("return %s;", evaluateCondition(condition));
+            emitter().emit("ART_CONDITION_ENTER(%s, %d)", conditionName, am.getConditions().indexOf(condition));
+            emitter().emit("bool cond = %s;", evaluateCondition(condition));
+            emitter().emit("ART_CONDITION_EXIT(%s, %d)", conditionName, am.getConditions().indexOf(condition));
+            emitter().emit("return cond;");
 
             emitter().decreaseIndentation();
             emitter().emit("}");
@@ -518,7 +676,9 @@ public interface Instances {
         emitter().emit("ActorInstance_%s_destructor,", instanceQID);
         emitter().emit("%d, %s,", am.getInputPorts().size(), am.getInputPorts().size() == 0 ? "0" : "inputPortDescriptions");
         emitter().emit("%d, %s,", am.getOutputPorts().size(), am.getOutputPorts().size() == 0 ? "0" : "outputPortDescriptions");
-        emitter().emit("%d, actionDescriptions", am.getTransitions().size());
+        emitter().emit("%d, actionDescriptions,", am.getTransitions().size());
+        emitter().emit("%d, conditionDescription,", am.getConditions().size());
+        emitter().emit("%d, stateVariableDescription", stateVariables().size());
 
         emitter().decreaseIndentation();
         emitter().emit(");");

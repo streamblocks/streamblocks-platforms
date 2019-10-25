@@ -239,8 +239,20 @@ static const PortDescription outputPortDescriptions[] = {{0, "SEQ",
 
 static const int portRate_1[] = {1};
 
+// -- State Variables Description
+static const StateVariableDescription stateVariableDescription[] = {};
+
+// -- Uses by Transition
+static const int uses_in_action[] = {};
+
+// -- Defines by Transition
+static const int defines_in_action[] = {};
+
 static const ActionDescription actionDescriptions[] = {{"action", 0,
-                                                               portRate_1}};
+                                                               portRate_1,uses_in_action, defines_in_action}};
+
+// -- Condition Description
+static const ConditionDescription conditionDescription[] = {};
 
 ActorClass ActorClass_art_Fasta = INIT_ActorClass(
         "art_Fasta",
@@ -251,5 +263,7 @@ ActorClass ActorClass_art_Fasta = INIT_ActorClass(
         destructor,
         0, 0,
         1, outputPortDescriptions,
-        1, actionDescriptions
+        1, actionDescriptions,
+        0, conditionDescription,
+        0, stateVariableDescription
 );

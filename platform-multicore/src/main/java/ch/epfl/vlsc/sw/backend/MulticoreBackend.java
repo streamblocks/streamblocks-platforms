@@ -78,6 +78,12 @@ public interface MulticoreBackend {
         return task().getModule(TreeShadow.key);
     }
 
+    // -- Ports
+    @Binding(LAZY)
+    default Ports ports() {
+        return task().getModule(Ports.key);
+    }
+
     // -- Channels Utils
     @Binding(LAZY)
     default ChannelsUtils channelsutils() {
@@ -193,7 +199,9 @@ public interface MulticoreBackend {
 
     // -- Node Scripts
     @Binding(LAZY)
-    default NodeScripts nodescripts(){return MultiJ.from(NodeScripts.class).bind("backend").to(this).instance();}
+    default NodeScripts nodescripts() {
+        return MultiJ.from(NodeScripts.class).bind("backend").to(this).instance();
+    }
 
     // -- Network to DOT
     @Binding(LAZY)

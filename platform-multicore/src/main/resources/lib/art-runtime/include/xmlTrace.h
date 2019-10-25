@@ -1,6 +1,7 @@
 /* 
- * Copyright (c) Ericsson AB, 2009
+ * Copyright (c) Ericsson AB, 2009, EPFL VLSC, 2019
  * Author: Carl von Platen (carl.von.platen@ericsson.com)
+ * Author: Endri Bezati (endri.bezati@epfl.ch)
  * All rights reserved.
  *
  * License terms:
@@ -54,21 +55,36 @@ FILE *xmlCreateTrace(const char *fileName);
 void xmlCloseTrace(FILE *f);
 
 /*
- * declare the network, its actor instances, 
+ * declare the network, its actor instances,
  * their ports and actions
  */
 void xmlDeclareNetwork(FILE *f,
                        const char *networkName,
                        AbstractActorInstance *actors[],
                        int numActors);
+/*
+ * declare the state variable of the  network, its actor instances
+ *
+ */
+void xmlDeclareStateDep(FILE *f,
+                        const char *networkName,
+                        AbstractActorInstance *actors[],
+                        int numActors);
+
 
 /*
  * Generate trace of one action firing
  */
-void xmlTraceAction(FILE *f, int actionIndex);
+void xmlTraceAction(FILE *f, unsigned int t,  int actionIndex);
+
 
 /*
- * Generate CPU status 0-goto sleep 1-wakeup 
+ * Generate trace of one condition
+ */
+void xmlTraceCondition(FILE *f, unsigned int t, int conditionIndex);
+
+/*
+ * Generate CPU status 0-goto sleep 1-wakeup
  */
 void xmlTraceStatus(FILE *f, int status);
 
@@ -78,3 +94,4 @@ void xmlTraceStatus(FILE *f, int status);
 void xmlTraceWakeup(FILE *f, int whom);
 
 #endif /* xmlTrace_H_INCLUDED */
+

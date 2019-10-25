@@ -173,15 +173,37 @@ struct AbstractActorInstance {
     long long nloops;
     unsigned long long total;
     int firstActionIndex;
+    int firstConditionIndex;
+    int firstStateVariableIndex;
     FILE *traceFile;
     int *cpu; // For active actor to wakeup the sleeping thread
 };
+
+typedef struct{
+    const char *name;
+    const char *originalName;
+    int tokenSize;
+} StateVariableDescription;
+
 
 typedef struct {
     const char *name;
     const int *consumption;
     const int *production;
+    const int *uses;
+    const int *defines;
 } ActionDescription;
+
+enum ConditionKind{INPUT_KIND, OUTPUT_KIND, PREDICATE_KIND};
+
+typedef struct {
+    const char *name;
+    const enum ConditionKind kind;
+    const int port;
+    const int count;
+    const int *stateVariables;
+} ConditionDescription;
+
 
 typedef struct {
     int isBytes;
@@ -208,6 +230,10 @@ struct ActorClass {
     int actorExecMode;
     int numActions;
     const ActionDescription *actionDescriptions;
+    int numConditions;
+    const ConditionDescription *conditionDescription;
+    int numStateVariables;
+    const StateVariableDescription *stateVariableDescription;
 };
 
 // Creates an ActorClass initializer
@@ -220,20 +246,26 @@ struct ActorClass {
                         dtor, \
                         nInputs, inputDescr, \
                         nOutputs, outputDescr, \
-                        nActions, actionDescr) { \
-    .name=aClassName,                            \
-    .numInputPorts=nInputs,                      \
-    .numOutputPorts=nOutputs,                    \
-    .sizeActorInstance=sizeof(instance_t),       \
-    .action_scheduler=sched,                     \
-    .constructor=ctor,                           \
-    .destructor=dtor,                            \
-    .set_param=setParam,                         \
-    .inputPortDescriptions=inputDescr,           \
-    .outputPortDescriptions=outputDescr,         \
-    .actorExecMode=0,                            \
-    .numActions=nActions,                        \
-    .actionDescriptions=actionDescr              \
+                        nActions, actionDescr, \
+                        nConditions, conditionDescr, \
+                        nStateVariables, stateVariableDescr) { \
+    .name=aClassName,                             \
+    .numInputPorts=nInputs,                       \
+    .numOutputPorts=nOutputs,                     \
+    .sizeActorInstance=sizeof(instance_t),        \
+    .action_scheduler=sched,                      \
+    .constructor=ctor,                            \
+    .destructor=dtor,                             \
+    .set_param=setParam,                          \
+    .inputPortDescriptions=inputDescr,            \
+    .outputPortDescriptions=outputDescr,          \
+    .actorExecMode=0,                             \
+    .numActions=nActions,                         \
+    .actionDescriptions=actionDescr,              \
+    .numConditions=nConditions,                   \
+    .conditionDescription=conditionDescr,         \
+    .numStateVariables=nStateVariables,           \
+    .stateVariableDescription= stateVariableDescr \
   }
 
 // Action-scheduler exit code (first element of array)
@@ -261,8 +293,14 @@ extern int rangeError(int x, int y, const char *filename, int line);
 extern void runtimeError(AbstractActorInstance *, const char *format, ...);
 
 extern void actionTrace(AbstractActorInstance *instance,
+                        unsigned int timestamp,
                         int localActionIndex,
                         char *actionName);
+
+extern void conditionTrace(AbstractActorInstance *instance,
+                           unsigned int timestamp,
+                           int localConditionIndex,
+                           char *conditionName);
 
 extern AbstractActorInstance *createActorInstance(ActorClass *actorClass);
 
@@ -287,6 +325,7 @@ extern void setParameterBytes(AbstractActorInstance *pInstance,
                               const void *value,
                               int size);
 
+extern unsigned int timestamp();
 
 #define ART_INPUT(index) &(context->input[index])
 #define ART_OUTPUT(index) &(context->output[index])
@@ -387,13 +426,36 @@ extern void setParameterBytes(AbstractActorInstance *pInstance,
 #ifdef TRACE
 #define ART_ACTION_ENTER(name, index)   \
   context->fired++; \
-  actionTrace((AbstractActorInstance*)thisActor,index,#name)
+  unsigned int __timestamp = timestamp(); \
+
 #else
 #define ART_ACTION_ENTER(name, index)        \
   context->fired++
 #endif
 
+#ifdef TRACE
+#define ART_CONDITION_ENTER(name, index)   \
+ unsigned int __timestamp = timestamp(); \
+
+#else
+#define ART_CONDITION_ENTER(name, index)        \
+
+#endif
+
+#ifdef TRACE
+#define ART_ACTION_EXIT(name, index) \
+actionTrace((AbstractActorInstance*)thisActor,__timestamp, index,#name);
+#else
 #define ART_ACTION_EXIT(name, index)
+#endif
+
+#ifdef TRACE
+#define ART_CONDITION_EXIT(name, index) \
+conditionTrace((AbstractActorInstance*)thisActor,__timestamp, index,#name);
+#else
+#define ART_CONDITION_EXIT(name, index) \
+
+#endif
 
 #define FIFO_TYPE int32_t
 

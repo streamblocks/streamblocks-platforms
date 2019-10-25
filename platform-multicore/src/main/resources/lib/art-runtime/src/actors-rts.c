@@ -100,11 +100,21 @@ static void add_timer(art_timer_t *timer,
 }
 
 void actionTrace(AbstractActorInstance *instance,
+                 unsigned int timestamp,
                  int localActionIndex,
                  char *actionName) {
     if (instance->traceFile)
-        xmlTraceAction(instance->traceFile,
+        xmlTraceAction(instance->traceFile, timestamp,
                        instance->firstActionIndex + localActionIndex);
+}
+
+void conditionTrace(AbstractActorInstance *instance,
+                    unsigned int timestamp,
+                    int localConditionIndex,
+                    char *conditionName) {
+    if (instance->traceFile)
+        xmlTraceCondition(instance->traceFile, timestamp,
+                          instance->firstConditionIndex + localConditionIndex);
 }
 
 unsigned int timestamp() {
@@ -125,7 +135,10 @@ void enable_tracing(cpu_runtime_data_t *runtime,
                     char *networkName) {
     int i, j, k = 0;
     FILE *netfile;
+    FILE *statedepfile;
     int firstActionIndex = 0;
+    int firstConditionIndex = 0;
+    int firstStateVariableIndex = 0;
     AbstractActorInstance **instances = (AbstractActorInstance **) malloc(
             numInstances * sizeof(AbstractActorInstance *));
 
@@ -137,7 +150,10 @@ void enable_tracing(cpu_runtime_data_t *runtime,
         for (j = 0; j < cpu->actors; j++) {
             AbstractActorInstance *pInstance = cpu->actor[j];
             pInstance->firstActionIndex = firstActionIndex;
+            pInstance->firstConditionIndex = firstConditionIndex;
+            pInstance->firstStateVariableIndex = firstStateVariableIndex;
             firstActionIndex += pInstance->actor->numActions;
+            firstConditionIndex += pInstance->actor->numConditions;
             pInstance->traceFile = cpu->traceFile;
             instances[k++] = pInstance;
         }
@@ -147,6 +163,9 @@ void enable_tracing(cpu_runtime_data_t *runtime,
     xmlDeclareNetwork(netfile, networkName, instances, numInstances);
     xmlCloseTrace(netfile);
 
+    statedepfile = xmlCreateTrace("state_dep.xml");
+    xmlDeclareStateDep(statedepfile, networkName, instances, numInstances);
+    xmlCloseTrace(statedepfile);
 }
 
 
@@ -913,6 +932,8 @@ static cpu_runtime_data_t *allocate_network(
                     actor->nloops = 0;
                     actor->total = 0;
                     actor->firstActionIndex = 0;
+                    actor->firstConditionIndex = 0;
+                    actor->firstStateVariableIndex = 0;
                     actor->traceFile = 0;
 
                     actor->cpu = (int *) &result[cpu];

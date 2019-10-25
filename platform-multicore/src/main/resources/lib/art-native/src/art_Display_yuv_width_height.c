@@ -72,10 +72,26 @@ static const int portRate_64_0_0[] = {
         64, 0, 0
 };
 
+// -- State Variables Description
+static const StateVariableDescription stateVariableDescription[] = {};
+
+// -- Uses by Transition
+static const int uses_in_startFrame[] = {};
+static const int uses_in_read[] = {};
+
+// -- Defines by Transition
+static const int defines_in_startFrame[] = {};
+static const int defines_in_read[] = {};
+
+// -- Action Description
 static const ActionDescription actionDescriptions[] = {
-        {"startFrame", portRate_0_1_1,  portRate_0},
-        {"read",       portRate_64_0_0, portRate_0}
+        {"startFrame", portRate_0_1_1,  portRate_0, uses_in_startFrame, defines_in_startFrame},
+        {"read",       portRate_64_0_0, portRate_0, uses_in_read, defines_in_read}
 };
+
+
+// -- Condition Description
+static const ConditionDescription conditionDescription[] = {};
 
 ActorClass ActorClass_art_Display_yuv_width_height = INIT_ActorClass(
         "art_Display_yuv_width_height",
@@ -86,7 +102,9 @@ ActorClass ActorClass_art_Display_yuv_width_height = INIT_ActorClass(
         art_Display_yuv_width_height_destructor,
         3, inputPortDescriptions,
         0, 0, // if Out-port: 1, outputPortDescriptions,
-        2, actionDescriptions
+        2, actionDescriptions,
+        0, conditionDescription,
+        0, stateVariableDescription
 );
 
 static const int exitcode_block_WIDTH_1[] = {
