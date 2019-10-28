@@ -1101,18 +1101,18 @@ static void generate_config(FILE *f,
 
     fprintf(f, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
     fprintf(f, "<Configuration>\n");
-    fprintf(f, "  <Partitioning>\n");
+    fprintf(f, "\t<Partitioning>\n");
     for (i = 0; i < cpu->cpu_count; i++) {
-        fprintf(f, "    <Partition id=\"%u\">\n", i);
+        fprintf(f, "\t\t<Partition id=\"%u\">\n", i);
         for (j = 0; j < cpu[i].actors; j++) {
             AbstractActorInstance *actor = cpu[i].actor[j];
             if (with_complexity)
-                fprintf(f, "      <Instance actor-id=\"%s\" complexity=\"%llu\"/>\n",
+                fprintf(f, "\t\t\t<Instance actor-id=\"%s\" complexity=\"%llu\"/>\n",
                         actor->name, actor->total);
             else
-                fprintf(f, "      <Instance actor-id=\"%s\"/>\n", actor->name);
+                fprintf(f, "\t\t\t<Instance actor-id=\"%s\"/>\n", actor->name);
         }
-        fprintf(f, "    </Partition>\n");
+        fprintf(f, "\t\t</Partition>\n");
     }
 
     for (i = 0; i < cpu->cpu_count; i++) {
@@ -1151,7 +1151,7 @@ static void generate_config(FILE *f,
                         inputBandwidth /= tokenSize;
                     }
 
-                    fprintf(f, "    <Connection src=\"%s\" src-port=\"%s\" "
+                    fprintf(f, "\t\t<Connection src=\"%s\" src-port=\"%s\" "
                                "dst=\"%s\" dst-port=\"%s\" size=\"%u\"",
                             producer->name, outputPortName,
                             consumer->name, inputPortName,
@@ -1166,8 +1166,8 @@ static void generate_config(FILE *f,
             }
         }
     }
-    fprintf(f, "  </Partitioning>\n");
-    fprintf(f, "  <Scheduling type=\"RoundRobin\"/>\n");
+    fprintf(f, "\t</Partitioning>\n");
+    fprintf(f, "\t<Scheduling type=\"RoundRobin\"/>\n");
     fprintf(f, "</Configuration>\n");
 }
 

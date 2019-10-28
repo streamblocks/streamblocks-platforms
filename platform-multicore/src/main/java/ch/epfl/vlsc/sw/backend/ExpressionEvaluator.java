@@ -415,12 +415,11 @@ public interface ExpressionEvaluator {
      * @return
      */
     default String evaluate(ExprIndexer indexer) {
-        Variable var = evalExprIndexVar(indexer);
+        VarDecl varDecl = evalExprIndexVar(indexer);
 
         Optional<String> str = Optional.empty();
         String ind;
         if (indexer.getStructure() instanceof ExprIndexer) {
-            VarDecl varDecl = backend().varDecls().declaration(var);
             ListType type = (ListType) backend().types().declaredType(varDecl);
 
             List<Integer> sizeByDim = typeseval().sizeByDimension((ListType) type.getElementType());
@@ -445,27 +444,32 @@ public interface ExpressionEvaluator {
         }
 
         if (str.isPresent()) {
-            return String.format("%s[%s + %s]", variables().name(var), str.get(), ind);
+            return String.format("%s[%s + %s]", variables().name(varDecl), str.get(), ind);
         } else {
-            return String.format("%s[%s]", variables().name(var), ind);
+            return String.format("%s[%s]", variables().name(varDecl), ind);
         }
     }
 
-    Variable evalExprIndexVar(Expression expr);
+    VarDecl evalExprIndexVar(Expression expr);
 
-    default Variable evalExprIndexVar(ExprVariable expr) {
-        return expr.getVariable();
+
+    default VarDecl evalExprIndexVar(ExprVariable expr) {
+        return backend().varDecls().declaration(expr);
     }
 
-    default Variable evalExprIndexVar(ExprDeref expr) {
+    default VarDecl evalExprIndexVar(ExprGlobalVariable expr){
+        return backend().varDecls().declaration(expr);
+    }
+
+    default VarDecl evalExprIndexVar(ExprDeref expr) {
         if (expr.getReference() instanceof ExprVariable) {
-            return ((ExprVariable) expr.getReference()).getVariable();
+            return backend().varDecls().declaration((ExprVariable) expr.getReference());
         }
 
         throw new UnsupportedOperationException();
     }
 
-    default Variable evalExprIndexVar(ExprIndexer expr) {
+    default VarDecl evalExprIndexVar(ExprIndexer expr) {
         return evalExprIndexVar(expr.getStructure());
     }
 
