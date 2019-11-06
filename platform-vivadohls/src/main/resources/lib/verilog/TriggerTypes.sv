@@ -46,11 +46,14 @@ package TriggerTypes;
 			EXECUTED
 	} return_t;
 	typedef enum logic[2:0] {
-		STAND_BY,
-		TRY_LAUNCH,
+		IDLE,
 		LAUNCH,
-		CHECK_RETURN,
-		PROBE_INPUT
+		CHECK,
+		SLEEP,
+		SYNC_LAUNCH,
+		SYNC_CHECK,
+		SYNC_WAIT,
+		SYNC_EXEC
 	}state_t;
 	typedef enum integer{
 		ACTOR_TRIGGER,

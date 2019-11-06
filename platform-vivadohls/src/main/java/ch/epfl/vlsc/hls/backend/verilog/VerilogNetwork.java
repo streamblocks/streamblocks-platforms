@@ -15,6 +15,7 @@ import se.lth.cs.tycho.ir.entity.am.ActorMachine;
 import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.network.Network;
+import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.type.Type;
 
 import java.util.HashMap;
@@ -32,6 +33,21 @@ public interface VerilogNetwork {
         return backend().emitter();
     }
 
+    default String getExternalEnqueueSignal() {
+        return "external_enqueue";
+    }
+
+    default String getAllSyncSingal() {
+        return "all_sync";
+    }
+
+    default String getAllSyncWaitSignal() {
+        return "all_sync_wait";
+    }
+
+    default String getAllSleepSignal() {
+        return "all_sleep";
+    }
     default void generateNetwork() {
         // -- Identifier
         String identifier = backend().task().getIdentifier().getLast().toString();
@@ -172,6 +188,10 @@ public interface VerilogNetwork {
         // -- Instance AP control wires
         getInstanceApControlWires(network.getInstances());
 
+        // -- Trigger wires
+        getGlobalTriggerWires();
+        getLocalTriggerWires(network.getInstances());
+
         emitter().emitNewLine();
     }
 
@@ -217,6 +237,43 @@ public interface VerilogNetwork {
         }
     }
 
+
+    // Trigger signals
+    default void getGlobalTriggerWires() {
+        emitter().emitNewLine();
+        emitter().emit("// -- global trigger signals");
+        emitter().emit("wire    %s;", getAllSleepSignal());
+        emitter().emit("wire    %s;", getAllSyncSingal());
+        emitter().emit("wire    %s;", getAllSyncWaitSignal());
+        emitter().emit("wire    %s;", getExternalEnqueueSignal());
+        emitter().emitNewLine();
+    }
+    default void getLocalTriggerWires(ImmutableList<Instance> instances) {
+        for (Instance instance : instances) {
+            String qidName = backend().instaceQID(instance.getInstanceName(), "_");
+            emitter().emit("// -- Signals for the trigger module of %s", qidName);
+            emitter().emit("wire    %s_trigger_ap_done;", qidName);
+            emitter().emit("wire    %s_trigger_ap_idle;", qidName);
+            emitter().emit("wire    %s_trigger_ap_ready;\t// currently inactive", qidName);
+            
+            // Local syncronization signals
+            emitter().emit("// -- Local syncronization signals");
+            emitter().emit("wire    %s;", getTriggerSignalByName(instance, "sleep"));
+            emitter().emit("wire    %s;", getTriggerSignalByName(instance, "sync_wait"));
+            emitter().emit("wire    %s;", getTriggerSignalByName(instance, "sync_exec"));
+            emitter().emit("wire    %s;", getTriggerSignalByName(instance, "sync"));
+            
+
+            emitter().emit("// -- Signals for the module");
+            emitter().emit("wire    %s_ap_start;", qidName);
+            emitter().emit("wire    %s_ap_idle;", qidName);
+            emitter().emit("wire    %s_ap_done;", qidName);
+            emitter().emit("wire    %s_ap_ready;", qidName);
+            emitter().emit("wire    [31 : 0] %s_ap_return;", qidName);
+            emitter().emitNewLine();
+        }
+        emitter().emitNewLine();
+    }
     // ------------------------------------------------------------------------
     // -- Queues
 
@@ -314,12 +371,15 @@ public interface VerilogNetwork {
                                 .collect(Collectors.toList())
                         )
                 );
+
                 emitter().emit("assign %s_has_tokens = %s;", qidName,
                         String.join(" | ", emptyNList.stream()
                                 .filter(con->con.getTarget().getInstance().get().equals(instance.getInstanceName()))
                                 .map(con->"q_"+ instance.getInstanceName() + "_" + con.getTarget().getPort() + "_empty_n")
                                 .collect(Collectors.toList()))
                         );
+                
+                        
             }   
         }
     }
@@ -335,25 +395,7 @@ public interface VerilogNetwork {
 
         emitter().emit("// -- Instance : %s", qidName);
         if (entity instanceof ActorMachine) {
-            // -- Actor trigger wires
-           
-            emitter().emit("// -- Signals for the trigger module");
-            emitter().emit("wire    %s_trigger_ap_done;", qidName);
-            emitter().emit("wire    %s_trigger_ap_idle;", qidName);
-            emitter().emit("wire    %s_trigger_ap_ready;\t// currently inactive", qidName);
-            emitter().emit("wire    %s_network_idle;", qidName);
-            emitter().emit("wire    %s_has_tokens;", qidName);
-            emitter().emit("wire    %s_others_sleeping;", qidName);
-            emitter().emit("wire    %s_sleeping;", qidName);
-            emitter().emit("// -- Signals for the module");
-            emitter().emit("wire    %s_ap_start;", qidName);
-            emitter().emit("wire    %s_ap_idle;", qidName);
-            emitter().emit("wire    %s_ap_done;", qidName);
-            emitter().emit("wire    %s_ap_ready;", qidName);
-            emitter().emit("wire    [31 : 0] %s_ap_return;", qidName);
-
-
-            emitter().emitNewLine();
+            
 
             emitter().emit("trigger #(.mode(trigger_mode)) i_%s_trigger (", qidName);
             {
@@ -365,15 +407,18 @@ public interface VerilogNetwork {
                 emitter().emit(".ap_done(%s_trigger_ap_done),", qidName);
                 emitter().emit(".ap_idle(%s_trigger_ap_idle),", qidName);
                 emitter().emit(".ap_ready(%s_trigger_ap_ready),", qidName);
-                emitter().emit(".network_idle(%s_others_sleeping),", qidName);
+                emitter().emit(".external_enqueue(%s),", getExternalEnqueueSignal());
+                emitter().emit(".all_sync(%s),", getAllSyncSingal());
+                emitter().emit(".all_sync_wait(%s),", getAllSyncWaitSignal());
+                emitter().emit(".all_sleep(%s),", getAllSleepSignal());
+                emitter().emit(".sleep(%s),", getTriggerSignalByName(instance, "sleep"));
+                emitter().emit(".sync_exec(%s),", getTriggerSignalByName(instance, "sync_exec"));
+                emitter().emit(".sync_wait(%s),", getTriggerSignalByName(instance, "sync_wait"));
                 emitter().emit(".actor_return(%s_ap_return),", qidName);
-                emitter().emit(".actor_done(%s_ap_done),", qidName);
-                emitter().emit(".actor_ready(%s_ap_ready),", qidName);
-                emitter().emit(".actor_idle(%s_ap_idle),", qidName);
-                emitter().emit(".actor_launch_predicate(),");
-                emitter().emit(".actor_start(%s_ap_start),", qidName);
-                emitter().emit(".has_tokens(%s_has_tokens),", qidName);
-                emitter().emit(".sleeping(%s_sleeping)", qidName);
+                emitter().emit(".actor_done(%s_actor_done),", qidName);
+                emitter().emit(".actor_ready(%s_actor_ready),", qidName);
+                emitter().emit(".actor_idle(%s_actor_idle),", qidName);
+                emitter().emit(".actor_start(%s_actor_start)", qidName);
 
 
                 emitter().decreaseIndentation();
@@ -659,5 +704,47 @@ public interface VerilogNetwork {
         emitter().emit("end");
     }
 
+    default void getTriggerAssignments(ImmutableList<Instance> instances) {
+        List<String> sleepSignals = getTriggerSignalsByName(instances, "sleep");
+        List<String> syncSignals = getTriggerSignalsByName(instances, "sync");
+        List<String> syncWaitSignals = getTriggerSignalsByName(instances, "sync_wait");
+
+        emitter().emit("// --Local sync signals");
+        for (Instance instance: instances) {
+           
+            emitter().emit("assign %s = %s | %s;", getTriggerSignalByName(instance, "sync"),
+                                                    getTriggerSignalByName(instance, "sync_exec"),
+                                                    getTriggerSignalByName(instance, "sync_wait"));
+        }
+        emitter().emitNewLine();
+        emitter().emit("// -- global sync signals");
+        emitter().emit("assign %s = %s;", 
+                                getAllSleepSignal(), 
+                                String.join("&", sleepSignals)
+                            );
+        emitter().emit("assign %s = %s;", 
+                            getAllSyncWaitSignal(),
+                            String.join("&", syncWaitSignals)
+                        );
+    
+        emitter().emit("assign %s = %s;", 
+                            getAllSyncSingal(), 
+                            String.join("&", syncSignals)
+                        );
+        emitter().emit("assign %s = ~input_idle;", getExternalEnqueueSignal());
+        emitter().emitNewLine();
+    }
+    default List<String> getTriggerSignalsByName(ImmutableList<Instance> instances, String name) {
+        List<String> signals = instances.stream()
+        .filter(inst->(backend().globalnames().entityDecl(inst.getEntityName(), true).getEntity() instanceof ActorMachine))
+        .map(
+            inst->getTriggerSignalByName(inst, name)
+        )
+        .collect(Collectors.toList()); 
+        return signals;
+    }
+    default String getTriggerSignalByName(Instance instance, String name) {
+        return backend().instaceQID(instance.getInstanceName(), "_") + "_" + name;
+    }
 
 }

@@ -126,21 +126,27 @@ public interface OutputStage {
         emitter().emitNewLine();
 
         // -- Output stage mem
+        getTriggerLocalWires(port);
+        
+    }
+
+    default void getTriggerLocalWires(PortDecl port) {
         emitter().emit("// -- Output stage mem");
         emitter().emit("wire   %s_output_stage_ap_start;", port.getName());
         emitter().emit("wire   %s_output_stage_ap_done;", port.getName());
         emitter().emit("wire   %s_output_stage_ap_idle;", port.getName());
         emitter().emit("wire   %s_output_stage_ap_ready;", port.getName());
+       
+       
+        emitter().emit("wire    %s_sync_wait;", port.getSafeName());
+        emitter().emit("wire    %s_sync_exec;", port.getSafeName());
+        emitter().emit("wire    %s_sleep;", port.getSafeName());
+
         emitter().emit("wire   [31 : 0] %s_output_stage_ap_return;", port.getName());
-        emitter().emit("wire   %s_output_stage_launch_predicate;", port.getName());
+        
         emitter().emit("localparam mode_t trigger_mode = OUTPUT_TRIGGER;");
         emitter().emitNewLine();
-        emitter().emit("assign %s_output_stage_launch_predicate = ~q_tmp_V_full_n || network_idle;",
-                port.getName());
-
-        emitter().emitNewLine();
     }
-
     default void getTriggerModule(PortDecl port) {
 
         emitter().emit("// -- Trigger control for port : %s", port.getName());
@@ -156,13 +162,18 @@ public interface OutputStage {
             emitter().emit(".ap_done(ap_done),");
             emitter().emit(".ap_idle(ap_idle),");
             emitter().emit(".ap_ready(ap_ready),");
-            emitter().emit(".network_idle(network_idle),");
-            emitter().emit(".has_tokens(1'b1),");
+            emitter().emit(".external_enqueue(~network_idle),");
+            emitter().emit(".all_sync(%s_sync_wait | %1$s_sync_exec),", port.getSafeName());
+            emitter().emit(".all_sync_wait(%s_sync_wait),", port.getSafeName());
+            emitter().emit(".all_sleep(%s_sleep),", port.getSafeName());
+            emitter().emit(".sync_exec(%s_sync_exec),", port.getSafeName());
+            emitter().emit(".sync_wait(%s_sync_wait),", port.getSafeName());
+            emitter().emit(".sleep(%s_sleep),", port.getSafeName());
             emitter().emit(".actor_return(%s_output_stage_ap_return),", port.getName());
             emitter().emit(".actor_done(%s_output_stage_ap_done),", port.getName());
             emitter().emit(".actor_ready(%s_output_stage_ap_ready),", port.getName());
             emitter().emit(".actor_idle(%s_output_stage_ap_idle),", port.getName());
-            emitter().emit(".actor_launch_predicate(%s_output_stage_launch_predicate),", port.getName());
+           
             emitter().emit(".actor_start(%s_output_stage_ap_start)", port.getName());
 
 

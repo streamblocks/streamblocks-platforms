@@ -48,16 +48,25 @@ module trigger
     output wire ap_ready,
     output wire ap_idle,
 
-    input wire network_idle,
-		input wire has_tokens,
+		// Signal indicating whether there is external enqueue of buffers
+    input wire external_enqueue,
+		// signal indicating whether all actors are in a SYNC_{WAIT, EXEC} state
+		input wire all_sync,
+		// signal indicating whether all actors are in a SYNC_WAIT state
+		input wire all_sync_wait,
+		// signal indicating whether all actors are in SLEEP state
+		input wire all_sleep,
+		
+		output wire sleep,	//actor is sleeping
+		output wire sync_exec, //actor returned EXECUTED in a synced step
+		output wire sync_wait,	//actor returned ~EXECUTED in a synced step
+
 
     input wire[31:0] actor_return,
     input wire actor_done,
     input wire actor_ready,
     input wire actor_idle,
-		input wire actor_launch_predicate,
     output wire actor_start,
-		output wire sleeping
 
 );
 	timeunit 1ps;
@@ -66,7 +75,7 @@ module trigger
 	state_t state = STAND_BY;
 	state_t next_state;
 
-	wire can_launch;
+
 
 	always_ff @(posedge ap_clk) begin
         if (~ap_rst_n)
@@ -75,76 +84,88 @@ module trigger
             state <= next_state;
 	end
 
-	state_t RE_LAUNCH = (mode == ACTOR_TRIGGER) ? LAUNCH : TRY_LAUNCH;
-
-	generate
-		if (mode == ACTOR_TRIGGER) begin
-			assign can_launch = actor_idle && ~ap_start;
-
-		end
-		else if (mode == INPUT_TRIGGER || mode == OUTPUT_TRIGGER) begin
-			assign can_launch = actor_idle && ~ap_start && actor_launch_predicate;
-
-		end
-	endgenerate
-
-
-	assign actor_start = (state == LAUNCH);
-	assign ap_idle = (state == STAND_BY);
-	assign ap_done = (state == CHECK_RETURN | state == PROBE_INPUT) & (next_state == STAND_BY);
-	assign sleeping = (state == PROBE_INPUT) || (state == STAND_BY);
-
-
-	always_comb begin
-		case (state)
-			STAND_BY: begin
-				if (ap_start)
-					next_state = TRY_LAUNCH;
-				else
-					next_state = STAND_BY;
-			end
-			TRY_LAUNCH: begin
-				if (can_launch)
+	always_comb begin 
+		case (state) 
+			IDLE: begin
+				if (ap_start) 
 					next_state = LAUNCH;
-				else
-					next_state = TRY_LAUNCH;
+				else 
+					next_state = IDLE;
 			end
 			LAUNCH: begin
-				if(~actor_done)
-					next_state = CHECK_RETURN;
-				else if (actor_done && actor_return == EXECUTED)
-					next_state = RE_LAUNCH;
-				else if (actor_done && (actor_return == WAIT_INPUT || ~network_idle))
-					next_state = PROBE_INPUT;
-				else
-					next_state = TRY_LAUNCH;
+				if (actor_done) begin
+					if (actor_return == EXECUTED || external_enqueue)
+						next_state = LAUNCH;
+					else // (actor_return != EXECUTED && !external_enqueue)
+						next_state = SLEEP;
+				end
+				else begin // !actor_done
+					next_state = CHECK;
+				end
 			end
-			CHECK_RETURN: begin
-				if (~actor_done)
-					next_state = CHECK_RETURN;
-				else if (actor_done && actor_return == EXECUTED)
-					next_state = RE_LAUNCH;
-				else if (actor_done && actor_return == WAIT_INPUT)
-					next_state = PROBE_INPUT;
-				else if (actor_done && ~network_idle) begin
-					next_state = PROBE_INPUT;
+			CHECK: begin
+				if (actor_done) begin
+					if (actor_return == EXECUTED || external_enqueue)
+						next_state = LAUNCH;
+					else
+						next_state = SLEEP; 
+				end
+				else begin
+					next_state = CHECK;
+				end
+			end
+			SLEEP: begin
+				if (all_sleeping)
+					next_state = SYNC_LAUNCH;
+				else 
+					next_state = SLEEP;
+			end
+			SYNC_LAUNCH: begin
+				if (actor_done) begin
+					if (actor_return == EXECUTED)
+						next_state = SYNC_EXEC;
+					else 
+						next_state = SYNC_WAIT;
+				end 
+				else begin
+					next_state = SYNC_CHECK;
+				end
+			end
+			SYNC_CHECK: begin
+				if (actor_done) begin
+					if (actor_return == EXECUTED)
+						next_state = SYNC_EXEC;
+					else 
+						next_state = SYNC_WAIT;
+				end
+				else begin
+					next_state = SYNC_CHECK;
+				end
+			end
+			SYNC_WAIT: begin
+				if (all_sync) begin
+					if(all_sync_wait)
+						next_state = IDLE;
+					else 
+						next_state = SYNC_LAUNCH;
 				end
 				else
-					next_state = STAND_BY;
-
+					next_state = SYNC_WAIT;
 			end
-			PROBE_INPUT:begin
-				if(has_tokens && ~network_idle)
-					next_state = RE_LAUNCH;
-				else if (network_idle)
-					next_state = STAND_BY;
-				else
-					next_state = PROBE_INPUT;
+			SYNC_EXEC: begin
+				if (all_sync) 
+					next_state = SYNC_LAUNCH;
+				else 
+					next_state = SYNC_EXEC;
 			end
-			default:
-				next_state = state;
-		endcase
-
+		endcase 
 	end
-
+	
+	assign actor_start = (state == LAUNCH) | (state == SYNC_LAUNCH);
+	assign ap_idle = (state == IDLE);
+	assign sleep = (state == SLEEP);
+	assign sync_wait = (state == SYNC_WAIT);
+	assign sync_exec = (state = SYNC_EXEC);
+	assign ap_done = (state == SYNC_WAIT) & (next_state == IDLE);
+	assign ap_ready = ap_done;
 endmodule : trigger
