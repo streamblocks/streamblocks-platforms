@@ -162,12 +162,12 @@ public interface InputStage {
             emitter().emit(".ap_idle(ap_idle),");
             emitter().emit(".ap_ready(ap_ready),");
             emitter().emit(".external_enqueue(1'b0),");
-            emitter().emit(".all_sync(%s_sync_wait | %1$s_sync_exec)", port.getSafeName());
-            emitter().emit(".all_sync_wait(%s_sync_wait)", port.getSafeName());
-            emitter().emit(".all_sleep(%s_sleep)", port.getSafeName());
+            emitter().emit(".all_sync(%s_sync_wait | %1$s_sync_exec),", port.getSafeName());
+            emitter().emit(".all_sync_wait(%s_sync_wait),", port.getSafeName());
+            emitter().emit(".all_sleep(%s_sleep),", port.getSafeName());
             emitter().emit(".sleep(%s_sleep),", port.getSafeName());
-            emitter().emit(".sync_exec(%s_sync_exec)", port.getSafeName());
-            emitter().emit(".sync_wait(%s_sync_wait)", port.getSafeName());
+            emitter().emit(".sync_exec(%s_sync_exec),", port.getSafeName());
+            emitter().emit(".sync_wait(%s_sync_wait),", port.getSafeName());
             emitter().emit(".actor_return(%s_input_stage_ap_return),", port.getName());
             emitter().emit(".actor_done(%s_input_stage_ap_done),", port.getName());
             emitter().emit(".actor_ready(%s_input_stage_ap_ready),", port.getName());

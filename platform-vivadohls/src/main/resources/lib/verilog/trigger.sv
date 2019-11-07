@@ -86,7 +86,7 @@ module trigger
 
 	always_comb begin 
 		case (state) 
-			IDLE: begin
+			IDLE_STATE: begin
 				if (ap_start) 
 					next_state = LAUNCH;
 				else 

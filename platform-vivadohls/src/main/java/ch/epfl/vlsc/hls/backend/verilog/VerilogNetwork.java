@@ -393,7 +393,7 @@ public interface VerilogNetwork {
             emitter().emit(");");
             emitter().emitNewLine();
         } else {
-            emitter().emit("wire %s_ap_start = %s;", qidName,
+            emitter().emit("assign %s_ap_start = %s;", qidName,
                     String.join(" || ", entity.getInputPorts()
                             .stream().map(p -> String.format("q_%s_%s_empty_n", name, p.getName()))
                             .collect(Collectors.toList())));
