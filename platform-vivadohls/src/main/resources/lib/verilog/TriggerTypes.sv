@@ -46,7 +46,7 @@ package TriggerTypes;
 			EXECUTED
 	} return_t;
 	typedef enum logic[2:0] {
-		IDLE,
+		IDLE_STATE,
 		LAUNCH,
 		CHECK,
 		SLEEP,

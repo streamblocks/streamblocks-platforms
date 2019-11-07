@@ -66,20 +66,20 @@ module trigger
     input wire actor_done,
     input wire actor_ready,
     input wire actor_idle,
-    output wire actor_start,
+    output wire actor_start
 
 );
 	timeunit 1ps;
 	timeprecision 1ps;
 	parameter mode_t mode = ACTOR_TRIGGER;
-	state_t state = STAND_BY;
+	state_t state = IDLE_STATE;
 	state_t next_state;
 
 
 
 	always_ff @(posedge ap_clk) begin
         if (~ap_rst_n)
-                state <= STAND_BY;
+                state <= IDLE_STATE;
         else
             state <= next_state;
 	end
@@ -90,7 +90,7 @@ module trigger
 				if (ap_start) 
 					next_state = LAUNCH;
 				else 
-					next_state = IDLE;
+					next_state = IDLE_STATE;
 			end
 			LAUNCH: begin
 				if (actor_done) begin
@@ -115,7 +115,7 @@ module trigger
 				end
 			end
 			SLEEP: begin
-				if (all_sleeping)
+				if (all_sleep)
 					next_state = SYNC_LAUNCH;
 				else 
 					next_state = SLEEP;
@@ -145,16 +145,16 @@ module trigger
 			SYNC_WAIT: begin
 				if (all_sync) begin
 					if(all_sync_wait)
-						next_state = IDLE;
+						next_state = IDLE_STATE;
 					else 
-						next_state = SYNC_LAUNCH;
+						next_state = LAUNCH;
 				end
 				else
 					next_state = SYNC_WAIT;
 			end
 			SYNC_EXEC: begin
 				if (all_sync) 
-					next_state = SYNC_LAUNCH;
+					next_state = LAUNCH;
 				else 
 					next_state = SYNC_EXEC;
 			end
@@ -162,10 +162,10 @@ module trigger
 	end
 	
 	assign actor_start = (state == LAUNCH) | (state == SYNC_LAUNCH);
-	assign ap_idle = (state == IDLE);
+	assign ap_idle = (state == IDLE_STATE);
 	assign sleep = (state == SLEEP);
 	assign sync_wait = (state == SYNC_WAIT);
-	assign sync_exec = (state = SYNC_EXEC);
-	assign ap_done = (state == SYNC_WAIT) & (next_state == IDLE);
+	assign sync_exec = (state == SYNC_EXEC);
+	assign ap_done = (state == SYNC_WAIT) & (next_state == IDLE_STATE);
 	assign ap_ready = ap_done;
 endmodule : trigger
