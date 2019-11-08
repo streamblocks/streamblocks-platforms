@@ -173,9 +173,8 @@ public interface CMakeLists {
             addXoCustomCommand("output");
 
             // -- xclbin custom commands
-            addXclbinCustomCommand("input");
-            addXclbinCustomCommand("core");
-            addXclbinCustomCommand("output");
+            addXclbinCustomCommand();
+           
 
             emitter().decreaseIndentation();
         }
@@ -237,9 +236,8 @@ public interface CMakeLists {
             addXoCustomTarget("core");
             addXoCustomTarget("output");
             // -- Generate XCLBIN custom target
-            addXclbinCustomTarget("input");
-            addXclbinCustomTarget("core");
-            addXclbinCustomTarget("output");
+            addXclbinCustomTarget();
+            
 
             emitter().decreaseIndentation();
         }
@@ -310,7 +308,8 @@ public interface CMakeLists {
     default void addXoCustomCommand(String kernelType) {
 
         String output = String.format(
-                "${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_%s_kernel.${TARGET}.${DEVICE}.xo", kernelType);
+                "${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_%s_kernel.${TARGET}.${DEVICE}.xo",
+                kernelType);
         String command = String.format(
                 "${VIVADO_BINARY} -mode batch -source gen_xo.tcl -tclargs ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_%s_kernel.${TARGET}.${DEVICE}.xo ${CMAKE_PROJECT_NAME}_%1$s_kernel ${TARGET} ${DEVICE}  > ${CMAKE_PROJECT_NAME}_%1$s_kernel_xo.log",
                 kernelType);
@@ -342,26 +341,45 @@ public interface CMakeLists {
                 kernelType);
     }
 
-    default void addXclbinCustomCommand(String kernelType) {
-        String output = "${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_" + kernelType
-                + "_kernel.${TARGET}.${DEVICE}.xclbin";
-        String command = String.format(
-                "${SDACCEL_XOCC} -g -t ${TARGET} --platform ${DEVICE} --save-temps  -lo ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_%s_kernel.${TARGET}.${DEVICE}.xclbin ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_%1$s_kernel.${TARGET}.${DEVICE}.xo  > ${CMAKE_PROJECT_NAME}_%1$s_kernel_xclbin.log",
-                kernelType);
+    // default void addXclbinCustomCommand(String kernelType) {
+    //     String output = "${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_" + kernelType
+    //             + "_kernel.${TARGET}.${DEVICE}.xclbin";
+    //     String command = String.format(
+    //             "${SDACCEL_XOCC} -g -t ${TARGET} --platform ${DEVICE} --save-temps  -lo ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_%s_kernel.${TARGET}.${DEVICE}.xclbin ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_%1$s_kernel.${TARGET}.${DEVICE}.xo  > ${CMAKE_PROJECT_NAME}_%1$s_kernel_xclbin.log",
+    //             kernelType);
 
-        String depends = "${CMAKE_PROJECT_NAME}_" + kernelType + "_kernel_xo";
+    //     String depends = "${CMAKE_PROJECT_NAME}_" + kernelType + "_kernel_xo";
+    //     addCustomCommand(output, command, depends);
+    // }
+
+    // default void addXclbinCustomTarget(String kernelType) {
+    //     emitter().emit(
+    //             "add_custom_target(${CMAKE_PROJECT_NAME}_%s_kernel_xclbin ALL DEPENDS ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_%1$s_kernel.${TARGET}.${DEVICE}.xclbin)",
+    //             kernelType);
+    // }
+
+    default void addXclbinCustomCommand() {
+
+        String output = "${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${DEVICE}.xclbin";
+        String input_kernel_xo = "${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_input_kernel.${TARGET}.${DEVICE}.xo";
+        String output_kernel_xo = "${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_output_kernel.${TARGET}.${DEVICE}.xo";
+        String core_kernel_xo = "${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_core_kernel.${TARGET}.${DEVICE}.xo";
+        String allXos = input_kernel_xo + " " + core_kernel_xo + " " + output_kernel_xo;
+        String command = String.format(
+                "${SDACCEL_XOCC} -g -t ${TARGET} --platform ${DEVICE} --save-temps  -lo ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${DEVICE}.xclbin %s > ${CMAKE_PROJECT_NAME}_kernel_xclbin.log",
+                allXos);
+
+        String depends = "${CMAKE_PROJECT_NAME}_input_kernel_xo ${CMAKE_PROJECT_NAME}_core_kernel_xo ${CMAKE_PROJECT_NAME}_output_kernel_xo";
         addCustomCommand(output, command, depends);
     }
 
-    default void addXclbinCustomTarget(String kernelType) {
+    default void addXclbinCustomTarget() {
         emitter().emit(
-                "add_custom_target(${CMAKE_PROJECT_NAME}_%s_kernel_xclbin ALL DEPENDS ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_%1$s_kernel.${TARGET}.${DEVICE}.xclbin)",
-                kernelType);
+                "add_custom_target(${CMAKE_PROJECT_NAME}_kernel_xclbin ALL DEPENDS ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${DEVICE}.xclbin)");
     }
 
     default void configurePackageFile(String kernelType) {
-        emitter().emit(
-                "configure_file(${CMAKE_SOURCE_DIR}/scripts/%s.tcl.in %1$s.tcl @ONLY)",
+        emitter().emit("configure_file(${CMAKE_SOURCE_DIR}/scripts/%s.tcl.in %1$s.tcl @ONLY)",
                 backend().packagekernels().getPackageName(kernelType));
     }
 }

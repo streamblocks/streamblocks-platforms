@@ -2,6 +2,8 @@ package ch.epfl.vlsc.hls.backend;
 
 import ch.epfl.vlsc.hls.backend.host.DeviceHandle;
 import ch.epfl.vlsc.hls.backend.kernel.*;
+// import ch.epfl.vlsc.hls.backend.kernel.KernelsXml;
+// import ch.epfl.vlsc.hls.backend.kernel.Kernel;
 import ch.epfl.vlsc.hls.backend.scripts.VivadoTCL;
 import ch.epfl.vlsc.hls.backend.simulators.WcfgWaveform;
 import ch.epfl.vlsc.hls.backend.verilog.VerilogNetwork;

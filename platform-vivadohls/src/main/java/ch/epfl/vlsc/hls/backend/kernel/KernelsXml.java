@@ -112,7 +112,7 @@ public interface KernelsXml {
             }
             if (kernelType == "core" || kernelType == "output") {
                 for (PortDecl port : network.getOutputPorts()) {
-                    xmlPipe("xcl_pipe_" + port.getName(), getBitSize(port), defaultPipeDepth());
+                    xmlPipe("xcl_pipe_" + backend().kernel().getPipeName(port), getBitSize(port), defaultPipeDepth());
                     xmlConnection(kernelName + "_kernel", backend().kernel().getPipeName(port),
                             "xcl_pipe_" + backend().kernel().getPipeName(port),
                             kernelType == "core" ? "S_AXI" : "M_AXIS", "kernel", "pipe");

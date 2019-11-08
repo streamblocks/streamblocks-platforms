@@ -156,7 +156,7 @@ public interface PackageKernels {
             }
             emitter().emitSharpBlockComment("Import I/O stages");
             for (PortDecl port : kernelIO.get()) {
-                importVivadoHLSIOStage(port, "input_stage_mem");
+                importVivadoHLSIOStage(port, kernelType + "_stage_mem");
                 importVivadoHLSIOStage(port, "stage_pass");
             }
         } else {
