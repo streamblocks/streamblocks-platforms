@@ -179,7 +179,8 @@ public interface VerilogNetwork {
         emitter().emit("// ------------------------------------------------------------------------");
         emitter().emit("// -- Wires & Regs");
         emitter().emitNewLine();
-
+        emitter().emit("reg am_idle_r = 1'b1;");
+        emitter().emit("wire am_idle;");
         // -- Queue wires
         getFifoQueueWires(network.getConnections());
         emitter().emitNewLine();
@@ -497,18 +498,35 @@ public interface VerilogNetwork {
 
     default void getApControlAssignments(Network network) {
 
+
+        // -- Actor machine idleness
+        emitter().emit("// -- Actor Machine Idleness");
+
+        emitter().emit("always @(posedge ap_clk) begin");
+        {
+            emitter().increaseIndentation();
+            emitter().emit("am_idle_r <= am_idle;");
+            emitter().decreaseIndentation();
+
+        }
+        emitter().emit("end");
+
+        emitter().emit("assign am_idle = %s;", String.join(" & ", network.getInstances()
+            .stream()
+            .filter(inst->(backend().globalnames().entityDecl(inst.getEntityName(), true).getEntity() instanceof ActorMachine))
+            .map(i -> backend().instaceQID(i.getInstanceName(),"_") + "_trigger_ap_idle")
+            .collect(Collectors.toList())));
+
         // -- AP Done
         emitter().emit("// -- AP Done");
-        emitter().emitClikeBlockComment("Done not yet supported");
+       
+        emitter().emit("assign ap_done = am_idle & (~am_idle_r);");
         emitter().emitNewLine();
 
         // -- AP Idle
         emitter().emit("// -- AP Idle");
-        emitter().emit("assign ap_idle = %s;", String.join(" & ", network.getInstances()
-                .stream()
-                .filter(inst->(backend().globalnames().entityDecl(inst.getEntityName(), true).getEntity() instanceof ActorMachine))
-                .map(i -> backend().instaceQID(i.getInstanceName(),"_") + "_trigger_ap_idle")
-                .collect(Collectors.toList())));
+       
+        emitter().emit("assign ap_idle = am_idle;");
         emitter().emitNewLine();
     }
 
