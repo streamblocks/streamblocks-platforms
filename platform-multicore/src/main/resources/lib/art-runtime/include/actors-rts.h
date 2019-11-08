@@ -80,10 +80,9 @@ extern "C" {
 
 #define CACHE_LINE_SIZE 64
 
-//#error Not implemented yet
-#define mb()
-#define rmb()
-#define wmb()
+#define mb()  asm volatile("dmb":::"memory")
+#define rmb() asm volatile("dsb":::"memory")
+#define wmb() asm volatile("dsb" ::: "memory")
 
 #endif
 
@@ -179,10 +178,10 @@ struct AbstractActorInstance {
     int *cpu; // For active actor to wakeup the sleeping thread
 };
 
-typedef struct{
+typedef struct {
     const char *name;
     const char *originalName;
-    int tokenSize;
+    int variableSize;
 } StateVariableDescription;
 
 
@@ -194,8 +193,15 @@ typedef struct {
     const int *defines;
 } ActionDescription;
 
-enum ConditionKind{INPUT_KIND, OUTPUT_KIND, PREDICATE_KIND};
+enum ConditionKind {
+    INPUT_KIND, OUTPUT_KIND, PREDICATE_KIND
+};
 
+/*!\struct ConditionDescription
+ * \brief actor machine condition
+ *
+ * Describes an actor mahcine condition.
+ */
 typedef struct {
     const char *name;
     const enum ConditionKind kind;
@@ -204,40 +210,79 @@ typedef struct {
     const int *stateVariables;
 } ConditionDescription;
 
-
+/*!\struct PortDescription
+ * \brief Describes a port
+ *
+ * Describes the properties of an AcrtorClass port
+ */
 typedef struct {
-    int isBytes;
-    const char *name;
-    int tokenSize;
+    int isBytes; //! means struct tokens capacity is measured in bytes and has to be a multiple of the struct size
+    const char *name; //! name of the port
+    int tokenSize; //! the size of the port token
 } PortDescription;
 
+/*! \struct ActorClass
+ * \brief ActorClass structure
+ *
+ * The actor class structure all the available information for an actor.
+ */
 struct ActorClass {
-    char *name;
-    int numInputPorts;
-    int numOutputPorts;
-    int sizeActorInstance;
+    char *name; //! name of the actor class
 
-    const int *(*action_scheduler)(AbstractActorInstance *, int);
+    int numInputPorts; //! number of inputs
 
-    void (*constructor)(AbstractActorInstance *);
+    int numOutputPorts; //! number of outputs
 
-    void (*destructor)(AbstractActorInstance *);
+    int sizeActorInstance; //! the size of the actor instance
 
-    void (*set_param)(AbstractActorInstance *, const char *, const char *);
+    const int *(*action_scheduler)(AbstractActorInstance *, int); //! the action selection scheduler (actors machine)
 
-    const PortDescription *inputPortDescriptions;
-    const PortDescription *outputPortDescriptions;
-    int actorExecMode;
-    int numActions;
-    const ActionDescription *actionDescriptions;
-    int numConditions;
-    const ConditionDescription *conditionDescription;
-    int numStateVariables;
-    const StateVariableDescription *stateVariableDescription;
+    void (*constructor)(AbstractActorInstance *); //! the constructor of the actor class
+
+    void (*destructor)(AbstractActorInstance *); //! the destructor of the actor class
+
+    void (*set_param)(AbstractActorInstance *, const char *, const char *); //! the set parameter function
+
+    const PortDescription *inputPortDescriptions; //! input port description array
+
+    const PortDescription *outputPortDescriptions; //! output port description array
+
+    int actorExecMode; //! actor execution mode, active or inactive
+
+    int numActions; //! the number of actions
+
+    const ActionDescription *actionDescriptions; //! actions description array
+
+    int numConditions; //! the number of conditions
+
+    const ConditionDescription *conditionDescription; //! conditions description array
+
+    int numStateVariables; //! the number of the state variables
+
+    const StateVariableDescription *stateVariableDescription; //! state variable description array
 };
 
-// Creates an ActorClass initializer
 
+/*!
+ * \brief Creates an ActorClass initializer
+ * \param aClassName the actor class name
+ * \param instance_t ActorInstance
+ * \param ctor constructor
+ * \param setParam setting parameters
+ * \param sched action selection scheduler
+ * \param dtor destructor
+ * \param nInputs number of input ports
+ * \param inputDescr input ports description
+ * \param nOutputs number of output ports
+ * \param outputDescr output ports description
+ * \param nActions number of actions
+ * \param actionDescr actions description
+ * \param nConditions number of conditions
+ * \param conditionDescr conditions description
+ * \param nStateVariables number of state variables
+ * \param stateVariableDescr state variable description
+ * \return an initilized ActorClass
+ */
 #define INIT_ActorClass(aClassName, \
                         instance_t, \
                         ctor, \
