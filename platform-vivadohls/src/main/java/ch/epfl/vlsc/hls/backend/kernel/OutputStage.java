@@ -68,9 +68,9 @@ public interface OutputStage {
             emitter().emit("input  wire [63:0] %s_size_r,", port.getName());
             emitter().emit("input  wire [63:0] %s_buffer,", port.getName());
             emitter().emit("// -- output stream");
-            emitter().emit("input wire [%d:0] %s_V_dout,", bitSize - 1, port.getName());
-            emitter().emit("input  wire %s_V_empty_n,", port.getName());
-            emitter().emit("output  wire %s_V_read, ", port.getName());
+            emitter().emit("input wire [%d:0] %s_dout,", bitSize - 1, backend().kernel().getPipeName(port));
+            emitter().emit("input  wire %s_empty_n,", backend().kernel().getPipeName(port));
+            emitter().emit("output  wire %s_read, ", backend().kernel().getPipeName(port));
             emitter().emit("// -- Network idle");
             emitter().emit("input wire network_idle");
 
@@ -89,7 +89,7 @@ public interface OutputStage {
 
         // -- Output stage pass
         backend().inputstage().getStagePassNamed(String.format("%s", port.getName()),
-                String.format("%s_V", port.getName()), "q_tmp_V");
+                backend().kernel().getPipeName(port), "q_tmp_V");
 
         // -- Queue
         backend().inputstage().getQueue("q_tmp", bitSize, "q_tmp_V", "q_tmp_V");

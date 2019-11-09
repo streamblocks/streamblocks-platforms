@@ -72,9 +72,9 @@ public interface InputStage {
             emitter().emit("input  wire [63:0] %s_size_r,", port.getName());
             emitter().emit("input  wire [63:0] %s_buffer,", port.getName());
             emitter().emit("// -- output stream");
-            emitter().emit("output wire [%d:0] %s_V_din,", bitSize - 1, port.getName());
-            emitter().emit("input  wire %s_V_full_n,", port.getName());
-            emitter().emit("output  wire %s_V_write ", port.getName());
+            emitter().emit("output wire [%d:0] %s_din,", bitSize - 1,backend().kernel().getPipeName(port));
+            emitter().emit("input  wire %s_full_n,", backend().kernel().getPipeName(port));
+            emitter().emit("output  wire %s_write ", backend().kernel().getPipeName(port));
 
             emitter().decreaseIndentation();
         }
@@ -98,7 +98,7 @@ public interface InputStage {
         getQueue("q_tmp", bitSize, "q_tmp_V", "q_tmp_V");
 
         // -- Input stage pass
-        getStagePassNamed(port.getName(),  "q_tmp" + "_V", port.getName() + "_V");
+        getStagePassNamed(port.getName(),  "q_tmp" + "_V", backend().kernel().getPipeName(port));
 
         emitter().emit("endmodule");
 

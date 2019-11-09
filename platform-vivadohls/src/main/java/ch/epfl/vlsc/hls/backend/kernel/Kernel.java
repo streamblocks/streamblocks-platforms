@@ -114,7 +114,7 @@ public interface Kernel {
                 getDoneTokenCapture("input_stage");
                 getDoneTokenGenerator("core_stage");
             } else {
-                getIOKernelWrapper(network, network.getInputPorts(), kernelType);
+                getIOKernelWrapper(network, kernelArgs.get(), kernelType);
                 if (kernelType == "input")
                     getDoneTokenGenerator("input_stage");
                 else
@@ -289,7 +289,8 @@ public interface Kernel {
         emitter().emit("wire    ap_ready;");
         emitter().emit("wire    ap_idle;");
         emitter().emit("wire    ap_done;");
-        emitter().emit("wire prev_done;");
+        emitter().emit("wire    prev_done;");
+        emitter().emit("reg     done_capture;");
 
         if (kernelArgs.isPresent()) {
             for (PortDecl port : kernelArgs.get()) {
@@ -476,7 +477,8 @@ public interface Kernel {
                 emitter().emit(".%s_TVALID(%1$s_TVALID),", getPipeName(port));
                 emitter().emit(".%s_TREADY(%1$s_TREADY),", getPipeName(port));
             }
-            emitter().emit(".prev_done(prev_done),");
+            if (kernelType != "input")
+                emitter().emit(".prev_done(prev_done),");
             emitter().emit(".ap_clk( ap_clk ),");
             emitter().emit(".ap_rst_n( ap_rst_n ),");
             emitter().emit(".ap_start( ap_start ),");
@@ -560,7 +562,7 @@ public interface Kernel {
             emitter().emit("if (ap_rst_n == 1'b0)");
             emitter().emit("\tis_done <= 0;");
             emitter().emit("else if (ap_done)");
-            emitter().emit("\tis_done <= 8'b1;");
+            emitter().emit("\tis_done <= 1'b1;");
             emitter().emit("else if (is_done && %s_done_TREADY)", name);
             emitter().emit("\tis_done <= 0;");
             emitter().decreaseIndentation();

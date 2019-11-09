@@ -45,7 +45,8 @@ public interface IOKernelWrapper {
         emitter().emit("module %s_%s_wrapper #(", identifier, isInput ? "input" : "output");
         {
             emitter().increaseIndentation();
-            backend().kernel().getMasterParameters(network, Optional.of(network.getInputPorts()), " ");
+            backend().kernel().getMasterParameters(network, 
+                Optional.of(isInput ? network.getInputPorts() : network.getOutputPorts()), " ");
             emitter().decreaseIndentation();
         }
         emitter().emit(") ");
@@ -61,6 +62,13 @@ public interface IOKernelWrapper {
             for (PortDecl port : ports) {
                 backend().kernel().getAxiMasterPorts(port.getName());
             }
+            for (PortDecl port : ports) {
+                
+                emitter().emit("// -- Constant & Addresses");
+                emitter().emit("input  wire [31:0] %s_%s,", port.getName(), backend().kernel().requestOrAvailable(isInput));
+                emitter().emit("input  wire [63:0] %s_size,", port.getName());
+                emitter().emit("input  wire [63:0] %s_buffer,", port.getName());
+            }
             if (!isInput) {
                 emitter().emit("// -- prev stage done");
                 emitter().emit("input    wire prev_done,");
@@ -73,6 +81,7 @@ public interface IOKernelWrapper {
             emitter().emit("output  wire    ap_ready,");
             emitter().emit("output  wire    ap_idle,");
             emitter().emit("output  wire    ap_done");
+            
             emitter().decreaseIndentation();
         }
         emitter().emit(");");
@@ -110,22 +119,23 @@ public interface IOKernelWrapper {
 
             emitter().emit(".%s_%s(%1$s_%2$s),", port.getName(), backend().kernel().requestOrAvailable(isInput));
 
-            emitter().emit(".%s_size(%1$s_size),", port.getName());
+            emitter().emit(".%s_size_r(%1$s_size),", port.getName());
             emitter().emit(".%s_buffer(%1$s_buffer),", port.getName());
 
             emitter().emit("// -- axi stream");
             if (isInput) {
-                emitter().emit(".%s_V_din(%1$s_TDATA),", getPipeName(port));
-                emitter().emit(".%s_V_full_n(%1$s_TREADY),", getPipeName(port));
-                emitter().emit(".%s_V_write(%1$s_TVALID),", getPipeName(port));
+                emitter().emit(".%s_din(%1$s_TDATA),", getPipeName(port));
+                emitter().emit(".%s_full_n(%1$s_TREADY),", getPipeName(port));
+                emitter().emit(".%s_write(%1$s_TVALID),", getPipeName(port));
 
             } else {
-                emitter().emit(".%s_V_dout(%1$s_TDATA),", getPipeName(port));
-                emitter().emit(".%s_V_empty_n(%1$s_TVALID),", getPipeName(port));
-                emitter().emit(".%s_V_read(%1$s_TREADY), ", getPipeName(port));
+                emitter().emit(".%s_dout(%1$s_TDATA),", getPipeName(port));
+                emitter().emit(".%s_empty_n(%1$s_TVALID),", getPipeName(port));
+                emitter().emit(".%s_read(%1$s_TREADY), ", getPipeName(port));
             }
 
-            emitter().emit(".network_idle(prev_done),");
+            if (!isInput)
+                emitter().emit(".network_idle(prev_done),");
             emitter().emit("// -- ap control");
             emitter().emit(".ap_clk( ap_clk ),");
             emitter().emit(".ap_rst_n( ap_rst_n ),");

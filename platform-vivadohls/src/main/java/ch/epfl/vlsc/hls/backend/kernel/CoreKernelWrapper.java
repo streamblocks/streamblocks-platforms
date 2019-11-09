@@ -68,6 +68,7 @@ public interface CoreKernelWrapper {
             emitter().emitClikeBlockComment("Begin RTL Body");
             emitter().emitNewLine();
 
+            getWires();
             // -- AP Logic
             getApLogic(network);
 
@@ -102,16 +103,20 @@ public interface CoreKernelWrapper {
     }
 
     // ------------------------------------------------------------------------
+    // -- Wires
+    default void getWires() {
+        emitter().emit("// -- Wires and regs");
+        String identifier = backend().task().getIdentifier().getLast().toString();
+        emitter().emit("logic   ap_start_r = 1'b0;");
+        emitter().emit("wire    ap_start_pulse;");
+        
+    }
     // -- AP Logic
     default void getApLogic(Network network) {
         // -- pulse ap_start
         emitter().emit("// -- Pulse ap_start");
         emitter().emit("always_ff @(posedge ap_clk) begin");
         emitter().emit("\tap_start_r <= ap_start;");
-        emitter().emit("\tinput_stage_idle_r <= input_stage_idle;");
-        emitter().emit("\toutput_stage_idle_r <= output_stage_idle;");
-        emitter().emit("\t%s_network_idle_r <= %s_network_idle;", backend().task().getIdentifier().getLast().toString(),
-                backend().task().getIdentifier().getLast().toString());
         emitter().emit("end");
         emitter().emitNewLine();
         emitter().emit("assign ap_start_pulse = ap_start & ~ap_start_r;");

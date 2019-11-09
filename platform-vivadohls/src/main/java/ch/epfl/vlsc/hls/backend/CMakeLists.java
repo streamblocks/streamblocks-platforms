@@ -10,6 +10,8 @@ import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.network.Network;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Module
@@ -365,8 +367,29 @@ public interface CMakeLists {
         String output_kernel_xo = "${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_output_kernel.${TARGET}.${DEVICE}.xo";
         String core_kernel_xo = "${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_core_kernel.${TARGET}.${DEVICE}.xo";
         String allXos = input_kernel_xo + " " + core_kernel_xo + " " + output_kernel_xo;
+        // List<String> streamingConnections = new ArrayList<String>();
+        
+        // Network network = backend().task().getNetwork();
+        // for (PortDecl port: network.getInputPorts()) {
+        //     streamingConnections.add(
+        //         String.format("--sc %s.%s:%s.%2$s", 
+        //             backend().kernel().getKernelName("input"), 
+        //             backend().kernel().getPipeName(port),
+        //             backend().kernel().getKernelName("core")
+        //             )
+        //         );
+        // }
+        // for (PortDecl port: network.getOutputPorts()) {
+        //     streamingConnections.add(
+        //         String.format("--sc %s.%s:%s.%2$s", 
+        //             backend().kernel().getKernelName("core"), 
+        //             backend().kernel().getPipeName(port),
+        //             backend().kernel().getKernelName("output")
+        //             )
+        //         );
+        // }
         String command = String.format(
-                "${SDACCEL_XOCC} -g -t ${TARGET} --platform ${DEVICE} --save-temps  -lo ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${DEVICE}.xclbin %s > ${CMAKE_PROJECT_NAME}_kernel_xclbin.log",
+                "${SDACCEL_XOCC} -g -t ${TARGET} --platform ${DEVICE} --save-temps  -l %s -o ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${DEVICE}.xclbin  > ${CMAKE_PROJECT_NAME}_kernel_xclbin.log",
                 allXos);
 
         String depends = "${CMAKE_PROJECT_NAME}_input_kernel_xo ${CMAKE_PROJECT_NAME}_core_kernel_xo ${CMAKE_PROJECT_NAME}_output_kernel_xo";
