@@ -115,7 +115,7 @@ public interface KernelsXml {
                     xmlPipe("xcl_pipe_" + backend().kernel().getPipeName(port), getBitSize(port), defaultPipeDepth());
                     xmlConnection(kernelName + "_kernel", backend().kernel().getPipeName(port),
                             "xcl_pipe_" + backend().kernel().getPipeName(port),
-                            kernelType == "core" ? "S_AXI" : "M_AXIS", "kernel", "pipe");
+                            kernelType == "core" ? "S_AXIS" : "M_AXIS", "kernel", "pipe");
                 }
 
             }

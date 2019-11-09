@@ -88,15 +88,39 @@ public interface PackageKernels {
         emitter().emitNewLine();
 
         // -- Kernel IO
-        for (PortDecl port : network.getInputPorts()) {
-            emitter().emit("ipx::associate_bus_interfaces -busif m_axi_%s -clock ap_clk [ipx::current_core]",
-                    port.getName());
+        if (kernelType == "input") {
+            for (PortDecl port : network.getInputPorts()) {
+                emitter().emit("ipx::associate_bus_interfaces -busif m_axi_%s -clock ap_clk [ipx::current_core]",
+                        port.getName());
+            }
+            for (PortDecl port: network.getInputPorts()) {
+                emitter().emit("ipx::associate_bus_interfaces -busif %s -clock ap_clk [ipx::current_core]",
+                    backend().kernel().getPipeName(port));
+            }
+        }
+            
+        else if (kernelType == "output") {
+            for (PortDecl port : network.getOutputPorts()) {
+                emitter().emit("ipx::associate_bus_interfaces -busif m_axi_%s -clock ap_clk [ipx::current_core]",
+                        port.getName());
+            }
+            for (PortDecl port: network.getOutputPorts()) {
+                emitter().emit("ipx::associate_bus_interfaces -busif %s -clock ap_clk [ipx::current_core]",
+                    backend().kernel().getPipeName(port));
+            }
         }
 
-        for (PortDecl port : network.getOutputPorts()) {
-            emitter().emit("ipx::associate_bus_interfaces -busif m_axi_%s -clock ap_clk [ipx::current_core]",
-                    port.getName());
+        else if (kernelType == "core") {
+            for (PortDecl port: network.getInputPorts()) {
+                emitter().emit("ipx::associate_bus_interfaces -busif %s -clock ap_clk [ipx::current_core]",
+                    backend().kernel().getPipeName(port));
+            }
+            for (PortDecl port: network.getOutputPorts()) {
+                emitter().emit("ipx::associate_bus_interfaces -busif %s -clock ap_clk [ipx::current_core]",
+                    backend().kernel().getPipeName(port));
+            }
         }
+            
 
         emitter().emit("ipx::associate_bus_interfaces -busif s_axi_control -clock ap_clk [ipx::current_core]");
         emitter().emitNewLine();
