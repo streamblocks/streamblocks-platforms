@@ -220,6 +220,11 @@ public interface DeviceHandle {
         // getEnqueueMigrateToDevice();
         // getEnqueueMigrateToHost();
         getReleaseMemObjets();
+        getSetAndGetPtrs(network.getInputPorts());
+        getSetAndGetPtrs(network.getOutputPorts());
+
+        emitter().emit("%s %sis_pending(%s) { return %spending_status;}", defaultIntType(), getC99PreFix(), getDevClassPointerWithType(),
+                getDevClassPointerWithDot());
         emitter().close();
 
         // -- Host template
@@ -440,8 +445,7 @@ public interface DeviceHandle {
         emitter().emit("// -- General methods");
         emitter().emit("cl_int load_file_to_memory(const char *filename, char **result);");
         emitter().emit("void %srun(%s);", getC99PreFix(), getDevClassPointerWithType());
-        emitter().emit("%s %sis_pending(%s) { return %spending_status; }", defaultIntType(), getC99PreFix(),
-                getDevClassPointerWithType(), getDevClassPointerWithDot());
+        emitter().emit("%s %sis_pending(%s);", defaultIntType(), getC99PreFix(), getDevClassPointerWithType());
         emitter().emit("void %sterminate(%s);", getC99PreFix(), getDevClassPointerWithType());
         emitter().emit("void %sallocateBuffers(%s);", getC99PreFix(), getDevClassPointerWithType());
         emitter().emit("void %screateCLBuffers(%s%ssize_t sz);", getC99PreFix(), getDevClassPointerWithType(),
@@ -463,12 +467,27 @@ public interface DeviceHandle {
         emitter().emit("void %sreleaseReadEvents(%s);", getC99PreFix(), getDevClassPointerType());
         emitter().emit("void %sreleaseKernelEvent(%s);", getC99PreFix(), getDevClassPointerType());
         emitter().emit("void %sreleaseWriteEvents(%s);", getC99PreFix(), getDevClassPointerType());
+        emitter().emit("// -- specific methods");
+        emitter().emitNewLine();
 
         Network network = backend().task().getNetwork();
         emitter().emitNewLine();
-        getSetAndGetPtrs(network.getInputPorts());
-        getSetAndGetPtrs(network.getOutputPorts());
+        getSetAndGetDecl(network.getInputPorts());
+        getSetAndGetDecl(network.getOutputPorts());
+        
+    }
 
+    default void getSetAndGetDecl(List<PortDecl> ports) {
+        for (PortDecl port : ports) {
+            emitter().emit("%s* %sget_%s_buffer_ptr(%s);", typeString(port), getC99PreFix(),
+                    port.getName(), getDevClassPointerWithType());
+            emitter().emit("%s* %sget_%s_size_ptr(%s);", defaultIntType(), getC99PreFix(),
+                    port.getName(), getDevClassPointerWithType());
+            emitter().emit("void %sset_%s_buffer_ptr(%s%s%s *ptr);", getC99PreFix(), port.getName(),
+                    getDevClassPointerWithType(), C99() ? ", " : "", typeString(port));
+            emitter().emit("void %sset_%s_size_ptr(%s%s%s *ptr);", getC99PreFix(), port.getName(),
+                    getDevClassPointerWithType(), C99() ? ", " : "", defaultIntType());
+        }
     }
 
     default void getSetAndGetPtrs(List<PortDecl> ports) {
@@ -478,10 +497,10 @@ public interface DeviceHandle {
             emitter().emit("%s* %sget_%s_size_ptr(%s) { return %s%s_size; }", defaultIntType(), getC99PreFix(),
                     port.getName(), getDevClassPointerWithType(), getDevClassPointerWithDot(), port.getName());
             emitter().emit("void %sset_%s_buffer_ptr(%s%s%s *ptr) { %s%s_buffer = ptr; }", getC99PreFix(),
-                    port.getName(), getDevClassPointerWithType(), typeString(port), getDevClassPointerWithDot(),
-                    C99() ? ", " : "", port.getName());
+                    port.getName(), getDevClassPointerWithType(), C99() ? ", " : "", typeString(port),
+                    getDevClassPointerWithDot(), port.getName());
             emitter().emit("void %sset_%s_size_ptr(%s%s%s *ptr) { %s%s_size = ptr; }", getC99PreFix(), port.getName(),
-                    getDevClassPointerWithType(), defaultIntType(), getDevClassPointerWithDot(), C99() ? ", " : "",
+                    getDevClassPointerWithType(), C99() ? ", " : "", defaultIntType(), getDevClassPointerWithDot(),
                     port.getName());
         }
     }
