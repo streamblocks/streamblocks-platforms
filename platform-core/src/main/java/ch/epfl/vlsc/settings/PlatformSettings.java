@@ -39,5 +39,26 @@ public class PlatformSettings {
             return false;
         }
     };
+    // -- OCL Host
+    static public OnOffSetting C99Host = new OnOffSetting(){
+    
+        @Override
+        public String getKey() {
+            
+            return "C99";
+        }
+    
+        @Override
+        public String getDescription() {
+            
+            return "Generate C99 host code for OCL";
+        }
+    
+        @Override
+        public Boolean defaultValue(Configuration configuration) {
+           
+            return true;
+        }
+    };
 
 }

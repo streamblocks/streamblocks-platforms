@@ -5,6 +5,8 @@ import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.PathUtils;
 import ch.epfl.vlsc.platformutils.utils.MathUtils;
 import ch.epfl.vlsc.platformutils.utils.TypeUtils;
+import ch.epfl.vlsc.settings.PlatformSettings;
+
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
@@ -41,6 +43,10 @@ import java.util.stream.Collectors;
 public interface DeviceHandle {
     @Binding(BindingKind.INJECTED)
     VivadoHLSBackend backend();
+
+    default Boolean C99() {
+        return true;
+    }
 
     default Emitter emitter() {
         return backend().emitter();
@@ -93,28 +99,28 @@ public interface DeviceHandle {
         return "kernel_event";
     }
 
-    default String getC99PreFix(boolean C99) {
-        return C99 ? "DeviceHandle_" : "";
+    default String getC99PreFix() {
+        return C99() ? "DeviceHandle_" : "";
     }
 
-    default String getDevClassPointerType(boolean C99) {
-        return C99 ? "DeviceHandle*" : "";
+    default String getDevClassPointerType() {
+        return C99() ? "DeviceHandle*" : "";
     }
 
-    default String getDevClassPointer(boolean C99) {
-        return C99 ? "dev" : "";
+    default String getDevClassPointer() {
+        return C99() ? "dev" : "";
     }
 
-    default String getDevClassPointerWithDot(boolean C99) {
-        return getDevClassPointer(C99) + getDotOp(C99);
+    default String getDevClassPointerWithDot() {
+        return getDevClassPointer() + getDotOp();
     }
 
-    default String getDevClassPointerWithType(boolean C99) {
-        return getDevClassPointerType(C99) + (C99 ? " " : "") + getDevClassPointer(C99);
+    default String getDevClassPointerWithType() {
+        return getDevClassPointerType() + (C99() ? " " : "") + getDevClassPointer();
     }
 
-    default String getDotOp(boolean C99) {
-        return C99 ? "->" : "";
+    default String getDotOp() {
+        return C99() ? "->" : "";
     }
 
     default void OCL_MSG(String format, Object... values) {
@@ -140,8 +146,8 @@ public interface DeviceHandle {
         Network network = backend().task().getNetwork();
 
         // -- Device Handle header
-        boolean C99 = true;
-        if (C99) {
+
+        if (C99()) {
             emitter().open(PathUtils.getTargetCodeGenHost(backend().context()).resolve("device_handle.h"));
         } else {
             emitter().open(PathUtils.getTargetCodeGenHost(backend().context()).resolve("device_handle.hp"));
@@ -164,13 +170,16 @@ public interface DeviceHandle {
         getUtilStructs();
 
         // -- DeviceHandle class
-        getDeviceHandleClass(network, C99);
+        getDeviceHandleClass(network);
 
         emitter().emit("#endif // DEVICE_HANDLE_H", identifier.toUpperCase());
         emitter().close();
 
         // -- Device Handle source
-        emitter().open(PathUtils.getTargetCodeGenHost(backend().context()).resolve("device_handle.cpp"));
+        if (C99())
+            emitter().open(PathUtils.getTargetCodeGenHost(backend().context()).resolve("device_handle.c"));
+        else
+            emitter().open(PathUtils.getTargetCodeGenHost(backend().context()).resolve("device_handle.cpp"));
 
         BufferedReader reader;
         // -- get common methods
@@ -189,8 +198,10 @@ public interface DeviceHandle {
         getCreateCLBuffers();
         getAllocateBuffers();
         getSetArgs();
-        getEnqueueMigrateToDevice();
-        getEnqueueMigrateToHost();
+        getEnqueueWriteBuffer();
+        getEnqueueReadBuffer();
+        // getEnqueueMigrateToDevice();
+        // getEnqueueMigrateToHost();
         getReleaseMemObjets();
         emitter().close();
 
@@ -214,12 +225,19 @@ public interface DeviceHandle {
     }
 
     default void getIncludes() {
-        List<String> includesList = Arrays
-                .asList(new String[] { "CL/cl_ext.h", "CL/opencl.h", "assert.h", "fcntl.h", "iostream", "math.h",
-                        "stdbool.h", "stdio.h", "stdlib.h", "string.h", "string", "sys/stat.h", "sys/time.h",
-                        "sys/types.h", "unistd.h", "algorithm", "array", "chrono", "cstdio", "random", "vector" });
-        for (String include : includesList) {
+        List<String> includesListC = Arrays.asList(new String[] { "CL/cl_ext.h", "CL/opencl.h", "assert.h", "fcntl.h",
+                "iostream", "math.h", "stdbool.h", "stdio.h", "stdlib.h", "string.h", "string", "sys/stat.h",
+                "sys/time.h", "sys/types.h", "unistd.h" });
+        List<String> includeListCpp = Arrays
+                .asList(new String[] { "algorithm", "array", "chrono", "cstdio", "random", "vector" });
+
+        for (String include : includesListC) {
             emitter().emit("#include <%s>", include);
+        }
+        if (!C99()) {
+            for (String include : includeListCpp) {
+                emitter().emit("#include <%s>", include);
+            }
         }
 
     }
@@ -316,9 +334,9 @@ public interface DeviceHandle {
 
     }
 
-    default void getDeviceHandleClass(Network network, boolean C99) {
+    default void getDeviceHandleClass(Network network) {
         String identifier = backend().task().getIdentifier().getLast().toString();
-        if (!C99) {
+        if (!C99()) {
             emitter().emit("class DeviceHandle{");
             emitter().emit("public:");
             {
@@ -327,7 +345,7 @@ public interface DeviceHandle {
                 emitter().emit(
                         "DeviceHandle (char *kernel_name, char *target_device_name, char *dir, bool hw_emu = false);");
 
-                getMethodsDeclration(C99);
+                getMethodsDeclration();
 
                 getDestructor();
 
@@ -354,7 +372,7 @@ public interface DeviceHandle {
             emitter().emit("} DeviceHandle;");
             emitter().emitNewLine();
             emitter().emit("// -- function declrations");
-            getMethodsDeclration(C99);
+            getMethodsDeclration();
         }
 
     }
@@ -388,53 +406,55 @@ public interface DeviceHandle {
 
     }
 
-    default void getMethodsDeclration(boolean C99) {
+    default void getMethodsDeclration() {
 
         emitter().emit("// -- General methods");
         emitter().emit("cl_int load_file_to_memory(const char *filename, char **result);");
-        emitter().emit("void %srun(%s);", getC99PreFix(C99), getDevClassPointerWithType(C99));
-        emitter().emit("bool %sis_pending(%s) { return pending_status; }", getC99PreFix(C99),
-                getDevClassPointerType(C99));
-        emitter().emit("void %sterminate(%s);", getC99PreFix(C99), getDevClassPointerWithType(C99));
-        emitter().emit("void %sallocateBuffers(%s);", getC99PreFix(C99), getDevClassPointerWithType(C99));
-        emitter().emit("void %screateCLBuffers(%s);", getC99PreFix(C99), getDevClassPointerWithType(C99));
-        emitter().emit("void %ssetArgs(%s);", getC99PreFix(C99), getDevClassPointerWithType(C99));
-        emitter().emit("void %senqueueMigrateToDevice(%s);", getC99PreFix(C99), getDevClassPointerWithType(C99));
-        emitter().emit("void %senqueueExecution(%s);", getC99PreFix(C99), getDevClassPointerWithType(C99));
-        emitter().emit("void %senqueueMigrateToHost(%s);", getC99PreFix(C99), getDevClassPointerWithType(C99));
-        emitter().emit("void %swaitForDevice(%s);", getC99PreFix(C99), getDevClassPointerWithType(C99));
-        emitter().emit("void %sinitEvents(%s);", getC99PreFix(C99), getDevClassPointerWithType(C99));
-        emitter().emit("void %ssetRequestSize(%s, %s *req_sz);", getC99PreFix(C99), getDevClassPointerWithType(C99),
+        emitter().emit("void %srun(%s);", getC99PreFix(), getDevClassPointerWithType());
+        emitter().emit("bool %sis_pending(%s) { return pending_status; }", getC99PreFix(), getDevClassPointerType());
+        emitter().emit("void %sterminate(%s);", getC99PreFix(), getDevClassPointerWithType());
+        emitter().emit("void %sallocateBuffers(%s);", getC99PreFix(), getDevClassPointerWithType());
+        emitter().emit("void %screateCLBuffers(%s, size_t sz);", getC99PreFix(), getDevClassPointerWithType());
+        emitter().emit("void %ssetArgs(%s);", getC99PreFix(), getDevClassPointerWithType());
+        emitter().emit("void %senqueueMigrateToDevice(%s);", getC99PreFix(), getDevClassPointerWithType());
+        // emitter().emit("void %senqueueExecution(%s);", getC99PreFix(),
+        // getDevClassPointerWithType());
+        // emitter().emit("void %senqueueMigrateToHost(%s);", getC99PreFix(),
+        // getDevClassPointerWithType());
+        emitter().emit("void %senqueuWriteBuffer(%s);", getC99PreFix(), getDevClassPointerWithType());
+        emitter().emit("void %senqueuReadBuffer(%s);", getC99PreFix(), getDevClassPointerWithType());
+        emitter().emit("void %swaitForDevice(%s);", getC99PreFix(), getDevClassPointerWithType());
+        emitter().emit("void %sinitEvents(%s);", getC99PreFix(), getDevClassPointerWithType());
+        emitter().emit("void %ssetRequestSize(%s, %s *req_sz);", getC99PreFix(), getDevClassPointerWithType(),
                 defaultIntType());
-        emitter().emit("void %sreleaseMemObjects(%s);", getC99PreFix(C99), getDevClassPointerType(C99));
-        emitter().emit("void %sreleaseReadEvents(%s);", getC99PreFix(C99), getDevClassPointerType(C99));
-        emitter().emit("void %sreleaseKernelEvent(%s);", getC99PreFix(C99), getDevClassPointerType(C99));
-        emitter().emit("void %sreleaseWriteEvents(%s);", getC99PreFix(C99), getDevClassPointerType(C99));
+        emitter().emit("void %sreleaseMemObjects(%s);", getC99PreFix(), getDevClassPointerType());
+        emitter().emit("void %sreleaseReadEvents(%s);", getC99PreFix(), getDevClassPointerType());
+        emitter().emit("void %sreleaseKernelEvent(%s);", getC99PreFix(), getDevClassPointerType());
+        emitter().emit("void %sreleaseWriteEvents(%s);", getC99PreFix(), getDevClassPointerType());
 
         Network network = backend().task().getNetwork();
         emitter().emitNewLine();
-        getSetAndGetPtrs(network.getInputPorts(), C99);
-        getSetAndGetPtrs(network.getOutputPorts(), C99);
+        getSetAndGetPtrs(network.getInputPorts());
+        getSetAndGetPtrs(network.getOutputPorts());
 
     }
 
-    default void getSetAndGetPtrs(List<PortDecl> ports, boolean C99) {
+    default void getSetAndGetPtrs(List<PortDecl> ports) {
         for (PortDecl port : ports) {
-            emitter().emit("%s* %sget_%s_buffer_ptr(%s) { return %s%s_buffer; }", typeString(port), getC99PreFix(C99),
-                    port.getName(), getDevClassPointerWithType(C99), getDevClassPointerWithDot(C99), port.getName());
-            emitter().emit("%s* %sget_%s_size_ptr(%s) { return %s%s_size; }", defaultIntType(), getC99PreFix(C99),
-                    port.getName(), getDevClassPointerWithType(C99), getDevClassPointerWithDot(C99), port.getName());
-            emitter().emit("void %sset_%s_buffer_ptr(%s, %s *ptr) { %s%s_buffer = ptr; }", getC99PreFix(C99),
-                    port.getName(), getDevClassPointerWithType(C99), typeString(port), getDevClassPointerWithDot(C99),
+            emitter().emit("%s* %sget_%s_buffer_ptr(%s) { return %s%s_buffer; }", typeString(port), getC99PreFix(),
+                    port.getName(), getDevClassPointerWithType(), getDevClassPointerWithDot(), port.getName());
+            emitter().emit("%s* %sget_%s_size_ptr(%s) { return %s%s_size; }", defaultIntType(), getC99PreFix(),
+                    port.getName(), getDevClassPointerWithType(), getDevClassPointerWithDot(), port.getName());
+            emitter().emit("void %sset_%s_buffer_ptr(%s, %s *ptr) { %s%s_buffer = ptr; }", getC99PreFix(),
+                    port.getName(), getDevClassPointerWithType(), typeString(port), getDevClassPointerWithDot(),
                     port.getName());
-            emitter().emit("void %sset_%s_size_ptr(%s, %s *ptr) { %s%s_size = ptr; }", getC99PreFix(C99),
-                    port.getName(), getDevClassPointerWithType(C99), typeString(port), getDevClassPointerWithDot(C99),
-                    port.getName());
+            emitter().emit("void %sset_%s_size_ptr(%s, %s *ptr) { %s%s_size = ptr; }", getC99PreFix(), port.getName(),
+                    getDevClassPointerWithType(), typeString(port), getDevClassPointerWithDot(), port.getName());
         }
     }
 
     default void getDestructor() {
-
+        // not implemented
     }
 
     default void getClassMembers() {
@@ -528,21 +548,25 @@ public interface DeviceHandle {
     default void getCreateCLBuffers() {
 
         Network network = backend().task().getNetwork();
-
-        emitter().emit("void DeviceHandle::createCLBuffers() {");
+        if (C99()) {
+            emitter().emit("void %screateCLBuffers(%s, size_t sz) {", getC99PreFix(), getDevClassPointerWithType());
+        } else {
+            emitter().emit("void DeviceHandle::createCLBuffers(size_t sz) {");
+        }
 
         emitter().increaseIndentation();
         {
+            emitter().emit("%sbuffer_size = sz;", getDevClassPointerWithDot());
             OCL_MSG("Creating input CL buffers\\n");
             emitter().emit("// -- inputs");
             for (PortDecl port : network.getInputPorts()) {
                 String typeStr = typeString(port);
                 emitter().emit(
-                        "%s_cl_buffer = clCreateBuffer(world.context, CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR, buffer_size * sizeof(%s), %s_buffer, NULL);",
-                        port.getName(), typeStr, port.getName());
+                        "%s%s_cl_buffer = clCreateBuffer(%1$sworld.context, CL_MEM_READ_ONLY, %1$sbuffer_size * sizeof(%s), NULL, NULL);",
+                        getDevClassPointerWithDot(), port.getName(), typeStr);
                 emitter().emit(
-                        "%s_cl_size = clCreateBuffer(world.context, CL_MEM_WRITE_ONLY | CL_MEM_USE_HOST_PTR, sizeof(%s), %s_size, NULL);",
-                        port.getName(), defaultIntType(), port.getName());
+                        "%s%s_cl_size = clCreateBuffer(%1$sworld.context, CL_MEM_WRITE_ONLY, sizeof(%s), NULL, NULL);",
+                        getDevClassPointerWithDot(), port.getName(), defaultIntType());
             }
             emitter().emitNewLine();
             OCL_MSG("Creating output CL buffers\\n");
@@ -550,11 +574,11 @@ public interface DeviceHandle {
             for (PortDecl port : network.getOutputPorts()) {
                 String typeStr = typeString(port);
                 emitter().emit(
-                        "%s_cl_buffer = clCreateBuffer(world.context, CL_MEM_WRITE_ONLY | CL_MEM_USE_HOST_PTR, buffer_size * sizeof(%s), %s_buffer, NULL);",
-                        port.getName(), typeStr, port.getName());
+                        "%s%s_cl_buffer = clCreateBuffer(%1$sworld.context, CL_MEM_WRITE_ONLY, %1$sbuffer_size * sizeof(%s), NULL, NULL);",
+                        getDevClassPointerWithDot(), port.getName(), typeStr);
                 emitter().emit(
-                        "%s_cl_size = clCreateBuffer(world.context, CL_MEM_WRITE_ONLY | CL_MEM_USE_HOST_PTR, sizeof(%s), %s_size, NULL);",
-                        port.getName(), defaultIntType(), port.getName());
+                        "%s%s_cl_size = clCreateBuffer(%1$sworld.context, CL_MEM_WRITE_ONLY, sizeof(%s), NULL, NULL);",
+                        getDevClassPointerWithDot(), port.getName(), defaultIntType());
             }
         }
         emitter().decreaseIndentation();
@@ -563,24 +587,27 @@ public interface DeviceHandle {
 
     default void getAllocateBuffers() {
         Network network = backend().task().getNetwork();
-        emitter().emit("void DeviceHandle::allocateBuffers() {");
+        if (C99())
+            emitter().emit("void %sallocateBuffers(%s) {", getC99PreFix(), getDevClassPointerWithType());
+        else
+            emitter().emit("void DeviceHandle::allocateBuffers() {");
         {
             emitter().increaseIndentation();
 
             for (PortDecl port : network.getInputPorts()) {
                 String typeStr = typeString(port);
-                emitter().emit("%s_buffer = (%s *) aligned_alloc(mem_alignment, sizeof(%s) * buffer_size);",
-                        port.getName(), typeStr, typeStr);
-                emitter().emit("%s_size = (%s *) aligned_alloc(mem_alignment, sizeof(%s));", port.getName(),
-                        defaultIntType(), defaultIntType());
+                emitter().emit("%s%s_buffer = (%s *) aligned_alloc(mem_alignment, sizeof(%s) * %1$sbuffer_size);",
+                        getDevClassPointerWithDot(), port.getName(), typeStr, typeStr);
+                emitter().emit("%s%s_size = (%s *) aligned_alloc(mem_alignment, sizeof(%s));",
+                        getDevClassPointerWithDot(), port.getName(), defaultIntType(), defaultIntType());
             }
 
             for (PortDecl port : network.getOutputPorts()) {
                 String typeStr = typeString(port);
-                emitter().emit("%s_buffer = (%s *) aligned_alloc(mem_alignment, sizeof(%s) * buffer_size);",
-                        port.getName(), typeStr, typeStr);
-                emitter().emit("%s_size = (%s *) aligned_alloc(mem_alignment, sizeof(%s));", port.getName(),
-                        defaultIntType(), defaultIntType());
+                emitter().emit("%s%s_buffer = (%s *) aligned_alloc(mem_alignment, sizeof(%s) * %1$sbuffer_size);",
+                        getDevClassPointerWithDot(), port.getName(), typeStr, typeStr);
+                emitter().emit("%s%s_size = (%s *) aligned_alloc(mem_alignment, sizeof(%s));",
+                        getDevClassPointerWithDot(), port.getName(), defaultIntType(), defaultIntType());
             }
 
             emitter().decreaseIndentation();
@@ -591,7 +618,10 @@ public interface DeviceHandle {
 
     default void getSetArgs() {
         Network network = backend().task().getNetwork();
-        emitter().emit("void DeviceHandle::setArgs() {");
+        if (C99())
+            emitter().emit("void %ssetArgs(%s) {", getC99PreFix(), getDevClassPointerWithType());
+        else
+            emitter().emit("void DeviceHandle::setArgs() {");
         {
             emitter().increaseIndentation();
             OCL_MSG("Setting kernel args\\n");
@@ -599,42 +629,126 @@ public interface DeviceHandle {
             int kernelIndex = 0;
             for (int i = 0; i < network.getInputPorts().size(); i++) {
                 emitter().emit("OCL_CHECK(");
-                emitter().emit("\tclSetKernelArg(kernel, %d, sizeof(cl_uint), &request_size[%d]));", kernelIndex,
-                        kernelIndex);
+                emitter().emit("\tclSetKernelArg(%skernel, %d, sizeof(cl_uint), &%1$srequest_size[%d]));",
+                        getDevClassPointerWithDot(), kernelIndex, kernelIndex);
                 kernelIndex++;
             }
 
             for (int i = 0; i < network.getOutputPorts().size(); i++) {
                 emitter().emit("OCL_CHECK(");
-                emitter().emit("\tclSetKernelArg(kernel, %d, sizeof(cl_uint), &buffer_size));", kernelIndex);
+                emitter().emit("\tclSetKernelArg(%skernel, %d, sizeof(cl_uint), &%1$sbuffer_size));",
+                        getDevClassPointerWithDot(), kernelIndex);
                 kernelIndex++;
             }
 
             for (PortDecl port : network.getInputPorts()) {
                 emitter().emit("OCL_CHECK(");
-                emitter().emit("\tclSetKernelArg(kernel, %d, sizeof(cl_mem), &%s_cl_size));", kernelIndex,
-                        port.getName());
+                emitter().emit("\tclSetKernelArg(%skernel, %d, sizeof(cl_mem), &%1$s%s_cl_size));",
+                        getDevClassPointerWithDot(), kernelIndex, port.getName());
                 kernelIndex++;
                 emitter().emit("OCL_CHECK(");
-                emitter().emit("\tclSetKernelArg(kernel, %d, sizeof(cl_mem), &%s_cl_buffer));", kernelIndex,
-                        port.getName());
+                emitter().emit("\tclSetKernelArg(%skernel, %d, sizeof(cl_mem), &%1$s%s_cl_buffer));",
+                        getDevClassPointerWithDot(), kernelIndex, port.getName());
                 kernelIndex++;
             }
 
             for (PortDecl port : network.getOutputPorts()) {
                 emitter().emit("OCL_CHECK(");
-                emitter().emit("\tclSetKernelArg(kernel, %d, sizeof(cl_mem), &%s_cl_size));", kernelIndex,
-                        port.getName());
+                emitter().emit("\tclSetKernelArg(%skernel, %d, sizeof(cl_mem), &%1$s%s_cl_size));",
+                        getDevClassPointerWithDot(), kernelIndex, port.getName());
                 kernelIndex++;
                 emitter().emit("OCL_CHECK(");
-                emitter().emit("\tclSetKernelArg(kernel, %d, sizeof(cl_mem), &%s_cl_buffer));", kernelIndex,
-                        port.getName());
+                emitter().emit("\tclSetKernelArg(%skernel, %d, sizeof(cl_mem), &%1$s%s_cl_buffer));",
+                        getDevClassPointerWithDot(), kernelIndex, port.getName());
                 kernelIndex++;
 
             }
             emitter().decreaseIndentation();
         }
         emitter().emit("}");
+    }
+
+    default void getEnqueueWriteBuffer() {
+
+        Network network = backend().task().getNetwork();
+        if (C99())
+            emitter().emit("void %senqueueWriteBuffer() {", getC99PreFix());
+        else
+            emitter().emit("void DeviceHanle::enqueueWriteBuffer() {");
+
+        emitter().increaseIndentation();
+        {
+            OCL_MSG("Equeue write buffer");
+            int eventIndex = 0;
+            for (PortDecl port : network.getInputPorts()) {
+                OCL_MSG("Enqueue %s", port.getName());
+                String typeStr = typeString(port);
+                emitter().emit("OCL_CHECK(");
+                emitter().emit(
+                        "clEnqueueWriteBuffer(%sworld.command_queue, %1$s%s_cl_buffer, CL_TRUE, 0, %1$srequest_size[%d] * sizeof(%s), %1$s%2$s_buffer, 0, NULL, %1%s%s[%3$d]);",
+                        getDevClassPointerWithDot(), port.getName(), eventIndex, typeStr, defaultWriteEvents());
+
+                emitter().emit("on_completion(%s%s[%d], &%1$swrite_events_info[%3$d]);", getDevClassPointerWithDot(),
+                        defaultWriteEvents(), eventIndex);
+                eventIndex++;
+            }
+        }
+        emitter().decreaseIndentation();
+        emitter().emit("}");
+    }
+
+    default void getEnqueueReadBuffer() {
+
+        if (C99())
+            emitter().emit("void %senqueueReadBuffer() {", getC99PreFix());
+        else
+            emitter().emit("void DeviceHanle::enqueueReadBuffer() {");
+        {
+            emitter().increaseIndentation();
+            Network network = backend().task().getNetwork();
+            OCL_MSG("Enqueue read buffer");
+
+            int eventIndex = 0;
+            for (PortDecl port : network.getInputPorts()) {
+
+                OCL_MSG("Enqueue read for %s_size", port.getName());
+                emitter().emit(
+                        "clEnqueueReadBuffer(%sworld.command_queue, %1$s%s_cl_size, CL_TRUE, 0, sizeof(%s), %1$s%2$s_size, 1, %s, %1$s%s[%d]);",
+                        getDevClassPointerWithDot(), port.getName(), defaultIntType(), defaultKernelEvent(),
+                        defaultReadEvents(), eventIndex);
+                emitter().emit("on_completion(%s%s[%d], &%1$sread_events_info[%3$d]);", getDevClassPointerWithDot(),
+                        defaultReadEvents(), eventIndex);
+                eventIndex += 1;
+            }
+
+            for (PortDecl port : network.getOutputPorts()) {
+                OCL_MSG("Enqueue read for %s_size", port.getName());
+
+                emitter().emit(
+                        "clEnqueueReadBuffer(%sworld.command_queue, %1$s%s_cl_size, CL_TRUE, 0, sizeof(%s), %1$s%2$s_size, 1, %s, %1$s%s[%d]);",
+                        getDevClassPointerWithDot(), port.getName(), defaultIntType(), defaultKernelEvent(),
+                        defaultReadEvents(), eventIndex);
+                emitter().emit("on_completion(%s%s[%d], &%1$sread_events_info[%3$d]);", getDevClassPointerWithDot(),
+                        defaultReadEvents(), eventIndex);
+                eventIndex += 1;
+
+            }
+
+            for (PortDecl port : network.getOutputPorts()) {
+                OCL_MSG("Enqueue read for %s_buffer", port.getName());
+
+                emitter().emit(
+                        "clEnqueueReadBuffer(%sworld.command_queue, %1$s%s_cl_buffer, CL_TRUE, 0, sizeof(%s) * %1$s%2$s_buffer_size, 1, %s, %1$s%s[%d]);",
+                        getDevClassPointerWithDot(), port.getName(), typeString(port), defaultKernelEvent(),
+                        defaultReadEvents(), eventIndex);
+                emitter().emit("on_completion(%s%s[%d], &%1$sread_events_info[%3$d]);", getDevClassPointerWithDot(),
+                        defaultReadEvents(), eventIndex);
+                eventIndex += 1;
+            }
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("}");
+
     }
 
     default void getEnqueueMigrateToDevice() {
@@ -712,8 +826,13 @@ public interface DeviceHandle {
 
     default void getReleaseMemObjets() {
 
+        if (C99())
+            emitter().emit("void %sreleaseMemObjects() {", getC99PreFix());
+        else
+            emitter().emit("void DeviceHandle::releaseMemObjects() {");
+
         Network network = backend().task().getNetwork();
-        emitter().emit("void DeviceHandle::releaseMemObjects() {");
+
         emitter().increaseIndentation();
         {
             OCL_MSG("Releasing mem objects\\n");
@@ -730,8 +849,9 @@ public interface DeviceHandle {
     default void getReleasePorts(List<PortDecl> ports) {
 
         for (PortDecl port : ports) {
-            emitter().emit("OCL_CHECK(clReleaseMemObject(%s_cl_buffer));", port.getName());
-            emitter().emit("OCL_CHECK(clReleaseMemObject(%s_cl_size));", port.getName());
+            emitter().emit("OCL_CHECK(clReleaseMemObject(%s%s_cl_buffer));", getDevClassPointerWithDot(),
+                    port.getName());
+            emitter().emit("OCL_CHECK(clReleaseMemObject(%s%s_cl_size));", getDevClassPointerWithDot(), port.getName());
         }
     }
 

@@ -1,4 +1,4 @@
-#include <device_handle.h>
+#include "device_handle.h"
 
 void CL_CALLBACK completion_handler(cl_event event, cl_int cmd_status,
                                     void *info) {
@@ -37,13 +37,13 @@ void on_completion(cl_event event, void *info) {
       clSetEventCallback(event, CL_COMPLETE, completion_handler, (void *)info));
 }
 
-DeviceHandle::DeviceHandle(char *kernel_name, char *target_device_name,
+DeviceHandle_construct(DeviceHandle* dev, char *kernel_name, char *target_device_name,
                            char *dir, bool hw_emu) {
   // cl_int err;
-  buffer_size = BUFFER_SIZE;
-  num_inputs = NUM_INPUTS;
-  num_outputs = NUM_OUTPUTS;
-  mem_alignment = MEM_ALIGNMENT;
+  dev->buffer_size = BUFFER_SIZE;
+  dev->num_inputs = NUM_INPUTS;
+  dev->num_outputs = NUM_OUTPUTS;
+  dev->mem_alignment = MEM_ALIGNMENT;
 
   OCL_MSG("Initializing device\n");
   char cl_platform_vendor[1001];
@@ -69,7 +69,7 @@ DeviceHandle::DeviceHandle(char *kernel_name, char *target_device_name,
     }
     if (strcmp(cl_platform_vendor, "Xilinx") == 0) {
       OCL_MSG("Selected platform %d from %s\n", iplat, cl_platform_vendor);
-      world.platform_id = platforms[iplat];
+      dev->world.platform_id = platforms[iplat];
       platform_found = 1;
     }
   }
@@ -81,7 +81,7 @@ DeviceHandle::DeviceHandle(char *kernel_name, char *target_device_name,
   cl_uint device_found = 0;
   cl_device_id devices[16]; // compute device id
   char cl_device_name[1001];
-  err = clGetDeviceIDs(world.platform_id, CL_DEVICE_TYPE_ACCELERATOR, 16,
+  err = clGetDeviceIDs(dev->world.platform_id, CL_DEVICE_TYPE_ACCELERATOR, 16,
                        devices, &num_devices);
   OCL_MSG("Found %d devices\n", num_devices);
   if (err != CL_SUCCESS) {
@@ -97,7 +97,7 @@ DeviceHandle::DeviceHandle(char *kernel_name, char *target_device_name,
     }
     OCL_MSG("CL_DEVICE_NAME %s\n", cl_device_name);
     if (strcmp(cl_device_name, target_device_name) == 0) {
-      world.device_id = devices[i];
+      dev->world.device_id = devices[i];
       device_found = 1;
       OCL_MSG("Selected %s as the target device\n", cl_device_name);
     }
@@ -110,17 +110,17 @@ DeviceHandle::DeviceHandle(char *kernel_name, char *target_device_name,
 
   // Create a compute context
   //
-  world.context = clCreateContext(0, 1, &world.device_id, NULL, NULL, &err);
-  if (!world.context) {
+  dev->world.context = clCreateContext(0, 1, &dev->world.device_id, NULL, NULL, &err);
+  if (!dev->world.context) {
     OCL_ERR("Error: Failed to create a compute context!\n");
     exit(EXIT_FAILURE);
   }
 
   // Create a command commands
-  world.command_queue =
-      clCreateCommandQueue(world.context, world.device_id,
+  dev->world.command_queue =
+      clCreateCommandQueue(dev->world.context, dev->world.device_id,
                            CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, &err);
-  if (!world.command_queue) {
+  if (!dev->world.command_queue) {
     OCL_ERR("Failed to create a command commands!\n");
     OCL_ERR("code %i\n", err);
     exit(EXIT_FAILURE);
@@ -151,40 +151,41 @@ DeviceHandle::DeviceHandle(char *kernel_name, char *target_device_name,
   size_t n0 = n_i0;
 
   // Create the compute program
-  program = clCreateProgramWithBinary(world.context, 1, &world.device_id, &n0,
+  dev->program = clCreateProgramWithBinary(dev->world.context, 1, &dev->world.device_id, &n0,
                                       (const unsigned char **)&kernelbinary,
                                       &status, &err);
   free(kernelbinary);
 
-  if ((!program) || (err != CL_SUCCESS)) {
+  if ((!dev->program) || (err != CL_SUCCESS)) {
     OCL_ERR("Failed to create compute program from binary %d!\n", err);
 
     exit(EXIT_FAILURE);
   }
 
   // Build the program execute
-  err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
+  err = clBuildProgram(dev->program, 0, NULL, NULL, NULL, NULL);
 
   if (err != CL_SUCCESS) {
     size_t len;
     char buffer[2048];
     OCL_ERR("Failed to build program executable!\n");
-    clGetProgramBuildInfo(program, world.device_id, CL_PROGRAM_BUILD_LOG,
+    clGetProgramBuildInfo(dev->program, dev->world.device_id, CL_PROGRAM_BUILD_LOG,
                           sizeof(buffer), buffer, &len);
     OCL_ERR("%s\n", buffer);
     OCL_ERR("Test failed\n");
     exit(EXIT_FAILURE);
   }
 
-  kernel = clCreateKernel(program, kernel_name, &err);
+  dev->kernel = clCreateKernel(dev->program, kernel_name, &err);
 
-  if (!kernel || err != CL_SUCCESS) {
+  if (!dev->kernel || err != CL_SUCCESS) {
     OCL_ERR("Failed to create compute kernel!\n");
     exit(EXIT_SUCCESS);
   }
 
-  global = 1, local = 1;
-  pending_status = false;
+  dev->global = 1;
+  dev->local = 1;
+  dev->pending_status = false;
   OCL_MSG("Allocating buffers\n");
 
   initEvents();
@@ -219,89 +220,90 @@ void DeviceHandle::enqueueExecution() {
   on_completion(kernel_event, &kernel_events_info);
 }
 
-void DeviceHandle::run() {
+void DeviceHandle_run(DeviceHandle* dev) {
   OCL_MSG("Creating CL buffers\n");
   // fillBuffers();
-  createCLBuffers();
+  
 
   OCL_MSG("Migrating to Device\n");
-  enqueueMigrateToDevice();
+  enqueueWriteBuffer(dev);
 
   OCL_MSG("Setting kernel arguments\n");
-  setArgs();
+  setArgs(dev);
 
   OCL_MSG("Starting execution\n");
-  enqueueExecution();
+  enqueueExecution(dev);
 
   OCL_MSG("Migrating to host\n");
-  enqueueMigrateToHost();
-  pending_status = true;
+  enqueueReadBuffer(dev);
+  dev->pending_status = true;
 }
 
-void DeviceHandle::terminate() {
-  clFlush(world.command_queue);
-  clFinish(world.command_queue);
-  OCL_CHECK(clReleaseKernel(kernel));
-  OCL_CHECK(clReleaseProgram(program));
+void DeviceHandle_terminate(DeviceHandle* dev) {
+  clFlush(dev->world.command_queue);
+  clFinish(dev->world.command_queue);
+  OCL_CHECK(clReleaseKernel(dev->kernel));
+  OCL_CHECK(clReleaseProgram(dev->program));
   // xcl_release_world(world);
   // waitReturn();
   printf("Done\n");
 }
 
-void DeviceHandle::waitForDevice() {
-  clWaitForEvents(num_inputs + 2 * num_outputs, read_events);
-  releaseReadEvents();
-  releaseKernelEvent();
-  pending_status = false;
+void DeviceHandle_waitForDevice(DeviceHandle* dev) {
+  clWaitForEvents(dev->num_inputs + 2 * dev->num_outputs, dev->read_events);
+  releaseReadEvents(dev);
+  releaseKernelEvent(dev);
+  dev->pending_status = false;
 }
 
-void DeviceHandle::initEvents() {
+void DeviceHandle_initEvents(DeviceHandle* dev) {
 
-  write_events_info = (eventInfo *)malloc(num_inputs * sizeof(eventInfo));
-  read_events_info =
-      (eventInfo *)malloc((num_inputs + 2 * num_outputs) * sizeof(eventInfo));
+  dev->write_events_info = (eventInfo *)malloc(dev->num_inputs * sizeof(eventInfo));
+  dev->read_events_info =
+      (eventInfo *)malloc((dev->num_inputs + 2 * dev->num_outputs) * sizeof(eventInfo));
 
   for (int i = 0; i < num_inputs; i++) {
-    write_events_info[i].counter = 0;
-    sprintf(write_events_info[i].msg, "write event %d", i);
+    dev->write_events_info[i].counter = 0;
+    sprintf(dev->write_events_info[i].msg, "write event %d", i);
   }
-  for (int i = 0; i < num_inputs + 2 * num_outputs; i++) {
+  for (int i = 0; i < dev->num_inputs + 2 * dev->num_outputs; i++) {
     read_events_info[i].counter = 0;
-    if (i < num_inputs) {
-      sprintf(read_events_info[i].msg, "write size event %d", i);
-    } else if (i < num_inputs + num_outputs) {
-      sprintf(read_events_info[i].msg, "read size event %d", i - num_inputs);
+    if (i < dev->num_inputs) {
+      sprintf(dev->read_events_info[i].msg, "write size event %d", i);
+    } else if (i < dev->num_inputs + dev->num_outputs) {
+      sprintf(dev->read_events_info[i].msg, "read size event %d", 
+        i - dev->num_inputs);
     } else {
-      sprintf(read_events_info[i].msg, "read event %d",
-              i - num_inputs - num_outputs);
+      sprintf(dev->read_events_info[i].msg, "read event %d",
+              i - dev->num_inputs - dev->num_outputs);
     }
   }
-  kernel_events_info.counter = 0;
-  sprintf(kernel_events_info.msg, "kernel event");
+  dev->kernel_events_info.counter = 0;
+  sprintf(dev->kernel_events_info.msg, "kernel event");
 }
 
-void DeviceHandle::setRequestSize(uint32_t *req_sz) {
-  for (int i = 0; i < num_inputs; i++) {
-    request_size[i] = req_sz[i];
+void DeviceHandle_setRequestSize(DeviceHandle* dev, uint32_t *req_sz) {
+  for (int i = 0; i < dev->num_inputs; i++) {
+    dev->request_size[i] = req_sz[i];
   }
 }
 
-void DeviceHandle::releaseReadEvents() {
+void DeviceHandle::releaseReadEvents(DeviceHandle* dev) {
   OCL_MSG("Releasing read events\n");
-  for (int i = 0; i < num_inputs + 2 * num_outputs; i ++) {
-    OCL_CHECK(clReleaseEvent(read_events[i]));
+  for (int i = 0; i < dev->num_inputs + 2 * dev->num_outputs; i ++) {
+    OCL_CHECK(clReleaseEvent(dev->read_events[i]));
   }
   
 }
 
-void DeviceHandle::releaseWriteEvents() {
+void DeviceHandle::releaseWriteEvents(DeviceHandle* dev) {
   OCL_MSG("Releasing write events\n");
-  for (int i = 0; i < num_inputs; i++) {
-    OCL_CHECK(clReleaseEvent(write_events[i]));
+  for (int i = 0; i < dev->num_inputs; i++) {
+    OCL_CHECK(clReleaseEvent(dev->write_events[i]));
   }
 }
 
-void DeviceHandle::releaseKernelEvent() {
+void DeviceHandle::releaseKernelEvent(DeviceHandle* dev) {
   OCL_MSG("Releasing kernel event\n");
-  OCL_CHECK(clReleaseEvent(kernel_event));
+  OCL_CHECK(clReleaseEvent(dev->kernel_event));
 }
