@@ -730,10 +730,10 @@ public interface DeviceHandle {
 
         emitter().increaseIndentation();
         {
-            OCL_MSG("Equeue write buffer");
+            OCL_MSG("Equeue write buffer\\n");
             int eventIndex = 0;
             for (PortDecl port : network.getInputPorts()) {
-                OCL_MSG("Enqueue %s", port.getName());
+                OCL_MSG("Enqueue %s\\n", port.getName());
                 String typeStr = typeString(port);
 
                 OCL_CHECK(
@@ -758,12 +758,12 @@ public interface DeviceHandle {
         {
             emitter().increaseIndentation();
             Network network = backend().task().getNetwork();
-            OCL_MSG("Enqueue read buffer");
+            OCL_MSG("Enqueue read buffer\\n");
 
             int eventIndex = 0;
             for (PortDecl port : network.getInputPorts()) {
 
-                OCL_MSG("Enqueue read for %s_size", port.getName());
+                OCL_MSG("Enqueue read for %s_size\\n", port.getName());
                 OCL_CHECK(
                         "clEnqueueReadBuffer(%sworld.command_queue, %1$s%s_cl_size, CL_TRUE, 0, sizeof(%s), %1$s%2$s_size, 1, &%1$s%s, &%1$s%s[%d])",
                         getDevClassPointerWithDot(), port.getName(), defaultIntType(), defaultKernelEvent(),
@@ -774,7 +774,7 @@ public interface DeviceHandle {
             }
 
             for (PortDecl port : network.getOutputPorts()) {
-                OCL_MSG("Enqueue read for %s_size", port.getName());
+                OCL_MSG("Enqueue read for %s_size\\n", port.getName());
 
                 OCL_CHECK(
                         "clEnqueueReadBuffer(%sworld.command_queue, %1$s%s_cl_size, CL_TRUE, 0, sizeof(%s), %1$s%2$s_size, 1, &%1$s%s, &%1$s%s[%d])",
@@ -787,7 +787,7 @@ public interface DeviceHandle {
             }
 
             for (PortDecl port : network.getOutputPorts()) {
-                OCL_MSG("Enqueue read for %s_buffer", port.getName());
+                OCL_MSG("Enqueue read for %s_buffer\\n", port.getName());
 
                 OCL_CHECK(
                         "clEnqueueReadBuffer(%sworld.command_queue, %1$s%s_cl_buffer, CL_TRUE, 0, sizeof(%s) * %1$sbuffer_size, %1$s%2$s_buffer, 1, &%1$s%s, &%1$s%s[%d])",
