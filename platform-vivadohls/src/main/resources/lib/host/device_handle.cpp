@@ -1,4 +1,4 @@
-#include <device_handle.h>
+#include "device_handle.hpp"
 
 void CL_CALLBACK completion_handler(cl_event event, cl_int cmd_status,
                                     void *info) {
@@ -222,10 +222,9 @@ void DeviceHandle::enqueueExecution() {
 void DeviceHandle::run() {
   OCL_MSG("Creating CL buffers\n");
   // fillBuffers();
-  createCLBuffers();
 
   OCL_MSG("Migrating to Device\n");
-  enqueueMigrateToDevice();
+  enqueueWriteBuffer();
 
   OCL_MSG("Setting kernel arguments\n");
   setArgs();
@@ -234,7 +233,7 @@ void DeviceHandle::run() {
   enqueueExecution();
 
   OCL_MSG("Migrating to host\n");
-  enqueueMigrateToHost();
+  enqueueReadBuffer();
   pending_status = true;
 }
 

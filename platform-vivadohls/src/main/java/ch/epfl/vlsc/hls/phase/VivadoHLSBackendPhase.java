@@ -63,10 +63,10 @@ public class VivadoHLSBackendPhase implements Phase {
         return "StreamBlocks Vivado HLS Platform for Tycho compiler";
     }
 
-
     @Override
     public List<Setting<?>> getPhaseSettings() {
-        return ImmutableList.of(PlatformSettings.scopeLivenessAnalysis);
+
+        return ImmutableList.of(PlatformSettings.scopeLivenessAnalysis, PlatformSettings.C99Host);
     }
 
     /**
@@ -142,9 +142,7 @@ public class VivadoHLSBackendPhase implements Phase {
         createDirectories(context);
 
         // -- Instantiate backend, bind current compilation task and the context
-        VivadoHLSBackend backend = MultiJ.from(VivadoHLSBackend.class)
-                .bind("task").to(task)
-                .bind("context").to(context)
+        VivadoHLSBackend backend = MultiJ.from(VivadoHLSBackend.class).bind("task").to(task).bind("context").to(context)
                 .instance();
 
         // -- Copy Backend resources
@@ -155,7 +153,7 @@ public class VivadoHLSBackendPhase implements Phase {
 
         // -- Generate Globals
         generateGlobals(backend);
-        
+
         // -- Generate devicehandle
         generateDeviceHandle(backend);
 
@@ -292,7 +290,6 @@ public class VivadoHLSBackendPhase implements Phase {
         backend.vivadotcl().generateVivadoTCL();
     }
 
-
     /**
      * Generates the various CMakeLists.txt for building the generated code
      *
@@ -314,12 +311,12 @@ public class VivadoHLSBackendPhase implements Phase {
             GlobalEntityDecl entityDecl = backend.globalnames().entityDecl(instance.getEntityName(), true);
 
             if (entityDecl.getEntity() instanceof ActorMachine) {
-                ControllerToGraphviz dot = new ControllerToGraphviz(entityDecl, instanceWithQID, PathUtils.getAuxiliary(backend.context()).resolve(instanceWithQID + ".dot"));
+                ControllerToGraphviz dot = new ControllerToGraphviz(entityDecl, instanceWithQID,
+                        PathUtils.getAuxiliary(backend.context()).resolve(instanceWithQID + ".dot"));
                 dot.print();
             }
         }
     }
-
 
     /**
      * Copy the backend resources
@@ -329,42 +326,69 @@ public class VivadoHLSBackendPhase implements Phase {
     private void copyBackendResources(VivadoHLSBackend backend) {
         try {
             // -- Vivado HLS Fifo
-            Files.copy(getClass().getResourceAsStream("/lib/verilog/fifo.v"), PathUtils.getTargetCodeGenRtl(backend.context()).resolve("fifo.v"), StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(getClass().getResourceAsStream("/lib/verilog/fifo.v"),
+                    PathUtils.getTargetCodeGenRtl(backend.context()).resolve("fifo.v"),
+                    StandardCopyOption.REPLACE_EXISTING);
             // -- Actor Start controller
-            Files.copy(getClass().getResourceAsStream("/lib/verilog/TriggerTypes.sv"), PathUtils.getTargetCodeGenRtl(backend.context()).resolve("TriggerTypes.sv"), StandardCopyOption.REPLACE_EXISTING);
-            Files.copy(getClass().getResourceAsStream("/lib/verilog/trigger.sv"), PathUtils.getTargetCodeGenRtl(backend.context()).resolve("trigger.sv"), StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(getClass().getResourceAsStream("/lib/verilog/TriggerTypes.sv"),
+                    PathUtils.getTargetCodeGenRtl(backend.context()).resolve("TriggerTypes.sv"),
+                    StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(getClass().getResourceAsStream("/lib/verilog/trigger.sv"),
+                    PathUtils.getTargetCodeGenRtl(backend.context()).resolve("trigger.sv"),
+                    StandardCopyOption.REPLACE_EXISTING);
 
             // -- Find Vivado hls, vivado & SDAccel for cmake
-            Files.copy(getClass().getResourceAsStream("/lib/cmake/FindVivadoHLS.cmake"), PathUtils.getTargetCmake(backend.context()).resolve("FindVivadoHLS.cmake"), StandardCopyOption.REPLACE_EXISTING);
-            Files.copy(getClass().getResourceAsStream("/lib/cmake/FindVivado.cmake"), PathUtils.getTargetCmake(backend.context()).resolve("FindVivado.cmake"), StandardCopyOption.REPLACE_EXISTING);
-            Files.copy(getClass().getResourceAsStream("/lib/cmake/FindSDAccel.cmake"), PathUtils.getTargetCmake(backend.context()).resolve("FindSDAccel.cmake"), StandardCopyOption.REPLACE_EXISTING);
-            Files.copy(getClass().getResourceAsStream("/lib/cmake/FindXRT.cmake"), PathUtils.getTargetCmake(backend.context()).resolve("FindXRT.cmake"), StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(getClass().getResourceAsStream("/lib/cmake/FindVivadoHLS.cmake"),
+                    PathUtils.getTargetCmake(backend.context()).resolve("FindVivadoHLS.cmake"),
+                    StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(getClass().getResourceAsStream("/lib/cmake/FindVivado.cmake"),
+                    PathUtils.getTargetCmake(backend.context()).resolve("FindVivado.cmake"),
+                    StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(getClass().getResourceAsStream("/lib/cmake/FindSDAccel.cmake"),
+                    PathUtils.getTargetCmake(backend.context()).resolve("FindSDAccel.cmake"),
+                    StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(getClass().getResourceAsStream("/lib/cmake/FindXRT.cmake"),
+                    PathUtils.getTargetCmake(backend.context()).resolve("FindXRT.cmake"),
+                    StandardCopyOption.REPLACE_EXISTING);
 
             // -- Input Stage pass Header
-            Files.copy(getClass().getResourceAsStream("/lib/hls/stage_pass.h"), PathUtils.getTargetCodeGenInclude(backend.context()).resolve("stage_pass.h"), StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(getClass().getResourceAsStream("/lib/hls/stage_pass.h"),
+                    PathUtils.getTargetCodeGenInclude(backend.context()).resolve("stage_pass.h"),
+                    StandardCopyOption.REPLACE_EXISTING);
 
             // -- Input Stage mem Header
-            Files.copy(getClass().getResourceAsStream("/lib/hls/input_stage_mem.h"), PathUtils.getTargetCodeGenInclude(backend.context()).resolve("input_stage_mem.h"), StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(getClass().getResourceAsStream("/lib/hls/input_stage_mem.h"),
+                    PathUtils.getTargetCodeGenInclude(backend.context()).resolve("input_stage_mem.h"),
+                    StandardCopyOption.REPLACE_EXISTING);
 
             // -- Output Stage mem Header
-            Files.copy(getClass().getResourceAsStream("/lib/hls/output_stage_mem.h"), PathUtils.getTargetCodeGenInclude(backend.context()).resolve("output_stage_mem.h"), StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(getClass().getResourceAsStream("/lib/hls/output_stage_mem.h"),
+                    PathUtils.getTargetCodeGenInclude(backend.context()).resolve("output_stage_mem.h"),
+                    StandardCopyOption.REPLACE_EXISTING);
 
             // -- Synthesis script for Vivado HLS as an input to CMake
-            Files.copy(getClass().getResourceAsStream("/lib/cmake/Synthesis.tcl.in"), PathUtils.getTargetScripts(backend.context()).resolve("Synthesis.tcl.in"), StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(getClass().getResourceAsStream("/lib/cmake/Synthesis.tcl.in"),
+                    PathUtils.getTargetScripts(backend.context()).resolve("Synthesis.tcl.in"),
+                    StandardCopyOption.REPLACE_EXISTING);
 
             // -- Gen XO
-            Files.copy(getClass().getResourceAsStream("/lib/cmake/gen_xo.tcl.in"), PathUtils.getTargetScripts(backend.context()).resolve("gen_xo.tcl.in"), StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(getClass().getResourceAsStream("/lib/cmake/gen_xo.tcl.in"),
+                    PathUtils.getTargetScripts(backend.context()).resolve("gen_xo.tcl.in"),
+                    StandardCopyOption.REPLACE_EXISTING);
 
             // -- sdaccel ini
-            Files.copy(getClass().getResourceAsStream("/lib/cmake/sdaccel.ini.in"), PathUtils.getTargetScripts(backend.context()).resolve("sdaccel.ini.in"), StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(getClass().getResourceAsStream("/lib/cmake/sdaccel.ini.in"),
+                    PathUtils.getTargetScripts(backend.context()).resolve("sdaccel.ini.in"),
+                    StandardCopyOption.REPLACE_EXISTING);
 
             // -- sdaccel example host code
-            Files.copy(getClass().getResourceAsStream("/lib/hls/Host.cpp"), PathUtils.getTargetCodeGenSource(backend.context()).resolve("Host.cpp"), StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(getClass().getResourceAsStream("/lib/hls/Host.cpp"),
+                    PathUtils.getTargetCodeGenSource(backend.context()).resolve("Host.cpp"),
+                    StandardCopyOption.REPLACE_EXISTING);
 
         } catch (IOException e) {
             throw new CompilationException(new Diagnostic(Diagnostic.Kind.ERROR, "Could not copy backend resources"));
         }
     }
-
 
 }
