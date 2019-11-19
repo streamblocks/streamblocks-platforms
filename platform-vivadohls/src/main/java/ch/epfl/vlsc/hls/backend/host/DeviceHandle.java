@@ -223,7 +223,8 @@ public interface DeviceHandle {
         getSetAndGetPtrs(network.getInputPorts());
         getSetAndGetPtrs(network.getOutputPorts());
 
-        emitter().emit("%s %sis_pending(%s) { return %spending_status;}", defaultIntType(), getC99PreFix(), getDevClassPointerWithType(),
+        emitter().emit("%s %sis_pending(%s) { return %spending_status;}", defaultIntType(),
+                getC99PreFix() + (!C99() ? "DeviceHandle::" : ""), getDevClassPointerWithType(),
                 getDevClassPointerWithDot());
         emitter().close();
 
@@ -474,15 +475,15 @@ public interface DeviceHandle {
         emitter().emitNewLine();
         getSetAndGetDecl(network.getInputPorts());
         getSetAndGetDecl(network.getOutputPorts());
-        
+
     }
 
     default void getSetAndGetDecl(List<PortDecl> ports) {
         for (PortDecl port : ports) {
-            emitter().emit("%s* %sget_%s_buffer_ptr(%s);", typeString(port), getC99PreFix(),
-                    port.getName(), getDevClassPointerWithType());
-            emitter().emit("%s* %sget_%s_size_ptr(%s);", defaultIntType(), getC99PreFix(),
-                    port.getName(), getDevClassPointerWithType());
+            emitter().emit("%s* %sget_%s_buffer_ptr(%s);", typeString(port), getC99PreFix(), port.getName(),
+                    getDevClassPointerWithType());
+            emitter().emit("%s* %sget_%s_size_ptr(%s);", defaultIntType(), getC99PreFix(), port.getName(),
+                    getDevClassPointerWithType());
             emitter().emit("void %sset_%s_buffer_ptr(%s%s%s *ptr);", getC99PreFix(), port.getName(),
                     getDevClassPointerWithType(), C99() ? ", " : "", typeString(port));
             emitter().emit("void %sset_%s_size_ptr(%s%s%s *ptr);", getC99PreFix(), port.getName(),
@@ -492,16 +493,18 @@ public interface DeviceHandle {
 
     default void getSetAndGetPtrs(List<PortDecl> ports) {
         for (PortDecl port : ports) {
-            emitter().emit("%s* %sget_%s_buffer_ptr(%s) { return %s%s_buffer; }", typeString(port), getC99PreFix(),
-                    port.getName(), getDevClassPointerWithType(), getDevClassPointerWithDot(), port.getName());
-            emitter().emit("%s* %sget_%s_size_ptr(%s) { return %s%s_size; }", defaultIntType(), getC99PreFix(),
-                    port.getName(), getDevClassPointerWithType(), getDevClassPointerWithDot(), port.getName());
-            emitter().emit("void %sset_%s_buffer_ptr(%s%s%s *ptr) { %s%s_buffer = ptr; }", getC99PreFix(),
-                    port.getName(), getDevClassPointerWithType(), C99() ? ", " : "", typeString(port),
+            emitter().emit("%s* %sget_%s_buffer_ptr(%s) { return %s%s_buffer; }", typeString(port),
+                    getC99PreFix() + (!C99() ? "DeviceHandle::" : ""), port.getName(), getDevClassPointerWithType(),
                     getDevClassPointerWithDot(), port.getName());
-            emitter().emit("void %sset_%s_size_ptr(%s%s%s *ptr) { %s%s_size = ptr; }", getC99PreFix(), port.getName(),
-                    getDevClassPointerWithType(), C99() ? ", " : "", defaultIntType(), getDevClassPointerWithDot(),
-                    port.getName());
+            emitter().emit("%s* %sget_%s_size_ptr(%s) { return %s%s_size; }", defaultIntType(),
+                    getC99PreFix() + (!C99() ? "DeviceHandle::" : ""), port.getName(), getDevClassPointerWithType(),
+                    getDevClassPointerWithDot(), port.getName());
+            emitter().emit("void %sset_%s_buffer_ptr(%s%s%s *ptr) { %s%s_buffer = ptr; }",
+                    getC99PreFix() + (!C99() ? "DeviceHandle::" : ""), port.getName(), getDevClassPointerWithType(),
+                    C99() ? ", " : "", typeString(port), getDevClassPointerWithDot(), port.getName());
+            emitter().emit("void %sset_%s_size_ptr(%s%s%s *ptr) { %s%s_size = ptr; }",
+                    getC99PreFix() + (!C99() ? "DeviceHandle::" : ""), port.getName(), getDevClassPointerWithType(),
+                    C99() ? ", " : "", defaultIntType(), getDevClassPointerWithDot(), port.getName());
         }
     }
 

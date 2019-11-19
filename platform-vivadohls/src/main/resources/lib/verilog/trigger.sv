@@ -74,9 +74,8 @@ module trigger
 	parameter mode_t mode = ACTOR_TRIGGER;
 	state_t state = IDLE_STATE;
 	state_t next_state;
-
-
-
+	state_t TRY_SLEEP = (mode == ACTOR_TRIGGER) ? SLEEP : IDLE_STATE;
+	
 	always_ff @(posedge ap_clk) begin
         if (~ap_rst_n)
                 state <= IDLE_STATE;
@@ -97,7 +96,7 @@ module trigger
 					if (actor_return == EXECUTED || external_enqueue)
 						next_state = LAUNCH;
 					else // (actor_return != EXECUTED && !external_enqueue)
-						next_state = SLEEP;
+						next_state = TRY_SLEEP;
 				end
 				else begin // !actor_done
 					next_state = CHECK;
@@ -108,7 +107,7 @@ module trigger
 					if (actor_return == EXECUTED || external_enqueue)
 						next_state = LAUNCH;
 					else
-						next_state = SLEEP; 
+						next_state = TRY_SLEEP; 
 				end
 				else begin
 					next_state = CHECK;

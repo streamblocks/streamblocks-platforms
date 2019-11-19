@@ -100,6 +100,8 @@ public interface InputStage {
         // -- Input stage pass
         getStagePassNamed(port.getName(),  "q_tmp" + "_V", port.getName() + "_V");
 
+        emitter().emit("assign  ap_idle = stage_idle & (~q_tmp_V_empty_n);");
+
         emitter().emit("endmodule");
 
         emitter().close();
@@ -133,7 +135,8 @@ public interface InputStage {
     default void getTriggerLocalWires(PortDecl port) {
         emitter().emit("// -- Trigger wires for port: %s", port.getSafeName());
         emitter().emit("wire    %s_input_stage_ap_start;", port.getName());
-        emitter().emit("wire    %s_Input_stage_ap_done;", port.getName());
+        emitter().emit("wire    %s_input_stage_ap_done;", port.getName());
+        emitter().emit("wire    %s_input_stage_ap_ready;", port.getName());
         emitter().emit("wire    %s_input_stage_ap_idle;", port.getName());
         emitter().emit("wire    [31 : 0] %s_input_stage_ap_return;", port.getName());
        
@@ -144,6 +147,8 @@ public interface InputStage {
         emitter().emit("wire    %s_input_stage_launch_predicate;", port.getName());
         emitter().emit("wire    %s_at_least_half_empty;", port.getName());
         emitter().emit("localparam mode_t trigger_mode = INPUT_TRIGGER;");
+
+        emitter().emit("wire     stage_idle;");
         emitter().emitNewLine();
     }
     default void getTriggerModule(PortDecl port) {
@@ -159,7 +164,7 @@ public interface InputStage {
             emitter().emit(".ap_rst_n(ap_rst_n),");
             emitter().emit(".ap_start(ap_start),");
             emitter().emit(".ap_done(ap_done),");
-            emitter().emit(".ap_idle(ap_idle),");
+            emitter().emit(".ap_idle(stage_idle),");
             emitter().emit(".ap_ready(ap_ready),");
             emitter().emit(".external_enqueue(1'b0),");
             emitter().emit(".all_sync(%s_sync_wait | %1$s_sync_exec),", port.getSafeName());
