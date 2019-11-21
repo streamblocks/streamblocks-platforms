@@ -22,6 +22,9 @@ public interface OutputStage {
         return backend().emitter();
     }
 
+    default int getMinTransferSize() {
+        return 4096;
+    }
     default void getOutputStage(PortDecl port) {
         String identifier = port.getName();
 
@@ -101,6 +104,9 @@ public interface OutputStage {
         // -- Output stage mem
         getOutputStageMem(port);
 
+        emitter().emitNewLine();
+        emitter().emit("assign  %s_all_sleep = (network_idle | q_tmp_V_count >= 32'd%d) ? 1'b1 : 1'b0;", 
+            port.getName(), getMinTransferSize());
         emitter().emit("endmodule");
 
         emitter().close();
@@ -140,7 +146,7 @@ public interface OutputStage {
        
         emitter().emit("wire    %s_sync_wait;", port.getSafeName());
         emitter().emit("wire    %s_sync_exec;", port.getSafeName());
-        emitter().emit("wire    %s_sleep;", port.getSafeName());
+        emitter().emit("wire    %s_all_sleep;", port.getSafeName());
 
         emitter().emit("wire   [31 : 0] %s_output_stage_ap_return;", port.getName());
         
@@ -163,12 +169,12 @@ public interface OutputStage {
             emitter().emit(".ap_idle(ap_idle),");
             emitter().emit(".ap_ready(ap_ready),");
             emitter().emit(".external_enqueue(~network_idle),");
-            emitter().emit(".all_sync(%s_sync_wait | %1$s_sync_exec),", port.getSafeName());
-            emitter().emit(".all_sync_wait(%s_sync_wait),", port.getSafeName());
-            emitter().emit(".all_sleep(%s_sleep),", port.getSafeName());
-            emitter().emit(".sync_exec(%s_sync_exec),", port.getSafeName());
-            emitter().emit(".sync_wait(%s_sync_wait),", port.getSafeName());
-            emitter().emit(".sleep(%s_sleep),", port.getSafeName());
+            emitter().emit(".all_sync(),");
+            emitter().emit(".all_sync_wait(),");
+            emitter().emit(".all_sleep(%s_all_sleep),", port.getName());
+            emitter().emit(".sync_exec(),");
+            emitter().emit(".sync_wait(),");
+            emitter().emit(".sleep(),");
             emitter().emit(".actor_return(%s_output_stage_ap_return),", port.getName());
             emitter().emit(".actor_done(%s_output_stage_ap_done),", port.getName());
             emitter().emit(".actor_ready(%s_output_stage_ap_ready),", port.getName());

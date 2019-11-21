@@ -75,7 +75,10 @@ module trigger
 	state_t state = IDLE_STATE;
 	state_t next_state;
 	state_t TRY_SLEEP = (mode == ACTOR_TRIGGER) ? SLEEP : IDLE_STATE;
-	
+	state_t SYNC_OR_TRY_LAUNCH = (mode == OUTPUT_TRIGGER) ? LAUNCH : SYNC_LAUNCH;
+	state_t SLEEP_OR_LAUNCH = (mode == OUTPUT_TRIGGER) ? SLEEP : LAUNCH;
+
+
 	always_ff @(posedge ap_clk) begin
         if (~ap_rst_n)
                 state <= IDLE_STATE;
@@ -87,14 +90,14 @@ module trigger
 		case (state) 
 			IDLE_STATE: begin
 				if (ap_start) 
-					next_state = LAUNCH;
+					next_state = SLEEP_OR_LAUNCH;
 				else 
 					next_state = IDLE_STATE;
 			end
 			LAUNCH: begin
 				if (actor_done) begin
 					if (actor_return == EXECUTED || external_enqueue)
-						next_state = LAUNCH;
+						next_state = SLEEP_OR_LAUNCH;
 					else // (actor_return != EXECUTED && !external_enqueue)
 						next_state = TRY_SLEEP;
 				end
@@ -105,7 +108,7 @@ module trigger
 			CHECK: begin
 				if (actor_done) begin
 					if (actor_return == EXECUTED || external_enqueue)
-						next_state = LAUNCH;
+						next_state = SLEEP_OR_LAUNCH;
 					else
 						next_state = TRY_SLEEP; 
 				end
@@ -115,7 +118,7 @@ module trigger
 			end
 			SLEEP: begin
 				if (all_sleep)
-					next_state = SYNC_LAUNCH;
+					next_state = SYNC_OR_TRY_LAUNCH;
 				else 
 					next_state = SLEEP;
 			end

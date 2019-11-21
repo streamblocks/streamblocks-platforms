@@ -519,7 +519,7 @@ public interface VerilogNetwork {
 
         // -- AP Done
         emitter().emit("// -- AP Done");
-       
+        
         emitter().emit("assign ap_done = am_idle & (~am_idle_r);");
         emitter().emitNewLine();
 
