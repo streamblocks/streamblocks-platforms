@@ -72,10 +72,11 @@ public interface InputStage {
             emitter().emit("input  wire [63:0] %s_size_r,", port.getName());
             emitter().emit("input  wire [63:0] %s_buffer,", port.getName());
             emitter().emit("// -- output stream");
-            emitter().emit("output wire [%d:0] %s_V_din,", bitSize - 1, port.getName());
-            emitter().emit("input  wire %s_V_full_n,", port.getName());
-            emitter().emit("output  wire %s_V_write ", port.getName());
-
+            emitter().emit("output  wire [%d:0] %s_din,", bitSize - 1, port.getName());
+            emitter().emit("input   wire %s_full_n,", port.getName());
+            emitter().emit("output  wire %s_write, ", port.getName());
+            emitter().emit("input   wire [31:0] %s_fifo_count,", port.getName());
+            emitter().emit("input   wire [31:0] %s_fifo_size", port.getName());
             emitter().decreaseIndentation();
         }
         emitter().emit(");");
@@ -95,12 +96,12 @@ public interface InputStage {
         getInputStageMem(port);
 
         // -- Queue
-        getQueue("q_tmp", bitSize, "q_tmp_V", "q_tmp_V");
+        // getQueue("q_tmp", bitSize, "q_tmp_V", "q_tmp_V");
 
         // -- Input stage pass
-        getStagePassNamed(port.getName(),  "q_tmp" + "_V", port.getName() + "_V");
+        // getStagePassNamed(port.getName(),  "q_tmp" + "_V", port.getName() + "_V");
 
-        emitter().emit("assign  ap_idle = stage_idle & (~q_tmp_V_empty_n);");
+        emitter().emit("assign  ap_idle = stage_idle;");
 
         emitter().emit("endmodule");
 
@@ -111,20 +112,20 @@ public interface InputStage {
         emitter().emitClikeBlockComment("Reg & Wires");
         emitter().emitNewLine();
 
-        emitter().emit("// -- Queue Buffer");
-        Type type = backend().types().declaredPortType(port);
-        int bitSize = TypeUtils.sizeOfBits(type);
+        // emitter().emit("// -- Queue Buffer");
+        // Type type = backend().types().declaredPortType(port);
+        // int bitSize = TypeUtils.sizeOfBits(type);
 
-        emitter().emit("wire [%d:0] q_tmp_V_din;", bitSize - 1);
-        emitter().emit("wire q_tmp_V_full_n;");
-        emitter().emit("wire q_tmp_V_write;");
-        emitter().emitNewLine();
-        emitter().emit("wire [%d:0] q_tmp_V_dout;", bitSize - 1);
-        emitter().emit("wire q_tmp_V_empty_n;");
-        emitter().emit("wire q_tmp_V_read;");
-        emitter().emit("wire [31:0] q_tmp_V_count;");
-        emitter().emit("wire [31:0] q_tmp_V_size;");
-        emitter().emitNewLine();
+        // emitter().emit("wire [%d:0] q_tmp_V_din;", bitSize - 1);
+        // emitter().emit("wire q_tmp_V_full_n;");
+        // emitter().emit("wire q_tmp_V_write;");
+        // emitter().emitNewLine();
+        // emitter().emit("wire [%d:0] q_tmp_V_dout;", bitSize - 1);
+        // emitter().emit("wire q_tmp_V_empty_n;");
+        // emitter().emit("wire q_tmp_V_read;");
+        // emitter().emit("wire [31:0] q_tmp_V_count;");
+        // emitter().emit("wire [31:0] q_tmp_V_size;");
+        // emitter().emitNewLine();
 
         // -- Input stage mem
         emitter().emit("// -- Input stage mem");
@@ -225,11 +226,11 @@ public interface InputStage {
             emitter().emit(".%s_size_r(%1$s_size_r),", port.getName());
             emitter().emit(".%s_buffer(%1$s_buffer),", port.getName());
             // -- FIFO I/O
-            emitter().emit(".fifo_count(q_tmp_V_count),");
-            emitter().emit(".fifo_size(q_tmp_V_size),");
-            emitter().emit(".%s_V_din(q_tmp_V_din),", port.getName());
-            emitter().emit(".%s_V_full_n(q_tmp_V_full_n),", port.getName());
-            emitter().emit(".%s_V_write(q_tmp_V_write)", port.getName());
+            emitter().emit(".fifo_count(%1$s_fifo_count),", port.getName());
+            emitter().emit(".fifo_size(%1$s_fifo_size),", port.getName());
+            emitter().emit(".%s_V_din(%1$s_din),", port.getName());
+            emitter().emit(".%s_V_full_n(%1$s_full_n),", port.getName());
+            emitter().emit(".%s_V_write(%1$s_write)", port.getName());
             emitter().decreaseIndentation();
         }
         emitter().emit(");");

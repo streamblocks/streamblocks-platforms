@@ -58,35 +58,39 @@ public interface KernelWrapper {
         }
         emitter().emit(");");
         emitter().emitNewLine();
+        emitter().increaseIndentation();
+        {
 
-        // -- Time unit and precision
-        emitter().emit("timeunit 1ps;");
-        emitter().emit("timeprecision 1ps;");
-        emitter().emitNewLine();
+            // -- Time unit and precision
+            emitter().emit("timeunit 1ps;");
+            emitter().emit("timeprecision 1ps;");
+            emitter().emitNewLine();
 
-        // -- Wires and variables
-        getWiresAndVariables(network);
+            // -- Wires and variables
+            getWiresAndVariables(network);
 
-        // -- RTL Body
-        emitter().emitClikeBlockComment("Begin RTL Body");
-        emitter().emitNewLine();
+            // -- RTL Body
+            emitter().emitClikeBlockComment("Begin RTL Body");
+            emitter().emitNewLine();
 
-        // -- AP Logic
-        getApLogic(network);
+            // -- AP Logic
+            getApLogic(network);
 
-        // -- Input Stage(s)
-        for (PortDecl port : network.getInputPorts()) {
-            getInputStage(port);
+            // -- Input Stage(s)
+            for (PortDecl port : network.getInputPorts()) {
+                getInputStage(port);
+            }
+
+            // -- Network
+            getNetwork(network);
+
+            // -- Output Stage(s)
+            for (PortDecl port : network.getOutputPorts()) {
+                getOutputStage(port);
+            }
+
         }
-
-        // -- Network
-        getNetwork(network);
-
-        // -- Output Stage(s)
-        for (PortDecl port : network.getOutputPorts()) {
-            getOutputStage(port);
-        }
-
+        emitter().decreaseIndentation();
         emitter().emit("endmodule : %s_wrapper", identifier);
         emitter().emit("`default_nettype wire");
 
@@ -100,29 +104,35 @@ public interface KernelWrapper {
         for (PortDecl port : network.getInputPorts()) {
             Type type = backend().types().declaredPortType(port);
             int bitSize = TypeUtils.sizeOfBits(type);
-            boolean lastElement = network.getOutputPorts().isEmpty() && (network.getInputPorts().size() - 1 == network.getInputPorts().indexOf(port));
-            emitter().emit("parameter integer C_M_AXI_%s_ADDR_WIDTH = %d,", port.getName().toUpperCase(), AxiConstants.C_M_AXI_ADDR_WIDTH);
-            emitter().emit("parameter integer C_M_AXI_%s_DATA_WIDTH = %d,", port.getName().toUpperCase(), Math.max(bitSize, 32));
+            boolean lastElement = network.getOutputPorts().isEmpty()
+                    && (network.getInputPorts().size() - 1 == network.getInputPorts().indexOf(port));
+            emitter().emit("parameter integer C_M_AXI_%s_ADDR_WIDTH = %d,", port.getName().toUpperCase(),
+                    AxiConstants.C_M_AXI_ADDR_WIDTH);
+            emitter().emit("parameter integer C_M_AXI_%s_DATA_WIDTH = %d,", port.getName().toUpperCase(),
+                    Math.max(bitSize, 32));
             emitter().emit("parameter integer C_M_AXI_%s_ID_WIDTH = %d,", port.getName().toUpperCase(), 1);
             emitter().emit("parameter integer C_M_AXI_%s_AWUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
             emitter().emit("parameter integer C_M_AXI_%s_ARUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
             emitter().emit("parameter integer C_M_AXI_%s_WUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
             emitter().emit("parameter integer C_M_AXI_%s_RUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
-            emitter().emit("parameter integer C_M_AXI_%s_BUSER_WIDTH =  %d%s", port.getName().toUpperCase(), 1, lastElement ? "" : ",");
-
+            emitter().emit("parameter integer C_M_AXI_%s_BUSER_WIDTH =  %d%s", port.getName().toUpperCase(), 1,
+                    lastElement ? "" : ",");
 
         }
         for (PortDecl port : network.getOutputPorts()) {
             Type type = backend().types().declaredPortType(port);
             int bitSize = TypeUtils.sizeOfBits(type);
-            emitter().emit("parameter integer C_M_AXI_%s_ADDR_WIDTH = %d,", port.getName().toUpperCase(), AxiConstants.C_M_AXI_ADDR_WIDTH);
-            emitter().emit("parameter integer C_M_AXI_%s_DATA_WIDTH = %d,", port.getName().toUpperCase(), Math.max(bitSize, 32));
+            emitter().emit("parameter integer C_M_AXI_%s_ADDR_WIDTH = %d,", port.getName().toUpperCase(),
+                    AxiConstants.C_M_AXI_ADDR_WIDTH);
+            emitter().emit("parameter integer C_M_AXI_%s_DATA_WIDTH = %d,", port.getName().toUpperCase(),
+                    Math.max(bitSize, 32));
             emitter().emit("parameter integer C_M_AXI_%s_ID_WIDTH = %d,", port.getName().toUpperCase(), 1);
             emitter().emit("parameter integer C_M_AXI_%s_AWUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
             emitter().emit("parameter integer C_M_AXI_%s_ARUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
             emitter().emit("parameter integer C_M_AXI_%s_WUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
             emitter().emit("parameter integer C_M_AXI_%s_RUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
-            emitter().emit("parameter integer C_M_AXI_%s_BUSER_WIDTH =  %d%s", port.getName().toUpperCase(), 1, network.getOutputPorts().size() - 1 == network.getOutputPorts().indexOf(port) ? "" : ",");
+            emitter().emit("parameter integer C_M_AXI_%s_BUSER_WIDTH =  %d%s", port.getName().toUpperCase(), 1,
+                    network.getOutputPorts().size() - 1 == network.getOutputPorts().indexOf(port) ? "" : ",");
 
         }
     }
@@ -163,7 +173,6 @@ public interface KernelWrapper {
             emitter().emit("input  wire    [64 - 1 : 0]    %s_buffer,", port.getName());
         }
 
-
         emitter().emit("input   wire    ap_start,");
         emitter().emit("output  wire    ap_ready,");
         emitter().emit("output  wire    ap_idle,");
@@ -181,7 +190,6 @@ public interface KernelWrapper {
         emitter().emit("logic   ap_start_r = 1'b0;");
         emitter().emitNewLine();
 
-
         // -- Network I/O
         String moduleName = backend().task().getIdentifier().getLast().toString();
         emitter().emit("// -- Network I/O for %s module", moduleName);
@@ -191,6 +199,8 @@ public interface KernelWrapper {
             emitter().emit("wire    [%d:0] %s_din;", bitSize - 1, port.getName());
             emitter().emit("wire    %s_full_n;", port.getName());
             emitter().emit("wire    %s_write;", port.getName());
+            emitter().emit("wire    [31:0] %s_fifo_count;", port.getName());
+            emitter().emit("wire    [31:0] %s_fifo_size;", port.getName());
         }
 
         for (PortDecl port : network.getOutputPorts()) {
@@ -199,6 +209,8 @@ public interface KernelWrapper {
             emitter().emit("wire    [%d:0] %s_dout;", bitSize - 1, port.getName());
             emitter().emit("wire    %s_empty_n;", port.getName());
             emitter().emit("wire    %s_read;", port.getName());
+            emitter().emit("wire    [31:0] %s_fifo_count;", port.getName());
+            emitter().emit("wire    [31:0] %s_fifo_size;", port.getName());
         }
         emitter().emit("wire    %s_ap_idle;", moduleName);
         emitter().emit("wire    %s_ap_done;", moduleName);
@@ -225,9 +237,10 @@ public interface KernelWrapper {
         emitter().emitNewLine();
         emitter().emit("wire    output_stage_idle;");
         emitter().emit("wire    output_stage_done;");
-        emitter().emit("logic    input_stage_idle_r = 1'b1;");
-        emitter().emit("logic    output_stage_idle_r = 1'b1;");
-        emitter().emit("logic    %s_network_idle_r = 1'b1;", backend().task().getIdentifier().getLast().toString());
+        emitter().emit("logic   input_stage_idle_r = 1'b1;");
+        emitter().emit("logic   output_stage_idle_r = 1'b1;");
+        emitter().emit("logic   %s_network_idle_r = 1'b1;", backend().task().getIdentifier().getLast().toString());
+        emitter().emit("logic   ap_idle_r = 1'b1;");
         emitter().emitNewLine();
 
     }
@@ -238,12 +251,35 @@ public interface KernelWrapper {
         // -- pulse ap_start
         emitter().emit("// -- Pulse ap_start");
         emitter().emit("always_ff @(posedge ap_clk) begin");
-        emitter().emit("\tap_start_r <= ap_start;");
-        emitter().emit("\tinput_stage_idle_r <= input_stage_idle;");
-        emitter().emit("\toutput_stage_idle_r <= output_stage_idle;");
-        emitter().emit("\t%s_network_idle_r <= %s_network_idle;",
-                backend().task().getIdentifier().getLast().toString(),
-                backend().task().getIdentifier().getLast().toString());
+        {
+            emitter().increaseIndentation();
+            emitter().emit("if (ap_rst_n == 1'b0) begin");
+            {
+                emitter().increaseIndentation();
+                emitter().emit("ap_start_r <= 1'b0;");
+                emitter().emit("input_stage_idle_r <= 1'b1;");
+                emitter().emit("output_stage_idle_r <= 1'b1;");
+                emitter().emit("%s_network_idle_r <= 1'b1;", backend().task().getIdentifier().getLast().toString());
+                emitter().emit("ap_idle_r <= 1'b1;");
+                emitter().decreaseIndentation();
+            }
+            emitter().emit("end");
+            emitter().emit("else begin");
+            {
+                emitter().increaseIndentation();
+                emitter().emit("ap_start_r <= ap_start;");
+                emitter().emit("input_stage_idle_r <= input_stage_idle;");
+                emitter().emit("output_stage_idle_r <= output_stage_idle;");
+                emitter().emit("%s_network_idle_r <= %s_network_idle;",
+                        backend().task().getIdentifier().getLast().toString(),
+                        backend().task().getIdentifier().getLast().toString());
+                emitter().emit("ap_idle_r <= ap_idle;");
+
+                emitter().decreaseIndentation();
+            }
+            emitter().emit("end");
+            emitter().decreaseIndentation();
+        }
         emitter().emit("end");
         emitter().emitNewLine();
         emitter().emit("assign ap_start_pulse = ap_start & ~ap_start_r;");
@@ -255,30 +291,22 @@ public interface KernelWrapper {
                 backend().task().getIdentifier().getLast().toString());
         // -- ap_read
         emitter().emit("// -- ap_ready");
-        emitter().emit("assign ap_ready = input_stage_idle & ~input_stage_idle_r;");
+        emitter().emit("assign ap_ready = ap_idle & ~ap_idle_r;");
         // -- ap_done
         emitter().emit("// -- ap_done");
-        emitter().emit("assign ap_done = output_stage_idle & ~output_stage_idle_r;");
+        emitter().emit("assign ap_done = ap_idle & ~ap_idle_r;");
         emitter().emitNewLine();
 
         emitter().emitNewLine();
         emitter().emit("// -- input stage idle signal");
-        emitter().emit("assign input_stage_idle = %s;", String.join(" & ", network.getInputPorts()
-                .stream().map(i -> i.getName() + "_input_stage_ap_idle")
-                .collect(Collectors.toList())));
+        emitter().emit("assign input_stage_idle = %s;", String.join(" & ", network.getInputPorts().stream()
+                .map(i -> i.getName() + "_input_stage_ap_idle").collect(Collectors.toList())));
         emitter().emitNewLine();
-
 
         emitter().emit("// -- output stage idle signal");
-        emitter().emit("assign output_stage_idle = %s;", String.join(" & ", network.getOutputPorts()
-        .stream().map(i -> i.getName() + "_output_stage_ap_idle")
-        .collect(Collectors.toList())));
+        emitter().emit("assign output_stage_idle = %s;", String.join(" & ", network.getOutputPorts().stream()
+                .map(i -> i.getName() + "_output_stage_ap_idle").collect(Collectors.toList())));
         emitter().emitNewLine();
-
-
-
-        emitter().increaseIndentation();
-
 
     }
 
@@ -352,14 +380,22 @@ public interface KernelWrapper {
         {
             emitter().increaseIndentation();
 
-            emitter().emit(".C_M_AXI_%s_ID_WIDTH( C_M_AXI_%s_ID_WIDTH ),", port.getName().toUpperCase(), port.getName().toUpperCase());
-            emitter().emit(".C_M_AXI_%s_ADDR_WIDTH( C_M_AXI_%s_ADDR_WIDTH ),", port.getName().toUpperCase(), port.getName().toUpperCase());
-            emitter().emit(".C_M_AXI_%s_DATA_WIDTH( C_M_AXI_%s_DATA_WIDTH ),", port.getName().toUpperCase(), port.getName().toUpperCase());
-            emitter().emit(".C_M_AXI_%s_AWUSER_WIDTH( C_M_AXI_%s_AWUSER_WIDTH ),", port.getName().toUpperCase(), port.getName().toUpperCase());
-            emitter().emit(".C_M_AXI_%s_ARUSER_WIDTH( C_M_AXI_%s_ARUSER_WIDTH ),", port.getName().toUpperCase(), port.getName().toUpperCase());
-            emitter().emit(".C_M_AXI_%s_WUSER_WIDTH( C_M_AXI_%s_WUSER_WIDTH ),", port.getName().toUpperCase(), port.getName().toUpperCase());
-            emitter().emit(".C_M_AXI_%s_RUSER_WIDTH( C_M_AXI_%s_RUSER_WIDTH ),", port.getName().toUpperCase(), port.getName().toUpperCase());
-            emitter().emit(".C_M_AXI_%s_BUSER_WIDTH( C_M_AXI_%s_BUSER_WIDTH )", port.getName().toUpperCase(), port.getName().toUpperCase());
+            emitter().emit(".C_M_AXI_%s_ID_WIDTH( C_M_AXI_%s_ID_WIDTH ),", port.getName().toUpperCase(),
+                    port.getName().toUpperCase());
+            emitter().emit(".C_M_AXI_%s_ADDR_WIDTH( C_M_AXI_%s_ADDR_WIDTH ),", port.getName().toUpperCase(),
+                    port.getName().toUpperCase());
+            emitter().emit(".C_M_AXI_%s_DATA_WIDTH( C_M_AXI_%s_DATA_WIDTH ),", port.getName().toUpperCase(),
+                    port.getName().toUpperCase());
+            emitter().emit(".C_M_AXI_%s_AWUSER_WIDTH( C_M_AXI_%s_AWUSER_WIDTH ),", port.getName().toUpperCase(),
+                    port.getName().toUpperCase());
+            emitter().emit(".C_M_AXI_%s_ARUSER_WIDTH( C_M_AXI_%s_ARUSER_WIDTH ),", port.getName().toUpperCase(),
+                    port.getName().toUpperCase());
+            emitter().emit(".C_M_AXI_%s_WUSER_WIDTH( C_M_AXI_%s_WUSER_WIDTH ),", port.getName().toUpperCase(),
+                    port.getName().toUpperCase());
+            emitter().emit(".C_M_AXI_%s_RUSER_WIDTH( C_M_AXI_%s_RUSER_WIDTH ),", port.getName().toUpperCase(),
+                    port.getName().toUpperCase());
+            emitter().emit(".C_M_AXI_%s_BUSER_WIDTH( C_M_AXI_%s_BUSER_WIDTH )", port.getName().toUpperCase(),
+                    port.getName().toUpperCase());
 
             emitter().decreaseIndentation();
         }
@@ -382,9 +418,11 @@ public interface KernelWrapper {
             emitter().emit(".%s_size_r(%1$s_size),", port.getName());
             emitter().emit(".%s_buffer(%1$s_buffer),", port.getName());
             // -- FIFO I/O
-            emitter().emit(".%s_V_din(%1$s_din),", port.getName());
-            emitter().emit(".%s_V_full_n(%1$s_full_n),", port.getName());
-            emitter().emit(".%s_V_write(%1$s_write)", port.getName());
+            emitter().emit(".%s_din(%1$s_din),", port.getName());
+            emitter().emit(".%s_full_n(%1$s_full_n),", port.getName());
+            emitter().emit(".%s_write(%1$s_write),", port.getName());
+            emitter().emit(".%s_fifo_count(%1$s_fifo_count),", port.getName());
+            emitter().emit(".%s_fifo_size(%1$s_fifo_size)", port.getName());
             emitter().decreaseIndentation();
         }
         emitter().emit(");");
@@ -420,7 +458,6 @@ public interface KernelWrapper {
         emitter().emit(");");
     }
 
-
     // ------------------------------------------------------------------------
     // -- Output Stages instantiation
     default void getOutputStage(PortDecl port) {
@@ -434,14 +471,22 @@ public interface KernelWrapper {
         {
             emitter().increaseIndentation();
 
-            emitter().emit(".C_M_AXI_%s_ID_WIDTH( C_M_AXI_%s_ID_WIDTH ),", port.getName().toUpperCase(), port.getName().toUpperCase());
-            emitter().emit(".C_M_AXI_%s_ADDR_WIDTH( C_M_AXI_%s_ADDR_WIDTH ),", port.getName().toUpperCase(), port.getName().toUpperCase());
-            emitter().emit(".C_M_AXI_%s_DATA_WIDTH( C_M_AXI_%s_DATA_WIDTH ),", port.getName().toUpperCase(), port.getName().toUpperCase());
-            emitter().emit(".C_M_AXI_%s_AWUSER_WIDTH( C_M_AXI_%s_AWUSER_WIDTH ),", port.getName().toUpperCase(), port.getName().toUpperCase());
-            emitter().emit(".C_M_AXI_%s_ARUSER_WIDTH( C_M_AXI_%s_ARUSER_WIDTH ),", port.getName().toUpperCase(), port.getName().toUpperCase());
-            emitter().emit(".C_M_AXI_%s_WUSER_WIDTH( C_M_AXI_%s_WUSER_WIDTH ),", port.getName().toUpperCase(), port.getName().toUpperCase());
-            emitter().emit(".C_M_AXI_%s_RUSER_WIDTH( C_M_AXI_%s_RUSER_WIDTH ),", port.getName().toUpperCase(), port.getName().toUpperCase());
-            emitter().emit(".C_M_AXI_%s_BUSER_WIDTH( C_M_AXI_%s_BUSER_WIDTH )", port.getName().toUpperCase(), port.getName().toUpperCase());
+            emitter().emit(".C_M_AXI_%s_ID_WIDTH( C_M_AXI_%s_ID_WIDTH ),", port.getName().toUpperCase(),
+                    port.getName().toUpperCase());
+            emitter().emit(".C_M_AXI_%s_ADDR_WIDTH( C_M_AXI_%s_ADDR_WIDTH ),", port.getName().toUpperCase(),
+                    port.getName().toUpperCase());
+            emitter().emit(".C_M_AXI_%s_DATA_WIDTH( C_M_AXI_%s_DATA_WIDTH ),", port.getName().toUpperCase(),
+                    port.getName().toUpperCase());
+            emitter().emit(".C_M_AXI_%s_AWUSER_WIDTH( C_M_AXI_%s_AWUSER_WIDTH ),", port.getName().toUpperCase(),
+                    port.getName().toUpperCase());
+            emitter().emit(".C_M_AXI_%s_ARUSER_WIDTH( C_M_AXI_%s_ARUSER_WIDTH ),", port.getName().toUpperCase(),
+                    port.getName().toUpperCase());
+            emitter().emit(".C_M_AXI_%s_WUSER_WIDTH( C_M_AXI_%s_WUSER_WIDTH ),", port.getName().toUpperCase(),
+                    port.getName().toUpperCase());
+            emitter().emit(".C_M_AXI_%s_RUSER_WIDTH( C_M_AXI_%s_RUSER_WIDTH ),", port.getName().toUpperCase(),
+                    port.getName().toUpperCase());
+            emitter().emit(".C_M_AXI_%s_BUSER_WIDTH( C_M_AXI_%s_BUSER_WIDTH )", port.getName().toUpperCase(),
+                    port.getName().toUpperCase());
 
             emitter().decreaseIndentation();
         }
@@ -464,10 +509,13 @@ public interface KernelWrapper {
             emitter().emit(".%s_size_r(%1$s_size),", port.getName());
             emitter().emit(".%s_buffer(%1$s_buffer),", port.getName());
             // -- FIFO I/O
-            emitter().emit(".%s_V_dout(%1$s_dout),", port.getName());
-            emitter().emit(".%s_V_empty_n(%1$s_empty_n),", port.getName());
-            emitter().emit(".%s_V_read(%1$s_read),", port.getName());
-            emitter().emit(".network_idle(input_stage_idle & %s_network_idle)", backend().task().getIdentifier().getLast().toString());
+            emitter().emit(".%s_dout(%1$s_dout),", port.getName());
+            emitter().emit(".%s_empty_n(%1$s_empty_n),", port.getName());
+            emitter().emit(".%s_read(%1$s_read),", port.getName());
+            emitter().emit(".%s_fifo_count(%1$s_fifo_count),", port.getName());
+            emitter().emit(".%s_fifo_size(%1$s_fifo_size),", port.getName());
+            emitter().emit(".network_idle(input_stage_idle & %s_network_idle)",
+                    backend().task().getIdentifier().getLast().toString());
             emitter().decreaseIndentation();
         }
         emitter().emit(");");

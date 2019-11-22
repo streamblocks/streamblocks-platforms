@@ -48,6 +48,7 @@ public interface VerilogNetwork {
     default String getAllSleepSignal() {
         return "all_sleep";
     }
+
     default void generateNetwork() {
         // -- Identifier
         String identifier = backend().task().getIdentifier().getLast().toString();
@@ -131,11 +132,15 @@ public interface VerilogNetwork {
             emitter().emit("input  wire [%d:0] %s_din,", bitSize - 1, port.getName());
             emitter().emit("output wire %s_full_n,", port.getName());
             emitter().emit("input  wire %s_write,", port.getName());
+
         } else {
             emitter().emit("output wire [%d:0] %s_dout,", bitSize - 1, port.getName());
             emitter().emit("output wire %s_empty_n,", port.getName());
             emitter().emit("input  wire %s_read,", port.getName());
+
         }
+        emitter().emit("output wire [31:0] %s_fifo_count,", port.getName());
+        emitter().emit("output wire [31:0] %s_fifo_size,", port.getName());
     }
 
     default void getSystemSignals() {
@@ -165,11 +170,11 @@ public interface VerilogNetwork {
         emitter().emit("// -- Queue depth parameters");
         for (Connection connection : connections) {
             String queueName = getQueueName(connection);
+
             emitter().emit("parameter %s_ADDR_WIDTH = %d;", queueName.toUpperCase(), getQueueAddrWidth(connection));
         }
         emitter().emitNewLine();
     }
-
 
     // ------------------------------------------------------------------------
     // -- Wires
@@ -204,7 +209,8 @@ public interface VerilogNetwork {
 
             emitter().emit("// -- Queue wires : %s", queueName);
             if (connection.getSource().getInstance().isPresent()) {
-                String source = String.format("q_%s_%s", connection.getSource().getInstance().get(), connection.getSource().getPort());
+                String source = String.format("q_%s_%s", connection.getSource().getInstance().get(),
+                        connection.getSource().getPort());
                 emitter().emit("wire [%d:0] %s_din;", dataWidth - 1, source);
                 emitter().emit("wire %s_full_n;", source);
                 emitter().emit("wire %s_write;", source);
@@ -212,7 +218,8 @@ public interface VerilogNetwork {
             }
 
             if (connection.getTarget().getInstance().isPresent()) {
-                String target = String.format("q_%s_%s", connection.getTarget().getInstance().get(), connection.getTarget().getPort());
+                String target = String.format("q_%s_%s", connection.getTarget().getInstance().get(),
+                        connection.getTarget().getPort());
                 emitter().emit("wire [%d:0] %s_dout;", dataWidth - 1, target);
                 emitter().emit("wire %s_empty_n;", target);
                 emitter().emit("wire %s_read;", target);
@@ -238,7 +245,6 @@ public interface VerilogNetwork {
         }
     }
 
-
     // Trigger signals
     default void getGlobalTriggerWires() {
         emitter().emitNewLine();
@@ -249,6 +255,7 @@ public interface VerilogNetwork {
         emitter().emit("wire    %s;", getExternalEnqueueSignal());
         emitter().emitNewLine();
     }
+
     default void getLocalTriggerWires(ImmutableList<Instance> instances) {
         for (Instance instance : instances) {
             String qidName = backend().instaceQID(instance.getInstanceName(), "_");
@@ -256,14 +263,13 @@ public interface VerilogNetwork {
             emitter().emit("wire    %s_trigger_ap_done;", qidName);
             emitter().emit("wire    %s_trigger_ap_idle;", qidName);
             emitter().emit("wire    %s_trigger_ap_ready;\t// currently inactive", qidName);
-            
+
             // Local syncronization signals
             emitter().emit("// -- Local syncronization signals");
             emitter().emit("wire    %s;", getTriggerSignalByName(instance, "sleep"));
             emitter().emit("wire    %s;", getTriggerSignalByName(instance, "sync_wait"));
             emitter().emit("wire    %s;", getTriggerSignalByName(instance, "sync_exec"));
             emitter().emit("wire    %s;", getTriggerSignalByName(instance, "sync"));
-            
 
             emitter().emit("// -- Signals for the module");
             emitter().emit("wire    %s_ap_start;", qidName);
@@ -308,7 +314,8 @@ public interface VerilogNetwork {
 
             String source;
             if (connection.getSource().getInstance().isPresent()) {
-                source = String.format("q_%s_%s", connection.getSource().getInstance().get(), connection.getSource().getPort());
+                source = String.format("q_%s_%s", connection.getSource().getInstance().get(),
+                        connection.getSource().getPort());
             } else {
                 source = connection.getSource().getPort();
             }
@@ -319,7 +326,8 @@ public interface VerilogNetwork {
 
             String target;
             if (connection.getTarget().getInstance().isPresent()) {
-                target = String.format("q_%s_%s", connection.getTarget().getInstance().get(), connection.getTarget().getPort());
+                target = String.format("q_%s_%s", connection.getTarget().getInstance().get(),
+                        connection.getTarget().getPort());
             } else {
                 target = connection.getTarget().getPort();
             }
@@ -343,13 +351,11 @@ public interface VerilogNetwork {
         emitter().emit("// ------------------------------------------------------------------------");
         emitter().emit("// -- Instances");
         emitter().emitNewLine();
-        
 
-       
         for (Instance instance : instances) {
-            String qidName = getInstance(instance);        
+            String qidName = getInstance(instance);
         }
-       
+
     }
 
     default String getInstance(Instance instance) {
@@ -363,7 +369,6 @@ public interface VerilogNetwork {
 
         emitter().emit("// -- Instance : %s", qidName);
         if (entity instanceof ActorMachine) {
-            
 
             emitter().emit("trigger #(.mode(trigger_mode)) i_%s_trigger (", qidName);
             {
@@ -388,16 +393,13 @@ public interface VerilogNetwork {
                 emitter().emit(".actor_idle(%s_ap_idle),", qidName);
                 emitter().emit(".actor_start(%s_ap_start)", qidName);
 
-
                 emitter().decreaseIndentation();
             }
             emitter().emit(");");
             emitter().emitNewLine();
         } else {
-            emitter().emit("assign %s_ap_start = %s;", qidName,
-                    String.join(" || ", entity.getInputPorts()
-                            .stream().map(p -> String.format("q_%s_%s_empty_n", name, p.getName()))
-                            .collect(Collectors.toList())));
+            emitter().emit("assign %s_ap_start = %s;", qidName, String.join(" || ", entity.getInputPorts().stream()
+                    .map(p -> String.format("q_%s_%s_empty_n", name, p.getName())).collect(Collectors.toList())));
             emitter().emitNewLine();
         }
         emitter().emit("%s i_%1$s(", qidName);
@@ -406,17 +408,23 @@ public interface VerilogNetwork {
             // -- Inputs
             for (PortDecl port : entity.getInputPorts()) {
                 String portName = port.getName();
-                emitter().emit(".%s%s_empty_n(%s),", portName, getPortExtension(), String.format("q_%s_%s_empty_n", name, portName));
-                emitter().emit(".%s%s_read(%s),", portName, getPortExtension(), String.format("q_%s_%s_read", name, portName));
-                emitter().emit(".%s%s_dout(%s),", portName, getPortExtension(), String.format("q_%s_%s_dout", name, portName));
+                emitter().emit(".%s%s_empty_n(%s),", portName, getPortExtension(),
+                        String.format("q_%s_%s_empty_n", name, portName));
+                emitter().emit(".%s%s_read(%s),", portName, getPortExtension(),
+                        String.format("q_%s_%s_read", name, portName));
+                emitter().emit(".%s%s_dout(%s),", portName, getPortExtension(),
+                        String.format("q_%s_%s_dout", name, portName));
                 emitter().emitNewLine();
             }
             // -- Outputs
             for (PortDecl port : entity.getOutputPorts()) {
                 String portName = port.getName();
-                emitter().emit(".%s%s_full_n(%s),", portName, getPortExtension(), String.format("q_%s_%s_full_n", name, portName));
-                emitter().emit(".%s%s_write(%s),", portName, getPortExtension(), String.format("q_%s_%s_write", name, portName));
-                emitter().emit(".%s%s_din(%s),", portName, getPortExtension(), String.format("q_%s_%s_din", name, portName));
+                emitter().emit(".%s%s_full_n(%s),", portName, getPortExtension(),
+                        String.format("q_%s_%s_full_n", name, portName));
+                emitter().emit(".%s%s_write(%s),", portName, getPortExtension(),
+                        String.format("q_%s_%s_write", name, portName));
+                emitter().emit(".%s%s_din(%s),", portName, getPortExtension(),
+                        String.format("q_%s_%s_din", name, portName));
                 emitter().emitNewLine();
             }
 
@@ -425,8 +433,7 @@ public interface VerilogNetwork {
                 for (PortDecl port : entity.getInputPorts()) {
                     String portName = port.getName();
                     Connection.End target = new Connection.End(Optional.of(name), portName);
-                    Connection connection = backend().task().getNetwork()
-                            .getConnections().stream()
+                    Connection connection = backend().task().getNetwork().getConnections().stream()
                             .filter(c -> c.getTarget().equals(target)).findAny().orElse(null);
                     String queueName = queueNames().get(connection);
 
@@ -439,8 +446,7 @@ public interface VerilogNetwork {
                 for (PortDecl port : entity.getOutputPorts()) {
                     String portName = port.getName();
                     Connection.End source = new Connection.End(Optional.of(name), portName);
-                    Connection connection = backend().task().getNetwork()
-                            .getConnections().stream()
+                    Connection connection = backend().task().getNetwork().getConnections().stream()
                             .filter(c -> c.getSource().equals(source)).findAny().orElse(null);
                     String queueName = queueNames().get(connection);
                     emitter().emit(".io_%s_size(%s),", portName, String.format("%s_size", queueName));
@@ -448,7 +454,6 @@ public interface VerilogNetwork {
                     emitter().emitNewLine();
                 }
             }
-
 
             // -- Vivado HLS control signals
             emitter().emit(".ap_start(%s_ap_start),", qidName);
@@ -477,20 +482,19 @@ public interface VerilogNetwork {
         getTriggerAssignments(network.getInstances());
         // -- AP Control
         getApControlAssignments(network);
+        // -- Count and Size
+        getExternalAssignments(network);
 
     }
 
     default void getNeworkIsBeingExecutingAssignment(Network network) {
         emitter().emit("// -- Network is executing");
-        emitter().emit("assign active_instances = %s;", String.join(" || ", network.getInstances()
-                .stream()
-                .filter(i -> {
+        emitter().emit("assign active_instances = %s;",
+                String.join(" || ", network.getInstances().stream().filter(i -> {
                     GlobalEntityDecl entityDecl = backend().globalnames().entityDecl(i.getEntityName(), true);
                     Entity entity = entityDecl.getEntity();
                     return entity instanceof ActorMachine;
-                })
-                .map(i -> "(~" + i.getInstanceName() + "_ap_idle)")
-                .collect(Collectors.toList())));
+                }).map(i -> "(~" + i.getInstanceName() + "_ap_idle)").collect(Collectors.toList())));
 
         emitter().emit("assign network_is_executing = (state == _EXECUTING_);");
         emitter().emitNewLine();
@@ -498,34 +502,38 @@ public interface VerilogNetwork {
 
     default void getApControlAssignments(Network network) {
 
-
         // -- Actor machine idleness
         emitter().emit("// -- Actor Machine Idleness");
 
         emitter().emit("always @(posedge ap_clk) begin");
         {
             emitter().increaseIndentation();
-            emitter().emit("am_idle_r <= am_idle;");
+            emitter().emit("if (ap_rst_n == 1'b0)");
+            emitter().emit("\tam_idle_r <= 1'b1;");
+            emitter().emit("else");
+            emitter().emit("\tam_idle_r <= am_idle;");
             emitter().decreaseIndentation();
 
         }
         emitter().emit("end");
 
-        emitter().emit("assign am_idle = %s;", String.join(" & ", network.getInstances()
-            .stream()
-            .filter(inst->(backend().globalnames().entityDecl(inst.getEntityName(), true).getEntity() instanceof ActorMachine))
-            .map(i -> backend().instaceQID(i.getInstanceName(),"_") + "_trigger_ap_idle")
-            .collect(Collectors.toList())));
+        emitter().emit("assign am_idle = %s;",
+                String.join(" & ",
+                        network.getInstances().stream()
+                                .filter(inst -> (backend().globalnames().entityDecl(inst.getEntityName(), true)
+                                        .getEntity() instanceof ActorMachine))
+                                .map(i -> backend().instaceQID(i.getInstanceName(), "_") + "_trigger_ap_idle")
+                                .collect(Collectors.toList())));
 
         // -- AP Done
         emitter().emit("// -- AP Done");
-        
+
         emitter().emit("assign ap_done = am_idle & (~am_idle_r);");
         emitter().emitNewLine();
 
         // -- AP Idle
         emitter().emit("// -- AP Idle");
-       
+
         emitter().emit("assign ap_idle = am_idle;");
         emitter().emitNewLine();
     }
@@ -533,12 +541,10 @@ public interface VerilogNetwork {
     // ------------------------------------------------------------------------
     // -- Helper methods
 
-
     default String getPortExtension() {
         // -- TODO : Add _V_V for type accuracy
         return "_V";
     }
-
 
     @Binding(BindingKind.LAZY)
     default Map<Connection, String> queueNames() {
@@ -552,13 +558,16 @@ public interface VerilogNetwork {
 
             if (!source.getInstance().isPresent()) {
                 if (target.getInstance().isPresent()) {
-                    queueNames().put(connection, String.format("q_%s_%s_%s", source.getPort(), target.getInstance().get(), target.getPort()));
+                    queueNames().put(connection, String.format("q_%s_%s_%s", source.getPort(),
+                            target.getInstance().get(), target.getPort()));
                 }
             } else {
                 if (target.getInstance().isPresent()) {
-                    queueNames().put(connection, String.format("q_%s_%s_%s_%s", source.getInstance().get(), source.getPort(), target.getInstance().get(), target.getPort()));
+                    queueNames().put(connection, String.format("q_%s_%s_%s_%s", source.getInstance().get(),
+                            source.getPort(), target.getInstance().get(), target.getPort()));
                 } else {
-                    queueNames().put(connection, String.format("q_%s_%s_%s", source.getInstance().get(), source.getPort(), target.getPort()));
+                    queueNames().put(connection, String.format("q_%s_%s_%s", source.getInstance().get(),
+                            source.getPort(), target.getPort()));
                 }
             }
         }
@@ -570,25 +579,30 @@ public interface VerilogNetwork {
         if (!connection.getSource().getInstance().isPresent()) {
             String portName = connection.getSource().getPort();
             Network network = backend().task().getNetwork();
-            PortDecl port = network.getInputPorts().stream().filter(p -> p.getName().equals(portName)).findAny().orElse(null);
+            PortDecl port = network.getInputPorts().stream().filter(p -> p.getName().equals(portName)).findAny()
+                    .orElse(null);
             dataWidth = TypeUtils.sizeOfBits(backend().types().declaredPortType(port));
         } else {
             Network network = backend().task().getNetwork();
             String srcInstanceName = connection.getSource().getInstance().get();
-            Instance srcInstance = network.getInstances().stream().
-                    filter(p -> p.getInstanceName().equals(srcInstanceName)).
-                    findAny().orElse(null);
+            Instance srcInstance = network.getInstances().stream()
+                    .filter(p -> p.getInstanceName().equals(srcInstanceName)).findAny().orElse(null);
             GlobalEntityDecl entityDecl = backend().globalnames().entityDecl(srcInstance.getEntityName(), true);
             Entity entity = entityDecl.getEntity();
             String portName = connection.getSource().getPort();
-            PortDecl port = entity.getOutputPorts().stream().filter(p -> p.getName().equals(portName)).findAny().orElse(null);
+            PortDecl port = entity.getOutputPorts().stream().filter(p -> p.getName().equals(portName)).findAny()
+                    .orElse(null);
             dataWidth = TypeUtils.sizeOfBits(backend().types().declaredPortType(port));
         }
         return dataWidth;
     }
 
     default int getQueueAddrWidth(Connection connection) {
-        return MathUtils.log2Ceil(backend().channelsutils().connectionBufferSize(connection));
+        
+        if (connection.getSource().getInstance().isPresent() && connection.getTarget().getInstance().isPresent())
+            return MathUtils.log2Ceil(backend().channelsutils().connectionBufferSize(connection));
+        else
+            return 12;
     }
 
     default void getApDoneLogic() {
@@ -695,41 +709,49 @@ public interface VerilogNetwork {
         List<String> syncWaitSignals = getTriggerSignalsByName(instances, "sync_wait");
 
         emitter().emit("// --Local sync signals");
-        for (Instance instance: instances) {
-           
+        for (Instance instance : instances) {
+
             emitter().emit("assign %s = %s | %s;", getTriggerSignalByName(instance, "sync"),
-                                                    getTriggerSignalByName(instance, "sync_exec"),
-                                                    getTriggerSignalByName(instance, "sync_wait"));
+                    getTriggerSignalByName(instance, "sync_exec"), getTriggerSignalByName(instance, "sync_wait"));
         }
         emitter().emitNewLine();
         emitter().emit("// -- global sync signals");
-        emitter().emit("assign %s = %s;", 
-                                getAllSleepSignal(), 
-                                String.join("&", sleepSignals)
-                            );
-        emitter().emit("assign %s = %s;", 
-                            getAllSyncWaitSignal(),
-                            String.join("&", syncWaitSignals)
-                        );
-    
-        emitter().emit("assign %s = %s;", 
-                            getAllSyncSingal(), 
-                            String.join("&", syncSignals)
-                        );
+        emitter().emit("assign %s = %s;", getAllSleepSignal(), String.join(" & ", sleepSignals));
+        emitter().emit("assign %s = %s;", getAllSyncWaitSignal(), String.join(" & ", syncWaitSignals));
+
+        emitter().emit("assign %s = %s;", getAllSyncSingal(), String.join(" & ", syncSignals));
         emitter().emit("assign %s = ~input_idle;", getExternalEnqueueSignal());
         emitter().emitNewLine();
     }
+
     default List<String> getTriggerSignalsByName(ImmutableList<Instance> instances, String name) {
         List<String> signals = instances.stream()
-        .filter(inst->(backend().globalnames().entityDecl(inst.getEntityName(), true).getEntity() instanceof ActorMachine))
-        .map(
-            inst->getTriggerSignalByName(inst, name)
-        )
-        .collect(Collectors.toList()); 
+                .filter(inst -> (backend().globalnames().entityDecl(inst.getEntityName(), true)
+                        .getEntity() instanceof ActorMachine))
+                .map(inst -> getTriggerSignalByName(inst, name)).collect(Collectors.toList());
         return signals;
     }
+
     default String getTriggerSignalByName(Instance instance, String name) {
         return backend().instaceQID(instance.getInstanceName(), "_") + "_" + name;
+    }
+
+    default void getExternalAssignments(Network network) {
+
+        emitter().emit("// -- external assignments");
+
+        for (Connection connection : network.getConnections()) {
+            String queueName = queueNames().get(connection);
+            if (!connection.getSource().getInstance().isPresent()) {
+                emitter().emit("assign  %s_fifo_count = %s_size;", connection.getSource().getPort(), queueName);
+                emitter().emit("assign  %s_fifo_size = %s_size;", connection.getSource().getPort(), queueName);
+            }
+            if (!connection.getTarget().getInstance().isPresent()) {
+                emitter().emit("assign  %s_fifo_count = %s_count;", connection.getTarget().getPort(), queueName);
+                emitter().emit("assign  %s_fifo_size = %s_size;", connection.getTarget().getPort(), queueName);
+            }
+        }
+        emitter().emitNewLine();
     }
 
 }

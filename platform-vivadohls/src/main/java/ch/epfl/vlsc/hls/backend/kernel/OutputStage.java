@@ -71,9 +71,11 @@ public interface OutputStage {
             emitter().emit("input  wire [63:0] %s_size_r,", port.getName());
             emitter().emit("input  wire [63:0] %s_buffer,", port.getName());
             emitter().emit("// -- output stream");
-            emitter().emit("input wire [%d:0] %s_V_dout,", bitSize - 1, port.getName());
-            emitter().emit("input  wire %s_V_empty_n,", port.getName());
-            emitter().emit("output  wire %s_V_read, ", port.getName());
+            emitter().emit("input    wire [%d:0] %s_dout,", bitSize - 1, port.getName());
+            emitter().emit("input    wire %s_empty_n,", port.getName());
+            emitter().emit("output   wire %s_read, ", port.getName());
+            emitter().emit("input    wire [31:0] %s_fifo_count, ", port.getName());
+            emitter().emit("input    wire [31:0] %s_fifo_size, ", port.getName());
             emitter().emit("// -- Network idle");
             emitter().emit("input wire network_idle");
 
@@ -90,12 +92,12 @@ public interface OutputStage {
         emitter().emitClikeBlockComment("Instantiations");
         emitter().emitNewLine();
 
-        // -- Output stage pass
-        backend().inputstage().getStagePassNamed(String.format("%s", port.getName()),
-                String.format("%s_V", port.getName()), "q_tmp_V");
+        // // -- Output stage pass
+        // backend().inputstage().getStagePassNamed(String.format("%s", port.getName()),
+        //         String.format("%s_V", port.getName()), "q_tmp_V");
 
-        // -- Queue
-        backend().inputstage().getQueue("q_tmp", bitSize, "q_tmp_V", "q_tmp_V");
+        // // -- Queue
+        // backend().inputstage().getQueue("q_tmp", bitSize, "q_tmp_V", "q_tmp_V");
 
         // -- Output stage trigger
 
@@ -105,8 +107,9 @@ public interface OutputStage {
         getOutputStageMem(port);
 
         emitter().emitNewLine();
-        emitter().emit("assign  %s_all_sleep = (network_idle | q_tmp_V_count >= 32'd%d) ? 1'b1 : 1'b0;", 
+        emitter().emit("assign  %s_all_sleep = (network_idle | %1$s_fifo_count >= 32'd%d) ? 1'b1 : 1'b0;", 
             port.getName(), getMinTransferSize());
+        emitter().emitNewLine();
         emitter().emit("endmodule");
 
         emitter().close();
@@ -224,10 +227,10 @@ public interface OutputStage {
             emitter().emit(".%s_size_r(%1$s_size_r),", port.getName());
             emitter().emit(".%s_buffer(%1$s_buffer),", port.getName());
             // -- FIFO I/O
-            emitter().emit(".fifo_count(q_tmp_V_count),");
-            emitter().emit(".%s_V_dout(q_tmp_V_dout),", port.getName());
-            emitter().emit(".%s_V_empty_n(q_tmp_V_empty_n),", port.getName());
-            emitter().emit(".%s_V_read(q_tmp_V_read)", port.getName());
+            emitter().emit(".fifo_count(%s_fifo_count),", port.getName());
+            emitter().emit(".%s_V_dout(%1$s_dout),", port.getName());
+            emitter().emit(".%s_V_empty_n(%1$s_empty_n),", port.getName());
+            emitter().emit(".%s_V_read(%1$s_read)", port.getName());
             emitter().decreaseIndentation();
         }
         emitter().emit(");");

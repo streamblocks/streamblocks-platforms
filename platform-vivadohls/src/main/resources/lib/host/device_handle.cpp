@@ -215,7 +215,6 @@ void DeviceHandle::enqueueExecution() {
   OCL_CHECK(clEnqueueNDRangeKernel(world.command_queue, kernel, 1, nullptr,
                                    &global, &local, num_inputs, write_events,
                                    &kernel_event));
-  // set_callback(kernel_events, "CB kernel_event");
   on_completion(kernel_event, &kernel_events_info);
 }
 
@@ -242,13 +241,14 @@ void DeviceHandle::terminate() {
   clFinish(world.command_queue);
   OCL_CHECK(clReleaseKernel(kernel));
   OCL_CHECK(clReleaseProgram(program));
-  // xcl_release_world(world);
-  // waitReturn();
-  printf("Done\n");
+  releaseMemObjects();
+  OCL_CHECK(clReleaseContext(world.context));
+  
 }
 
 void DeviceHandle::waitForDevice() {
   clWaitForEvents(num_inputs + 2 * num_outputs, read_events);
+  releaseWriteEvents();
   releaseReadEvents();
   releaseKernelEvent();
   pending_status = false;

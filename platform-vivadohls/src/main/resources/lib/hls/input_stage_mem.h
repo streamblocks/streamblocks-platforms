@@ -72,18 +72,13 @@ uint32_t class_input_stage_mem<T>::operator()(uint32_t requested_size, uint32_t 
 	uint64_t rest = requested_size - pointer;
 	uint64_t to_read = rest > available_size ?  available_size : rest;
 
-	if(requested_size == 0){
+	if(requested_size == 0 | requested_size == pointer | to_read == 0){
 		size[0] = pointer;
 		pointer = 0;
 		return RETURN_IDLE;
 	}
 
-
-	if(requested_size == pointer){
-		size[0] = pointer;
-		pointer = 0;
-		return RETURN_IDLE;
-	}
+	
 
 	mem_rd: for(uint64_t i = 0; i < to_read; i++){
 #pragma HLS pipeline
@@ -92,7 +87,7 @@ uint32_t class_input_stage_mem<T>::operator()(uint32_t requested_size, uint32_t 
 	}
 
 	pointer+= to_read;
-	if (requested_size == pointer) {
+	if(requested_size == 0 | requested_size == pointer | to_read == 0){
 		size[0] = pointer;
 		pointer = 0;
 		return RETURN_IDLE;
