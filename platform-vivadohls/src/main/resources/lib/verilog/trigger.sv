@@ -96,7 +96,9 @@ module trigger
 			end
 			LAUNCH: begin
 				if (actor_done) begin
-					if (actor_return == EXECUTED || external_enqueue)
+					if (actor_return == IDLE)	//internally idle
+						next_state = TRY_SLEEP;
+					else if (actor_return == EXECUTED || external_enqueue)
 						next_state = SLEEP_OR_LAUNCH;
 					else // (actor_return != EXECUTED && !external_enqueue)
 						next_state = TRY_SLEEP;
@@ -107,10 +109,12 @@ module trigger
 			end
 			CHECK: begin
 				if (actor_done) begin
-					if (actor_return == EXECUTED || external_enqueue)
+					if (actor_return == IDLE)	// internally idle
+						next_state = TRY_SLEEP;
+					else if (actor_return == EXECUTED || external_enqueue)
 						next_state = SLEEP_OR_LAUNCH;
-					else
-						next_state = TRY_SLEEP; 
+					else // (actor_return != EXECUTED && !external_enqueue)
+						next_state = TRY_SLEEP;
 				end
 				else begin
 					next_state = CHECK;
