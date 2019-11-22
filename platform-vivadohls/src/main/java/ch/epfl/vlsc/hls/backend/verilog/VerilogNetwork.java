@@ -743,7 +743,7 @@ public interface VerilogNetwork {
         for (Connection connection : network.getConnections()) {
             String queueName = queueNames().get(connection);
             if (!connection.getSource().getInstance().isPresent()) {
-                emitter().emit("assign  %s_fifo_count = %s_size;", connection.getSource().getPort(), queueName);
+                emitter().emit("assign  %s_fifo_count = %s_count;", connection.getSource().getPort(), queueName);
                 emitter().emit("assign  %s_fifo_size = %s_size;", connection.getSource().getPort(), queueName);
             }
             if (!connection.getTarget().getInstance().isPresent()) {

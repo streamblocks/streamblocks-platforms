@@ -440,11 +440,15 @@ public interface KernelWrapper {
                 emitter().emit(".%s_din(%1$s_din),", port.getName());
                 emitter().emit(".%s_full_n(%1$s_full_n),", port.getName());
                 emitter().emit(".%s_write(%1$s_write),", port.getName());
+                emitter().emit(".%s_fifo_count(%1$s_fifo_count),", port.getName());
+                emitter().emit(".%s_fifo_size(%1$s_fifo_size),", port.getName());
             }
             for (PortDecl port : network.getOutputPorts()) {
                 emitter().emit(".%s_dout(%1$s_dout),", port.getName());
                 emitter().emit(".%s_empty_n(%1$s_empty_n),", port.getName());
                 emitter().emit(".%s_read(%1$s_read),", port.getName());
+                emitter().emit(".%s_fifo_count(%1$s_fifo_count),", port.getName());
+                emitter().emit(".%s_fifo_size(%1$s_fifo_size),", port.getName());
             }
             emitter().emit(".ap_clk(ap_clk),");
             emitter().emit(".ap_rst_n(ap_rst_n),");
