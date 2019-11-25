@@ -79,10 +79,18 @@ extern "C" {
 #elif defined(__arm__)
 
 #define CACHE_LINE_SIZE 64
+// -- FIXME: change for armV7
+#define mb()  asm volatile("dsb sy":::"memory")
+#define rmb() asm volatile("dsb ld" ::: "memory")
+#define wmb() asm volatile("dsb st" ::: "memory")
 
-#define mb()  asm volatile("dmb":::"memory")
-#define rmb() asm volatile("dsb":::"memory")
-#define wmb() asm volatile("dsb" ::: "memory")
+#elif defined(__aarch64__)
+
+#define CACHE_LINE_SIZE 64
+
+#define mb()  asm volatile("dsb sy":::"memory")
+#define rmb() asm volatile("dsb ld" ::: "memory")
+#define wmb() asm volatile("dsb st" ::: "memory")
 
 #endif
 
