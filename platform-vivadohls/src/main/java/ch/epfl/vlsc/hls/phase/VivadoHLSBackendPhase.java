@@ -350,6 +350,9 @@ public class VivadoHLSBackendPhase implements Phase {
             Files.copy(getClass().getResourceAsStream("/lib/cmake/FindXRT.cmake"),
                     PathUtils.getTargetCmake(backend.context()).resolve("FindXRT.cmake"),
                     StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(getClass().getResourceAsStream("/lib/cmake/FindVitis.cmake"),
+                    PathUtils.getTargetCmake(backend.context()).resolve("FindVitis.cmake"),
+                    StandardCopyOption.REPLACE_EXISTING);
 
             // -- Input Stage pass Header
             Files.copy(getClass().getResourceAsStream("/lib/hls/stage_pass.h"),

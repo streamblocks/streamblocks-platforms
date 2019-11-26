@@ -11,7 +11,8 @@ public class Emitter {
     private int indentation;
     private PrintWriter writer;
 
-    public Emitter() { }
+    public Emitter() {
+    }
 
     public void open(Path file) {
         if (writer != null) throw new IllegalStateException("Must close previous file before opening a new.");
@@ -59,19 +60,33 @@ public class Emitter {
         writer.println(text);
     }
 
-    public void emitSharpBlockComment(String text){
-       emit("# -- --------------------------------------------------------------------------");
-       emit("# -- %s", text);
-       emit("# -- --------------------------------------------------------------------------");
+    public void emitSharpBlockComment(String text) {
+        emit("# -- --------------------------------------------------------------------------");
+        emit("# -- %s", text);
+        emit("# -- --------------------------------------------------------------------------");
     }
 
-    public void emitClikeBlockComment(String text){
+    public void emitSharpBlockCommentStart() {
+        emit("# -- --------------------------------------------------------------------------");
+    }
+
+    public void emitSharpComment(String text) {
+        emit("# -- %s", text);
+    }
+
+
+    public void emitSharpBlockCommentEnd() {
+        emit("# --");
+        emit("# -- --------------------------------------------------------------------------");
+    }
+
+    public void emitClikeBlockComment(String text) {
         emit("// -- --------------------------------------------------------------------------");
         emit("// -- %s", text);
         emit("// -- --------------------------------------------------------------------------");
     }
 
-    public void emitNewLine(){
+    public void emitNewLine() {
         emit("");
     }
 }

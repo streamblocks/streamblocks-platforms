@@ -23,7 +23,7 @@ import java.net.URL;
 import java.nio.file.*;
 import java.util.List;
 
-public class C11BackendPhase implements Phase {
+public class MultiCoreBackendPhase implements Phase {
 
     /**
      * Code generation path

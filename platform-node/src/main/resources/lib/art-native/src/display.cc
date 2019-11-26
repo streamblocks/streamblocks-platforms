@@ -257,7 +257,7 @@ void display_yuv_32bpp(int x, int y,
                     int y = yptr[8 * dj];
                     int t = (y - 16) * 298;
                     int r = (t + ruv) >> Rloss;
-                    int g = (t + guv) >> Gloss;
+                    int g = (t - guv) >> Gloss;
                     int b = (t + buv) >> Bloss;
                     fbp[lineLength * dj] = (CLIP(r, Rmax) << Roffset)
                                            | (CLIP(g, Gmax) << Goffset)

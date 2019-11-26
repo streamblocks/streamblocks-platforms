@@ -3,7 +3,7 @@ package ch.epfl.vlsc.node.phase;
 import ch.epfl.vlsc.node.backend.NodeBackend;
 import ch.epfl.vlsc.platformutils.PathUtils;
 import ch.epfl.vlsc.settings.PlatformSettings;
-import ch.epfl.vlsc.sw.phase.C11BackendPhase;
+import ch.epfl.vlsc.sw.phase.MultiCoreBackendPhase;
 import org.multij.MultiJ;
 import se.lth.cs.tycho.compiler.CompilationTask;
 import se.lth.cs.tycho.compiler.Compiler;
@@ -127,21 +127,21 @@ public class NodePhase implements Phase {
 
         // FIXME: make it more general
         // -- Generate globals for SW
-        C11BackendPhase.generateGlobals(nodeBackend.multicore());
+        MultiCoreBackendPhase.generateGlobals(nodeBackend.multicore());
 
         // -- Generate instances for SW
-        C11BackendPhase.generateInstrances(nodeBackend.multicore());
+        MultiCoreBackendPhase.generateInstrances(nodeBackend.multicore());
 
 
         // -- Generate CMakeLists for Projects
         generateCmakeLists(nodeBackend);
 
         // -- Generate CMakeLists for SW instances
-        C11BackendPhase.generateNodeCmakeLists(nodeBackend.multicore());
+        MultiCoreBackendPhase.generateNodeCmakeLists(nodeBackend.multicore());
 
         // -- Generate Node Script
         // FIXME: Make it more general
-        C11BackendPhase.generateNodeScripts(nodeBackend.multicore());
+        MultiCoreBackendPhase.generateNodeScripts(nodeBackend.multicore());
 
         return task;
     }

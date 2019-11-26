@@ -1,6 +1,6 @@
 package ch.epfl.vlsc.sw.platform;
 
-import ch.epfl.vlsc.sw.phase.C11BackendPhase;
+import ch.epfl.vlsc.sw.phase.MultiCoreBackendPhase;
 import se.lth.cs.tycho.compiler.Compiler;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.phase.*;
@@ -43,7 +43,7 @@ public class Multicore implements Platform {
             .addAll(Compiler.nameAndTypeAnalysis())
             .addAll(Compiler.actorMachinePhases())
             .add(new RemoveUnusedEntityDeclsPhase())
-            .add(new C11BackendPhase())
+            .add(new MultiCoreBackendPhase())
             .build();
 
     @Override

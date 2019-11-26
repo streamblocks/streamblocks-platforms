@@ -30,26 +30,42 @@ public interface CMakeLists {
         emitter().open(PathUtils.getTarget(backend().context()).resolve("CMakeLists.txt"));
 
         // -- CMake Minimal version
-        emitter().emit("# -- Generated from %s", backend().task().getIdentifier());
+        emitter().emitSharpBlockCommentStart();
+        emitter().emitSharpComment("StremBlocks Vivado HLS Code Generation");
+        emitter().emitSharpComment("Generated from: " + backend().task().getIdentifier());
+        emitter().emitSharpBlockCommentEnd();
+
         emitter().emit("cmake_minimum_required(VERSION 3.3)");
         emitter().emitNewLine();
 
         // -- Project name
         String identifier = backend().task().getIdentifier().getLast().toString();
+        emitter().emitSharpBlockComment("CMake Project");
         emitter().emit("project (%s)", identifier);
         emitter().emitNewLine();
 
-        // -- SDAccel Kernel Option
-        emitter().emit("option(SDACCEL_KERNEL \"Build an RTL OpenCL Kernel for SDAccel\" ON)");
-        emitter().emit("option(SDACCEL_HOST \"Build an example OpenCL Host executable for SDAccel\" OFF)");
 
-        // -- Set FPGA name
-        emitter().emit("set(FPGA_NAME \"xcku115-flvb2104-2-e\" CACHE STRING \"Name of Xilinx FPGA\")");
+        // -- Vivado HLS CMake Options
+        emitter().emitSharpComment("CMake Options");
+        emitter().emit("option(USE_VITIS \"Build an RTL OpenCL Kernel for Vitis\" OFF)");
+        emitter().emit("option(USE_SDACCEL \"Build an RTL OpenCL Kernel for SDAccel\" OFF)");
+        emitter().emit("option(OPENCL_HOST \"Build an example OpenCL Host executable for Vitis orSDAccel\" OFF)");
+        emitter().emitNewLine();
+
+        // -- Vivado HLS Clock and FPGA CMake Variables
+        emitter().emitSharpComment("CMake Variables");
+        emitter().emit("set(FPGA_NAME \"xczu3eg-sbva484-1-e\" CACHE STRING \"Name of Xilinx FPGA, e.g \\\"xcku115-flvb2104-2-e\\\", \\\"xczu3eg-sbva484-1-e\\\",..\")");
+        emitter().emit("set(CLOCK_PERIOD \"10\" CACHE STRING \"Clock period in ns\")");
+        emitter().emit("set(KERNEL FALSE)");
         emitter().emitNewLine();
 
         // -- Cmake module path for finding the tools
+        emitter().emitSharpComment("Set CMake module path, for finding the necessary tools");
         emitter().emit("set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)");
         emitter().emitNewLine();
+
+        // -- Required tools for this code-generator
+        emitter().emitSharpBlockComment("Minimal external tools requirement for the generated code");
 
         // -- Find Vivado HLS
         emitter().emit("find_package(VivadoHLS REQUIRED)");
@@ -69,60 +85,132 @@ public interface CMakeLists {
         emitter().emit("endif()");
         emitter().emitNewLine();
 
-        // -- Find SDAccel
-        emitter().emit("if (SDACCEL_KERNEL)");
-        {
-            emitter().emit("find_package(SDAccel REQUIRED)");
-            emitter().emit("if (NOT SDACCEL_FOUND)");
-            emitter().increaseIndentation();
-            emitter().emit("message(FATAL_ERROR \"SDAccel is not found, source SDx settings.sh\")");
-            emitter().decreaseIndentation();
-            emitter().emit("else()");
-            {
-                emitter().increaseIndentation();
-                emitter().emit("file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)");
-                emitter().emit("file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/bin/xclbin)");
-                emitter().emit("file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/xclbin)");
-                emitter().emit("set(TARGET \"hw_emu\" CACHE STRING \"SDAccel TARGET : hw_emu, hw\")");
-                emitter().emit(
-                        "set(DEVICE \"xilinx_kcu1500_dynamic_5_0\" CACHE STRING \"SDAccel supported device name\")");
-                emitter().decreaseIndentation();
-            }
-            emitter().emit("endif()");
-            emitter().emitNewLine();
-        }
-        emitter().emit("endif()");
-
-        // -- Include directories
-        emitter().emit(
-                "include_directories(${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR}/code-gen/include ${VIVADO_HLS_INCLUDE_DIRS})");
+        // -- Find Vitis or SDAccel
+        emitter().emitSharpBlockComment("Find and use Vitis or SDAccel");
         emitter().emitNewLine();
 
-        // -- Synthesis configure file
-        emitter().emit("configure_file(${CMAKE_SOURCE_DIR}/scripts/Synthesis.tcl.in Synthesis.tcl)");
-        emitter().emit("configure_file(${CMAKE_SOURCE_DIR}/scripts/%s.tcl.in %1$s.tcl @ONLY)", identifier);
-        emitter().emit("if(SDACCEL_KERNEL)");
+        // -- Use Vitis
+        emitter().emitSharpComment("Use Vitis");
+        emitter().emit("if(USE_VITIS)");
         {
             emitter().increaseIndentation();
 
-            emitter()
-                    .emit("configure_file(${CMAKE_SOURCE_DIR}/scripts/package_kernel.tcl.in package_kernel.tcl @ONLY)");
-            emitter().emit("configure_file(${CMAKE_SOURCE_DIR}/scripts/gen_xo.tcl.in gen_xo.tcl @ONLY)");
-            emitter().emit(
-                    "configure_file(${CMAKE_SOURCE_DIR}/scripts/sdaccel.ini.in ${CMAKE_SOURCE_DIR}/bin/sdaccel.ini @ONLY)");
+            emitter().emit("if(USE_SDACCEL)");
+            emitter().emit("\tmessage(FATAL_ERROR \"You can use either Vitis or SDAccel\")");
+            emitter().emit("endif()");
+            emitter().emitNewLine();
+
+            emitter().emit("find_package(Vitis REQUIRED)");
+            emitter().emit("if (NOT VITIS_FOUND)");
+            emitter().emit("\tmessage(FATAL_ERROR \"Vitis is not found, source Vitis settings.sh\")");
+            emitter().emit("endif()");
+            emitter().emitNewLine();
+
+            emitter().emit("find_package(XRT REQUIRED)");
+            emitter().emit("if (NOT XRT_FOUND)");
+            emitter().emit("\tmessage(FATAL_ERROR \"XRT is not found, source XRT settings.sh\")");
+            emitter().emit("endif()");
+            emitter().emitNewLine();
+
+            emitter().emit("set(KERNEL TRUE)");
 
             emitter().decreaseIndentation();
         }
         emitter().emit("endif()");
+        emitter().emitNewLine();
+
+        // -- Use SDAccel
+        emitter().emitSharpComment("Use SDAccel");
+        emitter().emit("if(USE_SDACCEL)");
+        {
+            emitter().increaseIndentation();
+
+            emitter().emit("if(USE_VITIS)");
+            emitter().emit("\tmessage(FATAL_ERROR \"You can use either SDAccle or Vitis\")");
+            emitter().emit("endif()");
+            emitter().emitNewLine();
+
+            emitter().emit("find_package(SDAccel REQUIRED)");
+            emitter().emit("if (NOT SDACCEL_FOUND)");
+            emitter().emit("\tmessage(FATAL_ERROR \"SDAccel is not found, source SDx settings.sh\")");
+            emitter().emit("endif()");
+            emitter().emitNewLine();
+
+            emitter().emit("set(KERNEL TRUE)");
+
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("endif()");
+        emitter().emitNewLine();
+
+        // -- Kernel configuration
+        emitter().emitSharpBlockComment("Kernel configuration");
+        emitter().emit("if (KERNEL)");
+        {
+            emitter().increaseIndentation();
+
+            emitter().emit("file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)");
+            emitter().emit("file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/bin/xclbin)");
+            emitter().emit("file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/xclbin)");
+            emitter().emit("set(TARGET \"hw\" CACHE STRING \"Vitis/SDAccel TARGET : hw_emu, hw\")");
+            emitter().emitNewLine();
+
+            emitter().emit("if(USE_VITIS)");
+            emitter().emit("\tset(FPGA_NAME \"xczu3eg-sbva484-1-e\" CACHE STRING \"Name of Xilinx FPGA, e.g \\\"xcku115-flvb2104-2-e\\\", \\\"xczu3eg-sbva484-1-e\\\",..\")");
+            emitter().emit("\tset(PLATFORM \"ultra96_base\" CACHE STRING \"Supported platform name, e.g \\\"xilinx_kcu1500_dynamic_5_0\\\", \\\"zcu102_base\\\", \\\"ultra96_base\\\",... \")");
+            emitter().emit("\tset (CLOCK_PERIOD \"6.7\" CACHE STRING \"Clock period in ns\")");
+            emitter().emit("else()");
+            emitter().emit("\tset(FPGA_NAME \"xcku115-flvb2104-2-e\" CACHE STRING \"Name of Xilinx FPGA, e.g \\\"xcku115-flvb2104-2-e\\\", \\\"xczu3eg-sbva484-1-e\\\",..\")");
+            emitter().emit("\tset(PLATFORM \"xilinx_kcu1500_dynamic_5_0\" CACHE STRING \"Supported platform name, e.g \\\"xilinx_kcu1500_dynamic_5_0\\\", \\\"zcu102_base\\\", \\\"ultra96_base\\\",... \")");
+            emitter().emit("\tset (CLOCK_PERIOD \"4\" CACHE STRING \"Clock period in ns\")");
+            emitter().emit("endif()");
+
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("endif()");
+        emitter().emitNewLine();
+
+        // -- Configure file for Vivado HLS
+        emitter().emitSharpBlockComment("Configure files for Vivado HLS");
+        emitter().emit("configure_file(${CMAKE_SOURCE_DIR}/scripts/Synthesis.tcl.in Synthesis.tcl)");
+        emitter().emit("configure_file(${CMAKE_SOURCE_DIR}/scripts/%s.tcl.in %1$s.tcl @ONLY)", identifier);
+        emitter().emitNewLine();
+
+        // -- Configure files for Vitis or SDAccel
+        emitter().emitSharpBlockComment("Configure files for Vitis or SDAccel Kernel");
+        emitter().emit("if(KERNEL)");
+        {
+            emitter().increaseIndentation();
+
+            emitter().emit("configure_file(${CMAKE_SOURCE_DIR}/scripts/package_kernel.tcl.in package_kernel.tcl @ONLY)");
+            emitter().emit("configure_file(${CMAKE_SOURCE_DIR}/scripts/gen_xo.tcl.in gen_xo.tcl @ONLY)");
+            emitter().emitNewLine();
+
+            emitter().emit("if(USE_VITIS)");
+            emitter().emit("\tconfigure_file(${CMAKE_SOURCE_DIR}/scripts/sdaccel.ini.in ${CMAKE_SOURCE_DIR}/bin/xrt.ini @ONLY)");
+            emitter().emit("else()");
+            emitter().emit("\tconfigure_file(${CMAKE_SOURCE_DIR}/scripts/sdaccel.ini.in ${CMAKE_SOURCE_DIR}/bin/sdaccel.ini @ONLY)");
+            emitter().emit("endif()");
+
+
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("endif()");
+        emitter().emitNewLine();
+
+        // -- Include directories
+        emitter().emitSharpBlockComment("Include directories for Vivado HLS");
+        emitter().emit("include_directories(${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR}/code-gen/include ${VIVADO_HLS_INCLUDE_DIRS})");
         emitter().emitNewLine();
 
         // -- Source and Include folders
+        emitter().emitSharpBlockComment("Source and Include folders for the generated code");
         emitter().emit("set(_srcpath ${CMAKE_CURRENT_SOURCE_DIR}/code-gen/src)");
         emitter().emit("set(_incpath ${CMAKE_CURRENT_SOURCE_DIR}/code-gen/include)");
         emitter().emitNewLine();
 
         // -- Custom commands
-        emitter().emit("## -- Custom commands");
+        emitter().emitSharpBlockComment("Custom commands");
         for (Instance instance : backend().task().getNetwork().getInstances()) {
             GlobalEntityDecl entityDecl = backend().globalnames().entityDecl(instance.getEntityName(), true);
             if (!entityDecl.getExternal()) {
@@ -133,20 +221,46 @@ public interface CMakeLists {
         }
 
         // -- Input/Output Stages
-        emitter().emit("if(SDACCEL_KERNEL)");
+        emitter().emit("if(KERNEL)");
         {
             emitter().increaseIndentation();
 
-            emitter().emit("add_custom_command(");
+            emitter().emit("if(USE_VITIS)");
             {
                 emitter().increaseIndentation();
 
-                emitter().emit("OUTPUT ${CMAKE_SOURCE_DIR}/bin/emconfig.json");
-                emitter().emit(
-                        "COMMAND ${SDACCEL_EMCONFIGUTIL} --nd 1 --platform ${DEVICE} --od ${CMAKE_SOURCE_DIR}/bin > emconfigutil.log");
+                emitter().emit("add_custom_command(");
+                {
+                    emitter().increaseIndentation();
+
+                    emitter().emit("OUTPUT ${CMAKE_SOURCE_DIR}/bin/emconfig.json");
+                    emitter().emit(
+                            "COMMAND ${VITIS_EMCONFIGUTIL} --nd 1 --platform ${PLATFORM} --od ${CMAKE_SOURCE_DIR}/bin > emconfigutil.log");
+                    emitter().decreaseIndentation();
+                }
+                emitter().emit(")");
+
                 emitter().decreaseIndentation();
             }
-            emitter().emit(")");
+            emitter().emit("else()");
+            {
+                emitter().increaseIndentation();
+
+                emitter().emit("add_custom_command(");
+                {
+                    emitter().increaseIndentation();
+
+                    emitter().emit("OUTPUT ${CMAKE_SOURCE_DIR}/bin/emconfig.json");
+                    emitter().emit(
+                            "COMMAND ${SDACCEL_EMCONFIGUTIL} --nd 1 --platform ${PLATFORM} --od ${CMAKE_SOURCE_DIR}/bin > emconfigutil.log");
+                    emitter().decreaseIndentation();
+                }
+                emitter().emit(")");
+
+                emitter().decreaseIndentation();
+            }
+            emitter().emit("endif()");
+            emitter().emitNewLine();
 
             for (PortDecl port : network.getInputPorts()) {
                 String topName = port.getName() + "_input_stage_mem";
@@ -171,9 +285,9 @@ public interface CMakeLists {
                 emitter().increaseIndentation();
 
                 emitter().emit(
-                        "OUTPUT  ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${DEVICE}.xo");
+                        "OUTPUT  ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xo");
                 emitter().emit(
-                        "COMMAND ${VIVADO_BINARY} -mode batch -source gen_xo.tcl -tclargs ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${DEVICE}.xo ${CMAKE_PROJECT_NAME}_kernel ${TARGET} ${DEVICE}  > ${CMAKE_PROJECT_NAME}_kernel_xo.log");
+                        "COMMAND ${VIVADO_BINARY} -mode batch -source gen_xo.tcl -tclargs ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xo ${CMAKE_PROJECT_NAME}_kernel ${TARGET} ${PLATFORM}  > ${CMAKE_PROJECT_NAME}_kernel_xo.log");
                 String verilogInstances = String.join(" ", network.getInstances().stream()
                         .map(n -> backend().instaceQID(n.getInstanceName(), "_")).collect(Collectors.toList()));
                 String inputStages = String.join(" ",
@@ -188,24 +302,54 @@ public interface CMakeLists {
                 emitter().decreaseIndentation();
             }
             emitter().emit(")");
+            emitter().emitNewLine();
 
-            emitter().emit("add_custom_command(");
+            emitter().emit("if(USE_VITIS)");
             {
                 emitter().increaseIndentation();
 
-                emitter().emit(
-                        "OUTPUT  ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${DEVICE}.xclbin");
-                emitter().emit(
-                        "COMMAND ${SDACCEL_XOCC} -g -t ${TARGET} --platform ${DEVICE} --save-temps  -lo ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${DEVICE}.xclbin ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${DEVICE}.xo  > ${CMAKE_PROJECT_NAME}_kernel_xclbin.log");
-                emitter().emit("DEPENDS ${CMAKE_PROJECT_NAME}_kernel_xo");
+                emitter().emit("add_custom_command(");
+                {
+                    emitter().increaseIndentation();
+
+                    emitter().emit(
+                            "OUTPUT  ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xclbin");
+                    emitter().emit(
+                            "COMMAND ${VITIS_VPP} -g -t ${TARGET} --platform ${PLATFORM} --save-temps  -lo ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xclbin ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xo  > ${CMAKE_PROJECT_NAME}_kernel_xclbin.log");
+                    emitter().emit("DEPENDS ${CMAKE_PROJECT_NAME}_kernel_xo");
+
+                    emitter().decreaseIndentation();
+                }
+                emitter().emit(")");
 
                 emitter().decreaseIndentation();
             }
-            emitter().emit(")");
+            emitter().emit("else()");
+            {
+                emitter().increaseIndentation();
+
+                emitter().emit("add_custom_command(");
+                {
+                    emitter().increaseIndentation();
+
+                    emitter().emit(
+                            "OUTPUT  ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xclbin");
+                    emitter().emit(
+                            "COMMAND ${SDACCEL_XOCC} -g -t ${TARGET} --platform ${PLATFORM} --save-temps  -lo ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xclbin ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xo  > ${CMAKE_PROJECT_NAME}_kernel_xclbin.log");
+                    emitter().emit("DEPENDS ${CMAKE_PROJECT_NAME}_kernel_xo");
+
+                    emitter().decreaseIndentation();
+                }
+                emitter().emit(")");
+
+                emitter().decreaseIndentation();
+            }
+            emitter().emit("endif()");
 
             emitter().decreaseIndentation();
         }
         emitter().emit("endif()");
+        emitter().emitNewLine();
 
         // -- Vivado XO Custom command
         emitter().emit("add_custom_command(");
@@ -221,9 +365,13 @@ public interface CMakeLists {
             emitter().decreaseIndentation();
         }
         emitter().emit(")");
+        emitter().emitNewLine();
 
-        emitter().emit("## -- Custom targets");
+        emitter().emitSharpBlockComment("Custom targets");
+        emitter().emitNewLine();
+
         // -- Instance custom targets
+        emitter().emitSharpComment("Instances custom target(s)");
         for (Instance instance : backend().task().getNetwork().getInstances()) {
             GlobalEntityDecl entityDecl = backend().globalnames().entityDecl(instance.getEntityName(), true);
             if (!entityDecl.getExternal()) {
@@ -233,9 +381,11 @@ public interface CMakeLists {
                         instanceName);
             }
         }
+        emitter().emitNewLine();
 
         // -- Input/Output Stage targets
-        emitter().emit("if(SDACCEL_KERNEL)");
+        emitter().emitSharpComment("Kernel custom target(s)");
+        emitter().emit("if(KERNEL)");
         {
             emitter().increaseIndentation();
 
@@ -261,22 +411,26 @@ public interface CMakeLists {
 
             // -- Generate XO custom target
             emitter().emit(
-                    "add_custom_target(${CMAKE_PROJECT_NAME}_kernel_xo ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${DEVICE}.xo)");
+                    "add_custom_target(${CMAKE_PROJECT_NAME}_kernel_xo ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xo)");
             // -- Generate XCLBIN custom target
             emitter().emit(
-                    "add_custom_target(${CMAKE_PROJECT_NAME}_kernel_xclbin ALL DEPENDS ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${DEVICE}.xclbin)");
+                    "add_custom_target(${CMAKE_PROJECT_NAME}_kernel_xclbin ALL DEPENDS ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xclbin)");
 
             emitter().decreaseIndentation();
         }
         emitter().emit("endif()");
+        emitter().emitNewLine();
 
         // -- Top, Vivado custom target
+        emitter().emitSharpComment("Vivado custom target");
         String xprProject = String.format("${CMAKE_SOURCE_DIR}/output/%s/%1$s.xpr", identifier);
 
         emitter().emit("add_custom_target(%s ALL DEPENDS %s)", identifier, xprProject);
-        // -- Host example
+        emitter().emitNewLine();
 
-        emitter().emit("if (SDACCEL_HOST)");
+        // -- Host example
+        emitter().emitSharpComment("Host Example Code");
+        emitter().emit("if (OPENCL_HOST)");
         {
             emitter().increaseIndentation();
             emitter().emit("set(EXECUTABLE_OUTPUT_PATH ${CMAKE_SOURCE_DIR}/bin)");
