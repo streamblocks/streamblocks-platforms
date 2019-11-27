@@ -75,8 +75,8 @@ module trigger
 	state_t state = IDLE_STATE;
 	state_t next_state;
 	state_t TRY_SLEEP = (mode == ACTOR_TRIGGER) ? SLEEP : IDLE_STATE;
-	state_t SYNC_OR_TRY_LAUNCH = (mode == OUTPUT_TRIGGER) ? LAUNCH : SYNC_LAUNCH;
-	state_t SLEEP_OR_LAUNCH = (mode == OUTPUT_TRIGGER) ? SLEEP : LAUNCH;
+	state_t SYNC_OR_TRY_LAUNCH = (mode != ACTOR_TRIGGER) ? LAUNCH : SYNC_LAUNCH;
+	state_t SLEEP_OR_LAUNCH = (mode != ACTOR_TRIGGER) ? SLEEP : LAUNCH;
 
 
 	always_ff @(posedge ap_clk) begin

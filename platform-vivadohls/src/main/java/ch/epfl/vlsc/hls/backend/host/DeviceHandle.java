@@ -212,13 +212,13 @@ public interface DeviceHandle {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        // -- Function definitions
         getCreateCLBuffers();
         getAllocateBuffers();
         getSetArgs();
         getEnqueueWriteBuffer();
         getEnqueueReadBuffer();
-        // getEnqueueMigrateToDevice();
-        // getEnqueueMigrateToHost();
+    
         getReleaseMemObjets();
         getSetAndGetPtrs(network.getInputPorts());
         getSetAndGetPtrs(network.getOutputPorts());
@@ -454,10 +454,7 @@ public interface DeviceHandle {
         emitter().emit("void %ssetArgs(%s);", getC99PreFix(), getDevClassPointerWithType());
 
         emitter().emit("void %senqueueExecution(%s);", getC99PreFix(), getDevClassPointerWithType());
-        // emitter().emit("void %senqueueMigrateToDevice(%s);", getC99PreFix(),
-        // getDevClassPointerWithType());
-        // emitter().emit("void %senqueueMigrateToHost(%s);", getC99PreFix(),
-        // getDevClassPointerWithType());
+       
         emitter().emit("void %senqueueWriteBuffer(%s);", getC99PreFix(), getDevClassPointerWithType());
         emitter().emit("void %senqueueReadBuffer(%s);", getC99PreFix(), getDevClassPointerWithType());
         emitter().emit("void %swaitForDevice(%s);", getC99PreFix(), getDevClassPointerWithType());
@@ -735,13 +732,39 @@ public interface DeviceHandle {
         {
             OCL_MSG("Equeue write buffer\\n");
             int eventIndex = 0;
+            emitter().emitNewLine();
+
+            // -- If write buffer is empty, send only a single token
+            emitter().emit("size_t req_sz = 1;");
+
+            
             for (PortDecl port : network.getInputPorts()) {
                 OCL_MSG("Enqueue %s\\n", port.getName());
                 String typeStr = typeString(port);
 
+                //-- Check the requets size
+                emitter().emit("if (%srequest_size[%d] > 0) {", getDevClassPointerWithDot(), eventIndex);
+                {
+                    emitter().increaseIndentation();
+
+                    emitter().emit("req_sz = %srequest_size[%d];", getDevClassPointerWithDot(), eventIndex);
+
+                    emitter().decreaseIndentation();
+                }
+                emitter().emit("}");
+                emitter().emit("else {");
+                {
+                    emitter().increaseIndentation();
+                    emitter().emit("//-- send a single token when request_size[] = 0");
+                    emitter().emit("req_sz = 1;");
+                    OCL_MSG("info: enqueueing an empty buffer\\n");
+                    emitter().decreaseIndentation();
+                }
+                emitter().emit("}");
+
                 OCL_CHECK(
-                        "clEnqueueWriteBuffer(%sworld.command_queue, %1$s%s_cl_buffer, CL_TRUE, 0, %1$srequest_size[%d] * sizeof(%s), %1$s%2$s_buffer, 0, NULL, &%1$s%s[%3$d])",
-                        getDevClassPointerWithDot(), port.getName(), eventIndex, typeStr, defaultWriteEvents());
+                        "clEnqueueWriteBuffer(%sworld.command_queue, %1$s%s_cl_buffer, CL_TRUE, 0, req_sz * sizeof(%s), %1$s%2$s_buffer, 0, NULL, &%1$s%s[%d])",
+                        getDevClassPointerWithDot(), port.getName(), typeStr, defaultWriteEvents(), eventIndex);
 
                 emitter().emit("on_completion(%s%s[%d], &%1$swrite_events_info[%3$d]);", getDevClassPointerWithDot(),
                         defaultWriteEvents(), eventIndex);
@@ -913,6 +936,9 @@ public interface DeviceHandle {
     default void getHostMain() {
         String identifier = backend().task().getIdentifier().getLast().toString();
         Network network = backend().task().getNetwork();
+
+        // -- Construct the device handle
+        emitter().emit("// -- Construct the device handle");
         if (C99()) {
             emitter().emit("DeviceHandle_t dev;");
             emitter().emit("DeviceHandle_constructor(&dev, \"%s_kernel\", \"%s\", \"%s\");", identifier,
@@ -921,7 +947,9 @@ public interface DeviceHandle {
             emitter().emit("DeviceHandle dev(\"%s_kernel\", \"%s\", \"%s\");", identifier, "xilinx_kcu1500_dynamic_5_0",
                     "xclbin");
         }
+        emitter().emitNewLine();
+        emitter().emit("// -- An array holding the request size for all inputs");
         emitter().emit("%s request_size[%d];", defaultIntType(), network.getInputPorts().size());
-
+        
     }
 }

@@ -244,8 +244,7 @@ void DeviceHandle_terminate(DeviceHandle_t *dev) {
   OCL_CHECK(clReleaseKernel(dev->kernel));
   OCL_CHECK(clReleaseProgram(dev->program));
   DeviceHandle_releaseMemObjects(dev);
-  clReleaseContext(dev->world.context);
-  =
+  OCL_CHECK(clReleaseContext(dev->world.context));
 }
 
 void DeviceHandle_waitForDevice(DeviceHandle_t *dev) {
