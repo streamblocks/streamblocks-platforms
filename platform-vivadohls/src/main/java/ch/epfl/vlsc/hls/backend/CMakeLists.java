@@ -158,7 +158,7 @@ public interface CMakeLists {
             emitter().emit("if(USE_VITIS)");
             emitter().emit("\tset(FPGA_NAME \"xczu3eg-sbva484-1-e\" CACHE STRING \"Name of Xilinx FPGA, e.g \\\"xcku115-flvb2104-2-e\\\", \\\"xczu3eg-sbva484-1-e\\\",..\")");
             emitter().emit("\tset(PLATFORM \"ultra96_base\" CACHE STRING \"Supported platform name, e.g \\\"xilinx_kcu1500_dynamic_5_0\\\", \\\"zcu102_base\\\", \\\"ultra96_base\\\",... \")");
-            emitter().emit("\tset (CLOCK_PERIOD \"6.7\" CACHE STRING \"Clock period in ns\")");
+            emitter().emit("\tset (CLOCK_PERIOD \"6.667\" CACHE STRING \"Clock period in ns\")");
             emitter().emit("else()");
             emitter().emit("\tset(FPGA_NAME \"xcku115-flvb2104-2-e\" CACHE STRING \"Name of Xilinx FPGA, e.g \\\"xcku115-flvb2104-2-e\\\", \\\"xczu3eg-sbva484-1-e\\\",..\")");
             emitter().emit("\tset(PLATFORM \"xilinx_kcu1500_dynamic_5_0\" CACHE STRING \"Supported platform name, e.g \\\"xilinx_kcu1500_dynamic_5_0\\\", \\\"zcu102_base\\\", \\\"ultra96_base\\\",... \")");
@@ -447,9 +447,9 @@ public interface CMakeLists {
                 emitter().emit("\tCXX_STANDARD_REQUIRED YES");
                 emitter().emit("\tCXX_EXTENSIONS NO)");
 
-                emitter().emit("target_link_libraries(Host xilinxopencl rt stdc++)");
+                emitter().emit("target_link_libraries(Host xilinxopencl pthread rt dl crypt stdc++)");
             } else {
-                emitter().emit("target_link_libraries(Host xilinxopencl rt)");
+                emitter().emit("target_link_libraries(Host xilinxopencl pthread rt dl crypt)");
             }
             emitter().decreaseIndentation();
 

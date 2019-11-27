@@ -114,6 +114,12 @@ public interface VerilogTestbench {
         {
             clkAndReset();
 
+            if (!network.getInputPorts().isEmpty()) {
+                emitter().emit("// -- Input(s) Idle");
+                emitter().emit("wire input_idle = 1'b0;");
+            }
+
+
             inputPortWiresAndReg(network.getInputPorts());
 
             outputPortWireAndRer(network.getOutputPorts());
@@ -202,6 +208,7 @@ public interface VerilogTestbench {
             emitter().emit("reg %s [%d:0] %s_din;", isSigned ? "signed" : "", bitSize - 1, name);
             emitter().emit("reg %s [%d:0] %s_din_tmp;", isSigned ? "signed" : "", bitSize - 1, name);
             emitter().emit("reg %s_write;", name);
+            emitter().emit("reg %s_idle = 1'b0;", name);
             emitter().emit("wire %s_full_n;", name);
             emitter().emitNewLine();
         } else {
@@ -394,12 +401,14 @@ public interface VerilogTestbench {
                         emitter().emit("%s_scan_file = $fscanf(%1$s_data_file, \"%s\\n\", %1$s_din_tmp);", name, "%d");
                         emitter().emit("%s_din <= %1$s_din_tmp;", name);
                         emitter().emit("%s_write <= 1'b1;", name);
+                        emitter().emit("%s_idle <= 1'b0;", name);
                     }
                     emitter().decreaseIndentation();
                     emitter().emit("end else begin");
                     {
                         emitter().increaseIndentation();
                         emitter().emit("%s_write <= 1'b0;", name);
+                        emitter().emit("%s_idle <= 1'b1;", name);
                         emitter().decreaseIndentation();
                     }
                     emitter().emit("end");
@@ -604,6 +613,14 @@ public interface VerilogTestbench {
 
         emitter().emit("// ------------------------------------------------------------------------");
         emitter().emit("// -- Design under test");
+        emitter().emitNewLine();
+
+        emitter().emit("// -- Network input idle");
+        emitter().emit("assign input_idle = %s;", String.join(" & ", network.getInputPorts()
+                .stream()
+                .map(p -> p.getName() + "_idle")
+                .collect(Collectors.toList())));
+        emitter().emitNewLine();
 
         emitter().emit("%s dut(", identifier);
         emitter().increaseIndentation();
@@ -618,7 +635,8 @@ public interface VerilogTestbench {
             emitter().emit(".ap_rst_n(reset_n),");
             emitter().emit(".ap_start(ap_start),");
             emitter().emit(".ap_idle(idle),");
-            emitter().emit(".ap_done(done)");
+            emitter().emit(".ap_done(done),");
+            emitter().emit(".input_idle(input_idle)");
         }
         emitter().decreaseIndentation();
         emitter().emit(");");

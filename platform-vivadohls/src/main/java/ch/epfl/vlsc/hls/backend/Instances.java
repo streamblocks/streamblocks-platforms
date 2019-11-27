@@ -201,6 +201,7 @@ public interface Instances {
             backend().includeSystem("ap_int.h");
             backend().includeSystem("hls_stream.h");
             backend().includeSystem("stdint.h");
+            backend().includeSystem("stddef.h");
             backend().includeUser("globals.h");
         } else {
             Instance instance = backend().instancebox().get();
