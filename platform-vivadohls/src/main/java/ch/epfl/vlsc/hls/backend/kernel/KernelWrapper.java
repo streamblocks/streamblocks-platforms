@@ -455,8 +455,7 @@ public interface KernelWrapper {
             emitter().emit(".ap_start(ap_start_pulse),");
             emitter().emit(".ap_idle(%s_network_idle),", instanceName);
             emitter().emit(".ap_done(%s_ap_done),", instanceName);
-            emitter().emit(".input_idle(input_stage_idle),");
-            emitter().emit(".output_idle(output_stage_idle)");
+            emitter().emit(".input_idle(input_stage_idle)");
             emitter().decreaseIndentation();
         }
         emitter().emit(");");
