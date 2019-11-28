@@ -359,7 +359,7 @@ public interface Instances {
                             String decl = backend().variables().declarationName(var);
                             if (var.getValue() != null && !(var.getValue() instanceof ExprInput)) {
                                 if (var.getValue() instanceof ExprList) {
-                                    backend().expressioneval().evaluateList(var, (ExprList) var.getValue());
+                                    backend().statements().copy(types().declaredType(var), backend().variables().declarationName(var), types().type(var.getValue()), expressioneval().evaluate(var.getValue()));
                                 } else if (var.getValue() instanceof ExprComprehension) {
                                     backend().expressioneval().evaluate(var.getValue());
                                 } else if (var.getValue() instanceof ExprLambda || var.getValue() instanceof ExprProc) {
@@ -452,7 +452,6 @@ public interface Instances {
             if (index != 0) {
                 emitter().emit("%s{", scopePrototype(instanceName, scope, index, true));
                 emitter().emit("#pragma HLS INLINE");
-
                 {
                     emitter().increaseIndentation();
 
@@ -506,9 +505,7 @@ public interface Instances {
         emitter().emit("#pragma HLS INLINE");
         emitter().increaseIndentation();
         {
-
             emitter().emit("return %s;", evaluateCondition(condition));
-
         }
         emitter().decreaseIndentation();
         emitter().emit("}");
@@ -659,6 +656,5 @@ public interface Instances {
             }
         }
     }
-
 
 }

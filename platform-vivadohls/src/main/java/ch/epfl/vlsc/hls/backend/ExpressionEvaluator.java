@@ -317,7 +317,7 @@ public interface ExpressionEvaluator {
         }
 
         String index = variables().generateTemp();
-        emitter().emit("size_t %s = 0;", index);
+        emitter().emit("uint32_t %s = 0;", index);
         evaluateListComprehension(comprehension, name, index);
         return name;
     }
