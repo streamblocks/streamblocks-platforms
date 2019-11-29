@@ -70,6 +70,7 @@ public interface OutputStage {
             emitter().emit("input  wire [31:0] %s_available_size,", port.getName());
             emitter().emit("input  wire [63:0] %s_size_r,", port.getName());
             emitter().emit("input  wire [63:0] %s_buffer,", port.getName());
+            emitter().emit("input  wire [31:0] kernel_command,");
             emitter().emit("// -- output stream");
             emitter().emit("input    wire [%d:0] %s_dout,", bitSize - 1, port.getName());
             emitter().emit("input    wire %s_empty_n,", port.getName());
@@ -107,8 +108,8 @@ public interface OutputStage {
         getOutputStageMem(port);
 
         emitter().emitNewLine();
-        emitter().emit("assign  %s_all_sleep = (network_idle | %1$s_fifo_count >= 32'd%d) ? 1'b1 : 1'b0;", 
-            port.getName(), getMinTransferSize());
+        emitter().emit("assign  %s_all_sleep = (network_idle | %1$s_fifo_count >= kernel_command) ? 1'b1 : 1'b0;", 
+            port.getName());
         emitter().emitNewLine();
         emitter().emit("endmodule");
 

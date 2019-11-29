@@ -240,6 +240,9 @@ public interface TopKernel {
             }
         }
         emitter().emitNewLine();
+        emitter().emit("// -- kernel command");
+        emitter().emit("wire    [64 - 1 : 0] kernel_command;");
+        emitter().emitNewLine();
 
         emitter().emit("// -- Invert reset signal");
         emitter().emit("always @(posedge ap_clk) begin");
@@ -306,6 +309,7 @@ public interface TopKernel {
                     emitter().emit(".%s_buffer( %1$s_buffer ),", port.getName());
                 }
             }
+            emitter().emit(".kernel_command(kernel_command),");
             emitter().emit(".interrupt( interrupt ),");
             emitter().emit(".ap_start( ap_start ),");
             emitter().emit(".ap_done( ap_done ),");
@@ -375,6 +379,7 @@ public interface TopKernel {
                     emitter().emit(".%s_buffer( %1$s_buffer ),", port.getName());
                 }
             }
+            emitter().emit(".kernel_command(kernel_command),");
             emitter().emit(".ap_start( ap_start ),");
             emitter().emit(".ap_done( ap_done),");
             emitter().emit(".ap_ready( ap_ready),");

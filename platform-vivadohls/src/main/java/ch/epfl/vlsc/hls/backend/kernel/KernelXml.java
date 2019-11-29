@@ -96,7 +96,8 @@ public interface KernelXml {
                         xmlArg(idCounter++, port.getName() +"_buffer", 1, "m_axi_" + port.getName(), "0x0", "0x8", String.format("0x%X", offset), "0x8", backend().typeseval().KernelXmlType(type) + "*");
                         offset+=12;
                     }
-
+                    xmlArg(idCounter++, "kernel_command", 0, "s_axi_control", "0x0", "0x8", String.format("0x%x", offset), "0x8", "unsigned long int");
+                    offset += 12;
                     emitter().decreaseIndentation();
                 }
                 emitter().emit("</args>");

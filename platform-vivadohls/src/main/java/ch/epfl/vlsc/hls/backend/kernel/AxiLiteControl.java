@@ -131,7 +131,7 @@ public interface AxiLiteControl {
                 emitter().emit("output  wire    [64 - 1 : 0]    %s_buffer,", port.getName());
             }
         }
-
+        emitter().emit("output  wire    [64 - 1 : 0]    kernel_command,");
         emitter().emit("output  wire    ap_start,");
         emitter().emit("input   wire    ap_done,");
         emitter().emit("input   wire    ap_ready,");
@@ -199,6 +199,16 @@ public interface AxiLiteControl {
             value += 4;
         }
 
+        // -- the command word
+
+        emitter().emit("ADDR_KERNEL_COMMAND_DATA_0 = %d'h%s,", addressWidth, String.format("%x", value));
+        value += 4;
+        emitter().emit("ADDR_KERNEL_COMMAND_DATA_1 = %d'h%s,", addressWidth, String.format("%x", value));
+        value += 4;
+        emitter().emit("ADDR_KERNEL_COMMAND_CTRL = %d'h%s,", addressWidth, String.format("%x", value));
+        value += 4;
+
+
         emitter().emit("WRIDLE = 2'd0,");
         emitter().emit("WRDATA = 2'd1,");
         emitter().emit("WRRESP = 2'd2,");
@@ -251,6 +261,9 @@ public interface AxiLiteControl {
             emitter().emit("reg [63 : 0]    int_%s_size = 64'd0;", port.getName());
             emitter().emit("reg [63 : 0]    int_%s_buffer = 64'd0;", port.getName());
         }
+        // -- kernel command register
+        emitter().emit("// -- kernel command");
+        emitter().emit("reg [63:0]    int_kernel_command = 64'd0;");
         emitter().emitNewLine();
     }
 
@@ -609,6 +622,28 @@ public interface AxiLiteControl {
                                 emitter().decreaseIndentation();
                             }
                             emitter().emit("end");
+
+                            // -- kernel command
+                            emitter().emit("ADDR_KERNEL_COMMAND_DATA_0: begin");
+                            {
+                                emitter().increaseIndentation();
+
+                                emitter().emit("rdata <= int_kernel_command[31:0];");
+                                
+                                emitter().decreaseIndentation();
+                            }
+                            emitter().emit("end");
+
+                            emitter().emit("ADDR_KERNEL_COMMAND_DATA_1: begin");
+                            {
+                                emitter().increaseIndentation();
+
+                                emitter().emit("rdata <= int_kernel_command[63:32];");
+
+                                emitter().decreaseIndentation();
+                            }
+                            emitter().emit("end");
+
                         }
 
                         emitter().decreaseIndentation();
@@ -645,6 +680,8 @@ public interface AxiLiteControl {
             emitter().emit("assign %s_buffer = int_%1$s_buffer;", port.getName());
         }
         emitter().emitNewLine();
+
+        emitter().emit("assign kernel_command = int_kernel_command;");
 
         // int_event_start
         emitter().emit("// -- int_event_start");
@@ -902,6 +939,8 @@ public interface AxiLiteControl {
             getReg64Bit(port.getName(), "buffer");
         }
 
+        // -- kernel command reg
+        getKernelCommandReg();
 
     }
 
@@ -961,6 +1000,34 @@ public interface AxiLiteControl {
         }
     }
 
+    default void getKernelCommandReg() {
+        int bits = 0;
+        for (int i = 0; i < 2; i++) {
+            emitter().emit("// -- int_kernel_command[%d:%d]", 31 + bits, bits);
+            emitter().emit("always @(posedge ACLK) begin");
+            {
+                emitter().increaseIndentation();
+
+                emitter().emit("if (ARESET)");
+                emitter().emit("\tint_kernel_command[%d:%d] <= 0;", 31 + bits, bits);
+                emitter().emit("else if (ACLK_EN) begin");
+                {
+                    emitter().increaseIndentation();
+
+                    emitter().emit("if (w_hs && waddr == ADDR_KERNEL_COMMAND_DATA_%d)", i);
+                    emitter().emit("\tint_kernel_command[%d:%d] <= (WDATA[31:0] & wmask) | (int_kernel_command[%1$d:%2$d] & ~wmask);", 31 + bits, bits);
+
+                    emitter().decreaseIndentation();
+                }
+                emitter().emit("end");
+
+                emitter().decreaseIndentation();
+            }
+            emitter().emit("end");
+            emitter().emitNewLine();
+            bits += 32;
+        }
+    }
     // -- Helper Methods
 
     default int getAddressBitWidth(Network network) {

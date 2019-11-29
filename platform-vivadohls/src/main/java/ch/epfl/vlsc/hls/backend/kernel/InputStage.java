@@ -25,6 +25,9 @@ public interface InputStage {
         return backend().emitter();
     }
 
+    default int getSleepTimerBits() {
+        return 32;
+    }
     default void getInputStage(PortDecl port) {
         String identifier = port.getName();
 
@@ -71,6 +74,7 @@ public interface InputStage {
             emitter().emit("input  wire [31:0] %s_requested_size,", port.getName());
             emitter().emit("input  wire [63:0] %s_size_r,", port.getName());
             emitter().emit("input  wire [63:0] %s_buffer,", port.getName());
+            emitter().emit("input  wire [31:0] kernel_command,");
             emitter().emit("// -- output stream");
             emitter().emit("output  wire [%d:0] %s_din,", bitSize - 1, port.getName());
             emitter().emit("input   wire %s_full_n,", port.getName());
@@ -148,6 +152,8 @@ public interface InputStage {
         emitter().emit("wire    %s_input_stage_launch_predicate;", port.getName());
         emitter().emit("wire    %s_at_least_half_empty;", port.getName());
         emitter().emit("localparam mode_t trigger_mode = INPUT_TRIGGER;");
+        // -- sleep timer for the trigger
+        emitter().emit("logic    [%d:0] %s_sleep_counter = %1$d'd0;", getSleepTimerBits() - 1, port.getSafeName());
 
         emitter().emit("wire     stage_idle;");
         emitter().emitNewLine();
@@ -170,7 +176,7 @@ public interface InputStage {
             emitter().emit(".external_enqueue(1'b0),");
             emitter().emit(".all_sync(),", port.getSafeName());
             emitter().emit(".all_sync_wait(),", port.getSafeName());
-            emitter().emit(".all_sleep(%s_sleep),", port.getSafeName());
+            emitter().emit(".all_sleep(%s_sleep_counter == kernel_command),", port.getSafeName());
             emitter().emit(".sleep(%s_sleep),", port.getSafeName());
             emitter().emit(".sync_exec(),", port.getSafeName());
             emitter().emit(".sync_wait(),", port.getSafeName());
@@ -186,6 +192,27 @@ public interface InputStage {
         }
         emitter().emit(");");
         emitter().emitNewLine();
+        // -- sleep timer process
+        emitter().emit("// -- sleep timer");
+        emitter().emit("always_ff @(posedge ap_clk) begin");
+        {
+            emitter().increaseIndentation();
+            emitter().emit("if (ap_rst_n == 1'b0 | %s_sleep == 1'b0)", port.getSafeName());
+            {
+                emitter().increaseIndentation();
+                emitter().emit("%s_sleep_counter <= 0;", port.getSafeName());
+                emitter().decreaseIndentation();
+            }
+            emitter().emit("else if (%s_sleep == 1'b1)", port.getSafeName());
+            {
+                emitter().increaseIndentation();
+                emitter().emit("%s_sleep_counter <= %1$s_sleep_counter + %d'd1;", port.getSafeName(), getSleepTimerBits());
+                emitter().decreaseIndentation();
+            }
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("end");
+
     }
 
     default void getInputStageMem(PortDecl port) {

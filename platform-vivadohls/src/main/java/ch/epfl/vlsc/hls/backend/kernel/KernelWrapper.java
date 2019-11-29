@@ -101,6 +101,8 @@ public interface KernelWrapper {
     // -- Parameters
     default void getParameters(Network network) {
 
+        
+
         for (PortDecl port : network.getInputPorts()) {
             Type type = backend().types().declaredPortType(port);
             int bitSize = TypeUtils.sizeOfBits(type);
@@ -173,6 +175,9 @@ public interface KernelWrapper {
             emitter().emit("input  wire    [64 - 1 : 0]    %s_buffer,", port.getName());
         }
 
+        // -- Kernel command
+        emitter().emit("// -- kernel command");
+        emitter().emit("input  wire    [64 - 1 : 0] kernel_command,");
         emitter().emit("input   wire    ap_start,");
         emitter().emit("output  wire    ap_ready,");
         emitter().emit("output  wire    ap_idle,");
@@ -417,6 +422,7 @@ public interface KernelWrapper {
             emitter().emit(".%s_requested_size(%1$s_requested_size),", port.getName());
             emitter().emit(".%s_size_r(%1$s_size),", port.getName());
             emitter().emit(".%s_buffer(%1$s_buffer),", port.getName());
+            emitter().emit(".kernel_command(kernel_command[31:0]),");
             // -- FIFO I/O
             emitter().emit(".%s_din(%1$s_din),", port.getName());
             emitter().emit(".%s_full_n(%1$s_full_n),", port.getName());
@@ -511,6 +517,7 @@ public interface KernelWrapper {
             emitter().emit(".%s_available_size(%1$s_available_size),", port.getName());
             emitter().emit(".%s_size_r(%1$s_size),", port.getName());
             emitter().emit(".%s_buffer(%1$s_buffer),", port.getName());
+            emitter().emit(".kernel_command(kernel_command[63:32]),");
             // -- FIFO I/O
             emitter().emit(".%s_dout(%1$s_dout),", port.getName());
             emitter().emit(".%s_empty_n(%1$s_empty_n),", port.getName());
@@ -525,4 +532,5 @@ public interface KernelWrapper {
         emitter().emitNewLine();
     }
 
+    
 }

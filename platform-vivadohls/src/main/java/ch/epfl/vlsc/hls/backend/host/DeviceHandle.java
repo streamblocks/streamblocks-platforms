@@ -218,7 +218,7 @@ public interface DeviceHandle {
         getSetArgs();
         getEnqueueWriteBuffer();
         getEnqueueReadBuffer();
-    
+
         getReleaseMemObjets();
         getSetAndGetPtrs(network.getInputPorts());
         getSetAndGetPtrs(network.getOutputPorts());
@@ -454,7 +454,7 @@ public interface DeviceHandle {
         emitter().emit("void %ssetArgs(%s);", getC99PreFix(), getDevClassPointerWithType());
 
         emitter().emit("void %senqueueExecution(%s);", getC99PreFix(), getDevClassPointerWithType());
-       
+
         emitter().emit("void %senqueueWriteBuffer(%s);", getC99PreFix(), getDevClassPointerWithType());
         emitter().emit("void %senqueueReadBuffer(%s);", getC99PreFix(), getDevClassPointerWithType());
         emitter().emit("void %swaitForDevice(%s);", getC99PreFix(), getDevClassPointerWithType());
@@ -465,6 +465,8 @@ public interface DeviceHandle {
         emitter().emit("void %sreleaseReadEvents(%s);", getC99PreFix(), getDevClassPointerType());
         emitter().emit("void %sreleaseKernelEvent(%s);", getC99PreFix(), getDevClassPointerType());
         emitter().emit("void %sreleaseWriteEvents(%s);", getC99PreFix(), getDevClassPointerType());
+        emitter().emit("void %ssetKernelCommand(%s%suint64_t cmd);", getC99PreFix(), getDevClassPointerWithType(),
+                C99() ? ", " : "");
         emitter().emit("// -- specific methods");
         emitter().emitNewLine();
 
@@ -528,6 +530,11 @@ public interface DeviceHandle {
         // -- request size
         emitter().emit("//-- request size buffers", defaultIntType());
         emitter().emit("%s\trequest_size[%s];", defaultIntType(), numInputsDefine());
+
+        // -- kernel command
+        emitter().emit("//-- kernel command word");
+        emitter().emit("uint64_t\tkernel_command;");
+        emitter().emit("%s\tcommand_is_set;", defaultIntType());
 
         // -- input buffers
 
@@ -715,6 +722,10 @@ public interface DeviceHandle {
                 kernelIndex++;
 
             }
+            emitter().emit("OCL_CHECK(");
+            emitter().emit("\tclSetKernelArg(%skernel, %d, sizeof(cl_ulong), &%1$skernel_command));",
+                    getDevClassPointerWithDot(), kernelIndex);
+            kernelIndex++;
             emitter().decreaseIndentation();
         }
         emitter().emit("}");
@@ -737,12 +748,11 @@ public interface DeviceHandle {
             // -- If write buffer is empty, send only a single token
             emitter().emit("size_t req_sz = 1;");
 
-            
             for (PortDecl port : network.getInputPorts()) {
                 OCL_MSG("Enqueue %s\\n", port.getName());
                 String typeStr = typeString(port);
 
-                //-- Check the requets size
+                // -- Check the requets size
                 emitter().emit("if (%srequest_size[%d] > 0) {", getDevClassPointerWithDot(), eventIndex);
                 {
                     emitter().increaseIndentation();
@@ -950,6 +960,6 @@ public interface DeviceHandle {
         emitter().emitNewLine();
         emitter().emit("// -- An array holding the request size for all inputs");
         emitter().emit("%s request_size[%d];", defaultIntType(), network.getInputPorts().size());
-        
+
     }
 }

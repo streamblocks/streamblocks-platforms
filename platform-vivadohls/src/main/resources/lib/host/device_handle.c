@@ -221,8 +221,9 @@ void DeviceHandle_enqueueExecution(DeviceHandle_t* dev) {
 }
 
 void DeviceHandle_run(DeviceHandle_t *dev) {
-  OCL_MSG("Creating CL buffers\n");
-  // fillBuffers();
+  
+  if (dev->command_is_set == 0) 
+    OCL_ERR("kernel command not set\n");
 
   OCL_MSG("Migrating to Device\n");
   DeviceHandle_enqueueWriteBuffer(dev);
@@ -305,4 +306,9 @@ void DeviceHandle_releaseWriteEvents(DeviceHandle_t *dev) {
 void DeviceHandle_releaseKernelEvent(DeviceHandle_t *dev) {
   OCL_MSG("Releasing kernel event\n");
   OCL_CHECK(clReleaseEvent(dev->kernel_event));
+}
+
+void DeviceHandle_setKernelCommand(DeviceHandle_t *dev, uint64_t cmd) {
+  dev->kernel_command = cmd;
+  dev->command_is_set = 1;
 }

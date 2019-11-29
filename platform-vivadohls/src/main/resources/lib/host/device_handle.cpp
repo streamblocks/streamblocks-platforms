@@ -44,6 +44,7 @@ DeviceHandle::DeviceHandle(char *kernel_name, char *target_device_name,
   num_inputs = NUM_INPUTS;
   num_outputs = NUM_OUTPUTS;
   mem_alignment = MEM_ALIGNMENT;
+  command_is_set = 0;
 
   OCL_MSG("Initializing device\n");
   char cl_platform_vendor[1001];
@@ -219,8 +220,10 @@ void DeviceHandle::enqueueExecution() {
 }
 
 void DeviceHandle::run() {
-  OCL_MSG("Creating CL buffers\n");
-  // fillBuffers();
+  
+  if (command_is_set == 0) {
+    OCL_ERR("kernel command not set\n");
+  }
 
   OCL_MSG("Migrating to Device\n");
   enqueueWriteBuffer();
@@ -303,4 +306,9 @@ void DeviceHandle::releaseWriteEvents() {
 void DeviceHandle::releaseKernelEvent() {
   OCL_MSG("Releasing kernel event\n");
   OCL_CHECK(clReleaseEvent(kernel_event));
+}
+
+void DeviceHandle::setKernelCommand(uint64_t cmd) {
+  kernel_command = cmd;
+  command_is_set = 1;
 }
