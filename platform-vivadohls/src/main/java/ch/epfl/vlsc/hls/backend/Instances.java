@@ -24,8 +24,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+
 @Module
 public interface Instances {
+    static final int MAX_STATES_FOR_QUICK_JUMP_CONTROLLER = 200;
+
     @Binding(BindingKind.INJECTED)
     VivadoHLSBackend backend();
 
@@ -434,7 +437,11 @@ public interface Instances {
 
             emitter().emit("int ret = RETURN_IDLE;");
 
-            backend().controllers().emitController(instanceName, actor);
+            if (actor.controller().getStateList().size() > MAX_STATES_FOR_QUICK_JUMP_CONTROLLER) {
+                backend().fsmController().emitController(instanceName, actor);
+            } else {
+                backend().quickJumpController().emitController(instanceName, actor);
+            }
 
             emitter().decreaseIndentation();
         }

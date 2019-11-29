@@ -1,5 +1,6 @@
-package ch.epfl.vlsc.hls.backend;
+package ch.epfl.vlsc.hls.backend.controllers;
 
+import ch.epfl.vlsc.hls.backend.VivadoHLSBackend;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.settings.PlatformSettings;
 import org.multij.Binding;
@@ -16,7 +17,7 @@ import java.util.*;
 import java.util.function.Function;
 
 @Module
-public interface Controllers {
+public interface QuickJumpController {
     @Binding(BindingKind.INJECTED)
     VivadoHLSBackend backend();
 

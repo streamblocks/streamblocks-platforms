@@ -1,5 +1,7 @@
 package ch.epfl.vlsc.hls.backend;
 
+import ch.epfl.vlsc.hls.backend.controllers.FsmController;
+import ch.epfl.vlsc.hls.backend.controllers.QuickJumpController;
 import ch.epfl.vlsc.hls.backend.host.DeviceHandle;
 import ch.epfl.vlsc.hls.backend.kernel.*;
 import ch.epfl.vlsc.hls.backend.scripts.VivadoTCL;
@@ -167,8 +169,13 @@ public interface VivadoHLSBackend {
 
     // -- Instance generator
     @Binding(LAZY)
-    default Controllers controllers() {
-        return MultiJ.from(Controllers.class).bind("backend").to(this).instance();
+    default QuickJumpController quickJumpController() {
+        return MultiJ.from(QuickJumpController.class).bind("backend").to(this).instance();
+    }
+
+    @Binding(LAZY)
+    default FsmController fsmController() {
+        return MultiJ.from(FsmController.class).bind("backend").to(this).instance();
     }
 
     // -- Verilog Network generator
