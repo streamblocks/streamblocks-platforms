@@ -316,6 +316,8 @@ public interface Instances {
 
             emitter().emit("// -- Actor machine state");
             emitter().emit("int program_counter;");
+            emitter().emit("// -- Actor return value");
+            emitter().emit("int __ret;");
             emitter().emitNewLine();
 
             emitter().emit("// -- Scopes");
@@ -434,8 +436,6 @@ public interface Instances {
         emitter().emit("#pragma HLS INLINE");
         {
             emitter().increaseIndentation();
-
-            emitter().emit("int ret = RETURN_IDLE;");
 
             if (actor.controller().getStateList().size() > MAX_STATES_FOR_QUICK_JUMP_CONTROLLER) {
                 backend().fsmController().emitController(instanceName, actor);

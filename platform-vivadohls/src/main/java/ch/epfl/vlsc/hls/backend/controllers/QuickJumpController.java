@@ -62,7 +62,7 @@ public interface QuickJumpController {
         }
 
         emitter().emit("out:");
-        emitter().emit("return ret;");
+        emitter().emit("return this->__ret;");
     }
 
 
@@ -74,14 +74,14 @@ public interface QuickJumpController {
         if(am.getCondition(test.condition()) instanceof PortCondition){
             PortCondition condition = (PortCondition) am.getCondition(test.condition());
             if(condition.isInputCondition()){
-                waitKind = String.format("ret = %s;", "RETURN_WAIT_INPUT");
+                waitKind = String.format("this->__ret = %s;", "RETURN_WAIT_INPUT");
             }else{
-                waitKind = String.format("ret = %s;", "RETURN_WAIT_OUTPUT");
+                waitKind = String.format("this->__ret = %s;", "RETURN_WAIT_OUTPUT");
             }
             String portName = ((PortCondition) am.getCondition(test.condition())).getPortName().getName();
             io = portName + ", io";
         }else{
-            waitKind = String.format("ret = %s;", "RETURN_WAIT_PREDICATE");
+            waitKind = String.format("this->__ret = %s;", "RETURN_WAIT_PREDICATE");
         }
         emitter().emit("if (condition_%d(%s)) {", test.condition(), io);
         emitter().increaseIndentation();
@@ -106,7 +106,7 @@ public interface QuickJumpController {
 
     default void emitInstruction(ActorMachine am, String name, Exec exec, Map<State, Integer> stateNumbers) {
         emitter().emit("transition_%d(%s);", exec.transition(), backend().instance().transitionIoArguments(am.getTransitions().get(exec.transition())));
-        emitter().emit("ret = RETURN_EXECUTED;");
+        emitter().emit("this->__ret = RETURN_EXECUTED;");
         emitter().emit("this->program_counter = %d;", stateNumbers.get(exec.target()));
         emitter().emit("goto out;");
         emitter().emit("");

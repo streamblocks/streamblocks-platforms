@@ -5,12 +5,9 @@ import se.lth.cs.tycho.ir.NamespaceDecl;
 import se.lth.cs.tycho.ir.Port;
 import se.lth.cs.tycho.ir.QID;
 import se.lth.cs.tycho.ir.Variable;
-import se.lth.cs.tycho.ir.decl.Availability;
-import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
-import se.lth.cs.tycho.ir.decl.LocalVarDecl;
+import se.lth.cs.tycho.ir.decl.*;
 import se.lth.cs.tycho.ir.entity.PortDecl;
-import se.lth.cs.tycho.ir.entity.cal.CalActor;
-import se.lth.cs.tycho.ir.entity.cal.ProcessDescription;
+import se.lth.cs.tycho.ir.entity.cal.*;
 import se.lth.cs.tycho.ir.expr.ExprVariable;
 import se.lth.cs.tycho.ir.expr.Expression;
 import se.lth.cs.tycho.ir.network.Connection;
@@ -245,8 +242,7 @@ public class AddFanoutPhase implements Phase {
         return task.withSourceUnits(ImmutableList.<SourceUnit>builder().addAll(task.getSourceUnits()).add(fanoutUnit).build());
     }
 
-
-    private CalActor getFanoutActor(PortDecl port, int fanoutSize) {
+    private CalActor getFanoutActorProcess(PortDecl port, int fanoutSize) {
         // -- Fanout Actor Ports
         PortDecl in = new PortDecl("F_IN", (TypeExpr) port.getType().deepClone());
         ImmutableList.Builder<PortDecl> fanoutInputPorts = ImmutableList.builder();
@@ -306,6 +302,76 @@ public class AddFanoutPhase implements Phase {
                 ImmutableList.empty());
         return fanout;
     }
+
+
+    private CalActor getFanoutActor(PortDecl port, int fanoutSize) {
+        // -- Fanout Actor Ports
+        PortDecl in = new PortDecl("F_IN", (TypeExpr) port.getType().deepClone());
+        ImmutableList.Builder<PortDecl> fanoutInputPorts = ImmutableList.builder();
+        fanoutInputPorts.add(in);
+
+        ImmutableList.Builder<PortDecl> fanoutOutputPorts = ImmutableList.builder();
+        for (int i = 0; i < fanoutSize; i++) {
+            PortDecl out = new PortDecl("F_OUT_" + i, (TypeExpr) port.getType().deepClone());
+            fanoutOutputPorts.add(out);
+        }
+
+        // -- Input Port
+        Port inPort = new Port("F_IN");
+
+        // -- Input Var Declarations
+        ImmutableList.Builder<InputVarDecl> inputVarDecls = ImmutableList.builder();
+        inputVarDecls.add(VarDecl.input("token"));
+
+        // -- Input pattern
+        ImmutableList.Builder<InputPattern> inputPatters = ImmutableList.builder();
+        InputPattern inputPattern = new InputPattern(inPort, inputVarDecls.build(), null);
+        inputPatters.add(inputPattern);
+
+        // -- Output Expression
+        ImmutableList.Builder<OutputExpression> outputExpressions = ImmutableList.builder();
+
+        for (int i = 0; i < fanoutSize; i++) {
+            Port outPort = new Port("F_OUT_" + i);
+            ExprVariable exprVar = new ExprVariable(Variable.variable("token"));
+            ImmutableList.Builder<Expression> expressions = ImmutableList.builder();
+            expressions.add(exprVar);
+            OutputExpression outputExpression = new OutputExpression(outPort, expressions.build(), null);
+            outputExpressions.add(outputExpression);
+        }
+
+        // -- Action
+        ImmutableList.Builder<Action> actions = ImmutableList.builder();
+        Action action = new Action(QID.of("untagged"),
+                inputPatters.build(),
+                outputExpressions.build(),
+                ImmutableList.empty(),
+                ImmutableList.empty(),
+                ImmutableList.empty(),
+                ImmutableList.empty(),
+                null,
+                ImmutableList.empty(),
+                ImmutableList.empty()
+        );
+        actions.add(action);
+
+        // -- Cal Actor
+        CalActor fanout = new CalActor(
+                ImmutableList.empty(),
+                ImmutableList.empty(),
+                ImmutableList.empty(),
+                ImmutableList.empty(),
+                fanoutInputPorts.build(),
+                fanoutOutputPorts.build(),
+                ImmutableList.empty(),
+                actions.build(),
+                null,
+                null,
+                ImmutableList.empty(),
+                ImmutableList.empty());
+        return fanout;
+    }
+
 
     private String uniqueInstanceName(Network network, String base) {
         Set<String> names = network.getInstances().stream()
