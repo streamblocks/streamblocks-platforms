@@ -82,25 +82,25 @@ public interface Statements {
     default void execute(StmtRead read) {
         boolean isProcess = false;
         Entity entity = backend().entitybox().get();
-        if(entity instanceof CalActor){
-            if(((CalActor)entity).getProcessDescription() != null){
+        if (entity instanceof CalActor) {
+            if (((CalActor) entity).getProcessDescription() != null) {
                 isProcess = true;
             }
         }
         if (read.getRepeatExpression() == null) {
-            for(LValue lvalue : read.getLValues()){
+            for (LValue lvalue : read.getLValues()) {
                 String l = backend().lvalues().lvalue(lvalue);
-                if(!isProcess){
+                if (!isProcess) {
                     emitter().emit("pinRead(%s, %s);", read.getPort().getName(), l);
-                }else{
+                } else {
                     emitter().emit("pinReadBlocking(%s, %s);", read.getPort().getName(), l);
                 }
             }
         } else {
-            for(LValue lvalue : read.getLValues()){
+            for (LValue lvalue : read.getLValues()) {
                 String l = backend().lvalues().lvalue(lvalue);
                 String repeat = expressioneval().evaluate(read.getRepeatExpression());
-                if(!isProcess) {
+                if (!isProcess) {
                     emitter().emit("pinReadRepeat(%s, %s, %s);", read.getPort().getName(), l, repeat);
                 } else {
                     emitter().emit("pinReadRepeatBlocking(%s, %s, %s);", read.getPort().getName(), l, repeat);
@@ -117,8 +117,8 @@ public interface Statements {
     default void execute(StmtWrite write) {
         boolean isProcess = false;
         Entity entity = backend().entitybox().get();
-        if(entity instanceof CalActor){
-            if(((CalActor)entity).getProcessDescription() != null){
+        if (entity instanceof CalActor) {
+            if (((CalActor) entity).getProcessDescription() != null) {
                 isProcess = true;
             }
         }
@@ -127,18 +127,18 @@ public interface Statements {
             emitter().emit("%s;", declarartions().declaration(types().portType(write.getPort()), tmp));
             for (Expression expr : write.getValues()) {
                 emitter().emit("%s = %s;", tmp, expressioneval().evaluate(expr));
-                if(!isProcess) {
+                if (!isProcess) {
                     emitter().emit("pinWrite(%s, %s);", write.getPort().getName(), tmp);
-                }else{
+                } else {
                     emitter().emit("pinWriteBlocking(%s, %s);", write.getPort().getName(), tmp);
                 }
             }
         } else if (write.getValues().size() == 1) {
             String value = expressioneval().evaluate(write.getValues().get(0));
             String repeat = expressioneval().evaluate(write.getRepeatExpression());
-            if(!isProcess) {
+            if (!isProcess) {
                 emitter().emit("pinWriteRepeat(%s, %s, %s);", channelsutils().definedOutputPort(write.getPort()), value, repeat);
-            }else{
+            } else {
                 emitter().emit("pinWriteRepeatBlocking(%s, %s, %s);", channelsutils().definedOutputPort(write.getPort()), value, repeat);
             }
         } else {
@@ -153,9 +153,9 @@ public interface Statements {
     default void execute(StmtAssignment assign) {
         Type type = types().lvalueType(assign.getLValue());
         String lvalue = lvalues().lvalue(assign.getLValue());
-        if(type instanceof ListType && assign.getLValue() instanceof LValueVariable){
+        if (type instanceof ListType && assign.getLValue() instanceof LValueVariable) {
             expressioneval().evaluate(assign.getExpression());
-        }else {
+        } else {
             copy(type, lvalue, types().type(assign.getExpression()), expressioneval().evaluate(assign.getExpression()));
         }
     }
@@ -207,7 +207,8 @@ public interface Statements {
             emitter().emit("%s;", d);
             if (decl.getValue() != null) {
                 if (decl.getValue() instanceof ExprInput) {
-                    expressioneval().evaluateWithLvalue(backend().variables().declarationName(decl), (ExprInput) decl.getValue());
+                    // -- Do nothing
+                    //expressioneval().evaluateWithLvalue(backend().variables().declarationName(decl), (ExprInput) decl.getValue());
                 } else {
                     copy(t, declarationName, types().type(decl.getValue()), expressioneval().evaluate(decl.getValue()));
                 }

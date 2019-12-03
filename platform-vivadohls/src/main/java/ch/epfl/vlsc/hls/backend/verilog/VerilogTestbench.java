@@ -10,6 +10,7 @@ import org.multij.Module;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
+import se.lth.cs.tycho.ir.entity.am.ActorMachine;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.network.Network;
 import se.lth.cs.tycho.type.IntType;
@@ -91,7 +92,8 @@ public interface VerilogTestbench {
 
             getDut(instance);
 
-            endOfSimulation(entity.getOutputPorts());
+            if (entity.getOutputPorts().size() > 1)
+                endOfSimulation(entity.getOutputPorts());
         }
         emitter().decreaseIndentation();
         emitter().emit("endmodule");
@@ -149,8 +151,8 @@ public interface VerilogTestbench {
             }
 
             getDut(network);
-
-            endOfSimulation(network.getOutputPorts());
+            if (network.getOutputPorts().size() > 1)
+                endOfSimulation(network.getOutputPorts());
         }
         emitter().decreaseIndentation();
         emitter().emit("endmodule");
@@ -332,10 +334,10 @@ public interface VerilogTestbench {
         String portName = port.getName();
         String fileName = portName;
         if (isInstance) {
-            fileName = String.format("%s_%s", name, portName);
+            fileName = String.format("%s/%s", name, portName);
         }
-        emitter().emit("%s_data_file = $fopen(\"../../../../../fifo-traces/%1$s.txt\" ,\"r\");", fileName);
-        emitter().emit("if (%s_data_file == `NULL) begin", fileName);
+        emitter().emit("%s_data_file = $fopen(\"../../../../../fifo-traces/%s.txt\" ,\"r\");", port.getName(), fileName);
+        emitter().emit("if (%s_data_file == `NULL) begin", port.getName());
         emitter().increaseIndentation();
         {
             emitter().emit("$display(\"Error: File %s.txt does not exist !!!\");", fileName);
@@ -360,7 +362,7 @@ public interface VerilogTestbench {
 
     // ------------------------------------------------------------------------
     // -- ap_start pulse generator
-    default void startPulseGenerator(){
+    default void startPulseGenerator() {
         emitter().emit("// ------------------------------------------------------------------------");
         emitter().emit("// -- ap_start pulse generator");
         emitter().emit("reg pulse_delay;");
@@ -596,6 +598,13 @@ public interface VerilogTestbench {
             // -- Outputs
             entity.getOutputPorts().forEach(p -> getDutIO(identifier, p, true));
 
+            // -- IO interface
+            if (entity instanceof ActorMachine) {
+                entity.getInputPorts().forEach(p -> getIO(identifier, p, true));
+
+                entity.getOutputPorts().forEach(p -> getIO(identifier, p, false));
+            }
+
             emitter().emit(".ap_clk(clock),");
             emitter().emit(".ap_rst_n(reset_n),");
             emitter().emit(".ap_start(start),");
@@ -657,6 +666,20 @@ public interface VerilogTestbench {
         }
         emitter().emitNewLine();
     }
+
+    default void getIO(String name, PortDecl port, boolean isInput) {
+        String wireName = name.isEmpty() ? port.getName() : String.format("q_%s_%s", name, port.getName());
+        String portName = port.getName();
+        if (isInput) {
+            emitter().emit(".io_%s_peek(%s),", portName, String.format("%s_peek", wireName));
+            emitter().emit(".io_%s_count(%s),", portName, String.format("%s_count", wireName));
+        } else {
+            emitter().emit(".io_%s_size(4096),", portName);
+            emitter().emit(".io_%s_count(0),", portName);
+        }
+        emitter().emitNewLine();
+    }
+
 
     default String getPortExtension() {
         // -- TODO : Add _V_V for type accuracy
