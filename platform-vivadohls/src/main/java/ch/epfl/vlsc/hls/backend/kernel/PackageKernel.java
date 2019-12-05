@@ -6,8 +6,11 @@ import ch.epfl.vlsc.platformutils.PathUtils;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
+import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.network.Network;
+
+import java.util.Map;
 
 @Module
 public interface PackageKernel {
@@ -76,6 +79,12 @@ public interface PackageKernel {
         emitter().emitNewLine();
 
         // -- Kernel IO
+        Map<VarDecl, String> mems = backend().externalMemory().externalMemories();
+        for (VarDecl decl : mems.keySet()) {
+            String memName = mems.get(decl);
+            emitter().emit("ipx::associate_bus_interfaces -busif m_axi_%s -clock ap_clk [ipx::current_core]", memName);
+        }
+
         for (PortDecl port : network.getInputPorts()) {
             emitter().emit("ipx::associate_bus_interfaces -busif m_axi_%s -clock ap_clk [ipx::current_core]", port.getName());
         }

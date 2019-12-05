@@ -559,7 +559,7 @@ public interface AxiLiteControl {
                             {
                                 emitter().increaseIndentation();
 
-                                emitter().emit("rdata<= int_%s_size[31:0];", memName);
+                                emitter().emit("rdata<= int_%s_offset[31:0];", memName);
 
                                 emitter().decreaseIndentation();
                             }
@@ -569,7 +569,7 @@ public interface AxiLiteControl {
                             {
                                 emitter().increaseIndentation();
 
-                                emitter().emit("rdata<= int_%s_size[63:32];", memName);
+                                emitter().emit("rdata<= int_%s_offset[63:32];", memName);
 
                                 emitter().decreaseIndentation();
                             }
