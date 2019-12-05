@@ -7,9 +7,13 @@ import ch.epfl.vlsc.platformutils.utils.TypeUtils;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
+import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.network.Network;
+import se.lth.cs.tycho.type.ListType;
 import se.lth.cs.tycho.type.Type;
+
+import java.util.Map;
 
 @Module
 public interface TopKernel {
@@ -78,6 +82,24 @@ public interface TopKernel {
     // -- Parameters
     default void getParameters(Network network) {
 
+        // -- External Memory
+        Map<VarDecl, String> mems = backend().externalMemory().externalMemories();
+        for (VarDecl decl : mems.keySet()) {
+            String memName = mems.get(decl);
+            ListType listType = (ListType) backend().types().declaredType(decl);
+            Type type = listType.getElementType();
+            int bitSize = TypeUtils.sizeOfBits(type);
+            emitter().emit("parameter integer C_M_AXI_%s_ADDR_WIDTH = %d,", memName.toUpperCase(), AxiConstants.C_M_AXI_ADDR_WIDTH);
+            emitter().emit("parameter integer C_M_AXI_%s_DATA_WIDTH = %d,", memName.toUpperCase(), bitSize);
+            emitter().emit("parameter integer C_M_AXI_%s_ID_WIDTH = %d,", memName.toUpperCase(), 1);
+            emitter().emit("parameter integer C_M_AXI_%s_AWUSER_WIDTH = %d,", memName.toUpperCase(), 1);
+            emitter().emit("parameter integer C_M_AXI_%s_ARUSER_WIDTH = %d,", memName.toUpperCase(), 1);
+            emitter().emit("parameter integer C_M_AXI_%s_WUSER_WIDTH = %d,", memName.toUpperCase(), 1);
+            emitter().emit("parameter integer C_M_AXI_%s_RUSER_WIDTH = %d,", memName.toUpperCase(), 1);
+            emitter().emit("parameter integer C_M_AXI_%s_BUSER_WIDTH =  %d,", memName.toUpperCase(), 1);
+        }
+
+        // -- Network Input ports
         if (!network.getInputPorts().isEmpty()) {
             for (PortDecl port : network.getInputPorts()) {
                 Type type = backend().types().declaredPortType(port);
@@ -90,7 +112,6 @@ public interface TopKernel {
                 emitter().emit("parameter integer C_M_AXI_%s_WUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
                 emitter().emit("parameter integer C_M_AXI_%s_RUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
                 emitter().emit("parameter integer C_M_AXI_%s_BUSER_WIDTH =  %d,", port.getName().toUpperCase(), 1);
-
             }
         }
         // -- Network Output ports
@@ -176,6 +197,14 @@ public interface TopKernel {
         emitter().emit("input   wire    ap_clk,");
         emitter().emit("input   wire    ap_rst_n,");
 
+        // -- Network external memory ports ports
+        if(!backend().externalMemory().externalMemories().isEmpty()){
+            for(VarDecl decl : backend().externalMemory().externalMemories().keySet()){
+                String memName = backend().externalMemory().externalMemories().get(decl);
+                getAxiMasterPorts(memName);
+            }
+        }
+
         // -- Network input ports
         if (!network.getInputPorts().isEmpty()) {
             for (PortDecl port : network.getInputPorts()) {
@@ -225,6 +254,14 @@ public interface TopKernel {
         emitter().emit("wire    ap_ready;");
         emitter().emit("wire    ap_idle;");
         emitter().emit("wire    ap_done;");
+
+        Map<VarDecl, String> mems = backend().externalMemory().externalMemories();
+        for(VarDecl decl : mems.keySet()){
+            String memName = mems.get(decl);
+            emitter().emit("wire    [64 - 1 : 0] %s_offset;", memName);
+            emitter().emitNewLine();
+        }
+
         if (!network.getInputPorts().isEmpty()) {
             for (PortDecl port : network.getInputPorts()) {
                 emitter().emit("wire    [32 - 1 : 0] %s_requested_size;", port.getName());
@@ -295,6 +332,13 @@ public interface TopKernel {
             emitter().emit(".BREADY(s_axi_control_BREADY),");
             emitter().emit(".BRESP(s_axi_control_BRESP),");
 
+
+            Map<VarDecl, String> mems = backend().externalMemory().externalMemories();
+            for(VarDecl decl : mems.keySet()){
+                String memName = mems.get(decl);
+                emitter().emit(".%s_offset(%1$s_offset),", memName);
+            }
+
             if (!network.getInputPorts().isEmpty()) {
                 for (PortDecl port : network.getInputPorts()) {
                     emitter().emit(".%s_requested_size( %1$s_requested_size ),", port.getName());
@@ -331,6 +375,14 @@ public interface TopKernel {
         emitter().emit("%s_wrapper #(", identifier);
         {
             emitter().increaseIndentation();
+
+            Map<VarDecl, String> mems = backend().externalMemory().externalMemories();
+            for (VarDecl decl : mems.keySet()) {
+                String memName = mems.get(decl);
+                emitter().emit(".C_M_AXI_%s_ADDR_WIDTH(C_M_AXI_%1$s_ADDR_WIDTH),", memName.toUpperCase());
+                emitter().emit(".C_M_AXI_%s_DATA_WIDTH(C_M_AXI_%1$s_DATA_WIDTH),", memName.toUpperCase());
+            }
+
             if (!network.getInputPorts().isEmpty()) {
                 for (PortDecl port : network.getInputPorts()) {
                     boolean lastElement = network.getOutputPorts().isEmpty() && (network.getInputPorts().size() - 1 == network.getInputPorts().indexOf(port));
@@ -345,6 +397,7 @@ public interface TopKernel {
                     emitter().emit(".C_M_AXI_%s_DATA_WIDTH(C_M_AXI_%1$s_DATA_WIDTH)%s", port.getName().toUpperCase(), network.getOutputPorts().size() - 1 == network.getOutputPorts().indexOf(port) ? "" : ",");
                 }
             }
+
             emitter().decreaseIndentation();
         }
         emitter().emit(")");
@@ -353,6 +406,15 @@ public interface TopKernel {
             emitter().increaseIndentation();
             emitter().emit(".ap_clk( ap_clk ),");
             emitter().emit(".ap_rst_n( ap_rst_n ),");
+
+            if(!backend().externalMemory().externalMemories().isEmpty()){
+                for(VarDecl decl : backend().externalMemory().externalMemories().keySet()){
+                    String memName = backend().externalMemory().externalMemories().get(decl);
+                    backend().vnetwork().getAxiMasterByPort(memName, memName);
+                    emitter().emit(".%s_offset(%1$s_offset),", memName);
+                    emitter().emitNewLine();
+                }
+            }
 
             if (!network.getInputPorts().isEmpty()) {
                 for (PortDecl port : network.getInputPorts()) {

@@ -1,5 +1,6 @@
 package ch.epfl.vlsc.hls.backend;
 
+import ch.epfl.vlsc.hls.backend.controllers.BranchingController;
 import ch.epfl.vlsc.hls.backend.controllers.FsmController;
 import ch.epfl.vlsc.hls.backend.controllers.QuickJumpController;
 import ch.epfl.vlsc.hls.backend.host.DeviceHandle;
@@ -116,7 +117,7 @@ public interface VivadoHLSBackend {
     // -- Types evaluator
     @Binding(LAZY)
     default TypesEvaluator typeseval() {
-        return MultiJ.from(TypesEvaluator.class).bind("backend").to(this).instance();
+        return MultiJ.from(TypesEvaluator.class).bind("types").to(task().getModule(Types.key)).instance();
     }
 
     // -- Declarations
@@ -177,6 +178,21 @@ public interface VivadoHLSBackend {
     default FsmController fsmController() {
         return MultiJ.from(FsmController.class).bind("backend").to(this).instance();
     }
+
+    @Binding(LAZY)
+    default BranchingController branchingController() {
+        return MultiJ.from(BranchingController.class).bind("backend").to(this).instance();
+    }
+
+    @Binding(LAZY)
+    default ExternalMemory externalMemory(){
+        return MultiJ.from(ExternalMemory.class)
+                .bind("variableScopes").to(task().getModule(VariableScopes.key))
+                .bind("types").to(task().getModule(Types.key))
+                .bind("typeseval").to(typeseval())
+                .instance();
+    }
+
 
     // -- Verilog Network generator
     @Binding(LAZY)

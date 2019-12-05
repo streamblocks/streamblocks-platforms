@@ -17,11 +17,14 @@ import se.lth.cs.tycho.ir.entity.cal.CalActor;
 import se.lth.cs.tycho.ir.expr.*;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.type.CallableType;
+import se.lth.cs.tycho.type.ListType;
 import se.lth.cs.tycho.type.Type;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 
@@ -56,6 +59,11 @@ public interface Instances {
         return backend().channelsutils();
     }
 
+    @Binding(BindingKind.LAZY)
+    default Map<VarDecl, String> externalMemories() {
+        return new HashMap<>();
+    }
+
 
     default void generateInstance(Instance instance) {
         // -- Add instance to box
@@ -68,6 +76,8 @@ public interface Instances {
         // -- Add entity to box
         backend().entitybox().set(entity);
 
+        externalMemories().putAll(backend().externalMemory().getExternalMemories(entity));
+
         // -- Generate Source
         generateSource(instance);
 
@@ -75,6 +85,7 @@ public interface Instances {
         generateHeader(instance);
 
         // -- Clear boxes
+        externalMemories().clear();
         backend().entitybox().clear();
         backend().instancebox().clear();
     }
@@ -84,15 +95,11 @@ public interface Instances {
         Path instanceTarget = PathUtils.getTargetCodeGenSource(backend().context()).resolve(backend().instaceQID(instance.getInstanceName(), "_") + ".cpp");
         emitter().open(instanceTarget);
 
-        // -- Instance Name
-        String instanceName = instance.getInstanceName();
-
         // -- Includes
         defineIncludes(false);
 
         // -- Static call of instance
         staticCallofInstance(instance);
-
 
         // -- EOF
         emitter().close();
@@ -106,16 +113,34 @@ public interface Instances {
         }
 
         String name = backend().instaceQID(instance.getInstanceName(), "_");
-        emitter().emit("int %s(%s) {", name, entityPorts(withIO));
+        emitter().emit("int %s(%s) {", name, entityPorts(withIO, true));
+        for (VarDecl decl : externalMemories().keySet()) {
+            ListType listType = (ListType) types().declaredType(decl);
+            List<Integer> dim = backend().typeseval().sizeByDimension(listType);
+            int listSize = dim.stream().mapToInt(s -> s).reduce(1, Math::multiplyExact);
+            emitter().emit("#pragma HLS INTERFACE m_axi depth=%d port=%s offset=direct bundle=%2$s", listSize, externalMemories().get(decl));
+        }
         emitter().increaseIndentation();
 
         String className = "class_" + backend().instaceQID(instance.getInstanceName(), "_");
-        emitter().emit("static %s i_%s;", className, name);
+        if (externalMemories().isEmpty()) {
+            emitter().emit("static %s i_%s;", className, name);
+        } else {
+            List<String> mems = new ArrayList<>();
+            for (VarDecl decl : externalMemories().keySet()) {
+                mems.add(externalMemories().get(decl));
+            }
+            emitter().emit("static %s i_%s(%s);", className, name, String.join(", ", mems));
+        }
         emitter().emitNewLine();
 
+        // -- External memories
+        List<String> ports = new ArrayList<>();
 
-        List<String> ports = entity.getInputPorts().stream().map(PortDecl::getName).collect(Collectors.toList());
+        // -- Ports IO
+        ports.addAll(entity.getInputPorts().stream().map(PortDecl::getName).collect(Collectors.toList()));
         ports.addAll(entity.getOutputPorts().stream().map(PortDecl::getName).collect(Collectors.toList()));
+
         if (entity instanceof CalActor) {
             CalActor actor = (CalActor) entity;
             if (actor.getProcessDescription() != null) {
@@ -282,7 +307,7 @@ public interface Instances {
         emitter().emit("public:");
         emitter().increaseIndentation();
 
-        emitter().emit("int operator()(%s);", entityPorts(false));
+        emitter().emit("int operator()(%s);", entityPorts(false, false));
 
         emitter().decreaseIndentation();
 
@@ -307,8 +332,19 @@ public interface Instances {
                         if (var.getValue() instanceof ExprLambda || var.getValue() instanceof ExprProc) {
                             backend().callables().callablePrototypes(instanceName, var.getValue());
                         } else {
-                            String decl = declarations().declaration(types().declaredType(var), backend().variables().declarationName(var));
-                            emitter().emit("%s;", decl);
+                            Type type = backend().types().declaredType(var);
+                            if (type instanceof ListType) {
+                                if (backend().externalMemory().isExternalMemory(var)) {
+                                    ListType listType = (ListType) type;
+                                    emitter().emit("%s* %s;", backend().typeseval().type(listType.getElementType()), backend().variables().declarationName(var));
+                                } else {
+                                    String decl = declarations().declaration(types().declaredType(var), backend().variables().declarationName(var));
+                                    emitter().emit("%s;", decl);
+                                }
+                            } else {
+                                String decl = declarations().declaration(types().declaredType(var), backend().variables().declarationName(var));
+                                emitter().emit("%s;", decl);
+                            }
                         }
                     }
                 }
@@ -343,7 +379,7 @@ public interface Instances {
 
             instanceConstructor(instanceName, actor);
 
-            emitter().emit("int operator()(%s);", entityPorts(true));
+            emitter().emit("int operator()(%s);", entityPorts(true, false));
 
             emitter().decreaseIndentation();
         }
@@ -352,10 +388,25 @@ public interface Instances {
     }
 
     default void instanceConstructor(String instanceName, ActorMachine actor) {
+        // -- External memories
+        List<String> mems = new ArrayList<>();
+        for (VarDecl decl : backend().externalMemory().getExternalMemories(actor).keySet()) {
+            ListType listType = (ListType) backend().types().declaredType(decl);
+            String mem = String.format("%s* %s", backend().typeseval().type(listType.getElementType()), externalMemories().get(decl));
+            mems.add(mem);
+        }
         String className = "class_" + backend().instaceQID(instanceName, "_");
-        emitter().emit("%s(){", className);
+        emitter().emit("%s(%s){", className, String.join(", ", mems));
         {
             emitter().increaseIndentation();
+
+            // -- External Memories
+            for (VarDecl var : externalMemories().keySet()) {
+                String decl = backend().variables().declarationName(var);
+                String value = externalMemories().get(var);
+                emitter().emit("%s = %s;", decl, value);
+            }
+
             for (Scope scope : actor.getScopes()) {
                 if (!scope.getDeclarations().isEmpty()) {
                     emitter().emit("// -- Scope %d", actor.getScopes().indexOf(scope));
@@ -377,23 +428,37 @@ public interface Instances {
                     }
                 }
             }
+
             emitter().decreaseIndentation();
         }
         emitter().emit("}");
         emitter().emitNewLine();
     }
 
-    default String entityPorts(boolean withIO) {
+    default String entityPorts(boolean withIO, boolean withExternalMemories) {
         Entity entity = backend().entitybox().get();
         List<String> ports = new ArrayList<>();
+
+        if (withExternalMemories) {
+            // -- External memories
+            for (VarDecl decl : externalMemories().keySet()) {
+                ListType listType = (ListType) backend().types().declaredType(decl);
+                String mem = String.format("%s* %s", backend().typeseval().type(listType.getElementType()), externalMemories().get(decl));
+                ports.add(mem);
+            }
+        }
+
+        // -- Input Ports
         for (PortDecl port : entity.getInputPorts()) {
             ports.add(backend().declarations().portDeclaration(port));
         }
 
+        // -- Output Ports
         for (PortDecl port : entity.getOutputPorts()) {
             ports.add(backend().declarations().portDeclaration(port));
         }
 
+        // -- IO port
         if (withIO) {
             ports.add("IO io");
         }
@@ -411,7 +476,7 @@ public interface Instances {
     default void topOfInstance(String instanceName, CalActor actor) {
         if (actor.getProcessDescription() != null) {
             String className = "class_" + backend().instaceQID(instanceName, "_");
-            emitter().emit("int %s::operator()(%s) {", className, entityPorts(false));
+            emitter().emit("int %s::operator()(%s) {", className, entityPorts(false, false));
             emitter().emit("#pragma HLS INLINE");
             {
                 emitter().increaseIndentation();
@@ -432,7 +497,7 @@ public interface Instances {
 
     default void topOfInstance(String instanceName, ActorMachine actor) {
         String className = "class_" + backend().instaceQID(instanceName, "_");
-        emitter().emit("int %s::operator()(%s) {", className, entityPorts(true));
+        emitter().emit("int %s::operator()(%s) {", className, entityPorts(true, false));
         emitter().emit("#pragma HLS INLINE");
         {
             emitter().increaseIndentation();

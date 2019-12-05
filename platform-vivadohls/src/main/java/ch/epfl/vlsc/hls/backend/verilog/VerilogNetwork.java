@@ -1,6 +1,7 @@
 package ch.epfl.vlsc.hls.backend.verilog;
 
 import ch.epfl.vlsc.hls.backend.VivadoHLSBackend;
+import ch.epfl.vlsc.hls.backend.kernel.AxiConstants;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.PathUtils;
 import ch.epfl.vlsc.platformutils.utils.MathUtils;
@@ -9,6 +10,7 @@ import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
+import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.entity.am.ActorMachine;
@@ -16,12 +18,10 @@ import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.network.Network;
 import se.lth.cs.tycho.ir.util.ImmutableList;
+import se.lth.cs.tycho.type.ListType;
 import se.lth.cs.tycho.type.Type;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Module
@@ -65,7 +65,42 @@ public interface VerilogNetwork {
         emitter().emitNewLine();
 
         // -- Network module
-        emitter().emit("module %s (", identifier);
+        if (backend().externalMemory().externalMemories().isEmpty()) {
+            emitter().emit("module %s (", identifier);
+        } else {
+            emitter().emit("module %s #(", identifier);
+
+            emitter().increaseIndentation();
+
+            Map<VarDecl, String> mems = backend().externalMemory().externalMemories();
+
+            Iterator<VarDecl> itr = mems.keySet().iterator();
+
+            while (itr.hasNext()) {
+                VarDecl decl = itr.next();
+                String memName = mems.get(decl);
+                ListType listType = (ListType) backend().types().declaredType(decl);
+                Type type = listType.getElementType();
+                int bitSize = TypeUtils.sizeOfBits(type);
+                boolean lastElement = !itr.hasNext();
+                emitter().emit("parameter integer C_M_AXI_%s_ADDR_WIDTH = %d,", memName.toUpperCase(),
+                        AxiConstants.C_M_AXI_ADDR_WIDTH);
+                emitter().emit("parameter integer C_M_AXI_%s_DATA_WIDTH = %d,", memName.toUpperCase(),
+                        bitSize);
+                emitter().emit("parameter integer C_M_AXI_%s_ID_WIDTH = %d,", memName.toUpperCase(), 1);
+                emitter().emit("parameter integer C_M_AXI_%s_AWUSER_WIDTH = %d,", memName.toUpperCase(), 1);
+                emitter().emit("parameter integer C_M_AXI_%s_ARUSER_WIDTH = %d,", memName.toUpperCase(), 1);
+                emitter().emit("parameter integer C_M_AXI_%s_WUSER_WIDTH = %d,", memName.toUpperCase(), 1);
+                emitter().emit("parameter integer C_M_AXI_%s_RUSER_WIDTH = %d,", memName.toUpperCase(), 1);
+                emitter().emit("parameter integer C_M_AXI_%s_BUSER_WIDTH =  %d%s", memName.toUpperCase(), 1,
+                        lastElement ? "" : ",");
+            }
+
+            emitter().decreaseIndentation();
+
+            emitter().emit(")");
+            emitter().emit("(");
+        }
         // -- Ports I/O
         {
             emitter().increaseIndentation();
@@ -107,6 +142,13 @@ public interface VerilogNetwork {
     // -- Module Port IO
 
     default void getModulePortNames(Network network) {
+        // -- External Memory ports
+        if (!backend().externalMemory().externalMemories().isEmpty()) {
+            for (VarDecl decl : backend().externalMemory().externalMemories().keySet()) {
+                backend().topkernel().getAxiMasterPorts(backend().externalMemory().externalMemories().get(decl));
+            }
+        }
+
         // -- Network input ports
         if (!network.getInputPorts().isEmpty()) {
             for (PortDecl port : network.getInputPorts()) {
@@ -119,6 +161,11 @@ public interface VerilogNetwork {
             for (PortDecl port : network.getOutputPorts()) {
                 getPortDeclaration(port, false);
             }
+        }
+
+        for (VarDecl decl : backend().externalMemory().externalMemories().keySet()) {
+            String memName = backend().externalMemory().externalMemories().get(decl);
+            emitter().emit("input  wire    [64 - 1 : 0]    %s_offset,", memName);
         }
 
         // -- System IO
@@ -401,9 +448,59 @@ public interface VerilogNetwork {
                     .map(p -> String.format("q_%s_%s_empty_n", name, p.getName())).collect(Collectors.toList())));
             emitter().emitNewLine();
         }
-        emitter().emit("%s i_%1$s(", qidName);
+
+        // -- External memories
+        Map<VarDecl, String> mems = backend().externalMemory().getExternalMemories(entity);
+
+        if (mems.isEmpty()) {
+            emitter().emit("%s i_%1$s(", qidName);
+        } else {
+            emitter().emit("%s #(", qidName);
+
+            emitter().increaseIndentation();
+
+            Iterator<VarDecl> itr = mems.keySet().iterator();
+
+            while (itr.hasNext()) {
+                VarDecl decl = itr.next();
+                String memName = mems.get(decl);
+                boolean lastElement = !itr.hasNext();
+
+                emitter().emit(".C_M_AXI_%s_ID_WIDTH( C_M_AXI_%s_ID_WIDTH ),", memName.toUpperCase(),
+                        memName.toUpperCase());
+                emitter().emit(".C_M_AXI_%s_ADDR_WIDTH( C_M_AXI_%s_ADDR_WIDTH ),", memName.toUpperCase(),
+                        memName.toUpperCase());
+                emitter().emit(".C_M_AXI_%s_DATA_WIDTH( C_M_AXI_%s_DATA_WIDTH ),", memName.toUpperCase(),
+                        memName.toUpperCase());
+                emitter().emit(".C_M_AXI_%s_AWUSER_WIDTH( C_M_AXI_%s_AWUSER_WIDTH ),", memName.toUpperCase(),
+                        memName.toUpperCase());
+                emitter().emit(".C_M_AXI_%s_ARUSER_WIDTH( C_M_AXI_%s_ARUSER_WIDTH ),", memName.toUpperCase(),
+                        memName.toUpperCase());
+                emitter().emit(".C_M_AXI_%s_WUSER_WIDTH( C_M_AXI_%s_WUSER_WIDTH ),", memName.toUpperCase(),
+                        memName.toUpperCase());
+                emitter().emit(".C_M_AXI_%s_RUSER_WIDTH( C_M_AXI_%s_RUSER_WIDTH ),", memName.toUpperCase(),
+                        memName.toUpperCase());
+                emitter().emit(".C_M_AXI_%s_BUSER_WIDTH( C_M_AXI_%s_BUSER_WIDTH )%s", memName.toUpperCase(),
+                        memName.toUpperCase(), lastElement ? "" : ",");
+            }
+
+
+            emitter().decreaseIndentation();
+
+            emitter().emit(") i_%s (", qidName);
+        }
+
         {
             emitter().increaseIndentation();
+
+            // -- External Memories
+            for (VarDecl decl : mems.keySet()) {
+                String memName = mems.get(decl);
+                getAxiMasterByPort(memName, memName);
+                emitter().emit(".%s_offset(%1$s_offset),", memName);
+                emitter().emitNewLine();
+            }
+
             // -- Inputs
             for (PortDecl port : entity.getInputPorts()) {
                 String portName = port.getName();
@@ -597,7 +694,7 @@ public interface VerilogNetwork {
     }
 
     default int getQueueAddrWidth(Connection connection) {
-        
+
         if (connection.getSource().getInstance().isPresent() && connection.getTarget().getInstance().isPresent())
             return MathUtils.log2Ceil(backend().channelsutils().connectionBufferSize(connection));
         else
@@ -750,6 +847,58 @@ public interface VerilogNetwork {
                 emitter().emit("assign  %s_fifo_size = %s_size;", connection.getTarget().getPort(), queueName);
             }
         }
+        emitter().emitNewLine();
+    }
+
+
+    // -- Helper Methods
+
+    default void getAxiMasterByPort(String safeName, String name) {
+        emitter().emit(".m_axi_%s_AWVALID(m_axi_%s_AWVALID),", safeName, name);
+        emitter().emit(".m_axi_%s_AWREADY(m_axi_%s_AWREADY),", safeName, name);
+        emitter().emit(".m_axi_%s_AWADDR(m_axi_%s_AWADDR),", safeName, name);
+        emitter().emit(".m_axi_%s_AWID(m_axi_%s_AWID),", safeName, name);
+        emitter().emit(".m_axi_%s_AWLEN(m_axi_%s_AWLEN),", safeName, name);
+        emitter().emit(".m_axi_%s_AWSIZE(m_axi_%s_AWSIZE),", safeName, name);
+        emitter().emit(".m_axi_%s_AWBURST(m_axi_%s_AWBURST),", safeName, name);
+        emitter().emit(".m_axi_%s_AWLOCK(m_axi_%s_AWLOCK),", safeName, name);
+        emitter().emit(".m_axi_%s_AWCACHE(m_axi_%s_AWCACHE),", safeName, name);
+        emitter().emit(".m_axi_%s_AWPROT(m_axi_%s_AWPROT),", safeName, name);
+        emitter().emit(".m_axi_%s_AWQOS(m_axi_%s_AWQOS),", safeName, name);
+        emitter().emit(".m_axi_%s_AWREGION(m_axi_%s_AWREGION),", safeName, name);
+        emitter().emit(".m_axi_%s_AWUSER(m_axi_%s_AWUSER),", safeName, name);
+        emitter().emit(".m_axi_%s_WVALID(m_axi_%s_WVALID),", safeName, name);
+        emitter().emit(".m_axi_%s_WREADY(m_axi_%s_WREADY),", safeName, name);
+        emitter().emit(".m_axi_%s_WDATA(m_axi_%s_WDATA),", safeName, name);
+        emitter().emit(".m_axi_%s_WSTRB(m_axi_%s_WSTRB),", safeName, name);
+        emitter().emit(".m_axi_%s_WLAST(m_axi_%s_WLAST),", safeName, name);
+        emitter().emit(".m_axi_%s_WID(m_axi_%s_WID),", safeName, name);
+        emitter().emit(".m_axi_%s_WUSER(m_axi_%s_WUSER),", safeName, name);
+        emitter().emit(".m_axi_%s_ARVALID(m_axi_%s_ARVALID),", safeName, name);
+        emitter().emit(".m_axi_%s_ARREADY(m_axi_%s_ARREADY),", safeName, name);
+        emitter().emit(".m_axi_%s_ARADDR(m_axi_%s_ARADDR),", safeName, name);
+        emitter().emit(".m_axi_%s_ARID(m_axi_%s_ARID),", safeName, name);
+        emitter().emit(".m_axi_%s_ARLEN(m_axi_%s_ARLEN),", safeName, name);
+        emitter().emit(".m_axi_%s_ARSIZE(m_axi_%s_ARSIZE),", safeName, name);
+        emitter().emit(".m_axi_%s_ARBURST(m_axi_%s_ARBURST),", safeName, name);
+        emitter().emit(".m_axi_%s_ARLOCK(m_axi_%s_ARLOCK),", safeName, name);
+        emitter().emit(".m_axi_%s_ARCACHE(m_axi_%s_ARCACHE),", safeName, name);
+        emitter().emit(".m_axi_%s_ARPROT(m_axi_%s_ARPROT),", safeName, name);
+        emitter().emit(".m_axi_%s_ARQOS(m_axi_%s_ARQOS),", safeName, name);
+        emitter().emit(".m_axi_%s_ARREGION(m_axi_%s_ARREGION),", safeName, name);
+        emitter().emit(".m_axi_%s_ARUSER(m_axi_%s_ARUSER),", safeName, name);
+        emitter().emit(".m_axi_%s_RVALID(m_axi_%s_RVALID),", safeName, name);
+        emitter().emit(".m_axi_%s_RREADY(m_axi_%s_RREADY),", safeName, name);
+        emitter().emit(".m_axi_%s_RDATA(m_axi_%s_RDATA),", safeName, name);
+        emitter().emit(".m_axi_%s_RLAST(m_axi_%s_RLAST),", safeName, name);
+        emitter().emit(".m_axi_%s_RID(m_axi_%s_RID),", safeName, name);
+        emitter().emit(".m_axi_%s_RUSER(m_axi_%s_RUSER),", safeName, name);
+        emitter().emit(".m_axi_%s_RRESP(m_axi_%s_RRESP),", safeName, name);
+        emitter().emit(".m_axi_%s_BVALID(m_axi_%s_BVALID),", safeName, name);
+        emitter().emit(".m_axi_%s_BREADY(m_axi_%s_BREADY),", safeName, name);
+        emitter().emit(".m_axi_%s_BRESP(m_axi_%s_BRESP),", safeName, name);
+        emitter().emit(".m_axi_%s_BID(m_axi_%s_BID),", safeName, name);
+        emitter().emit(".m_axi_%s_BUSER(m_axi_%s_BUSER),", safeName, name);
         emitter().emitNewLine();
     }
 

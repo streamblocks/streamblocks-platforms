@@ -12,11 +12,7 @@ import java.util.List;
 @Module
 public interface TypesEvaluator {
     @Binding(BindingKind.INJECTED)
-    VivadoHLSBackend backend();
-
-    default Types types() {
-        return backend().types();
-    }
+    Types types();
 
     String type(Type type);
 
@@ -47,6 +43,26 @@ public interface TypesEvaluator {
            return type(type);
         }
     }
+
+
+    default Integer bitPerType(Type type){
+        if(type instanceof IntType){
+            IntType t = (IntType) type;
+            if (t.getSize().isPresent()) {
+                int originalSize = t.getSize().getAsInt();
+                int targetSize = 8;
+                while (originalSize > targetSize) {
+                    targetSize = targetSize * 2;
+                }
+               return targetSize;
+            } else {
+                return 32;
+            }
+        }else{
+            return 32;
+        }
+    }
+
 
     default String cltype(IntType type){
             if (type.getSize().isPresent()) {
@@ -170,6 +186,5 @@ public interface TypesEvaluator {
 
         return sizeByDim;
     }
-
 
 }

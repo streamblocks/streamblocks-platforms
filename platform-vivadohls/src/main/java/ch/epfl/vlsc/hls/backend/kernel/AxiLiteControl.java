@@ -7,8 +7,13 @@ import ch.epfl.vlsc.platformutils.utils.MathUtils;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
+import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.network.Network;
+import se.lth.cs.tycho.type.ListType;
+import se.lth.cs.tycho.type.Type;
+
+import java.util.Map;
 
 @Module
 public interface AxiLiteControl {
@@ -115,6 +120,13 @@ public interface AxiLiteControl {
         emitter().emit("output wire                          RVALID,");
         emitter().emit("input  wire                          RREADY,");
 
+
+        Map<VarDecl, String> mems = backend().externalMemory().externalMemories();
+        for (VarDecl decl : mems.keySet()) {
+            String memName = mems.get(decl);
+            emitter().emit("output  wire    [63 : 0]    %s_offset,", memName);
+        }
+
         if (!network.getInputPorts().isEmpty()) {
             for (PortDecl port : network.getInputPorts()) {
                 emitter().emit("output  wire    [31 : 0]    %s_requested_size,", port.getName());
@@ -166,6 +178,17 @@ public interface AxiLiteControl {
             emitter().emit("ADDR_%s_AVAILABLE_SIZE_DATA_0 = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
             value += 4;
             emitter().emit("ADDR_%s_AVAILABLE_SIZE_CTRL = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
+            value += 4;
+        }
+
+        Map<VarDecl, String> mems = backend().externalMemory().externalMemories();
+        for (VarDecl decl : mems.keySet()) {
+            String memName = mems.get(decl);
+            emitter().emit("ADDR_%s_OFFSET_DATA_0 = %d'h%s,", memName.toUpperCase(), addressWidth, String.format("%x", value));
+            value += 4;
+            emitter().emit("ADDR_%s_OFFSET_DATA_1 = %d'h%s,", memName.toUpperCase(), addressWidth, String.format("%x", value));
+            value += 4;
+            emitter().emit("ADDR_%s_OFFSET_CTRL = %d'h%s,", memName.toUpperCase(), addressWidth, String.format("%x", value));
             value += 4;
         }
 
@@ -251,6 +274,13 @@ public interface AxiLiteControl {
         emitter().emitNewLine();
 
         emitter().emit("// -- Internal Registers for addresses for I/O");
+
+        Map<VarDecl, String> mems = backend().externalMemory().externalMemories();
+        for (VarDecl decl : mems.keySet()) {
+            String memName = mems.get(decl);
+            emitter().emit("reg [63 : 0]    int_%s_offset = 64'd0;", memName);
+        }
+
         for (PortDecl port : network.getInputPorts()) {
             emitter().emit("reg [31 : 0]    int_%s_requested_size = 32'd0;", port.getName());
             emitter().emit("reg [63 : 0]    int_%s_size = 64'd0;", port.getName());
@@ -520,6 +550,32 @@ public interface AxiLiteControl {
                         }
                         emitter().emit("end");
 
+
+                        Map<VarDecl, String> mems = backend().externalMemory().externalMemories();
+                        for (VarDecl decl : mems.keySet()) {
+                            String memName = mems.get(decl);
+
+                            emitter().emit("ADDR_%s_OFFSET_DATA_0: begin", memName.toUpperCase());
+                            {
+                                emitter().increaseIndentation();
+
+                                emitter().emit("rdata<= int_%s_size[31:0];", memName);
+
+                                emitter().decreaseIndentation();
+                            }
+                            emitter().emit("end");
+
+                            emitter().emit("ADDR_%s_OFFSET_DATA_1: begin", memName.toUpperCase());
+                            {
+                                emitter().increaseIndentation();
+
+                                emitter().emit("rdata<= int_%s_size[63:32];", memName);
+
+                                emitter().decreaseIndentation();
+                            }
+                            emitter().emit("end");
+                        }
+
                         for (PortDecl port : network.getInputPorts()) {
                             emitter().emit("ADDR_%s_REQUESTED_SIZE_DATA_0: begin", port.getName().toUpperCase());
                             {
@@ -669,6 +725,13 @@ public interface AxiLiteControl {
         emitter().emit("assign interrupt    = int_gie & (|int_isr);");
         emitter().emit("assign event_start  = int_event_start;");
         emitter().emit("assign ap_start     = int_ap_start;");
+
+        Map<VarDecl, String> mems = backend().externalMemory().externalMemories();
+        for (VarDecl decl : mems.keySet()) {
+            String memName = mems.get(decl);
+            emitter().emit("assign %s_offset = int_%1$s_offset;", memName);
+        }
+
         for (PortDecl port : network.getInputPorts()) {
             emitter().emit("assign %s_requested_size = int_%1$s_requested_size;", port.getName());
             emitter().emit("assign %s_size = int_%1$s_size;", port.getName());
@@ -921,6 +984,12 @@ public interface AxiLiteControl {
         for (PortDecl port : network.getOutputPorts()) {
             // -- requested size
             getReg32Bit(port.getName(), "available_size");
+        }
+
+        for (VarDecl decl : mems.keySet()) {
+            // -- offset
+            String memName = mems.get(decl);
+            getReg64Bit(memName, "offset");
         }
 
         for (PortDecl port : network.getInputPorts()) {

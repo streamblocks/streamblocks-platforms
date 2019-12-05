@@ -61,8 +61,8 @@ public interface QuickJumpController {
             emitInstruction(actorMachine, name, instruction, stateMap);
         }
 
-        emitter().emit("out:");
-        emitter().emit("return this->__ret;");
+        //emitter().emit("out:");
+        //emitter().emit("return this->__ret;");
     }
 
 
@@ -100,15 +100,15 @@ public interface QuickJumpController {
 
     default void emitInstruction(ActorMachine am, String name, Wait wait, Map<State, Integer> stateNumbers) {
         emitter().emit("this->program_counter = %d;", stateNumbers.get(wait.target()));
-        emitter().emit("goto out;");
+        emitter().emit("return this->__ret;");
         emitter().emit("");
     }
 
     default void emitInstruction(ActorMachine am, String name, Exec exec, Map<State, Integer> stateNumbers) {
         emitter().emit("transition_%d(%s);", exec.transition(), backend().instance().transitionIoArguments(am.getTransitions().get(exec.transition())));
-        emitter().emit("this->__ret = RETURN_EXECUTED;");
         emitter().emit("this->program_counter = %d;", stateNumbers.get(exec.target()));
-        emitter().emit("goto out;");
+        emitter().emit("this->__ret = RETURN_EXECUTED;");
+        emitter().emit("return  this->__ret;");
         emitter().emit("");
     }
 

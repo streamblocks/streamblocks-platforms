@@ -8,11 +8,15 @@ import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.ir.Port;
+import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.network.Network;
 import se.lth.cs.tycho.ir.util.ImmutableList;
+import se.lth.cs.tycho.type.ListType;
 import se.lth.cs.tycho.type.Type;
 
+import java.util.Iterator;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Module
@@ -101,7 +105,31 @@ public interface KernelWrapper {
     // -- Parameters
     default void getParameters(Network network) {
 
-        
+
+        Map<VarDecl, String> mems = backend().externalMemory().externalMemories();
+
+        Iterator<VarDecl> itr = mems.keySet().iterator();
+
+        while (itr.hasNext()) {
+            VarDecl decl = itr.next();
+
+            String memName = mems.get(decl);
+            ListType listType = (ListType) backend().types().declaredType(decl);
+            Type type = listType.getElementType();
+            int bitSize = TypeUtils.sizeOfBits(type);
+            boolean lastElement = network.getOutputPorts().isEmpty() && network.getInputPorts().isEmpty() && !itr.hasNext();
+            emitter().emit("parameter integer C_M_AXI_%s_ADDR_WIDTH = %d,", memName.toUpperCase(),
+                    AxiConstants.C_M_AXI_ADDR_WIDTH);
+            emitter().emit("parameter integer C_M_AXI_%s_DATA_WIDTH = %d,", memName.toUpperCase(),
+                    bitSize);
+            emitter().emit("parameter integer C_M_AXI_%s_ID_WIDTH = %d,", memName.toUpperCase(), 1);
+            emitter().emit("parameter integer C_M_AXI_%s_AWUSER_WIDTH = %d,", memName.toUpperCase(), 1);
+            emitter().emit("parameter integer C_M_AXI_%s_ARUSER_WIDTH = %d,", memName.toUpperCase(), 1);
+            emitter().emit("parameter integer C_M_AXI_%s_WUSER_WIDTH = %d,", memName.toUpperCase(), 1);
+            emitter().emit("parameter integer C_M_AXI_%s_RUSER_WIDTH = %d,", memName.toUpperCase(), 1);
+            emitter().emit("parameter integer C_M_AXI_%s_BUSER_WIDTH =  %d%s", memName.toUpperCase(), 1,
+                    lastElement ? "" : ",");
+        }
 
         for (PortDecl port : network.getInputPorts()) {
             Type type = backend().types().declaredPortType(port);
@@ -119,8 +147,8 @@ public interface KernelWrapper {
             emitter().emit("parameter integer C_M_AXI_%s_RUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
             emitter().emit("parameter integer C_M_AXI_%s_BUSER_WIDTH =  %d%s", port.getName().toUpperCase(), 1,
                     lastElement ? "" : ",");
-
         }
+
         for (PortDecl port : network.getOutputPorts()) {
             Type type = backend().types().declaredPortType(port);
             int bitSize = TypeUtils.sizeOfBits(type);
@@ -135,7 +163,6 @@ public interface KernelWrapper {
             emitter().emit("parameter integer C_M_AXI_%s_RUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
             emitter().emit("parameter integer C_M_AXI_%s_BUSER_WIDTH =  %d%s", port.getName().toUpperCase(), 1,
                     network.getOutputPorts().size() - 1 == network.getOutputPorts().indexOf(port) ? "" : ",");
-
         }
     }
 
@@ -145,6 +172,14 @@ public interface KernelWrapper {
         // -- System signals
         emitter().emit("input   wire    ap_clk,");
         emitter().emit("input   wire    ap_rst_n,");
+
+        // -- Network external memory ports ports
+        if (!backend().externalMemory().externalMemories().isEmpty()) {
+            for (VarDecl decl : backend().externalMemory().externalMemories().keySet()) {
+                String memName = backend().externalMemory().externalMemories().get(decl);
+                backend().topkernel().getAxiMasterPorts(memName);
+            }
+        }
 
         // -- Network input ports
         if (!network.getInputPorts().isEmpty()) {
@@ -162,6 +197,12 @@ public interface KernelWrapper {
 
         // -- SDX control signals
         emitter().emit("// -- SDx Control signals");
+
+        for (VarDecl decl : backend().externalMemory().externalMemories().keySet()) {
+            String memName = backend().externalMemory().externalMemories().get(decl);
+            emitter().emit("input  wire    [64 - 1 : 0]    %s_offset,", memName);
+        }
+
         for (PortDecl port : network.getInputPorts()) {
             emitter().emit("input  wire    [32 - 1 : 0]    %s_requested_size,", port.getName());
             emitter().emit("input  wire    [64 - 1 : 0]    %s_size,", port.getName());
@@ -317,60 +358,13 @@ public interface KernelWrapper {
 
     default void getAxiMasterConnections(PortDecl port, boolean safeName) {
         if (safeName) {
-            getAxiMasterByPort(port.getSafeName(), port.getName());
+            backend().vnetwork().getAxiMasterByPort(port.getSafeName(), port.getName());
         } else {
-            getAxiMasterByPort(port.getName(), port.getName());
+            backend().vnetwork().getAxiMasterByPort(port.getName(), port.getName());
         }
 
     }
 
-    default void getAxiMasterByPort(String safeName, String name) {
-        emitter().emit(".m_axi_%s_AWVALID(m_axi_%s_AWVALID),", safeName, name);
-        emitter().emit(".m_axi_%s_AWREADY(m_axi_%s_AWREADY),", safeName, name);
-        emitter().emit(".m_axi_%s_AWADDR(m_axi_%s_AWADDR),", safeName, name);
-        emitter().emit(".m_axi_%s_AWID(m_axi_%s_AWID),", safeName, name);
-        emitter().emit(".m_axi_%s_AWLEN(m_axi_%s_AWLEN),", safeName, name);
-        emitter().emit(".m_axi_%s_AWSIZE(m_axi_%s_AWSIZE),", safeName, name);
-        emitter().emit(".m_axi_%s_AWBURST(m_axi_%s_AWBURST),", safeName, name);
-        emitter().emit(".m_axi_%s_AWLOCK(m_axi_%s_AWLOCK),", safeName, name);
-        emitter().emit(".m_axi_%s_AWCACHE(m_axi_%s_AWCACHE),", safeName, name);
-        emitter().emit(".m_axi_%s_AWPROT(m_axi_%s_AWPROT),", safeName, name);
-        emitter().emit(".m_axi_%s_AWQOS(m_axi_%s_AWQOS),", safeName, name);
-        emitter().emit(".m_axi_%s_AWREGION(m_axi_%s_AWREGION),", safeName, name);
-        emitter().emit(".m_axi_%s_AWUSER(m_axi_%s_AWUSER),", safeName, name);
-        emitter().emit(".m_axi_%s_WVALID(m_axi_%s_WVALID),", safeName, name);
-        emitter().emit(".m_axi_%s_WREADY(m_axi_%s_WREADY),", safeName, name);
-        emitter().emit(".m_axi_%s_WDATA(m_axi_%s_WDATA),", safeName, name);
-        emitter().emit(".m_axi_%s_WSTRB(m_axi_%s_WSTRB),", safeName, name);
-        emitter().emit(".m_axi_%s_WLAST(m_axi_%s_WLAST),", safeName, name);
-        emitter().emit(".m_axi_%s_WID(m_axi_%s_WID),", safeName, name);
-        emitter().emit(".m_axi_%s_WUSER(m_axi_%s_WUSER),", safeName, name);
-        emitter().emit(".m_axi_%s_ARVALID(m_axi_%s_ARVALID),", safeName, name);
-        emitter().emit(".m_axi_%s_ARREADY(m_axi_%s_ARREADY),", safeName, name);
-        emitter().emit(".m_axi_%s_ARADDR(m_axi_%s_ARADDR),", safeName, name);
-        emitter().emit(".m_axi_%s_ARID(m_axi_%s_ARID),", safeName, name);
-        emitter().emit(".m_axi_%s_ARLEN(m_axi_%s_ARLEN),", safeName, name);
-        emitter().emit(".m_axi_%s_ARSIZE(m_axi_%s_ARSIZE),", safeName, name);
-        emitter().emit(".m_axi_%s_ARBURST(m_axi_%s_ARBURST),", safeName, name);
-        emitter().emit(".m_axi_%s_ARLOCK(m_axi_%s_ARLOCK),", safeName, name);
-        emitter().emit(".m_axi_%s_ARCACHE(m_axi_%s_ARCACHE),", safeName, name);
-        emitter().emit(".m_axi_%s_ARPROT(m_axi_%s_ARPROT),", safeName, name);
-        emitter().emit(".m_axi_%s_ARQOS(m_axi_%s_ARQOS),", safeName, name);
-        emitter().emit(".m_axi_%s_ARREGION(m_axi_%s_ARREGION),", safeName, name);
-        emitter().emit(".m_axi_%s_ARUSER(m_axi_%s_ARUSER),", safeName, name);
-        emitter().emit(".m_axi_%s_RVALID(m_axi_%s_RVALID),", safeName, name);
-        emitter().emit(".m_axi_%s_RREADY(m_axi_%s_RREADY),", safeName, name);
-        emitter().emit(".m_axi_%s_RDATA(m_axi_%s_RDATA),", safeName, name);
-        emitter().emit(".m_axi_%s_RLAST(m_axi_%s_RLAST),", safeName, name);
-        emitter().emit(".m_axi_%s_RID(m_axi_%s_RID),", safeName, name);
-        emitter().emit(".m_axi_%s_RUSER(m_axi_%s_RUSER),", safeName, name);
-        emitter().emit(".m_axi_%s_RRESP(m_axi_%s_RRESP),", safeName, name);
-        emitter().emit(".m_axi_%s_BVALID(m_axi_%s_BVALID),", safeName, name);
-        emitter().emit(".m_axi_%s_BREADY(m_axi_%s_BREADY),", safeName, name);
-        emitter().emit(".m_axi_%s_BRESP(m_axi_%s_BRESP),", safeName, name);
-        emitter().emit(".m_axi_%s_BID(m_axi_%s_BID),", safeName, name);
-        emitter().emit(".m_axi_%s_BUSER(m_axi_%s_BUSER),", safeName, name);
-    }
 
     // ------------------------------------------------------------------------
     // -- Input Stages instantiation
@@ -439,9 +433,60 @@ public interface KernelWrapper {
     // -- Network instantiation
     default void getNetwork(Network network) {
         String instanceName = backend().task().getIdentifier().getLast().toString();
-        emitter().emit("%s i_%1$s(", instanceName);
+
+
+        if (backend().externalMemory().externalMemories().isEmpty()) {
+            emitter().emit("%s i_%1$s(", instanceName);
+        } else {
+            emitter().emit("%s #(", instanceName);
+            {
+                emitter().increaseIndentation();
+
+                Map<VarDecl, String> mems = backend().externalMemory().externalMemories();
+
+                Iterator<VarDecl> itr = mems.keySet().iterator();
+
+                while (itr.hasNext()) {
+                    VarDecl decl = itr.next();
+                    String memName = mems.get(decl);
+                    boolean lastElement = !itr.hasNext();
+
+                    emitter().emit(".C_M_AXI_%s_ID_WIDTH( C_M_AXI_%s_ID_WIDTH ),", memName.toUpperCase(),
+                            memName.toUpperCase());
+                    emitter().emit(".C_M_AXI_%s_ADDR_WIDTH( C_M_AXI_%s_ADDR_WIDTH ),", memName.toUpperCase(),
+                            memName.toUpperCase());
+                    emitter().emit(".C_M_AXI_%s_DATA_WIDTH( C_M_AXI_%s_DATA_WIDTH ),", memName.toUpperCase(),
+                            memName.toUpperCase());
+                    emitter().emit(".C_M_AXI_%s_AWUSER_WIDTH( C_M_AXI_%s_AWUSER_WIDTH ),", memName.toUpperCase(),
+                            memName.toUpperCase());
+                    emitter().emit(".C_M_AXI_%s_ARUSER_WIDTH( C_M_AXI_%s_ARUSER_WIDTH ),", memName.toUpperCase(),
+                            memName.toUpperCase());
+                    emitter().emit(".C_M_AXI_%s_WUSER_WIDTH( C_M_AXI_%s_WUSER_WIDTH ),", memName.toUpperCase(),
+                            memName.toUpperCase());
+                    emitter().emit(".C_M_AXI_%s_RUSER_WIDTH( C_M_AXI_%s_RUSER_WIDTH ),", memName.toUpperCase(),
+                            memName.toUpperCase());
+                    emitter().emit(".C_M_AXI_%s_BUSER_WIDTH( C_M_AXI_%s_BUSER_WIDTH )%s", memName.toUpperCase(),
+                            memName.toUpperCase(), lastElement ? "" : ",");
+                }
+
+
+                emitter().decreaseIndentation();
+            }
+            emitter().emit(")");
+            emitter().emit("i_%s (", instanceName);
+        }
         {
             emitter().increaseIndentation();
+            // -- External memories
+            if (!backend().externalMemory().externalMemories().isEmpty()) {
+                for (VarDecl decl : backend().externalMemory().externalMemories().keySet()) {
+                    String memName = backend().externalMemory().externalMemories().get(decl);
+                    backend().vnetwork().getAxiMasterByPort(memName, memName);
+                    emitter().emit(".%s_offset(%1$s_offset),", memName);
+                    emitter().emitNewLine();
+                }
+            }
+            // -- Input ports
             for (PortDecl port : network.getInputPorts()) {
                 emitter().emit(".%s_din(%1$s_din),", port.getName());
                 emitter().emit(".%s_full_n(%1$s_full_n),", port.getName());
@@ -449,6 +494,7 @@ public interface KernelWrapper {
                 emitter().emit(".%s_fifo_count(%1$s_fifo_count),", port.getName());
                 emitter().emit(".%s_fifo_size(%1$s_fifo_size),", port.getName());
             }
+            // -- Output ports
             for (PortDecl port : network.getOutputPorts()) {
                 emitter().emit(".%s_dout(%1$s_dout),", port.getName());
                 emitter().emit(".%s_empty_n(%1$s_empty_n),", port.getName());
@@ -462,6 +508,7 @@ public interface KernelWrapper {
             emitter().emit(".ap_idle(%s_network_idle),", instanceName);
             emitter().emit(".ap_done(%s_ap_done),", instanceName);
             emitter().emit(".input_idle(input_stage_idle)");
+
             emitter().decreaseIndentation();
         }
         emitter().emit(");");
@@ -532,5 +579,5 @@ public interface KernelWrapper {
         emitter().emitNewLine();
     }
 
-    
+
 }
