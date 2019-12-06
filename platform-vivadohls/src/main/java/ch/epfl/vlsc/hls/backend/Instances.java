@@ -123,21 +123,18 @@ public interface Instances {
         emitter().increaseIndentation();
 
         String className = "class_" + backend().instaceQID(instance.getInstanceName(), "_");
-        if (externalMemories().isEmpty()) {
-            emitter().emit("static %s i_%s;", className, name);
-        } else {
-            List<String> mems = new ArrayList<>();
-            for (VarDecl decl : externalMemories().keySet()) {
-                mems.add(externalMemories().get(decl));
-            }
-            emitter().emit("static %s i_%s(%s);", className, name, String.join(", ", mems));
-        }
+        emitter().emit("static %s i_%s;", className, name);
         emitter().emitNewLine();
 
         // -- External memories
         List<String> ports = new ArrayList<>();
 
         // -- Ports IO
+        List<String> mems = new ArrayList<>();
+        for (VarDecl decl : externalMemories().keySet()) {
+            mems.add(externalMemories().get(decl));
+        }
+        ports.addAll(mems);
         ports.addAll(entity.getInputPorts().stream().map(PortDecl::getName).collect(Collectors.toList()));
         ports.addAll(entity.getOutputPorts().stream().map(PortDecl::getName).collect(Collectors.toList()));
 
@@ -379,7 +376,7 @@ public interface Instances {
 
             instanceConstructor(instanceName, actor);
 
-            emitter().emit("int operator()(%s);", entityPorts(true, false));
+            emitter().emit("int operator()(%s);", entityPorts(true, true));
 
             emitter().decreaseIndentation();
         }
@@ -389,23 +386,11 @@ public interface Instances {
 
     default void instanceConstructor(String instanceName, ActorMachine actor) {
         // -- External memories
-        List<String> mems = new ArrayList<>();
-        for (VarDecl decl : backend().externalMemory().getExternalMemories(actor).keySet()) {
-            ListType listType = (ListType) backend().types().declaredType(decl);
-            String mem = String.format("%s* %s", backend().typeseval().type(listType.getElementType()), externalMemories().get(decl));
-            mems.add(mem);
-        }
+
         String className = "class_" + backend().instaceQID(instanceName, "_");
-        emitter().emit("%s(%s){", className, String.join(", ", mems));
+        emitter().emit("%s(){", className);
         {
             emitter().increaseIndentation();
-
-            // -- External Memories
-            for (VarDecl var : externalMemories().keySet()) {
-                String decl = backend().variables().declarationName(var);
-                String value = externalMemories().get(var);
-                emitter().emit("%s = %s;", decl, value);
-            }
 
             for (Scope scope : actor.getScopes()) {
                 if (!scope.getDeclarations().isEmpty()) {
@@ -476,10 +461,17 @@ public interface Instances {
     default void topOfInstance(String instanceName, CalActor actor) {
         if (actor.getProcessDescription() != null) {
             String className = "class_" + backend().instaceQID(instanceName, "_");
-            emitter().emit("int %s::operator()(%s) {", className, entityPorts(false, false));
+            emitter().emit("int %s::operator()(%s) {", className, entityPorts(false, true));
             emitter().emit("#pragma HLS INLINE");
             {
                 emitter().increaseIndentation();
+
+                // -- External Memories
+                for (VarDecl var : externalMemories().keySet()) {
+                    String decl = backend().variables().declarationName(var);
+                    String value = externalMemories().get(var);
+                    emitter().emit("%s = %s;", decl, value);
+                }
 
                 actor.getProcessDescription().getStatements().forEach(backend().statements()::execute);
 
@@ -497,10 +489,21 @@ public interface Instances {
 
     default void topOfInstance(String instanceName, ActorMachine actor) {
         String className = "class_" + backend().instaceQID(instanceName, "_");
-        emitter().emit("int %s::operator()(%s) {", className, entityPorts(true, false));
+        emitter().emit("int %s::operator()(%s) {", className, entityPorts(true, true));
         emitter().emit("#pragma HLS INLINE");
         {
             emitter().increaseIndentation();
+
+            // -- External Memories
+            if (!externalMemories().isEmpty()) {
+                emitter().emit("// -- Initialize large memory pointers");
+                for (VarDecl var : externalMemories().keySet()) {
+                    String decl = backend().variables().declarationName(var);
+                    String value = externalMemories().get(var);
+                    emitter().emit("%s = %s;", decl, value);
+                }
+                emitter().emitNewLine();
+            }
 
             if (actor.controller().getStateList().size() > MAX_STATES_FOR_QUICK_JUMP_CONTROLLER) {
                 backend().fsmController().emitController(instanceName, actor);
