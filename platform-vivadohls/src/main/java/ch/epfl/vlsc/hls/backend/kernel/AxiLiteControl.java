@@ -685,7 +685,7 @@ public interface AxiLiteControl {
                                 emitter().increaseIndentation();
 
                                 emitter().emit("rdata <= int_kernel_command[31:0];");
-                                
+
                                 emitter().decreaseIndentation();
                             }
                             emitter().emit("end");
@@ -1100,7 +1100,7 @@ public interface AxiLiteControl {
     // -- Helper Methods
 
     default int getAddressBitWidth(Network network) {
-        int value = 16 + network.getInputPorts().size() * 8 + network.getOutputPorts().size() * 8 + network.getInputPorts().size() * 24 + network.getOutputPorts().size() * 24;
+        int value = 16 + network.getInputPorts().size() * 8 + network.getOutputPorts().size() * 8 + backend().externalMemory().externalMemories().size() * 24 + network.getInputPorts().size() * 24 + network.getOutputPorts().size() * 24 + 24;
         return MathUtils.countBit(value);
     }
 

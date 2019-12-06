@@ -99,7 +99,7 @@ public interface KernelXml {
                         String memName = mems.get(decl);
                         ListType listType = (ListType) backend().types().declaredType(decl);
                         Type type = listType.getElementType();
-                        xmlArg(idCounter++, memName + "_offset", 1, "m_axi_" + memName, "0x0", "0x8", String.format("0x%X", offset), "0x8", "unsigned int*");
+                        xmlArg(idCounter++, memName, 1, "m_axi_" + memName, "0x0", "0x8", String.format("0x%X", offset), "0x8", "unsigned int*");
                         offset += 12;
                     }
 
