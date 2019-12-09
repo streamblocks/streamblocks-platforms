@@ -362,7 +362,7 @@ public interface InputStage {
                 emitter().emit("%s_fifo_count_reg <= 0;", port.getName());
                 emitter().decreaseIndentation();
             }
-            emitter().emit("else if(%s_sleep == 1'b1)", port.getName());
+            emitter().emit("else if(%s_sleep == 1'b1)", port.getSafeName());
             {
                 emitter().increaseIndentation();
                 emitter().emit("%s_fifo_count_reg <= %1$s_fifo_count;", port.getName());
