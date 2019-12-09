@@ -90,6 +90,10 @@ public interface OutputStage {
         // -- Wires
         getWires(port);
 
+
+        // -- fifo_count register
+        backend().inputstage().getFifoCountLogic(port);
+
         emitter().emitClikeBlockComment("Instantiations");
         emitter().emitNewLine();
 
@@ -120,20 +124,8 @@ public interface OutputStage {
         emitter().emitClikeBlockComment("Reg & Wires");
         emitter().emitNewLine();
 
-        emitter().emit("// -- Queue Buffer");
-        Type type = backend().types().declaredPortType(port);
-        int bitSize = TypeUtils.sizeOfBits(type);
-
-        emitter().emit("wire [%d:0] q_tmp_V_din;", bitSize - 1);
-        emitter().emit("wire q_tmp_V_full_n;");
-        emitter().emit("wire q_tmp_V_write;");
-        emitter().emitNewLine();
-        emitter().emit("wire [%d:0] q_tmp_V_dout;", bitSize - 1);
-        emitter().emit("wire q_tmp_V_empty_n;");
-        emitter().emit("wire q_tmp_V_read;");
-        emitter().emit("wire [31:0] q_tmp_V_count;");
-        emitter().emit("wire [31:0] q_tmp_V_size;");
-        emitter().emitNewLine();
+        emitter().emit("// -- Queue wires");
+        emitter().emit("logic    [31:0] %s_fifo_count_reg;", port.getName());
 
         // -- Output stage mem
         getTriggerLocalWires(port);
@@ -146,8 +138,7 @@ public interface OutputStage {
         emitter().emit("wire   %s_output_stage_ap_done;", port.getName());
         emitter().emit("wire   %s_output_stage_ap_idle;", port.getName());
         emitter().emit("wire   %s_output_stage_ap_ready;", port.getName());
-       
-       
+        emitter().emit("wire    %s_sleep;", port.getName());
         emitter().emit("wire    %s_sync_wait;", port.getSafeName());
         emitter().emit("wire    %s_sync_exec;", port.getSafeName());
         emitter().emit("wire    %s_all_sleep;", port.getSafeName());
@@ -178,7 +169,7 @@ public interface OutputStage {
             emitter().emit(".all_sleep(%s_all_sleep),", port.getName());
             emitter().emit(".sync_exec(),");
             emitter().emit(".sync_wait(),");
-            emitter().emit(".sleep(),");
+            emitter().emit(".sleep(%s_sleep),", port.getName());
             emitter().emit(".actor_return(%s_output_stage_ap_return),", port.getName());
             emitter().emit(".actor_done(%s_output_stage_ap_done),", port.getName());
             emitter().emit(".actor_ready(%s_output_stage_ap_ready),", port.getName());
@@ -228,7 +219,7 @@ public interface OutputStage {
             emitter().emit(".%s_size_r(%1$s_size_r),", port.getName());
             emitter().emit(".%s_buffer(%1$s_buffer),", port.getName());
             // -- FIFO I/O
-            emitter().emit(".fifo_count(%s_fifo_count),", port.getName());
+            emitter().emit(".fifo_count(%s_fifo_count_reg),", port.getName());
             emitter().emit(".%s_V_dout(%1$s_dout),", port.getName());
             emitter().emit(".%s_V_empty_n(%1$s_empty_n),", port.getName());
             emitter().emit(".%s_V_read(%1$s_read)", port.getName());
@@ -239,5 +230,7 @@ public interface OutputStage {
 
     }
 
+    
+    
 
 }

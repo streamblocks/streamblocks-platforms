@@ -91,6 +91,10 @@ public interface InputStage {
         // -- Wires
         getWires(port);
 
+
+        // fifo_count reg
+        getFifoCountLogic(port);
+
         emitter().emitClikeBlockComment("Instantiations");
         emitter().emitNewLine();
 
@@ -130,13 +134,18 @@ public interface InputStage {
         // emitter().emit("wire [31:0] q_tmp_V_count;");
         // emitter().emit("wire [31:0] q_tmp_V_size;");
         // emitter().emitNewLine();
-
+        // -- fifo_count register
+        getFifoCountWires(port);
         // -- Input stage mem
         emitter().emit("// -- Input stage mem");
         getTriggerLocalWires(port);
     }
 
-    
+    default void getFifoCountWires(PortDecl port) {
+        emitter().emit("// -- fifo_count register");
+        emitter().emit("logic    [31:0] %s_fifo_count_reg;", port.getName());
+        emitter().emitNewLine();
+    }
     default void getTriggerLocalWires(PortDecl port) {
         emitter().emit("// -- Trigger wires for port: %s", port.getSafeName());
         emitter().emit("wire    %s_input_stage_ap_start;", port.getName());
@@ -156,6 +165,7 @@ public interface InputStage {
         emitter().emit("logic    [%d:0] %s_sleep_counter = %1$d'd0;", getSleepTimerBits() - 1, port.getSafeName());
 
         emitter().emit("wire     stage_idle;");
+
         emitter().emitNewLine();
     }
     default void getTriggerModule(PortDecl port) {
@@ -253,7 +263,7 @@ public interface InputStage {
             emitter().emit(".%s_size_r(%1$s_size_r),", port.getName());
             emitter().emit(".%s_buffer(%1$s_buffer),", port.getName());
             // -- FIFO I/O
-            emitter().emit(".fifo_count(%1$s_fifo_count),", port.getName());
+            emitter().emit(".fifo_count(%1$s_fifo_count_reg),", port.getName());
             emitter().emit(".fifo_size(%1$s_fifo_size),", port.getName());
             emitter().emit(".%s_V_din(%1$s_din),", port.getName());
             emitter().emit(".%s_V_full_n(%1$s_full_n),", port.getName());
@@ -341,4 +351,26 @@ public interface InputStage {
         emitter().emitNewLine();
     }
 
+    default void getFifoCountLogic(PortDecl port) {
+        emitter().emit("// -- FIFO count sampling");
+        emitter().emit("always_ff @(posedge ap_clk) begin");
+        {
+            emitter().increaseIndentation();
+            emitter().emit("if (ap_rst_n == 1'b0)");
+            {
+                emitter().increaseIndentation();
+                emitter().emit("%s_fifo_count_reg <= 0;", port.getName());
+                emitter().decreaseIndentation();
+            }
+            emitter().emit("else if(%s_sleep == 1'b1)", port.getName());
+            {
+                emitter().increaseIndentation();
+                emitter().emit("%s_fifo_count_reg <= %1$s_fifo_count;", port.getName());
+                emitter().decreaseIndentation();
+            }
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("end");
+        emitter().emitNewLine();
+    }
 }
