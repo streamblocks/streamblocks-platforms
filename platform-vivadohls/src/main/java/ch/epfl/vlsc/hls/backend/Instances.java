@@ -400,9 +400,21 @@ public interface Instances {
                             String decl = backend().variables().declarationName(var);
                             if (var.getValue() != null && !(var.getValue() instanceof ExprInput)) {
                                 if (var.getValue() instanceof ExprList) {
+                                    emitter().emit("{");
+                                    emitter().increaseIndentation();
+
                                     backend().statements().copy(types().declaredType(var), backend().variables().declarationName(var), types().type(var.getValue()), expressioneval().evaluate(var.getValue()));
+
+                                    emitter().decreaseIndentation();
+                                    emitter().emit("}");
                                 } else if (var.getValue() instanceof ExprComprehension) {
+                                    emitter().emit("{");
+                                    emitter().increaseIndentation();
+
                                     backend().expressioneval().evaluate(var.getValue());
+
+                                    emitter().decreaseIndentation();
+                                    emitter().emit("}");
                                 } else if (var.getValue() instanceof ExprLambda || var.getValue() instanceof ExprProc) {
                                     // -- Do nothing
                                 } else {
@@ -410,6 +422,7 @@ public interface Instances {
                                 }
                             }
                         }
+
                     }
                 }
             }
