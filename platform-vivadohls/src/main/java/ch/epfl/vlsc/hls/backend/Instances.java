@@ -95,11 +95,41 @@ public interface Instances {
         Path instanceTarget = PathUtils.getTargetCodeGenSource(backend().context()).resolve(backend().instaceQID(instance.getInstanceName(), "_") + ".cpp");
         emitter().open(instanceTarget);
 
+        // -- Entity
+        Entity entity = backend().entitybox().get();
+
+        // -- Instance Name
+        String instanceName = instance.getInstanceName();
+
         // -- Includes
         defineIncludes(false);
 
         // -- Static call of instance
         staticCallofInstance(instance);
+
+        emitter().emitClikeBlockComment(instanceName + " : Members declaration");
+        emitter().emitNewLine();
+
+        // -- Top of Instance
+        topOfInstance(instanceName, entity);
+
+        if (entity instanceof ActorMachine) {
+            ActorMachine actor = (ActorMachine) entity;
+            // -- Scopes
+            emitter().emit("// -- Scopes");
+            actor.getScopes().forEach(s -> scope(instanceName, s, actor.getScopes().indexOf(s)));
+
+            // -- Conditions
+            emitter().emit("// -- Conditions");
+            actor.getConditions().forEach(c -> condition(instanceName, c, actor.getConditions().indexOf(c)));
+
+            // -- Transitions
+            emitter().emit("// -- Transitions");
+            actor.getTransitions().forEach(t -> transition(instanceName, t, actor.getTransitions().indexOf(t)));
+        }
+
+        // -- Callables
+        callables(instanceName, entity);
 
         // -- EOF
         emitter().close();
@@ -113,6 +143,7 @@ public interface Instances {
         }
 
         String name = backend().instaceQID(instance.getInstanceName(), "_");
+        emitter().emitClikeBlockComment("HLS Top Function");
         emitter().emit("int %s(%s) {", name, entityPorts(withIO, true));
         for (VarDecl decl : externalMemories().keySet()) {
             ListType listType = (ListType) types().declaredType(decl);
@@ -165,6 +196,7 @@ public interface Instances {
 
         emitter().decreaseIndentation();
         emitter().emit("}");
+        emitter().emitNewLine();
     }
 
 
@@ -179,6 +211,10 @@ public interface Instances {
         // -- Instance Name
         String instanceName = instance.getInstanceName();
 
+        emitter().emit("#ifndef __%s__",  backend().instaceQID(instanceName, "_").toUpperCase());
+        emitter().emit("#define __%s__",  backend().instaceQID(instanceName, "_").toUpperCase());
+        emitter().emitNewLine();
+
         // -- Includes
         defineIncludes(true);
 
@@ -191,26 +227,8 @@ public interface Instances {
         // -- Instance State
         instanceClass(instanceName, entity);
 
-        // -- Top of Instance
-        topOfInstance(instanceName, entity);
-
-        if (entity instanceof ActorMachine) {
-            ActorMachine actor = (ActorMachine) entity;
-            // -- Scopes
-            emitter().emit("// -- Scopes");
-            actor.getScopes().forEach(s -> scope(instanceName, s, actor.getScopes().indexOf(s)));
-
-            // -- Conditions
-            emitter().emit("// -- Conditions");
-            actor.getConditions().forEach(c -> condition(instanceName, c, actor.getConditions().indexOf(c)));
-
-            // -- Transitions
-            emitter().emit("// -- Transitions");
-            actor.getTransitions().forEach(t -> transition(instanceName, t, actor.getTransitions().indexOf(t)));
-        }
-
-        // -- Callables
-        callables(instanceName, entity);
+        emitter().emit("#endif // __%s__",  backend().instaceQID(instanceName, "_").toUpperCase());
+        emitter().emitNewLine();
 
         // -- EOF
         emitter().close();
@@ -666,6 +684,7 @@ public interface Instances {
             emitter().decreaseIndentation();
         }
         emitter().emit("}");
+        emitter().emitNewLine();
     }
 
 

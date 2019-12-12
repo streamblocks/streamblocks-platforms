@@ -8,6 +8,7 @@ import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.ScopeLiveness;
 import se.lth.cs.tycho.ir.entity.am.ActorMachine;
+import se.lth.cs.tycho.ir.entity.am.Condition;
 import se.lth.cs.tycho.ir.entity.am.PortCondition;
 import se.lth.cs.tycho.ir.entity.am.ctrl.*;
 
@@ -89,14 +90,49 @@ public interface FsmController {
         }
         emitter().emit("if (condition_%d(%s)) {", test.condition(), io);
         emitter().increaseIndentation();
-        emitter().emit("this->program_counter = %d;", stateNumbers.get(test.targetTrue()));
+
+
+        State tgtState = test.targetTrue();
+
+        if (tgtState.getInstructions().get(0) instanceof Exec || tgtState.getInstructions().get(0) instanceof Wait) {
+            Function<Instruction, BitSet> initialize;
+            ScopeLiveness liveness = new ScopeLiveness(backend().scopes(), am, backend().scopeDependencies());
+            initialize = liveness::init;
+            Instruction instruction = tgtState.getInstructions().get(0);
+            initialize.apply(instruction).stream().forEach(scope ->
+                    emitter().emit("scope_%d(%s);", scope, backend().instance().scopeArguments(am.getScopes().get(scope)))
+            );
+            emitInstruction(am, name, instruction, stateNumbers);
+        } else {
+            emitter().emit("this->program_counter = %d;", stateNumbers.get(test.targetTrue()));
+        }
+
         emitter().decreaseIndentation();
         emitter().emit("} else {");
+
         emitter().increaseIndentation();
+
+
         if (!waitKind.isEmpty()) {
             emitter().emit("%s", waitKind);
         }
-        emitter().emit("this->program_counter = %d;", stateNumbers.get(test.targetFalse()));
+
+        tgtState = test.targetFalse();
+
+        if (tgtState.getInstructions().get(0) instanceof Exec || tgtState.getInstructions().get(0) instanceof Wait) {
+            Function<Instruction, BitSet> initialize;
+            ScopeLiveness liveness = new ScopeLiveness(backend().scopes(), am, backend().scopeDependencies());
+            initialize = liveness::init;
+            Instruction instruction = tgtState.getInstructions().get(0);
+            initialize.apply(instruction).stream().forEach(scope ->
+                    emitter().emit("scope_%d(%s);", scope, backend().instance().scopeArguments(am.getScopes().get(scope)))
+            );
+            emitInstruction(am, name, instruction, stateNumbers);
+        } else {
+            emitter().emit("this->program_counter = %d;", stateNumbers.get(test.targetFalse()));
+        }
+
+
         emitter().decreaseIndentation();
         emitter().emit("}");
 
