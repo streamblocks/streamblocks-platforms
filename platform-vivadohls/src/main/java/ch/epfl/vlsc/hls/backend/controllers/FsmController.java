@@ -2,13 +2,11 @@ package ch.epfl.vlsc.hls.backend.controllers;
 
 import ch.epfl.vlsc.hls.backend.VivadoHLSBackend;
 import ch.epfl.vlsc.platformutils.Emitter;
-import ch.epfl.vlsc.settings.PlatformSettings;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.ScopeLiveness;
 import se.lth.cs.tycho.ir.entity.am.ActorMachine;
-import se.lth.cs.tycho.ir.entity.am.Condition;
 import se.lth.cs.tycho.ir.entity.am.PortCondition;
 import se.lth.cs.tycho.ir.entity.am.ctrl.*;
 
@@ -24,7 +22,6 @@ public interface FsmController {
         return backend().emitter();
     }
 
-
     default Map<State, Integer> stateMap(List<? extends State> stateList) {
         int i = 0;
         Map<State, Integer> result = new HashMap<>();
@@ -34,35 +31,93 @@ public interface FsmController {
         return result;
     }
 
+    default Set<State> keepStates(ActorMachine actorMachine) {
+        Set<State> keepStates = new HashSet<>();
+        Set<State> skipStates = new HashSet<>();
+
+        List<? extends State> stateList = actorMachine.controller().getStateList();
+        for (State s : stateList) {
+            if (!skipStates.contains(s)) {
+                Instruction instruction = s.getInstructions().get(0);
+                if ((instruction.getKind() == InstructionKind.TEST)) {
+
+                    Test test = (Test) instruction;
+
+                    // -- Treat true
+                    State trueState = test.targetTrue();
+                    Instruction trueStateInstruction = trueState.getInstructions().get(0);
+                    if (trueStateInstruction.getKind() == InstructionKind.TEST) {
+                        Test secondTest = (Test) trueStateInstruction;
+                        if (secondTest.targetTrue().getInstructions().get(0).getKind() == InstructionKind.EXEC) {
+                            Exec exec = (Exec) secondTest.targetTrue().getInstructions().get(0);
+                            keepStates.add(exec.target());
+                        } else {
+                            keepStates.add(trueState);
+                        }
+
+                        keepStates.add(secondTest.targetFalse());
+                        skipStates.add(trueState);
+                    }
+
+                    // -- Treat false
+                    State falseState = test.targetFalse();
+                    Instruction falseStateInstruction = falseState.getInstructions().get(0);
+                    if(falseStateInstruction.getKind() == InstructionKind.EXEC){
+                        Exec exec = (Exec) falseStateInstruction;
+                        keepStates.add(exec.target());
+                    }else {
+                        keepStates.add(falseState);
+                    }
+                }
+            }
+        }
+        return keepStates;
+    }
+
+    default State getTargetState(State s) {
+        Instruction instruction = s.getInstructions().get(0);
+
+        if (instruction.getKind() == InstructionKind.EXEC) {
+            Exec exec = (Exec) instruction;
+            return exec.target();
+        } else {
+            Wait exec = (Wait) instruction;
+            return exec.target();
+        }
+
+
+    }
 
     default void emitController(String name, ActorMachine actorMachine) {
         List<? extends State> stateList = actorMachine.controller().getStateList();
         Map<State, Integer> stateMap = stateMap(stateList);
-        Set<State> waitTargets = collectWaitTargets(stateList);
-
-        // -- Controller
-        //jumpInto(waitTargets.stream().mapToInt(stateMap::get).collect(BitSet::new, BitSet::set, BitSet::or));
 
         Function<Instruction, BitSet> initialize;
         ScopeLiveness liveness = new ScopeLiveness(backend().scopes(), actorMachine, backend().scopeDependencies());
         initialize = liveness::init;
 
+        Set<State> keepStates = keepStates(actorMachine);
+
         emitter().emit("switch (this->program_counter) {");
         emitter().increaseIndentation();
         {
             for (State s : stateList) {
-                emitter().emit("case %d:", stateMap.get(s));
                 Instruction instruction = s.getInstructions().get(0);
-                initialize.apply(instruction).stream().forEach(scope ->
-                        emitter().emit("scope_%d(%s);", scope, backend().instance().scopeArguments(actorMachine.getScopes().get(scope)))
-                );
-                emitInstruction(actorMachine, name, instruction, stateMap);
-                emitter().emit("break;");
-                emitter().emitNewLine();
+                if (instruction.getKind() == InstructionKind.TEST && keepStates.contains(s)) {
+                    emitter().emit("case %d:", stateMap.get(s));
+                    initialize.apply(instruction).stream().forEach(scope ->
+                            emitter().emit("scope_%d(%s);", scope, backend().instance().scopeArguments(actorMachine.getScopes().get(scope)))
+                    );
+                    emitInstruction(actorMachine, name, instruction, stateMap);
+                    emitter().emit("break;");
+                    emitter().emitNewLine();
+                }
             }
             emitter().decreaseIndentation();
         }
         emitter().emit("\tdefault:");
+        emitter().emit("\t\tstd::cout << this->program_counter << std::endl; ");
+        emitter().emit("\t\tthis->__ret = -10;");
         emitter().emit("\t\tthis->program_counter = 0;");
 
         emitter().emit("}");
@@ -104,7 +159,52 @@ public interface FsmController {
             );
             emitInstruction(am, name, instruction, stateNumbers);
         } else {
-            emitter().emit("this->program_counter = %d;", stateNumbers.get(test.targetTrue()));
+            Test secondTest = (Test) tgtState.getInstructions().get(0);
+            State sencondTrueState = secondTest.targetTrue();
+            Function<Instruction, BitSet> initialize;
+            ScopeLiveness liveness = new ScopeLiveness(backend().scopes(), am, backend().scopeDependencies());
+            initialize = liveness::init;
+            io = "";
+            if (am.getCondition(secondTest.condition()) instanceof PortCondition) {
+                String portName = ((PortCondition) am.getCondition(secondTest.condition())).getPortName().getName();
+                io = portName + ", io";
+            }
+
+            Instruction instruction = tgtState.getInstructions().get(0);
+            initialize.apply(instruction).stream().forEach(scope ->
+                    emitter().emit("scope_%d(%s);", scope, backend().instance().scopeArguments(am.getScopes().get(scope)))
+            );
+
+            emitter().emit("if (condition_%d(%s)) {", secondTest.condition(), io);
+            emitter().increaseIndentation();
+
+
+            instruction = sencondTrueState.getInstructions().get(0);
+            initialize.apply(instruction).stream().forEach(scope ->
+                    emitter().emit("scope_%d(%s);", scope, backend().instance().scopeArguments(am.getScopes().get(scope)))
+            );
+            emitInstruction(am, name, instruction, stateNumbers);
+            emitter().decreaseIndentation();
+            emitter().emit("} else {");
+
+            emitter().increaseIndentation();
+            {
+                tgtState = secondTest.targetFalse();
+                if (tgtState.getInstructions().get(0) instanceof Exec || tgtState.getInstructions().get(0) instanceof Wait) {
+                    liveness = new ScopeLiveness(backend().scopes(), am, backend().scopeDependencies());
+                    initialize = liveness::init;
+                    instruction = tgtState.getInstructions().get(0);
+                    initialize.apply(instruction).stream().forEach(scope ->
+                            emitter().emit("scope_%d(%s);", scope, backend().instance().scopeArguments(am.getScopes().get(scope)))
+                    );
+                    emitInstruction(am, name, instruction, stateNumbers);
+                } else {
+                    emitter().emit("this->program_counter = %d;", stateNumbers.get(secondTest.targetFalse()));
+                }
+            }
+            emitter().decreaseIndentation();
+
+            emitter().emit("}");
         }
 
         emitter().decreaseIndentation();
@@ -132,7 +232,6 @@ public interface FsmController {
             emitter().emit("this->program_counter = %d;", stateNumbers.get(test.targetFalse()));
         }
 
-
         emitter().decreaseIndentation();
         emitter().emit("}");
 
@@ -145,7 +244,15 @@ public interface FsmController {
 
     default void emitInstruction(ActorMachine am, String name, Exec exec, Map<State, Integer> stateNumbers) {
         emitter().emit("transition_%d(%s);", exec.transition(), backend().instance().transitionIoArguments(am.getTransitions().get(exec.transition())));
-        emitter().emit("this->program_counter = %d;", stateNumbers.get(exec.target()));
+        State target = exec.target();
+        if (target.getInstructions().get(0) instanceof Exec) {
+            Exec secondCall = (Exec) target.getInstructions().get(0);
+            emitter().emit("transition_%d(%s);", secondCall.transition(), backend().instance().transitionIoArguments(am.getTransitions().get(secondCall.transition())));
+            emitter().emit("this->program_counter = %d;", stateNumbers.get(secondCall.target()));
+        } else {
+            emitter().emit("this->program_counter = %d;", stateNumbers.get(exec.target()));
+
+        }
         emitter().emit("this->__ret = RETURN_EXECUTED;");
     }
 
@@ -155,15 +262,5 @@ public interface FsmController {
         emitter().emit("}");
         emitter().emit("");
     }
-
-    default Set<State> collectWaitTargets(List<? extends State> stateList) {
-        Set<State> targets = new HashSet<>();
-        for (State state : stateList) {
-            Instruction i = state.getInstructions().get(0);
-            if ((i.getKind() == InstructionKind.WAIT) || (i.getKind() == InstructionKind.EXEC)) {
-                i.forEachTarget(targets::add);
-            }
-        }
-        return targets;
-    }
 }
+

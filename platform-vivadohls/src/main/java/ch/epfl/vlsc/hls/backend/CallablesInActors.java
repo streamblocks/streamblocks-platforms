@@ -62,7 +62,7 @@ public interface CallablesInActors {
      * @param lambda
      */
     default void callableDefinition(String instanceName, ExprLambda lambda) {
-        backend().emitter().emit("%s {", lambdaHeader(instanceName, lambda,true));
+        backend().emitter().emit("inline %s {", lambdaHeader(instanceName, lambda,true));
         backend().emitter().emit("#pragma HLS INLINE");
         backend().emitter().increaseIndentation();
         backend().emitter().emit("return %s;", backend().expressioneval().evaluate(lambda.getBody()));
@@ -78,7 +78,7 @@ public interface CallablesInActors {
      */
 
     default void callableDefinition(String instanceName, ExprProc proc) {
-        backend().emitter().emit("%s {", procHeader(instanceName, proc,true));
+        backend().emitter().emit("inline %s {", procHeader(instanceName, proc,true));
         backend().emitter().emit("#pragma HLS INLINE");
         backend().emitter().increaseIndentation();
         proc.getBody().forEach(backend().statements()::execute);
