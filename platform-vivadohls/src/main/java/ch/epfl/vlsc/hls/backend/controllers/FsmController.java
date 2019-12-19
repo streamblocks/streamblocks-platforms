@@ -116,8 +116,8 @@ public interface FsmController {
             emitter().decreaseIndentation();
         }
         emitter().emit("\tdefault:");
-        emitter().emit("\t\tstd::cout << this->program_counter << std::endl; ");
-        emitter().emit("\t\tthis->__ret = -10;");
+        //emitter().emit("\t\tstd::cout << this->program_counter << std::endl; ");
+        //emitter().emit("\t\tthis->__ret = -10;");
         emitter().emit("\t\tthis->program_counter = 0;");
 
         emitter().emit("}");
