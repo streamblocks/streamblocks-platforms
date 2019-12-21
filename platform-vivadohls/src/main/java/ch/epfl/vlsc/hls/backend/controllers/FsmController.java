@@ -207,10 +207,14 @@ public interface FsmController {
                             emitter().emit("scope_%d(%s);", scope, backend().instance().scopeArguments(am.getScopes().get(scope)))
                     );
                     emitInstruction(am, name, instruction, stateNumbers);
+                    if(tgtState.getInstructions().get(0) instanceof Wait){
+                        emitter().emit("%s", secondWaitKind);
+                    }
                 } else {
                     emitter().emit("this->program_counter = %d;", stateNumbers.get(secondTest.targetFalse()));
+                    emitter().emit("%s", secondWaitKind);
                 }
-                emitter().emit("%s", secondWaitKind);
+
             }
             emitter().decreaseIndentation();
 
@@ -223,7 +227,9 @@ public interface FsmController {
         emitter().increaseIndentation();
 
 
-
+        if (!waitKind.isEmpty()) {
+            emitter().emit("%s", waitKind);
+        }
 
         tgtState = test.targetFalse();
 
@@ -240,10 +246,6 @@ public interface FsmController {
             emitter().emit("this->program_counter = %d;", stateNumbers.get(test.targetFalse()));
         }
 
-        //if (!waitKind.isEmpty()) {
-            emitter().emit("%s", waitKind);
-        //}
-
         emitter().decreaseIndentation();
         emitter().emit("}");
 
@@ -251,7 +253,6 @@ public interface FsmController {
 
     default void emitInstruction(ActorMachine am, String name, Wait wait, Map<State, Integer> stateNumbers) {
         emitter().emit("this->program_counter = %d;", stateNumbers.get(wait.target()));
-        //emitter().emit("this->__ret = RETURN_WAIT;");
     }
 
     default void emitInstruction(ActorMachine am, String name, Exec exec, Map<State, Integer> stateNumbers) {
