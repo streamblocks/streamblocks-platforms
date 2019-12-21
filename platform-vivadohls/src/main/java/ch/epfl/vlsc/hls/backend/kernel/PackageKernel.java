@@ -88,6 +88,7 @@ public interface PackageKernel {
             emitter().emit("set_property value 0 [ipx::add_bus_parameter HAS_BURST [ipx::get_bus_interfaces m_axi_%s -of_objects [ipx::current_core]]]", memName);
             emitter().emit("set_property value 0 [ipx::add_bus_parameter SUPPORTS_NARROW_BURST [ipx::get_bus_interfaces m_axi_%s -of_objects [ipx::current_core]]]", memName);
         }
+        emitter().emitNewLine();
 
         for (PortDecl port : network.getInputPorts()) {
             emitter().emit("ipx::associate_bus_interfaces -busif m_axi_%s -clock ap_clk [ipx::current_core]", port.getName());
@@ -96,6 +97,7 @@ public interface PackageKernel {
             emitter().emit("set_property value 0 [ipx::add_bus_parameter HAS_BURST [ipx::get_bus_interfaces m_axi_%s -of_objects [ipx::current_core]]]", port.getName());
             emitter().emit("set_property value 0 [ipx::add_bus_parameter SUPPORTS_NARROW_BURST [ipx::get_bus_interfaces m_axi_%s -of_objects [ipx::current_core]]]", port.getName());
         }
+        emitter().emitNewLine();
 
         for (PortDecl port : network.getOutputPorts()) {
             emitter().emit("ipx::associate_bus_interfaces -busif m_axi_%s -clock ap_clk [ipx::current_core]", port.getName());
@@ -104,6 +106,7 @@ public interface PackageKernel {
             emitter().emit("set_property value 0 [ipx::add_bus_parameter HAS_BURST [ipx::get_bus_interfaces m_axi_%s -of_objects [ipx::current_core]]]", port.getName());
             emitter().emit("set_property value 0 [ipx::add_bus_parameter SUPPORTS_NARROW_BURST [ipx::get_bus_interfaces m_axi_%s -of_objects [ipx::current_core]]]", port.getName());
         }
+        emitter().emitNewLine();
 
         emitter().emit("ipx::associate_bus_interfaces -busif s_axi_control -clock ap_clk [ipx::current_core]");
         emitter().emitNewLine();

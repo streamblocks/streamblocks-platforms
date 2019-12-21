@@ -55,7 +55,7 @@ public interface CMakeLists {
         // -- Vivado HLS Clock and FPGA CMake Variables
         emitter().emitSharpComment("CMake Variables");
         emitter().emit("set(FPGA_NAME \"xczu3eg-sbva484-1-e\" CACHE STRING \"Name of Xilinx FPGA, e.g \\\"xcku115-flvb2104-2-e\\\", \\\"xczu3eg-sbva484-1-e\\\",..\")");
-        emitter().emit("set(CLOCK_PERIOD \"10\" CACHE STRING \"Clock period in ns\")");
+        emitter().emit("set(HLS_CLOCK_PERIOD \"10\" CACHE STRING \"Clock period in ns\")");
         emitter().emit("set(KERNEL FALSE)");
         emitter().emitNewLine();
 
@@ -158,12 +158,23 @@ public interface CMakeLists {
             emitter().emit("if(USE_VITIS)");
             emitter().emit("\tset(FPGA_NAME \"xczu3eg-sbva484-1-e\" CACHE STRING \"Name of Xilinx FPGA, e.g \\\"xcku115-flvb2104-2-e\\\", \\\"xczu3eg-sbva484-1-e\\\",..\")");
             emitter().emit("\tset(PLATFORM \"ultra96_base\" CACHE STRING \"Supported platform name, e.g \\\"xilinx_kcu1500_dynamic_5_0\\\", \\\"zcu102_base\\\", \\\"ultra96_base\\\",... \")");
-            emitter().emit("\tset (CLOCK_PERIOD \"6.667\" CACHE STRING \"Clock period in ns\")");
+            emitter().emit("\tset(HLS_CLOCK_PERIOD \"6.667\" CACHE STRING \"Clock period in ns\")");
+            emitter().emit("\tset(KERNEL_FREQ \"150\" CACHE STRING \"Clock frequency in MHz.\")");
             emitter().emit("else()");
             emitter().emit("\tset(FPGA_NAME \"xcku115-flvb2104-2-e\" CACHE STRING \"Name of Xilinx FPGA, e.g \\\"xcku115-flvb2104-2-e\\\", \\\"xczu3eg-sbva484-1-e\\\",..\")");
             emitter().emit("\tset(PLATFORM \"xilinx_kcu1500_dynamic_5_0\" CACHE STRING \"Supported platform name, e.g \\\"xilinx_kcu1500_dynamic_5_0\\\", \\\"zcu102_base\\\", \\\"ultra96_base\\\",... \")");
-            emitter().emit("\tset (CLOCK_PERIOD \"4\" CACHE STRING \"Clock period in ns\")");
+            emitter().emit("\tset(HLS_CLOCK_PERIOD \"4\" CACHE STRING \"Clock period in ns\")");
+            emitter().emit("\tset(KERNEL_FREQ \"300\" CACHE STRING \"Clock frequency in MHz.\")");
             emitter().emit("endif()");
+
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("else()");
+        {
+            emitter().increaseIndentation();
+
+            emitter().emit("\tset(FPGA_NAME \"xczu3eg-sbva484-1-e\" CACHE STRING \"Name of Xilinx FPGA, e.g \\\"xcku115-flvb2104-2-e\\\", \\\"xczu3eg-sbva484-1-e\\\",..\")");
+            emitter().emit("\tset(HLS_CLOCK_PERIOD \"10\" CACHE STRING \"Clock period in ns\")");
 
             emitter().decreaseIndentation();
         }
@@ -315,7 +326,7 @@ public interface CMakeLists {
                     emitter().emit(
                             "OUTPUT  ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xclbin");
                     emitter().emit(
-                            "COMMAND ${VITIS_VPP} -g -t ${TARGET} --platform ${PLATFORM} --save-temps  -lo ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xclbin ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xo  > ${CMAKE_PROJECT_NAME}_kernel_xclbin.log");
+                            "COMMAND ${VITIS_VPP} -g -t ${TARGET} --platform ${PLATFORM} --kernel_frequency ${KERNEL_FREQ}  --save-temps  -lo ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xclbin ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xo  > ${CMAKE_PROJECT_NAME}_kernel_xclbin.log");
                     emitter().emit("DEPENDS ${CMAKE_PROJECT_NAME}_kernel_xo");
 
                     emitter().decreaseIndentation();
@@ -335,7 +346,7 @@ public interface CMakeLists {
                     emitter().emit(
                             "OUTPUT  ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xclbin");
                     emitter().emit(
-                            "COMMAND ${SDACCEL_XOCC} -g -t ${TARGET} --platform ${PLATFORM} --save-temps  -lo ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xclbin ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xo  > ${CMAKE_PROJECT_NAME}_kernel_xclbin.log");
+                            "COMMAND ${SDACCEL_XOCC} -g -t ${TARGET} --platform ${PLATFORM} --kernel_frequency ${KERNEL_FREQ} --save-temps  -lo ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xclbin ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xo  > ${CMAKE_PROJECT_NAME}_kernel_xclbin.log");
                     emitter().emit("DEPENDS ${CMAKE_PROJECT_NAME}_kernel_xo");
 
                     emitter().decreaseIndentation();
