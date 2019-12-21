@@ -129,7 +129,7 @@ public interface VerilogNetwork {
             getInstances(network.getInstances(), network.getConnections());
 
             // -- ILA for debug
-            getILA(network.getInstances());
+            //getILA(network.getInstances());
 
             // -- Assignments
             getAssignments(network);

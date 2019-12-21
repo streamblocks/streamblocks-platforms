@@ -54,14 +54,14 @@ public interface PackageKernel {
             importVivadoHLSIOStage(port, "stage_pass");
             importVivadoHLSIOStage(port, "output_stage_mem");
         }
-
+/*
         // -- ILA
         emitter().emit("create_ip -name ila -vendor xilinx.com -library ip -version 6.2 -module_name ila_0");
         emitter().emit("set_property -dict [list CONFIG.C_NUM_OF_PROBES {%d} CONFIG.C_EN_STRG_QUAL {1} CONFIG.C_INPUT_PIPE_STAGES {2} CONFIG.C_ADV_TRIGGER {true} CONFIG.ALL_PROBE_SAME_MU_CNT {4} CONFIG.C_PROBE6_MU_CNT {4} CONFIG.C_PROBE5_MU_CNT {4} CONFIG.C_PROBE4_MU_CNT {4} CONFIG.C_PROBE3_MU_CNT {4} CONFIG.C_PROBE2_MU_CNT {4} CONFIG.C_PROBE1_MU_CNT {4} CONFIG.C_PROBE0_MU_CNT {4}] [get_ips ila_0]", network.getInstances().size());
         for (int i = 0; i < network.getInstances().size(); i++) {
             emitter().emit("set_property -dict [list CONFIG.C_PROBE%d_WIDTH {32}] [get_ips ila_0]", i);
         }
-
+*/
 
         // -- Package project
         emitter().emitSharpComment("Package kernel");
