@@ -128,6 +128,9 @@ public interface VerilogNetwork {
             // -- Instances
             getInstances(network.getInstances(), network.getConnections());
 
+            // -- ILA for debug
+            getILA(network.getInstances());
+
             // -- Assignments
             getAssignments(network);
 
@@ -565,6 +568,26 @@ public interface VerilogNetwork {
         }
         emitter().emit(");");
         return qidName;
+    }
+
+    // ------------------------------------------------------------------------
+    // -- ILA for debug
+    default void getILA(List<Instance> instances){
+        emitter().emit("ila_0 i_ila_0(");
+        {
+            emitter().increaseIndentation();
+
+            for(Instance instance : instances){
+                // -- Instance name
+                String qidName = backend().instaceQID(instance.getInstanceName(), "_");
+                emitter().emit(".probe%d(%s_ap_return),", instances.indexOf(instance), qidName);
+            }
+
+            emitter().emit(".clk(ap_clk)");
+
+            emitter().decreaseIndentation();
+        }
+        emitter().emit(");");
     }
 
     // ------------------------------------------------------------------------
