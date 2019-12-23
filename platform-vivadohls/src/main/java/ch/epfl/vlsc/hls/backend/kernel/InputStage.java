@@ -162,7 +162,7 @@ public interface InputStage {
         emitter().emit("wire    %s_at_least_half_empty;", port.getName());
         emitter().emit("localparam mode_t trigger_mode = INPUT_TRIGGER;");
         // -- sleep timer for the trigger
-        emitter().emit("logic    [%d:0] %s_sleep_counter = %1$d'd0;", getSleepTimerBits() - 1, port.getSafeName());
+        emitter().emit("logic    [%d - 1:0] %s_sleep_counter = %1$d'd0;", getSleepTimerBits(), port.getSafeName());
 
         emitter().emit("wire     stage_idle;");
 

@@ -3,6 +3,7 @@ package ch.epfl.vlsc.hls.backend;
 import ch.epfl.vlsc.hls.backend.controllers.BranchingController;
 import ch.epfl.vlsc.hls.backend.controllers.FsmController;
 import ch.epfl.vlsc.hls.backend.controllers.QuickJumpController;
+import ch.epfl.vlsc.hls.backend.controllers.StrawManController;
 import ch.epfl.vlsc.hls.backend.host.DeviceHandle;
 import ch.epfl.vlsc.hls.backend.kernel.*;
 import ch.epfl.vlsc.hls.backend.scripts.VivadoTCL;
@@ -183,6 +184,15 @@ public interface VivadoHLSBackend {
     default BranchingController branchingController() {
         return MultiJ.from(BranchingController.class).bind("backend").to(this).instance();
     }
+    
+
+    // Experimental strawman contoller
+    // Author: Mahyar
+    @Binding(LAZY)
+    default StrawManController strawManController() {
+        return MultiJ.from(StrawManController.class).bind("backend").to(this).instance();
+    }
+
 
     @Binding(LAZY)
     default ExternalMemory externalMemory(){

@@ -537,7 +537,8 @@ public interface Instances {
             }
 
             if (actor.controller().getStateList().size() > MAX_STATES_FOR_QUICK_JUMP_CONTROLLER) {
-                backend().fsmController().emitController(instanceName, actor);
+                // backend().fsmController().emitController(instanceName, actor);
+                backend().strawManController().emitController(instanceName, actor);
             } else {
                 backend().quickJumpController().emitController(instanceName, actor);
             }

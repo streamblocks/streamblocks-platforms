@@ -6,6 +6,7 @@ import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.GlobalNames;
+import se.lth.cs.tycho.reporting.Diagnostic;
 import se.lth.cs.tycho.ir.ValueParameter;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.entity.PortDecl;
@@ -132,8 +133,11 @@ public interface Main {
 
             // -- Instantiate instance ports
             for (PortDecl inputPort : entityDecl.getEntity().getInputPorts()) {
+                
+                
                 int bufferSize = backend().channelsutils().targetEndSize(new Connection.End(Optional.of(instance.getInstanceName()), inputPort.getName()));
                 emitter().emit("%s_%s = createInputPort(%1$s, \"%2$s\", %d);", joinQID, inputPort.getName(), bufferSize);
+                
             }
             for (PortDecl outputPort : entityDecl.getEntity().getOutputPorts()) {
                 Connection.End end = new Connection.End(Optional.of(instance.getInstanceName()), outputPort.getName());

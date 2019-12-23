@@ -6,6 +6,8 @@ import org.multij.Module;
 import se.lth.cs.tycho.ir.Port;
 import se.lth.cs.tycho.ir.ToolValueAttribute;
 import se.lth.cs.tycho.ir.entity.Entity;
+import se.lth.cs.tycho.reporting.Diagnostic;
+import se.lth.cs.tycho.reporting.Diagnostic.Kind;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Network;
@@ -94,12 +96,13 @@ public interface ChannelsUtils {
 
     default int targetEndSize(Connection.End target) {
         Network network = backend().task().getNetwork();
-        try {
+        try {            
             Connection connection = network.getConnections().stream()
                     .filter(conn -> conn.getTarget().equals(target))
                     .findFirst().get();
             return connectionBufferSize(connection);
         } catch (NoSuchElementException e){
+            backend().context().getReporter().report(new Diagnostic(Diagnostic.Kind.ERROR, String.format("floating port %s.%s", target.getInstance().get(), target.getPort())));
             throw new RuntimeException(e);
         }
 
