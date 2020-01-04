@@ -541,6 +541,7 @@ public interface Instances {
                 backend().strawManController().emitController(instanceName, actor);
             } else {
                 backend().quickJumpController().emitController(instanceName, actor);
+                
             }
 
             emitter().decreaseIndentation();

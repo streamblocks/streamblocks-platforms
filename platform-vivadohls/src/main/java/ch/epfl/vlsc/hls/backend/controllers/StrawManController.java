@@ -9,6 +9,7 @@ import se.lth.cs.tycho.attribute.ScopeLiveness;
 import se.lth.cs.tycho.ir.entity.am.ActorMachine;
 import se.lth.cs.tycho.ir.entity.am.PortCondition;
 import se.lth.cs.tycho.ir.entity.am.ctrl.*;
+import ch.epfl.vlsc.settings.PlatformSettings;
 
 import java.util.*;
 import java.util.function.Function;
@@ -49,9 +50,12 @@ public interface StrawManController {
         Map<State, Integer> stateMap = stateMap(stateList);
 
         Function<Instruction, BitSet> initialize;
-        ScopeLiveness liveness = new ScopeLiveness(backend().scopes(), actorMachine, backend().scopeDependencies());
-        initialize = liveness::init;
-
+        if (backend().context().getConfiguration().get(PlatformSettings.scopeLivenessAnalysis)) {
+            ScopeLiveness liveness = new ScopeLiveness(backend().scopes(), actorMachine, backend().scopeDependencies());
+            initialize = liveness::init;
+        } else {
+            initialize = instruction -> backend().scopes().init(actorMachine, instruction);
+        }
         emitter().emit("int\tcurrent_state = this->program_counter;");
         emitter().emit("int\tnext_state = this->program_counter;");
         emitter().emit("bool waited = false;");
@@ -65,6 +69,7 @@ public interface StrawManController {
             emitter().emit("switch (current_state) {");
             emitter().increaseIndentation();
             {
+
                 for (State s : stateList) {
 
                     // Assuming Single Instruction Actor Machine
@@ -79,6 +84,8 @@ public interface StrawManController {
                         emitter().emit("// %d is EXEC instruction", stateMap.get(s));
                     }
                     emitter().emit("case %d:", stateMap.get(s));
+                    initialize.apply(instruction).stream().forEach(scope -> emitter().emit("scope_%d(%s);", scope,
+                            backend().instance().scopeArguments(actorMachine.getScopes().get(scope))));
                     emitInstruction(actorMachine, name, instruction, stateMap);
 
                 }
@@ -89,7 +96,6 @@ public interface StrawManController {
             // emitter().emit("\t\tthis->__ret = -10;");
             emitter().emit("\t\tthis->program_counter = 0;");
             emitter().emit("}");
-
 
             emitter().emitNewLine();
 
