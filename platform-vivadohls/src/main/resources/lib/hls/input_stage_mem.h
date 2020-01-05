@@ -40,16 +40,11 @@
 #define _INPUT_STAGE_MEM_H
 
 
-#define RETURN_IDLE 0
-#define RETURN_WAIT_PREDICATE 1
-#define RETURN_WAIT_INPUT 2
-#define RETURN_WAIT_OUTPUT 3
-#define RETURN_WAIT_GUARD 4
-#define RETURN_EXECUTED 5
 
 #include <stdint.h>
 #include <hls_stream.h>
 #include <string.h>
+#include <globals.h>
 
 #define MAX_BUFFER_SIZE 4096
 

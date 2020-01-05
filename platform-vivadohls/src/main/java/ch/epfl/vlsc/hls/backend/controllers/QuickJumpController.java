@@ -10,8 +10,6 @@ import se.lth.cs.tycho.attribute.ScopeLiveness;
 import se.lth.cs.tycho.ir.entity.am.ActorMachine;
 import se.lth.cs.tycho.ir.entity.am.PortCondition;
 import se.lth.cs.tycho.ir.entity.am.ctrl.*;
-import se.lth.cs.tycho.settings.Configuration;
-import se.lth.cs.tycho.settings.OnOffSetting;
 
 import java.util.*;
 import java.util.function.Function;
@@ -25,7 +23,6 @@ public interface QuickJumpController {
         return backend().emitter();
     }
 
-
     default Map<State, Integer> stateMap(List<? extends State> stateList) {
         int i = 0;
         Map<State, Integer> result = new HashMap<>();
@@ -34,7 +31,6 @@ public interface QuickJumpController {
         }
         return result;
     }
-
 
     default void emitController(String name, ActorMachine actorMachine) {
         List<? extends State> stateList = actorMachine.controller().getStateList();
@@ -60,9 +56,6 @@ public interface QuickJumpController {
             );
             emitInstruction(actorMachine, name, instruction, stateMap);
         }
-
-        //emitter().emit("out:");
-        //emitter().emit("return this->__ret;");
     }
 
 
@@ -70,18 +63,10 @@ public interface QuickJumpController {
 
     default void emitInstruction(ActorMachine am, String name, Test test, Map<State, Integer> stateNumbers) {
         String io = "";
-        String waitKind = "";
-        if(am.getCondition(test.condition()) instanceof PortCondition){
+        if (am.getCondition(test.condition()) instanceof PortCondition) {
             PortCondition condition = (PortCondition) am.getCondition(test.condition());
-            if(condition.isInputCondition()){
-                waitKind = String.format("this->__ret = %s;", "RETURN_WAIT_INPUT");
-            }else{
-                waitKind = String.format("this->__ret = %s;", "RETURN_WAIT_OUTPUT");
-            }
-            String portName = ((PortCondition) am.getCondition(test.condition())).getPortName().getName();
+            String portName = condition.getPortName().getName();
             io = portName + ", io";
-        }else{
-            waitKind = String.format("this->__ret = %s;", "RETURN_WAIT_PREDICATE");
         }
         emitter().emit("if (condition_%d(%s)) {", test.condition(), io);
         emitter().increaseIndentation();
@@ -89,9 +74,6 @@ public interface QuickJumpController {
         emitter().decreaseIndentation();
         emitter().emit("} else {");
         emitter().increaseIndentation();
-        if(!waitKind.isEmpty()){
-            emitter().emit("%s", waitKind);
-        }
         emitter().emit("goto S%d;", stateNumbers.get(test.targetFalse()));
         emitter().decreaseIndentation();
         emitter().emit("}");
@@ -100,21 +82,22 @@ public interface QuickJumpController {
 
     default void emitInstruction(ActorMachine am, String name, Wait wait, Map<State, Integer> stateNumbers) {
         emitter().emit("this->program_counter = %d;", stateNumbers.get(wait.target()));
-        emitter().emit("return this->__ret;");
+        emitter().emit("return RETURN_WAIT;");
         emitter().emit("");
     }
 
     default void emitInstruction(ActorMachine am, String name, Exec exec, Map<State, Integer> stateNumbers) {
         emitter().emit("transition_%d(%s);", exec.transition(), backend().instance().transitionIoArguments(am.getTransitions().get(exec.transition())));
         emitter().emit("this->program_counter = %d;", stateNumbers.get(exec.target()));
-        emitter().emit("this->__ret = RETURN_EXECUTED;");
-        emitter().emit("return  this->__ret;");
+        emitter().emit("return RETURN_EXECUTED;");
         emitter().emit("");
     }
 
     default void jumpInto(BitSet waitTargets) {
         emitter().emit("switch (this->program_counter) {");
+        emitter().increaseIndentation();
         waitTargets.stream().forEach(s -> emitter().emit("case %d: goto S%1$d;", s));
+        emitter().decreaseIndentation();
         emitter().emit("}");
         emitter().emit("");
     }
@@ -123,7 +106,7 @@ public interface QuickJumpController {
         Set<State> targets = new HashSet<>();
         for (State state : stateList) {
             Instruction i = state.getInstructions().get(0);
-            if ((i.getKind() == InstructionKind.WAIT) || (i.getKind() == InstructionKind.EXEC) ) {
+            if ((i.getKind() == InstructionKind.WAIT) || (i.getKind() == InstructionKind.EXEC)) {
                 i.forEachTarget(targets::add);
             }
         }

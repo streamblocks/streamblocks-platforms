@@ -92,7 +92,7 @@ public interface VerilogTestbench {
 
             getDut(instance);
 
-            if (entity.getOutputPorts().size() > 1)
+            if (entity.getOutputPorts().size() > 0)
                 endOfSimulation(entity.getOutputPorts());
         }
         emitter().decreaseIndentation();
@@ -151,7 +151,7 @@ public interface VerilogTestbench {
             }
 
             getDut(network);
-            if (network.getOutputPorts().size() > 1)
+            if (network.getOutputPorts().size() > 0)
                 endOfSimulation(network.getOutputPorts());
         }
         emitter().decreaseIndentation();

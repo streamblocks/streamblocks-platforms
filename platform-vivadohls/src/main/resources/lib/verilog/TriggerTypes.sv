@@ -38,12 +38,10 @@
 `define __TRIGGER_TYPES__
 package TriggerTypes;
 	typedef enum logic[31:0] {
-			IDLE,
-			WAIT_PREDICATE,
-			WAIT_INPUT,
-			WAIT_OUTPUT,
-			WAIT_GAURD,
-			EXECUTED
+	    IDLE,
+		WAIT,
+		TEST,
+		EXECUTED
 	} return_t;
 	typedef enum logic[2:0] {
 		IDLE_STATE,

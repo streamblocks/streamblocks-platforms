@@ -50,7 +50,7 @@ public interface ExternalMemory {
                 int listSize = dim.stream().mapToInt(s -> s).reduce(1, Math::multiplyExact);
                 int bitSize = typeseval().bitPerType(elementType);
                 int size = listSize * bitSize;
-                if (size > 1024 * 1024 * 800) {
+                if (size > 1024 * 1024 * 8) {
                     if (!externalMemories().containsKey(decl)) {
                         int mapSize = externalMemories().size() + 1;
                         externalMemories().put(decl, "mem_" + mapSize);

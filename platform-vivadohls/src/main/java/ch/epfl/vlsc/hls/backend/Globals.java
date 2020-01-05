@@ -35,11 +35,9 @@ public interface Globals {
         // -- Return
         emitter().emit("// -- Actor Return values");
         emitter().emit("#define RETURN_IDLE 0");
-        emitter().emit("#define RETURN_WAIT_PREDICATE 1");
-        emitter().emit("#define RETURN_WAIT_INPUT 2");
-        emitter().emit("#define RETURN_WAIT_OUTPUT 3");
-        emitter().emit("#define RETURN_WAIT_GUARD 4");
-        emitter().emit("#define RETURN_EXECUTED 5");
+        emitter().emit("#define RETURN_WAIT 1");
+        emitter().emit("#define RETURN_TEST 2");
+        emitter().emit("#define RETURN_EXECUTED 3");
         emitter().emitNewLine();
 
         // -- Pins
