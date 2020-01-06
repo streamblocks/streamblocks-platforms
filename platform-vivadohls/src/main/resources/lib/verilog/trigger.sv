@@ -57,10 +57,13 @@ module trigger
     input wire all_sync_wait,
     // signal indicating whether all actors are in SLEEP state
     input wire all_sleep,
+    // signal indicating the last step taken by every other actor was a WAIT
+    input wire all_waited,
 
     output wire sleep,	//actor is sleeping
     output wire sync_exec, //actor returned EXECUTED in a synced step
     output wire sync_wait,	//actor returned ~EXECUTED in a synced step
+    output wire waited,     //actor returned WAIT or IDLE on last step
 
     input wire[31:0] actor_return,
     input wire actor_done,
@@ -78,8 +81,21 @@ module trigger
 	state_t SLEEP_OR_LAUNCH = (mode != ACTOR_TRIGGER) ? SLEEP : LAUNCH;
 	state_t WAIT_OR_LAUNCH = (mode == OUTPUT_TRIGGER) ? SLEEP : LAUNCH;
 
-	always_ff @(posedge ap_clk) begin
+
+    logic waited_on_last_step = 1'b0;
+
+    always_ff @(posedge ap_clk) begin
         if (~ap_rst_n)
+            waited_on_last_step <= 1'b0;
+        else if (actor_done) begin
+            if (actor_return == WAIT || actor_return == IDLE)
+                waited_on_last_step <= 1'b1;
+            else
+                waited_on_last_step <= 1'b0;
+        end
+    end
+	always_ff @(posedge ap_clk) begin
+        if (~ap_rst_n) 
                 state <= IDLE_STATE;
         else
             state <= next_state;
@@ -122,6 +138,8 @@ module trigger
           SLEEP: begin
               if (all_sleep)
                   next_state = SYNC_OR_TRY_LAUNCH;
+              else if (!all_waited)
+                next_state = LAUNCH;
               else
                   next_state = SLEEP;
           end
@@ -177,5 +195,7 @@ module trigger
 	assign sync_exec = (state == SYNC_EXEC);
 	assign ap_done = (next_state == IDLE_STATE);
 	assign ap_ready = ap_done;
+
+    assign waited = waited_on_last_step;
 
 endmodule : trigger

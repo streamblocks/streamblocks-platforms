@@ -49,6 +49,10 @@ public interface VerilogNetwork {
         return "all_sleep";
     }
 
+    default String getAllWaited() {
+        return "all_waited";
+    }
+
     default void generateNetwork() {
         // -- Identifier
         String identifier = backend().task().getIdentifier().getLast().toString();
@@ -129,7 +133,7 @@ public interface VerilogNetwork {
             getInstances(network.getInstances(), network.getConnections());
 
             // -- ILA for debug
-            //getILA(network.getInstances());
+            // getILA(network.getInstances());
 
             // -- Assignments
             getAssignments(network);
@@ -302,6 +306,7 @@ public interface VerilogNetwork {
         emitter().emit("wire    %s;", getAllSyncSingal());
         emitter().emit("wire    %s;", getAllSyncWaitSignal());
         emitter().emit("wire    %s;", getExternalEnqueueSignal());
+        emitter().emit("wire    %s;", getAllWaited());
         emitter().emitNewLine();
     }
 
@@ -326,6 +331,10 @@ public interface VerilogNetwork {
             emitter().emit("wire    %s_ap_done;", qidName);
             emitter().emit("wire    %s_ap_ready;", qidName);
             emitter().emit("wire    [31 : 0] %s_ap_return;", qidName);
+
+            emitter().emit("// -- Singal for wake up and sleep");
+            emitter().emit("wire    %s_waited;", qidName);
+            emitter().emit("wire    %s_all_waited;", qidName);
             emitter().emitNewLine();
         }
         emitter().emitNewLine();
@@ -436,6 +445,8 @@ public interface VerilogNetwork {
                 emitter().emit(".sleep(%s),", getTriggerSignalByName(instance, "sleep"));
                 emitter().emit(".sync_exec(%s),", getTriggerSignalByName(instance, "sync_exec"));
                 emitter().emit(".sync_wait(%s),", getTriggerSignalByName(instance, "sync_wait"));
+                emitter().emit(".waited(%s),", getTriggerSignalByName(instance, "waited"));
+                emitter().emit(".all_waited(%s),", getTriggerSignalByName(instance, "all_waited"));
                 emitter().emit(".actor_return(%s_ap_return),", qidName);
                 emitter().emit(".actor_done(%s_ap_done),", qidName);
                 emitter().emit(".actor_ready(%s_ap_ready),", qidName);
@@ -446,6 +457,7 @@ public interface VerilogNetwork {
             }
             emitter().emit(");");
             emitter().emitNewLine();
+
         } else {
             emitter().emit("assign %s_ap_start = %s;", qidName, String.join(" || ", entity.getInputPorts().stream()
                     .map(p -> String.format("q_%s_%s_empty_n", name, p.getName())).collect(Collectors.toList())));
@@ -486,7 +498,6 @@ public interface VerilogNetwork {
                 emitter().emit(".C_M_AXI_%s_BUSER_WIDTH( C_M_AXI_%s_BUSER_WIDTH )%s", memName.toUpperCase(),
                         memName.toUpperCase(), lastElement ? "" : ",");
             }
-
 
             emitter().decreaseIndentation();
 
@@ -572,12 +583,12 @@ public interface VerilogNetwork {
 
     // ------------------------------------------------------------------------
     // -- ILA for debug
-    default void getILA(List<Instance> instances){
+    default void getILA(List<Instance> instances) {
         emitter().emit("ila_0 i_ila_0(");
         {
             emitter().increaseIndentation();
 
-            for(Instance instance : instances){
+            for (Instance instance : instances) {
                 // -- Instance name
                 String qidName = backend().instaceQID(instance.getInstanceName(), "_");
                 emitter().emit(".probe%d(%s_ap_return),", instances.indexOf(instance), qidName);
@@ -826,12 +837,21 @@ public interface VerilogNetwork {
         List<String> sleepSignals = getTriggerSignalsByName(instances, "sleep");
         List<String> syncSignals = getTriggerSignalsByName(instances, "sync");
         List<String> syncWaitSignals = getTriggerSignalsByName(instances, "sync_wait");
+        List<String> lastWaitedSignals = getTriggerSignalsByName(instances, "waited");
 
         emitter().emit("// --Local sync signals");
         for (Instance instance : instances) {
 
             emitter().emit("assign %s = %s | %s;", getTriggerSignalByName(instance, "sync"),
                     getTriggerSignalByName(instance, "sync_exec"), getTriggerSignalByName(instance, "sync_wait"));
+        }
+        emitter().emit("// -- Local wait signals");
+        for (Instance instance : instances) {
+            emitter().emit("assign %s = %s;", getTriggerSignalByName(instance, "all_waited"),
+                    String.join(" & ",
+                            lastWaitedSignals.stream().filter(x -> x != getTriggerSignalByName(instance, "waited"))
+                                    .collect(Collectors.toList())));
+            // emitter().emit("assign %s = %s;", getTriggerSignalByName(instance, "all_waited"), String.)
         }
         emitter().emitNewLine();
         emitter().emit("// -- global sync signals");
@@ -872,7 +892,6 @@ public interface VerilogNetwork {
         }
         emitter().emitNewLine();
     }
-
 
     // -- Helper Methods
 
