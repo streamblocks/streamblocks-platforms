@@ -190,6 +190,7 @@ public interface InputStage {
             emitter().emit(".sleep(%s_sleep),", port.getSafeName());
             emitter().emit(".sync_exec(),", port.getSafeName());
             emitter().emit(".sync_wait(),", port.getSafeName());
+            emitter().emit(".all_waited(1'b1),");
             emitter().emit(".actor_return(%s_input_stage_ap_return),", port.getName());
             emitter().emit(".actor_done(%s_input_stage_ap_done),", port.getName());
             emitter().emit(".actor_ready(%s_input_stage_ap_ready),", port.getName());

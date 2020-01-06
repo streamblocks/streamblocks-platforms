@@ -167,6 +167,7 @@ public interface OutputStage {
             emitter().emit(".all_sync(),");
             emitter().emit(".all_sync_wait(),");
             emitter().emit(".all_sleep(%s_all_sleep),", port.getName());
+            emitter().emit(".all_waited(1'b1),");
             emitter().emit(".sync_exec(),");
             emitter().emit(".sync_wait(),");
             emitter().emit(".sleep(%s_sleep),", port.getName());
