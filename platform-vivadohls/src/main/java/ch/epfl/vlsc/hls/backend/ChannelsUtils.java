@@ -96,7 +96,7 @@ public interface ChannelsUtils {
         if (attribute.isPresent()) {
             return (int) backend().constants().intValue(attribute.get().getValue()).getAsLong();
         } else {
-            return 4096;
+            return 512;
         }
     }
 

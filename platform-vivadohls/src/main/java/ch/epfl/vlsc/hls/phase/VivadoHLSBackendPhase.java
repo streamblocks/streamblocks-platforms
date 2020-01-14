@@ -9,6 +9,7 @@ import se.lth.cs.tycho.compiler.CompilationTask;
 import se.lth.cs.tycho.compiler.Compiler;
 import se.lth.cs.tycho.compiler.Context;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
+import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.entity.am.ActorMachine;
 import se.lth.cs.tycho.ir.network.Instance;
@@ -138,12 +139,14 @@ public class VivadoHLSBackendPhase implements Phase {
         reporter.report(new Diagnostic(Diagnostic.Kind.INFO, "Identifier, " + task.getIdentifier().toString()));
         reporter.report(new Diagnostic(Diagnostic.Kind.INFO, "Target Path, " + PathUtils.getTarget(context)));
 
+
         // -- Create Directories
         createDirectories(context);
 
         // -- Instantiate backend, bind current compilation task and the context
         VivadoHLSBackend backend = MultiJ.from(VivadoHLSBackend.class).bind("task").to(task).bind("context").to(context)
                 .instance();
+
 
         // -- Copy Backend resources
         copyBackendResources(backend);
@@ -182,6 +185,44 @@ public class VivadoHLSBackendPhase implements Phase {
     }
 
     /**
+     * ReportInformation on Actor Machines to be generated
+     * @param task
+     * @param reporter
+     * @param backend
+     */
+    private void reportInfo(CompilationTask task, Reporter reporter, VivadoHLSBackend backend) {
+        // -- Report on AM
+        int nbrStates = 0;
+        int maxInstanceState = 0;
+        int nbrTransitions = 0;
+        int nbrConditions = 0;
+
+        for (Instance instance : task.getNetwork().getInstances()) {
+            GlobalEntityDecl entityDecl = backend.globalnames().entityDecl(instance.getEntityName(), true);
+            Entity entity = entityDecl.getEntity();
+            if (entity instanceof ActorMachine) {
+                ActorMachine am = (ActorMachine) entity;
+                int instanceStateSize = am.controller().getStateList().size();
+                nbrStates += instanceStateSize;
+                if (instanceStateSize > maxInstanceState) {
+                    maxInstanceState = instanceStateSize;
+                }
+                nbrTransitions += am.getTransitions().size();
+                nbrConditions += am.getConditions().size();
+            }
+        }
+        // -- Information
+        reporter.report(new Diagnostic(Diagnostic.Kind.INFO, "Nbr of Instances: " + task.getNetwork().getInstances().size()));
+        reporter.report(new Diagnostic(Diagnostic.Kind.INFO, "Nbr of Queues: " + task.getNetwork().getConnections().size()));
+
+        reporter.report(new Diagnostic(Diagnostic.Kind.INFO, "Sum of States: " + nbrStates));
+        reporter.report(new Diagnostic(Diagnostic.Kind.INFO, "Sum of Conditions: " + nbrConditions));
+        reporter.report(new Diagnostic(Diagnostic.Kind.INFO, "Sum of Transitions: " + nbrTransitions));
+        reporter.report(new Diagnostic(Diagnostic.Kind.INFO, "Maximum State of all instances: " + maxInstanceState));
+    }
+
+
+    /**
      * Generate Source code for instances
      *
      * @param backend
@@ -202,7 +243,9 @@ public class VivadoHLSBackendPhase implements Phase {
      * @param backend
      */
     private void generateNetwork(VivadoHLSBackend backend) {
+
         backend.vnetwork().generateNetwork();
+        int nbrConnections = backend.task().getNetwork().getConnections().size();
     }
 
     /**
@@ -222,14 +265,12 @@ public class VivadoHLSBackendPhase implements Phase {
 
         // -- Input Stage
         for (PortDecl port : backend.task().getNetwork().getInputPorts()) {
-            backend.stagepass().getStagePass(port);
             backend.inputstagemem().getInputStageMem(port);
             backend.inputstage().getInputStage(port);
         }
 
         // -- Output Stage
         for (PortDecl port : backend.task().getNetwork().getOutputPorts()) {
-            backend.stagepass().getStagePass(port);
             backend.outputstagemem().getOutputStageMem(port);
             backend.outputstage().getOutputStage(port);
         }
@@ -352,11 +393,6 @@ public class VivadoHLSBackendPhase implements Phase {
                     StandardCopyOption.REPLACE_EXISTING);
             Files.copy(getClass().getResourceAsStream("/lib/cmake/FindVitis.cmake"),
                     PathUtils.getTargetCmake(backend.context()).resolve("FindVitis.cmake"),
-                    StandardCopyOption.REPLACE_EXISTING);
-
-            // -- Input Stage pass Header
-            Files.copy(getClass().getResourceAsStream("/lib/hls/stage_pass.h"),
-                    PathUtils.getTargetCodeGenInclude(backend.context()).resolve("stage_pass.h"),
                     StandardCopyOption.REPLACE_EXISTING);
 
             // -- Input Stage mem Header

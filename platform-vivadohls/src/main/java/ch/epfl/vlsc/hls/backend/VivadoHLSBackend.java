@@ -266,12 +266,6 @@ public interface VivadoHLSBackend {
         return MultiJ.from(KernelWrapper.class).bind("backend").to(this).instance();
     }
 
-    // -- Input Stage Pass
-    @Binding(LAZY)
-    default StagePass stagepass() {
-        return MultiJ.from(StagePass.class).bind("backend").to(this).instance();
-    }
-
     // -- Input Stage Mem
     @Binding(LAZY)
     default InputStageMem inputstagemem() {

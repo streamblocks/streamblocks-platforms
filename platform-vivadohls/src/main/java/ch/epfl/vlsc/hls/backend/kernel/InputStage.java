@@ -311,47 +311,6 @@ public interface InputStage {
         emitter().emitNewLine();
     }
 
-    default void getStagePass(PortDecl port) {
-        emitter().emit("%s_stage_pass i_%1$s_stage_pass(", port.getName());
-        {
-            emitter().increaseIndentation();
-
-            emitter().emit(".ap_clk(ap_clk),");
-            emitter().emit(".ap_rst_n(ap_rst_n),");
-            emitter().emit(".STREAM_IN_V_dout(q_tmp_V_dout),");
-            emitter().emit(".STREAM_IN_V_empty_n(q_tmp_V_empty_n),");
-            emitter().emit(".STREAM_IN_V_read(q_tmp_V_read),");
-            emitter().emit(".STREAM_OUT_V_din(BYTE_V_din),");
-            emitter().emit(".STREAM_OUT_V_full_n(BYTE_V_full_n),");
-            emitter().emit(".STREAM_OUT_V_write(BYTE_V_write)");
-
-            emitter().decreaseIndentation();
-        }
-        emitter().emit(");");
-
-        emitter().emitNewLine();
-    }
-    default void getStagePassNamed(String name, String inputName, String outputName) {
-        emitter().emit("%s_stage_pass i_%1$s_stage_pass(", name);
-        {
-            emitter().increaseIndentation();
-
-            emitter().emit(".ap_clk(ap_clk),");
-            emitter().emit(".ap_rst_n(ap_rst_n),");
-            emitter().emit(".STREAM_IN_V_dout(%s_dout),", inputName);
-            emitter().emit(".STREAM_IN_V_empty_n(%s_empty_n),", inputName);
-            emitter().emit(".STREAM_IN_V_read(%s_read),", inputName);
-            emitter().emit(".STREAM_OUT_V_din(%s_din),", outputName);
-            emitter().emit(".STREAM_OUT_V_full_n(%s_full_n),", outputName);
-            emitter().emit(".STREAM_OUT_V_write(%s_write)", outputName);
-
-            emitter().decreaseIndentation();
-        }
-        emitter().emit(");");
-
-        emitter().emitNewLine();
-    }
-
     default void getFifoCountLogic(PortDecl port) {
         emitter().emit("// -- FIFO count sampling");
         emitter().emit("always_ff @(posedge ap_clk) begin");
