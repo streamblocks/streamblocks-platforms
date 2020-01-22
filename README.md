@@ -32,7 +32,7 @@ Platform                   | Description           |
 ---------------------------|-----------------------|
 [platform-generic-c/][]    | Generic monocore C code generation <i> (to be deprecated)</i>  <br> |
 [platform-multicore/][]    | Code generation for multicore architectures supporting Posix threads <br> |
-[platform-vivadohls/][]    | Code generation for Xilinx FPGAs by using Vivado HLS <br>   |  
+[platform-vivadohls/][]    | Code generation for Xilinx FPGAs by using Vivado HLS, SDAccel & Vitis <br>   |  
 
 
 
