@@ -80,6 +80,9 @@ public interface KernelWrapper {
             // -- AP Logic
             getApLogic(network);
 
+            // -- Offset logic
+            getOffsetLogic(network);
+
             // -- Input Stage(s)
             for (PortDecl port : network.getInputPorts()) {
                 getInputStage(port);
@@ -105,7 +108,6 @@ public interface KernelWrapper {
     // -- Parameters
     default void getParameters(Network network) {
 
-
         Map<VarDecl, String> mems = backend().externalMemory().externalMemories();
 
         Iterator<VarDecl> itr = mems.keySet().iterator();
@@ -117,7 +119,8 @@ public interface KernelWrapper {
             ListType listType = (ListType) backend().types().declaredType(decl);
             Type type = listType.getElementType();
             int bitSize = TypeUtils.sizeOfBits(type);
-            boolean lastElement = network.getOutputPorts().isEmpty() && network.getInputPorts().isEmpty() && !itr.hasNext();
+            boolean lastElement = network.getOutputPorts().isEmpty() && network.getInputPorts().isEmpty()
+                    && !itr.hasNext();
             emitter().emit("parameter integer C_M_AXI_%s_ADDR_WIDTH = %d,", memName.toUpperCase(),
                     AxiConstants.C_M_AXI_ADDR_WIDTH);
             emitter().emit("parameter integer C_M_AXI_%s_DATA_WIDTH = %d,", memName.toUpperCase(),
@@ -247,6 +250,7 @@ public interface KernelWrapper {
             emitter().emit("wire    %s_write;", port.getName());
             emitter().emit("wire    [31:0] %s_fifo_count;", port.getName());
             emitter().emit("wire    [31:0] %s_fifo_size;", port.getName());
+            emitter().emit("wire    [63:0] %s_offset;", port.getSafeName());
         }
 
         for (PortDecl port : network.getOutputPorts()) {
@@ -257,6 +261,7 @@ public interface KernelWrapper {
             emitter().emit("wire    %s_read;", port.getName());
             emitter().emit("wire    [31:0] %s_fifo_count;", port.getName());
             emitter().emit("wire    [31:0] %s_fifo_size;", port.getName());
+            emitter().emit("wire    [63:0] %s_offset;", port.getSafeName());
         }
         emitter().emit("wire    %s_ap_idle;", moduleName);
         emitter().emit("wire    %s_ap_done;", moduleName);
@@ -288,6 +293,24 @@ public interface KernelWrapper {
         emitter().emit("logic   %s_network_idle_r = 1'b1;", backend().task().getIdentifier().getLast().toString());
         emitter().emit("logic   ap_idle_r = 1'b1;");
         emitter().emitNewLine();
+
+        emitter().emit("// -- local trigger wire");
+        getPortsLocalTriggerWires(network.getInputPorts());
+        getPortsLocalTriggerWires(network.getOutputPorts());
+
+        emitter().emit("// -- global trigger wires");
+        backend().vnetwork().getGlobalTriggerWires();
+
+    }
+
+    default void getPortsLocalTriggerWires(ImmutableList<PortDecl> ports) {
+        for (PortDecl port : ports) {
+            emitter().emit("wire    %s_sleep;", port.getSafeName());
+            emitter().emit("wire    %s_sync_wait;", port.getSafeName());
+            emitter().emit("wire    %s_sync_exec;", port.getSafeName());
+            emitter().emit("wire    %s_waited;", port.getSafeName());
+            emitter().emit("wire    %s_all_waited;", port.getSafeName());
+        }
 
     }
 
@@ -356,6 +379,21 @@ public interface KernelWrapper {
 
     }
 
+    // -- Offset assignments
+
+    default void getOffsetLogic(Network network) {
+        emitter().emit("// -- offset logic");
+        getPortOffsetLogic(network.getInputPorts());
+        getPortOffsetLogic(network.getOutputPorts());
+        emitter().emitNewLine();
+    }
+
+    default void getPortOffsetLogic(ImmutableList<PortDecl> ports) {
+        for (PortDecl port : ports)
+            emitter().emit("assign %s_offset = 64'b0;", port.getSafeName());
+        emitter().emitNewLine();
+    }
+
     default void getAxiMasterConnections(PortDecl port, boolean safeName) {
         if (safeName) {
             backend().vnetwork().getAxiMasterByPort(port.getSafeName(), port.getName());
@@ -364,7 +402,6 @@ public interface KernelWrapper {
         }
 
     }
-
 
     // ------------------------------------------------------------------------
     // -- Input Stages instantiation
@@ -410,6 +447,7 @@ public interface KernelWrapper {
             emitter().emit(".ap_idle(%s_input_stage_ap_idle),", port.getName());
             emitter().emit(".ap_ready(),");
             emitter().emit(".ap_return(%s_input_stage_ap_return),", port.getName());
+
             // -- AXI Master
             getAxiMasterConnections(port, false);
             // -- Direct address
@@ -417,12 +455,19 @@ public interface KernelWrapper {
             emitter().emit(".%s_size_r(%1$s_size),", port.getName());
             emitter().emit(".%s_buffer(%1$s_buffer),", port.getName());
             emitter().emit(".kernel_command(kernel_command[31:0]),");
+            emitter().emit(".%s_offset(%1$s_offset),", port.getSafeName());
+
+            // -- Trigger
+            getTriggerGlobalBindings();
+            getTriggerPortBindings(port);
+
             // -- FIFO I/O
             emitter().emit(".%s_din(%1$s_din),", port.getName());
             emitter().emit(".%s_full_n(%1$s_full_n),", port.getName());
             emitter().emit(".%s_write(%1$s_write),", port.getName());
             emitter().emit(".%s_fifo_count(%1$s_fifo_count),", port.getName());
             emitter().emit(".%s_fifo_size(%1$s_fifo_size)", port.getName());
+
             emitter().decreaseIndentation();
         }
         emitter().emit(");");
@@ -433,7 +478,6 @@ public interface KernelWrapper {
     // -- Network instantiation
     default void getNetwork(Network network) {
         String instanceName = backend().task().getIdentifier().getLast().toString();
-
 
         if (backend().externalMemory().externalMemories().isEmpty()) {
             emitter().emit("%s i_%1$s(", instanceName);
@@ -469,7 +513,6 @@ public interface KernelWrapper {
                             memName.toUpperCase(), lastElement ? "" : ",");
                 }
 
-
                 emitter().decreaseIndentation();
             }
             emitter().emit(")");
@@ -488,30 +531,62 @@ public interface KernelWrapper {
             }
             // -- Input ports
             for (PortDecl port : network.getInputPorts()) {
+                emitter().emit("//-- Streaming ports");
                 emitter().emit(".%s_din(%1$s_din),", port.getName());
                 emitter().emit(".%s_full_n(%1$s_full_n),", port.getName());
                 emitter().emit(".%s_write(%1$s_write),", port.getName());
                 emitter().emit(".%s_fifo_count(%1$s_fifo_count),", port.getName());
                 emitter().emit(".%s_fifo_size(%1$s_fifo_size),", port.getName());
+                emitter().emit("// -- trigger signals");
+                emitter().emit(".%s_sleep(%1$s_sleep),", port.getSafeName());
+                emitter().emit(".%s_sync_wait(%1$s_sync_wait),", port.getSafeName());
+                emitter().emit(".%s_sync_exec(%1$s_sync_exec),", port.getSafeName());
+                emitter().emit(".%s_waited(%1$s_waited),", port.getSafeName());
+                emitter().emit(".%s_all_waited(%1$s_all_waited),", port.getSafeName());
             }
             // -- Output ports
             for (PortDecl port : network.getOutputPorts()) {
+                emitter().emit("//-- Streaming ports");
                 emitter().emit(".%s_dout(%1$s_dout),", port.getName());
                 emitter().emit(".%s_empty_n(%1$s_empty_n),", port.getName());
                 emitter().emit(".%s_read(%1$s_read),", port.getName());
                 emitter().emit(".%s_fifo_count(%1$s_fifo_count),", port.getName());
                 emitter().emit(".%s_fifo_size(%1$s_fifo_size),", port.getName());
+                emitter().emit("// -- trigger wires");
+                emitter().emit(".%s_sleep(%1$s_sleep),", port.getSafeName());
+                emitter().emit(".%s_sync_wait(%1$s_sync_wait),", port.getSafeName());
+                emitter().emit(".%s_sync_exec(%1$s_sync_exec),", port.getSafeName());
+                emitter().emit(".%s_waited(%1$s_waited),", port.getSafeName());
+                emitter().emit(".%s_all_waited(%1$s_all_waited),", port.getSafeName());
             }
+            emitter().emit("//-- global trigger signals");
+            getTriggerGlobalBindings();
+            // emitter().emit(".%s(%1$s);", backend().vnetwork().getAllWaitedSignal());
+            emitter().emit("//-- AP control");
             emitter().emit(".ap_clk(ap_clk),");
             emitter().emit(".ap_rst_n(ap_rst_n),");
             emitter().emit(".ap_start(ap_start_pulse),");
             emitter().emit(".ap_idle(%s_network_idle),", instanceName);
-            emitter().emit(".ap_done(%s_ap_done),", instanceName);
-            emitter().emit(".input_idle(input_stage_idle)");
+            emitter().emit(".ap_done(%s_ap_done)", instanceName);
+            // emitter().emit(".input_idle(input_stage_idle)");
 
             emitter().decreaseIndentation();
         }
         emitter().emit(");");
+    }
+
+    default void getTriggerGlobalBindings() {
+        emitter().emit(".%s(%1$s),", backend().vnetwork().getAllSyncSignal());
+        emitter().emit(".%s(%1$s),", backend().vnetwork().getAllSyncWaitSignal());
+        emitter().emit(".%s(%1$s),", backend().vnetwork().getAllSleepSignal());
+    }
+
+    default void getTriggerPortBindings(PortDecl port) {
+        emitter().emit(".%s_sleep(%1$s_sleep),", port.getSafeName());
+        emitter().emit(".%s_sync_wait(%1$s_sync_wait),", port.getSafeName());
+        emitter().emit(".%s_sync_exec(%1$s_sync_exec),", port.getSafeName());
+        emitter().emit(".%s_waited(%1$s_waited),", port.getSafeName());
+        emitter().emit(".%s_all_waited(%1$s_waited),", port.getSafeName());
     }
 
     // ------------------------------------------------------------------------
@@ -565,6 +640,10 @@ public interface KernelWrapper {
             emitter().emit(".%s_size_r(%1$s_size),", port.getName());
             emitter().emit(".%s_buffer(%1$s_buffer),", port.getName());
             emitter().emit(".kernel_command(kernel_command[63:32]),");
+            emitter().emit(".%s_offset(%1$s_offset),", port.getSafeName());
+            // -- Trigger
+            getTriggerGlobalBindings();
+            getTriggerPortBindings(port);
             // -- FIFO I/O
             emitter().emit(".%s_dout(%1$s_dout),", port.getName());
             emitter().emit(".%s_empty_n(%1$s_empty_n),", port.getName());
@@ -578,6 +657,5 @@ public interface KernelWrapper {
         emitter().emit(");");
         emitter().emitNewLine();
     }
-
 
 }

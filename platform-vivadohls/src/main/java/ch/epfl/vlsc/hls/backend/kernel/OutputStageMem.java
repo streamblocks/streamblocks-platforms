@@ -40,7 +40,7 @@ public interface OutputStageMem {
             emitter().emit("static class_output_stage_mem< %s > i_%s_output_stage_mem;", backend().declarations().declaration(backend().types().declaredPortType(port), ""), port.getName());
             emitter().emitNewLine();
 
-            emitter().emit("return i_%s_output_stage_mem(%1$s, fifo_count, %1$s_available_size, %1$s_size, %1$s_buffer);", port.getName());
+            emitter().emit("return i_%s_output_stage_mem(%1$s_available_size, %1$s_size, %1$s_buffer, fifo_count, %1$s, %1$s_offset);", port.getName());
 
 
             emitter().decreaseIndentation();
@@ -52,12 +52,13 @@ public interface OutputStageMem {
 
     default String entityPorts(PortDecl port) {
         List<String> ports = new ArrayList<>();
-        ports.add(backend().declarations().portDeclaration(port));
-        ports.add("uint32_t fifo_count");
         ports.add(String.format("uint32_t %s_available_size", port.getName()));
         ports.add(String.format("uint32_t *%s_size", port.getName()));
         ports.add(String.format("%s *%s_buffer", backend().declarations().declaration(backend().types().declaredPortType(port), ""), port.getName()));
-
+        
+        ports.add("uint32_t fifo_count");
+        ports.add(backend().declarations().portDeclaration(port));
+        ports.add(String.format("hls::stream< uint64_t > &%s_offset", port.getName()));
         return String.join(", ", ports);
     }
 }
