@@ -228,7 +228,7 @@ public class VivadoHLSBackendPhase implements Phase {
      * @param backend
      */
 
-    private void generateInstrances(VivadoHLSBackend backend) {
+    public static void generateInstrances(VivadoHLSBackend backend) {
         for (Instance instance : backend.task().getNetwork().getInstances()) {
             GlobalEntityDecl entityDecl = backend.globalnames().entityDecl(instance.getEntityName(), true);
             if (!entityDecl.getExternal()) {
@@ -242,7 +242,7 @@ public class VivadoHLSBackendPhase implements Phase {
      *
      * @param backend
      */
-    private void generateNetwork(VivadoHLSBackend backend) {
+    public static void generateNetwork(VivadoHLSBackend backend) {
 
         backend.vnetwork().generateNetwork();
         int nbrConnections = backend.task().getNetwork().getConnections().size();
@@ -287,7 +287,7 @@ public class VivadoHLSBackendPhase implements Phase {
      *
      * @param backend
      */
-    private void generateGlobals(VivadoHLSBackend backend) {
+    public static void generateGlobals(VivadoHLSBackend backend) {
 
         // -- Globals Header
         backend.globals().globalHeader();
@@ -298,7 +298,7 @@ public class VivadoHLSBackendPhase implements Phase {
      *
      * @param backend
      */
-    private void generateDeviceHandle(VivadoHLSBackend backend) {
+    public static void generateDeviceHandle(VivadoHLSBackend backend) {
 
         // -- Globals Header
         backend.devicehandle().generateDeviceHandle();
@@ -309,7 +309,7 @@ public class VivadoHLSBackendPhase implements Phase {
      *
      * @param backend
      */
-    private void generateTestbenches(VivadoHLSBackend backend) {
+    public static void generateTestbenches(VivadoHLSBackend backend) {
         // -- Network
         Network network = backend.task().getNetwork();
 
@@ -320,13 +320,13 @@ public class VivadoHLSBackendPhase implements Phase {
         network.getInstances().forEach(backend.testbench()::generateTestbench);
     }
 
-    private void generateWcfg(VivadoHLSBackend backend) {
+    public static void generateWcfg(VivadoHLSBackend backend) {
         // -- Wcfg
         Network network = backend.task().getNetwork();
         backend.wcfg().getWcfg(network);
     }
 
-    private void generateCmakeScript(VivadoHLSBackend backend) {
+    public static void generateCmakeScript(VivadoHLSBackend backend) {
         // -- CMake script for Vivado HLS
         backend.vivadotcl().generateVivadoTCL();
     }
@@ -336,12 +336,12 @@ public class VivadoHLSBackendPhase implements Phase {
      *
      * @param backend
      */
-    private void generateCmakeLists(VivadoHLSBackend backend) {
+    public static void generateCmakeLists(VivadoHLSBackend backend) {
         // -- Project CMakeLists
         backend.cmakelists().projectCMakeLists();
     }
 
-    private void generateAuxiliary(VivadoHLSBackend backend) {
+    public static void generateAuxiliary(VivadoHLSBackend backend) {
 
         // -- Network to DOT
         backend.netoworkToDot().generateNetworkDot();

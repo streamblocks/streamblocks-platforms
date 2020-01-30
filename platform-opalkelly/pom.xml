@@ -9,9 +9,9 @@
         <version>1.0-SNAPSHOT</version>
     </parent>
     <groupId>ch.epfl.vlsc.streamblocks</groupId>
-    <artifactId>platform-multicore</artifactId>
+    <artifactId>platform-opalkelly</artifactId>
     <version>1.0-SNAPSHOT</version>
-    <name>StreamBlocks platform, for generic multicores </name>
+    <name>StreamBlocks platform, for OpalKelly FPGA boards</name>
     <dependencies>
         <!-- https://mvnrepository.com/artifact/commons-io/commons-io -->
         <dependency>
@@ -48,6 +48,11 @@
         <dependency>
             <groupId>ch.epfl.vlsc.streamblocks</groupId>
             <artifactId>platform-core</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>ch.epfl.vlsc.streamblocks</groupId>
+            <artifactId>platform-vivadohls</artifactId>
             <version>1.0-SNAPSHOT</version>
         </dependency>
     </dependencies>

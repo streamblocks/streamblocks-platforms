@@ -8,10 +8,10 @@
         <artifactId>streamblocks</artifactId>
         <version>1.0-SNAPSHOT</version>
     </parent>
-    <groupId>ch.epfl.vlsc.streamblock</groupId>
+    <groupId>ch.epfl.vlsc.streamblocks</groupId>
     <artifactId>platform-node</artifactId>
     <version>1.0-SNAPSHOT</version>
-    <name>StreamBlocks Node platform</name>
+    <name>StreamBlocks platform, for Node </name>
     <dependencies>
         <!-- https://mvnrepository.com/artifact/commons-io/commons-io -->
         <dependency>
@@ -46,17 +46,17 @@
             <version>0.1</version>
         </dependency>
         <dependency>
-            <groupId>ch.epfl.vlsc.streamblock</groupId>
+            <groupId>ch.epfl.vlsc.streamblocks</groupId>
             <artifactId>platform-multicore</artifactId>
             <version>1.0-SNAPSHOT</version>
         </dependency>
         <dependency>
-            <groupId>ch.epfl.vlsc.streamblock</groupId>
+            <groupId>ch.epfl.vlsc.streamblocks</groupId>
             <artifactId>platform-vivadohls</artifactId>
             <version>1.0-SNAPSHOT</version>
         </dependency>
         <dependency>
-            <groupId>ch.epfl.vlsc</groupId>
+            <groupId>ch.epfl.vlsc.streamblocks</groupId>
             <artifactId>platform-core</artifactId>
             <version>1.0-SNAPSHOT</version>
         </dependency>

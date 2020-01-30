@@ -44,7 +44,6 @@ public class VivadoHLS implements Platform {
                 new ScheduleInitializersPhase(),
                 new MergeManyGuardsPhase(),
                 new CalToAmHwPhase(),
-
                 new RemoveEmptyTransitionsPhase(),
                 new ReduceActorMachinePhase(),
                 new CompositionEntitiesUniquePhase(),

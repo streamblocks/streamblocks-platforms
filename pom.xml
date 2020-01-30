@@ -16,6 +16,7 @@
         <module>platform-multicore</module>
         <module>platform-vivadohls</module>
         <module>platform-node</module>
+        <module>platform-opalkelly</module>
     </modules>
 
     <properties>

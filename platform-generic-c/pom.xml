@@ -8,10 +8,10 @@
 		<artifactId>streamblocks</artifactId>
 		<version>1.0-SNAPSHOT</version>
 	</parent>
-	<groupId>ch.epfl.vlsc</groupId>
+	<groupId>ch.epfl.vlsc.streamblocks</groupId>
 	<artifactId>platform-generic-c</artifactId>
 	<version>1.0-SNAPSHOT</version>
-	<name>StreamBlocks C platform</name>
+	<name>StreamBlocks platform, for C </name>
 	<dependencies>
 		<dependency>
 			<groupId>se.lth.cs.tycho</groupId>

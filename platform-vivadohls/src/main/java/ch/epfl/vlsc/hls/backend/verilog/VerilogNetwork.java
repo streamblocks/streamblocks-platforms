@@ -202,8 +202,8 @@ public interface VerilogNetwork {
         emitter().emit("input  wire ap_rst_n,");
         emitter().emit("input  wire ap_start,");
         emitter().emit("output wire ap_idle,");
-        emitter().emit("output wire  ap_done,");
-        emitter().emit("input wire input_idle");
+        emitter().emit("output wire ap_done,");
+        emitter().emit("input  wire input_idle");
     }
 
     // ------------------------------------------------------------------------

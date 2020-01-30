@@ -138,7 +138,7 @@ public interface OutputStage {
         emitter().emit("wire   %s_output_stage_ap_done;", port.getName());
         emitter().emit("wire   %s_output_stage_ap_idle;", port.getName());
         emitter().emit("wire   %s_output_stage_ap_ready;", port.getName());
-        emitter().emit("wire    %s_sleep;", port.getName());
+        emitter().emit("wire    %s_sleep;", port.getSafeName());
         emitter().emit("wire    %s_sync_wait;", port.getSafeName());
         emitter().emit("wire    %s_sync_exec;", port.getSafeName());
         emitter().emit("wire    %s_all_sleep;", port.getSafeName());
@@ -170,7 +170,7 @@ public interface OutputStage {
             emitter().emit(".all_waited(1'b1),");
             emitter().emit(".sync_exec(),");
             emitter().emit(".sync_wait(),");
-            emitter().emit(".sleep(%s_sleep),", port.getName());
+            emitter().emit(".sleep(%s_sleep),", port.getSafeName());
             emitter().emit(".actor_return(%s_output_stage_ap_return),", port.getName());
             emitter().emit(".actor_done(%s_output_stage_ap_done),", port.getName());
             emitter().emit(".actor_ready(%s_output_stage_ap_ready),", port.getName());
