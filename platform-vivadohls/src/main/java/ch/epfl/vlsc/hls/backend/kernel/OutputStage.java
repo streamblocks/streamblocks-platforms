@@ -83,10 +83,8 @@ public interface OutputStage {
             emitter().emit("input    wire %s_empty_n,", port.getName());
             emitter().emit("output   wire %s_read, ", port.getName());
             emitter().emit("input    wire [31:0] %s_fifo_count, ", port.getName());
-            emitter().emit("input    wire [31:0] %s_fifo_size, ", port.getName());
-            emitter().emit("// -- Network idle");
-            emitter().emit("input wire network_idle");
-
+            emitter().emit("input    wire [31:0] %s_fifo_size ", port.getName());
+        
             emitter().decreaseIndentation();
         }
         emitter().emit(");");
@@ -125,8 +123,7 @@ public interface OutputStage {
         backend().inputstage().getOffsetFifoLogic(port);
 
         emitter().emitNewLine();
-        emitter().emit("assign  %s_all_sleep = (network_idle | %1$s_fifo_count >= kernel_command) ? 1'b1 : 1'b0;",
-                port.getName());
+        
         emitter().emitNewLine();
         emitter().emit("endmodule");
 

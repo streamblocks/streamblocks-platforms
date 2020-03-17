@@ -175,6 +175,7 @@ public interface KernelWrapper {
         // -- System signals
         emitter().emit("input   wire    ap_clk,");
         emitter().emit("input   wire    ap_rst_n,");
+        emitter().emit("input   wire    event_start");
 
         // -- Network external memory ports ports
         if (!backend().externalMemory().externalMemories().isEmpty()) {
@@ -235,7 +236,6 @@ public interface KernelWrapper {
         emitter().emitNewLine();
         // -- AP Control
         emitter().emit("// -- AP Control");
-        emitter().emit("logic   ap_start_pulse;");
         emitter().emit("logic   ap_start_r = 1'b0;");
         emitter().emitNewLine();
 
@@ -265,7 +265,6 @@ public interface KernelWrapper {
         }
         emitter().emit("wire    %s_ap_idle;", moduleName);
         emitter().emit("wire    %s_ap_done;", moduleName);
-        emitter().emit("wire    %s_network_idle;", moduleName);
 
         // -- I/O Stage
         emitter().emit("// -- AP for I/O Stage", backend().task().getIdentifier().getLast().toString());
@@ -288,9 +287,11 @@ public interface KernelWrapper {
         emitter().emitNewLine();
         emitter().emit("wire    output_stage_idle;");
         emitter().emit("wire    output_stage_done;");
+        emitter().emitNewLine();
+        emitter().emit("// -- idle registers");
         emitter().emit("logic   input_stage_idle_r = 1'b1;");
         emitter().emit("logic   output_stage_idle_r = 1'b1;");
-        emitter().emit("logic   %s_network_idle_r = 1'b1;", backend().task().getIdentifier().getLast().toString());
+        emitter().emit("logic   %s_idle_r = 1'b1;", backend().task().getIdentifier().getLast().toString());
         emitter().emit("logic   ap_idle_r = 1'b1;");
         emitter().emitNewLine();
 
@@ -318,53 +319,49 @@ public interface KernelWrapper {
     // -- AP Logic
     default void getApLogic(Network network) {
         // -- pulse ap_start
-        emitter().emit("// -- Pulse ap_start");
+
+        emitter().emit("// -- AP control logic");
+
+        // -- ap states
+        emitter().emit("localparam [1:0] KERNEL_IDLE = 2'b00;");
+        emitter().emit("localparam [1:0] KERNEL_START = 2'b01;");
+        emitter().emit("localparam [1:0] KERNEL_DONE = 2'b10;");
+        emitter().emit("localparam [1:0] KERNEL_ERROR = 2'b11;");
+        emitter().emit("logic    [1:0] ap_state = KERNEL_IDLE");
         emitter().emit("always_ff @(posedge ap_clk) begin");
         {
             emitter().increaseIndentation();
-            emitter().emit("if (ap_rst_n == 1'b0) begin");
+            emitter().emit(" if(ap_rst_n == 1'b0) begin");
             {
                 emitter().increaseIndentation();
-                emitter().emit("ap_start_r <= 1'b0;");
-                emitter().emit("input_stage_idle_r <= 1'b1;");
-                emitter().emit("output_stage_idle_r <= 1'b1;");
-                emitter().emit("%s_network_idle_r <= 1'b1;", backend().task().getIdentifier().getLast().toString());
-                emitter().emit("ap_idle_r <= 1'b1;");
+                emitter().emit("ap_state <= 2'b0;");
                 emitter().decreaseIndentation();
             }
             emitter().emit("end");
             emitter().emit("else begin");
-            {
+            {   
                 emitter().increaseIndentation();
-                emitter().emit("ap_start_r <= ap_start;");
-                emitter().emit("input_stage_idle_r <= input_stage_idle;");
-                emitter().emit("output_stage_idle_r <= output_stage_idle;");
-                emitter().emit("%s_network_idle_r <= %s_network_idle;",
-                        backend().task().getIdentifier().getLast().toString(),
-                        backend().task().getIdentifier().getLast().toString());
-                emitter().emit("ap_idle_r <= ap_idle;");
-
+                emitter().emit("case (ap_state)");
+                {
+                    emitter().increaseIndentation();
+                    emitter().emit("KERNEL_IDLE	: if (ap_start) ap_state <= KERNEL_START;");
+                    emitter().emit(
+                            "KERNEL_START: if (input_stage_idle && Increment_ap_idle && output_stage_idle) ap_state <= KERNEL_START;");
+                    emitter().emit("KERNEL_DONE	: ap_state <= KERNEL_IDLE;");
+                    emitter().emit("KERNEL_ERROR: ap_state <= KERNEL_IDLE;");
+                    emitter().decreaseIndentation();
+                }
+                emitter().emit("endcase");
                 emitter().decreaseIndentation();
             }
             emitter().emit("end");
             emitter().decreaseIndentation();
         }
         emitter().emit("end");
-        emitter().emitNewLine();
-        emitter().emit("assign ap_start_pulse = ap_start & ~ap_start_r;");
-        emitter().emitNewLine();
 
-        // -- ap_idle
-        emitter().emit("// -- ap_idle");
-        emitter().emit("assign ap_idle = %s_network_idle_r & output_stage_idle_r & input_stage_idle_r;",
-                backend().task().getIdentifier().getLast().toString());
-        // -- ap_read
-        emitter().emit("// -- ap_ready");
-        emitter().emit("assign ap_ready = ap_idle & ~ap_idle_r;");
-        // -- ap_done
-        emitter().emit("// -- ap_done");
-        emitter().emit("assign ap_done = ap_idle & ~ap_idle_r;");
-        emitter().emitNewLine();
+        emitter().emit("assign ap_idle = ap_state == KERNEL_IDLE;");
+        emitter().emit("assign ap_done = ap_state == KERNEL_DONE;");
+        emitter().emit("assign ap_ready = ap_state == KERNEL_DONE;");
 
         emitter().emitNewLine();
         emitter().emit("// -- input stage idle signal");
@@ -409,7 +406,7 @@ public interface KernelWrapper {
     default void getInputStage(PortDecl port) {
         emitter().emit("// -- Input stage for port : %s", port.getName());
         emitter().emitNewLine();
-        emitter().emit("assign %s_input_stage_ap_start = ap_start_pulse;", port.getName());
+        emitter().emit("assign %s_input_stage_ap_start = event_start;", port.getName());
         emitter().emitNewLine();
 
         emitter().emit("%s_input_stage #(", port.getName());
@@ -565,8 +562,8 @@ public interface KernelWrapper {
             emitter().emit("//-- AP control");
             emitter().emit(".ap_clk(ap_clk),");
             emitter().emit(".ap_rst_n(ap_rst_n),");
-            emitter().emit(".ap_start(ap_start_pulse),");
-            emitter().emit(".ap_idle(%s_network_idle),", instanceName);
+            emitter().emit(".ap_start(event_start),");
+            emitter().emit(".ap_idle(%s_ap_idle),", instanceName);
             emitter().emit(".ap_done(%s_ap_done)", instanceName);
             // emitter().emit(".input_idle(input_stage_idle)");
 
@@ -595,7 +592,7 @@ public interface KernelWrapper {
         emitter().emit("// -- Output stage for port : %s", port.getName());
         emitter().emitNewLine();
 
-        emitter().emit("assign %s_output_stage_ap_start = ap_start_pulse;", port.getName());
+        emitter().emit("assign %s_output_stage_ap_start = event_start;", port.getName());
         emitter().emitNewLine();
 
         emitter().emit("%s_output_stage #(", port.getName());
@@ -649,9 +646,7 @@ public interface KernelWrapper {
             emitter().emit(".%s_empty_n(%1$s_empty_n),", port.getName());
             emitter().emit(".%s_read(%1$s_read),", port.getName());
             emitter().emit(".%s_fifo_count(%1$s_fifo_count),", port.getName());
-            emitter().emit(".%s_fifo_size(%1$s_fifo_size),", port.getName());
-            emitter().emit(".network_idle(input_stage_idle & %s_network_idle)",
-                    backend().task().getIdentifier().getLast().toString());
+            emitter().emit(".%s_fifo_size(%1$s_fifo_size)", port.getName());
             emitter().decreaseIndentation();
         }
         emitter().emit(");");
