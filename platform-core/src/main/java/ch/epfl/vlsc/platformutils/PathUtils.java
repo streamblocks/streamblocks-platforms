@@ -168,6 +168,16 @@ public class PathUtils {
         return directory.toPath();
     }
 
+    /**
+     * Get the code-gen RTL target output directory
+     *
+     * @param context
+     * @return
+     */
+    public static Path getTargetCodeGenTla(Context context) {
+        File directory = new File(getTargetCodeGen(context).toFile(), "tla");
+        return directory.toPath();
+    }
 
     /**
      * Get the code-gen RTL target output directory
