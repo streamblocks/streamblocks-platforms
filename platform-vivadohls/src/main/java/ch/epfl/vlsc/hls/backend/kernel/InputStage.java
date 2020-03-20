@@ -138,7 +138,7 @@ public interface InputStage {
         emitter().emit("output wire %s_sync_wait,", port.getSafeName());
         emitter().emit("output wire %s_sync_exec,", port.getSafeName());
         emitter().emit("output wire %s_waited,", port.getSafeName());
-        emitter().emit("output wire %s_all_waited,", port.getSafeName());
+        
     }
 
     default void getWires(PortDecl port) {
@@ -231,7 +231,7 @@ public interface InputStage {
             emitter().emit(".sleep(%s_sleep),", port.getSafeName());
             emitter().emit(".sync_exec(%s_sync_exec),", port.getSafeName());
             emitter().emit(".sync_wait(%s_sync_wait),", port.getSafeName());
-            emitter().emit(".all_waited(%s_all_waited),", port.getSafeName());
+            emitter().emit(".all_waited(all_waited),");
             emitter().emit(".waited(%s_waited),", port.getSafeName());
             emitter().emit(".actor_return(%s_input_stage_ap_return),", port.getName());
             emitter().emit(".actor_done(%s_input_stage_ap_done),", port.getName());

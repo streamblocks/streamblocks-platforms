@@ -175,7 +175,7 @@ public interface KernelWrapper {
         // -- System signals
         emitter().emit("input   wire    ap_clk,");
         emitter().emit("input   wire    ap_rst_n,");
-        emitter().emit("input   wire    event_start");
+        emitter().emit("input   wire    event_start,");
 
         // -- Network external memory ports ports
         if (!backend().externalMemory().externalMemories().isEmpty()) {
@@ -327,7 +327,7 @@ public interface KernelWrapper {
         emitter().emit("localparam [1:0] KERNEL_START = 2'b01;");
         emitter().emit("localparam [1:0] KERNEL_DONE = 2'b10;");
         emitter().emit("localparam [1:0] KERNEL_ERROR = 2'b11;");
-        emitter().emit("logic    [1:0] ap_state = KERNEL_IDLE");
+        emitter().emit("logic    [1:0] ap_state = KERNEL_IDLE;");
         emitter().emit("always_ff @(posedge ap_clk) begin");
         {
             emitter().increaseIndentation();
@@ -344,9 +344,9 @@ public interface KernelWrapper {
                 emitter().emit("case (ap_state)");
                 {
                     emitter().increaseIndentation();
-                    emitter().emit("KERNEL_IDLE	: if (ap_start) ap_state <= KERNEL_START;");
+                    emitter().emit("KERNEL_IDLE	: ap_state <= (ap_start) ? KERNEL_START : KERNEL_IDLE;");
                     emitter().emit(
-                            "KERNEL_START: if (input_stage_idle && Increment_ap_idle && output_stage_idle) ap_state <= KERNEL_START;");
+                            "KERNEL_START: ap_state <= (input_stage_idle && Increment_ap_idle && output_stage_idle) ? KERNEL_DONE : KERNEL_START;");
                     emitter().emit("KERNEL_DONE	: ap_state <= KERNEL_IDLE;");
                     emitter().emit("KERNEL_ERROR: ap_state <= KERNEL_IDLE;");
                     emitter().decreaseIndentation();
@@ -579,11 +579,11 @@ public interface KernelWrapper {
     }
 
     default void getTriggerPortBindings(PortDecl port) {
+        emitter().emit(".all_waited(%s_all_waited),", port.getSafeName());
         emitter().emit(".%s_sleep(%1$s_sleep),", port.getSafeName());
         emitter().emit(".%s_sync_wait(%1$s_sync_wait),", port.getSafeName());
         emitter().emit(".%s_sync_exec(%1$s_sync_exec),", port.getSafeName());
         emitter().emit(".%s_waited(%1$s_waited),", port.getSafeName());
-        emitter().emit(".%s_all_waited(%1$s_waited),", port.getSafeName());
     }
 
     // ------------------------------------------------------------------------
