@@ -343,10 +343,11 @@ public interface KernelWrapper {
                 emitter().increaseIndentation();
                 emitter().emit("case (ap_state)");
                 {
+                    String moduleName = backend().task().getIdentifier().getLast().toString();
                     emitter().increaseIndentation();
                     emitter().emit("KERNEL_IDLE	: ap_state <= (ap_start) ? KERNEL_START : KERNEL_IDLE;");
                     emitter().emit(
-                            "KERNEL_START: ap_state <= (input_stage_idle && Increment_ap_idle && output_stage_idle) ? KERNEL_DONE : KERNEL_START;");
+                            "KERNEL_START: ap_state <= (input_stage_idle && %s_ap_idle && output_stage_idle) ? KERNEL_DONE : KERNEL_START;", moduleName);
                     emitter().emit("KERNEL_DONE	: ap_state <= KERNEL_IDLE;");
                     emitter().emit("KERNEL_ERROR: ap_state <= KERNEL_IDLE;");
                     emitter().decreaseIndentation();
