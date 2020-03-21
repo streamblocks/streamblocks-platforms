@@ -40,7 +40,7 @@ public interface InputStageMem {
             emitter().emit("static class_input_stage_mem< %s > i_%s_input_stage_mem;", backend().declarations().declaration(backend().types().declaredPortType(port), ""), port.getName());
             emitter().emitNewLine();
 
-            emitter().emit("return i_%s_input_stage_mem(%1$s_requested_size, %1$s_size, %1$s_buffer, fifo_count, fifo_size, %1$s);", port.getName());
+            emitter().emit("return i_%s_input_stage_mem(%1$s_requested_size, %1$s_size, %1$s_buffer, fifo_count, fifo_size, %1$s, %1$s_offset);", port.getName());
 
             emitter().decreaseIndentation();
         }
@@ -56,8 +56,9 @@ public interface InputStageMem {
         ports.add(String.format("%s *%s_buffer", backend().declarations().declaration(backend().types().declaredPortType(port), ""), port.getName()));
         ports.add("uint32_t fifo_count");
         ports.add("uint32_t fifo_size");
-
+        
         ports.add(backend().declarations().portDeclaration(port));
+        ports.add(String.format("hls::stream< uint64_t > %s_offset", port.getName()));
         return String.join(", ", ports);
     }
 

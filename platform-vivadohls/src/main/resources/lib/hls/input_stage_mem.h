@@ -39,55 +39,62 @@
 #ifndef _INPUT_STAGE_MEM_H
 #define _INPUT_STAGE_MEM_H
 
-
-
-#include <stdint.h>
-#include <hls_stream.h>
-#include <string.h>
 #include <globals.h>
+#include <hls_stream.h>
+#include <stdint.h>
+#include <string.h>
 
 #define MAX_BUFFER_SIZE 4096
+#define MIN(A, B) ((A > B) ? B : A)
 
-template<typename T>
-class class_input_stage_mem {
+template <typename T> class class_input_stage_mem {
+
 private:
-	uint64_t pointer = 0;
-	const int c_size = MAX_BUFFER_SIZE;
+  uint64_t offset = 0;
+  uint64_t read_size = 0;
+
+  const int c_size = MAX_BUFFER_SIZE;
+
 public:
-	uint32_t operator()(uint32_t requested_size, uint32_t *size,
-			T *input, uint32_t fifo_count, uint32_t fifo_size,  hls::stream<T> &STREAM);
-};
-
-template<typename T>
-uint32_t class_input_stage_mem<T>::operator()(uint32_t requested_size, uint32_t *size,
-		T *input, uint32_t fifo_count, uint32_t fifo_size, hls::stream<T> &STREAM) {
+  uint32_t operator()(uint32_t requested_size, uint32_t *size, T *input,
+                      uint32_t fifo_count, uint32_t fifo_size,
+                      hls::stream<T> &STREAM, hls::stream<uint64_t> &OFFSET) {
 #pragma HLS INLINE
+    uint32_t availabe_fifo_places = fifo_size - fifo_count;
+    uint32_t tokens_left = requested_size - offset;
+    uint32_t to_read = MIN(tokens_left, availabe_fifo_places);
 
-	uint32_t available_size = fifo_size - fifo_count;
-	uint64_t rest = requested_size - pointer;
-	uint64_t to_read = rest > available_size ?  available_size : rest;
+    // Conditions
+    bool should_start = !OFFSET.empty();
+    bool can_read = (to_read != 0) && (!STREAM.full());
+    uint32_t return_code = 0;
+    if (should_start) {
+      // init action
+      offset = OFFSET.read();
+      read_size = 0;
+      size[0] = 0;
+      return_code = RETURN_EXECUTED;
 
-	if(requested_size == 0 | requested_size == pointer | to_read == 0){
-		size[0] = pointer;
-		pointer = 0;
-		return RETURN_IDLE;
-	}
-
-	
-
-	mem_rd: for(uint64_t i = 0; i < to_read; i++){
+    } else if (can_read) {
+      // read action
+    mem_rd:
+      for (uint64_t i = 0; i < to_read; i++) {
 #pragma HLS pipeline
-#pragma HLS LOOP_TRIPCOUNT min=c_size max=c_size
-		STREAM << input[i + pointer];
-	}
+#pragma HLS LOOP_TRIPCOUNT min = c_size max = c_size
+        STREAM.write(input[i + offset]);
+      }
 
-	pointer+= to_read;
-	if(requested_size == 0 | requested_size == pointer | to_read == 0){
-		size[0] = pointer;
-		pointer = 0;
-		return RETURN_IDLE;
-	}
-	return RETURN_EXECUTED;
-}
+      read_size += to_read;
+      size[0] = read_size;
+      offset += to_read;
+
+      return_code = RETURN_EXECUTED;
+    } else {
+      return_code = RETURN_WAIT;
+    }
+
+    return return_code;
+  }
+};
 
 #endif //_INPUT_STAGE_MEM_H

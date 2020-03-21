@@ -196,6 +196,7 @@ public interface TopKernel {
         // -- System signals
         emitter().emit("input   wire    ap_clk,");
         emitter().emit("input   wire    ap_rst_n,");
+        
 
         // -- Network external memory ports ports
         if(!backend().externalMemory().externalMemories().isEmpty()){
@@ -254,6 +255,7 @@ public interface TopKernel {
         emitter().emit("wire    ap_ready;");
         emitter().emit("wire    ap_idle;");
         emitter().emit("wire    ap_done;");
+        emitter().emit("wire    event_start;");
 
         Map<VarDecl, String> mems = backend().externalMemory().externalMemories();
         for(VarDecl decl : mems.keySet()){
@@ -358,7 +360,8 @@ public interface TopKernel {
             emitter().emit(".ap_start( ap_start ),");
             emitter().emit(".ap_done( ap_done ),");
             emitter().emit(".ap_ready( ap_ready ),");
-            emitter().emit(".ap_idle( ap_idle )");
+            emitter().emit(".ap_idle( ap_idle ),");
+            emitter().emit(".event_start(event_start)");
             emitter().decreaseIndentation();
         }
         emitter().emit(");");
@@ -445,7 +448,8 @@ public interface TopKernel {
             emitter().emit(".ap_start( ap_start ),");
             emitter().emit(".ap_done( ap_done),");
             emitter().emit(".ap_ready( ap_ready),");
-            emitter().emit(".ap_idle( ap_idle )");
+            emitter().emit(".ap_idle( ap_idle ),");
+            emitter().emit(".event_start(event_start)");
             emitter().decreaseIndentation();
         }
         emitter().emit(");");

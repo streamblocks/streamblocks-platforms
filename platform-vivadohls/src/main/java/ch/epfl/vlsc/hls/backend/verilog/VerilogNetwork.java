@@ -37,7 +37,7 @@ public interface VerilogNetwork {
         return "external_enqueue";
     }
 
-    default String getAllSyncSingal() {
+    default String getAllSyncSignal() {
         return "all_sync";
     }
 
@@ -49,7 +49,7 @@ public interface VerilogNetwork {
         return "all_sleep";
     }
 
-    default String getAllWaited() {
+    default String getAllWaitedSignal() {
         return "all_waited";
     }
 
@@ -174,7 +174,8 @@ public interface VerilogNetwork {
             String memName = backend().externalMemory().externalMemories().get(decl);
             emitter().emit("input  wire    [64 - 1 : 0]    %s_offset,", memName);
         }
-
+        // -- Trigger signals
+        getTriggerSignals(network);
         // -- System IO
         getSystemSignals();
     }
@@ -202,10 +203,37 @@ public interface VerilogNetwork {
         emitter().emit("input  wire ap_rst_n,");
         emitter().emit("input  wire ap_start,");
         emitter().emit("output wire ap_idle,");
-        emitter().emit("output wire ap_done,");
-        emitter().emit("input  wire input_idle");
+        emitter().emit("output wire  ap_done");
+        // emitter().emit("input wire input_idle");
     }
 
+    default void getTriggerSignals(Network network) {
+
+        emitter().emit("// -- Trigger signals from IO stages");
+        emitter().emit("// -- inputs");
+        for (PortDecl port : network.getInputPorts()) {
+            emitter().emit("input  wire %s_sleep,", port.getSafeName());
+            emitter().emit("input  wire %s_sync_wait,", port.getSafeName());
+            emitter().emit("input  wire %s_sync_exec,", port.getSafeName());
+            emitter().emit("input  wire %s_waited,", port.getSafeName());
+            emitter().emit("output wire %s_all_waited,", port.getSafeName());
+        }
+        emitter().emit("// -- outputs");
+        for (PortDecl port : network.getOutputPorts()) {
+            emitter().emit("input  wire %s_sleep,", port.getSafeName());
+            emitter().emit("input  wire %s_sync_wait,", port.getSafeName());
+            emitter().emit("input  wire %s_sync_exec,", port.getSafeName());
+            emitter().emit("input  wire %s_waited,", port.getSafeName());
+            emitter().emit("output wire %s_all_waited,", port.getSafeName());
+        }
+
+        emitter().emit("// -- global signals");
+        emitter().emit("output wire %s,", getAllSyncSignal());
+        emitter().emit("output wire %s,", getAllSyncWaitSignal());
+        emitter().emit("output wire %s,", getAllSleepSignal());
+        // emitter().emit("output wire all_waited,");
+
+    }
     // ------------------------------------------------------------------------
     // -- Parameters
 
@@ -303,10 +331,10 @@ public interface VerilogNetwork {
         emitter().emitNewLine();
         emitter().emit("// -- global trigger signals");
         emitter().emit("wire    %s;", getAllSleepSignal());
-        emitter().emit("wire    %s;", getAllSyncSingal());
+        emitter().emit("wire    %s;", getAllSyncSignal());
         emitter().emit("wire    %s;", getAllSyncWaitSignal());
         emitter().emit("wire    %s;", getExternalEnqueueSignal());
-        emitter().emit("wire    %s;", getAllWaited());
+        // emitter().emit("wire    %s;", getAllWaitedSignal());
         emitter().emitNewLine();
     }
 
@@ -324,7 +352,14 @@ public interface VerilogNetwork {
             emitter().emit("wire    %s;", getTriggerSignalByName(instance, "sync_wait"));
             emitter().emit("wire    %s;", getTriggerSignalByName(instance, "sync_exec"));
             emitter().emit("wire    %s;", getTriggerSignalByName(instance, "sync"));
+            // Local IO sync signals
 
+            emitter().emit("// -- Local IO sync signals");
+            for (PortDecl port: backend().task().getNetwork().getInputPorts())
+                emitter().emit("wire    %s;", getPortTriggerSignalByName(port, "sync"));
+            for (PortDecl port: backend().task().getNetwork().getOutputPorts())
+                emitter().emit("wire    %s;", getPortTriggerSignalByName(port, "sync"));
+            
             emitter().emit("// -- Signals for the module");
             emitter().emit("wire    %s_ap_start;", qidName);
             emitter().emit("wire    %s_ap_idle;", qidName);
@@ -439,7 +474,7 @@ public interface VerilogNetwork {
                 emitter().emit(".ap_idle(%s_trigger_ap_idle),", qidName);
                 emitter().emit(".ap_ready(%s_trigger_ap_ready),", qidName);
                 emitter().emit(".external_enqueue(%s),", getExternalEnqueueSignal());
-                emitter().emit(".all_sync(%s),", getAllSyncSingal());
+                emitter().emit(".all_sync(%s),", getAllSyncSignal());
                 emitter().emit(".all_sync_wait(%s),", getAllSyncWaitSignal());
                 emitter().emit(".all_sleep(%s),", getAllSleepSignal());
                 emitter().emit(".sleep(%s),", getTriggerSignalByName(instance, "sleep"));
@@ -839,27 +874,73 @@ public interface VerilogNetwork {
         List<String> syncWaitSignals = getTriggerSignalsByName(instances, "sync_wait");
         List<String> lastWaitedSignals = getTriggerSignalsByName(instances, "waited");
 
+        // List<String> sleepSignals = new ArrayList<>();
+        // List<String> syncSignals = new ArrayList<>();
+        // List<String> syncWaitSignals = new ArrayList<>();
+        // List<String> lastWaitedSignals = new ArrayList<>();
+
+        sleepSignals.addAll(getPortTriggerSignalsByName(backend().task().getNetwork().getInputPorts(), "sleep"));
+        sleepSignals.addAll(getPortTriggerSignalsByName(backend().task().getNetwork().getOutputPorts(), "sleep"));
+
+        syncSignals.addAll(getPortTriggerSignalsByName(backend().task().getNetwork().getInputPorts(), "sync"));
+        syncSignals.addAll(getPortTriggerSignalsByName(backend().task().getNetwork().getOutputPorts(), "sync"));
+
+        syncWaitSignals.addAll(getPortTriggerSignalsByName(backend().task().getNetwork().getInputPorts(), "sync_wait"));
+        syncWaitSignals
+                .addAll(getPortTriggerSignalsByName(backend().task().getNetwork().getOutputPorts(), "sync_wait"));
+
+        lastWaitedSignals.addAll(getPortTriggerSignalsByName(backend().task().getNetwork().getInputPorts(), "waited"));
+        lastWaitedSignals.addAll(getPortTriggerSignalsByName(backend().task().getNetwork().getOutputPorts(), "waited"));
+
         emitter().emit("// --Local sync signals");
         for (Instance instance : instances) {
 
             emitter().emit("assign %s = %s | %s;", getTriggerSignalByName(instance, "sync"),
                     getTriggerSignalByName(instance, "sync_exec"), getTriggerSignalByName(instance, "sync_wait"));
         }
+        for (PortDecl port : backend().task().getNetwork().getInputPorts()) {
+            emitter().emit("assign %s = %s | %s;", getPortTriggerSignalByName(port, "sync"),
+                    getPortTriggerSignalByName(port, "sync_exec"), getPortTriggerSignalByName(port, "sync_wait"));
+        }
+        for (PortDecl port : backend().task().getNetwork().getOutputPorts()) {
+            emitter().emit("assign %s = %s | %s;", getPortTriggerSignalByName(port, "sync"),
+                    getPortTriggerSignalByName(port, "sync_exec"), getPortTriggerSignalByName(port, "sync_wait"));
+        }
+
         emitter().emit("// -- Local wait signals");
         for (Instance instance : instances) {
             emitter().emit("assign %s = %s;", getTriggerSignalByName(instance, "all_waited"),
                     String.join(" & ",
-                            lastWaitedSignals.stream().filter(x -> x != getTriggerSignalByName(instance, "waited"))
+                            lastWaitedSignals.stream()
+                                    .filter(x -> !x.equals(getTriggerSignalByName(instance, "waited")))
                                     .collect(Collectors.toList())));
-            // emitter().emit("assign %s = %s;", getTriggerSignalByName(instance, "all_waited"), String.)
+            
         }
+
+        for (PortDecl port : backend().task().getNetwork().getInputPorts()) {
+            emitter().emit("assign %s = %s;", getPortTriggerSignalByName(port, "all_waited"),
+                    String.join(" & ",
+                            lastWaitedSignals.stream()
+                                    .filter(x -> !x.equals(getPortTriggerSignalByName(port, "waited")))
+                                    .collect(Collectors.toList())));
+        }
+
+        for (PortDecl port : backend().task().getNetwork().getOutputPorts()) {
+            emitter().emit("assign %s = %s;", getPortTriggerSignalByName(port, "all_waited"),
+                    String.join(" & ",
+                            lastWaitedSignals.stream()
+                                    .filter(x -> !x.equals(getPortTriggerSignalByName(port, "waited")))
+                                    .collect(Collectors.toList())));
+            
+        }
+
         emitter().emitNewLine();
         emitter().emit("// -- global sync signals");
         emitter().emit("assign %s = %s;", getAllSleepSignal(), String.join(" & ", sleepSignals));
         emitter().emit("assign %s = %s;", getAllSyncWaitSignal(), String.join(" & ", syncWaitSignals));
 
-        emitter().emit("assign %s = %s;", getAllSyncSingal(), String.join(" & ", syncSignals));
-        emitter().emit("assign %s = ~input_idle;", getExternalEnqueueSignal());
+        emitter().emit("assign %s = %s;", getAllSyncSignal(), String.join(" & ", syncSignals));
+        emitter().emit("assign %s = 1'b0;", getExternalEnqueueSignal());
         emitter().emitNewLine();
     }
 
@@ -893,6 +974,15 @@ public interface VerilogNetwork {
         emitter().emitNewLine();
     }
 
+    default List<String> getPortTriggerSignalsByName(List<PortDecl> ports, String name) {
+        List<String> signals = ports.stream().map(port -> getPortTriggerSignalByName(port, name))
+                .collect(Collectors.toList());
+        return signals;
+    }
+
+    default String getPortTriggerSignalByName(PortDecl port, String name) {
+        return (port.getSafeName() + "_" + name);
+    }
     // -- Helper Methods
 
     default void getAxiMasterByPort(String safeName, String name) {
