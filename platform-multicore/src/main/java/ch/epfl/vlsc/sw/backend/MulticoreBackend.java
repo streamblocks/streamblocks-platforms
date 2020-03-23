@@ -144,6 +144,11 @@ public interface MulticoreBackend {
         return MultiJ.from(TypesEvaluator.class).bind("backend").to(this).instance();
     }
 
+    @Binding(LAZY)
+    default AlgebraicTypes algebraic() {
+        return MultiJ.from(AlgebraicTypes.class).bind("backend").to(this).instance();
+    }
+
     // -- LValues
     @Binding(LAZY)
     default LValues lvalues() {

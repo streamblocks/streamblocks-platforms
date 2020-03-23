@@ -11,7 +11,9 @@ import se.lth.cs.tycho.ir.expr.ExprBinaryOp;
 import se.lth.cs.tycho.ir.expr.ExprInput;
 import se.lth.cs.tycho.ir.expr.Expression;
 import se.lth.cs.tycho.ir.stmt.*;
+import se.lth.cs.tycho.ir.stmt.lvalue.LValueField;
 import se.lth.cs.tycho.ir.stmt.lvalue.LValueVariable;
+import se.lth.cs.tycho.type.AlgebraicType;
 import se.lth.cs.tycho.type.ListType;
 import se.lth.cs.tycho.type.Type;
 
@@ -75,7 +77,13 @@ public interface Statements {
 
     default void execute(StmtWrite write) {
         if (write.getRepeatExpression() == null) {
-            String portType = typeseval().type(types().portType(write.getPort()));
+            Type type = types().portType(write.getPort());
+            String portType;
+            if(type instanceof AlgebraicType){
+                portType = "ref";
+            }else{
+                portType = typeseval().type(type);
+            }
             String tmp = variables().generateTemp();
             emitter().emit("%s;", declarartions().declaration(types().portType(write.getPort()), tmp));
             for (Expression expr : write.getValues()) {
@@ -89,17 +97,17 @@ public interface Statements {
             String repeat = expressioneval().evaluate(write.getRepeatExpression());
 
             // -- Hack type conversion : to be fixed
-            if(valueType instanceof ListType){
+            if (valueType instanceof ListType) {
                 ListType listType = (ListType) valueType;
-                if(!listType.getElementType().equals(portType)){
+                if (!listType.getElementType().equals(portType)) {
                     String index = variables().generateTemp();
                     emitter().emit("for (size_t %1$s = 0; %1$s < (%2$s); %1$s++) {", index, repeat);
                     emitter().emit("\tpinWrite_%s(%s, %s[%s]);", channelsutils().outputPortTypeSize(write.getPort()), channelsutils().definedOutputPort(write.getPort()), value, index);
                     emitter().emit("}");
-                }else{
+                } else {
                     emitter().emit("pinWriteRepeat_%s(%s, %s, %s);", channelsutils().outputPortTypeSize(write.getPort()), channelsutils().definedOutputPort(write.getPort()), value, repeat);
                 }
-            }else{
+            } else {
                 emitter().emit("pinWriteRepeat_%s(%s, %s, %s);", channelsutils().outputPortTypeSize(write.getPort()), channelsutils().definedOutputPort(write.getPort()), value, repeat);
             }
 
@@ -115,9 +123,9 @@ public interface Statements {
     default void execute(StmtAssignment assign) {
         Type type = types().lvalueType(assign.getLValue());
         String lvalue = lvalues().lvalue(assign.getLValue());
-        if(type instanceof ListType && assign.getLValue() instanceof LValueVariable){
+        if (type instanceof ListType && assign.getLValue() instanceof LValueVariable) {
             expressioneval().evaluate(assign.getExpression());
-        }else {
+        } else {
             copy(type, lvalue, types().type(assign.getExpression()), expressioneval().evaluate(assign.getExpression()));
         }
     }
@@ -128,13 +136,13 @@ public interface Statements {
 
     default void copy(ListType lvalueType, String lvalue, ListType rvalueType, String rvalue) {
         //if (!lvalueType.equals(rvalueType)) {
-            String maxIndex = typeseval().sizeByDimension(lvalueType).stream().map(Object::toString).collect(Collectors.joining(" * "));
-            String index = variables().generateTemp();
-            emitter().emit("for (size_t %1$s = 0; %1$s < (%2$s); %1$s++) {", index, maxIndex);
-            emitter().increaseIndentation();
-            emitter().emit("%s[%s] = %s[%2$s];", lvalue, index, rvalue);
-            emitter().decreaseIndentation();
-            emitter().emit("}");
+        String maxIndex = typeseval().sizeByDimension(lvalueType).stream().map(Object::toString).collect(Collectors.joining(" * "));
+        String index = variables().generateTemp();
+        emitter().emit("for (size_t %1$s = 0; %1$s < (%2$s); %1$s++) {", index, maxIndex);
+        emitter().increaseIndentation();
+        emitter().emit("%s[%s] = %s[%2$s];", lvalue, index, rvalue);
+        emitter().decreaseIndentation();
+        emitter().emit("}");
         //}
     }
 
@@ -157,7 +165,7 @@ public interface Statements {
             parameters.add(name + ".env");
         }*/
 
-        if(!directlyCallable){
+        if (!directlyCallable) {
             parameters.add("thisActor");
         }
         proc = expressioneval().evaluateCall(call.getProcedure());

@@ -21,6 +21,10 @@ public interface TypesEvaluator {
 
     String type(Type type);
 
+    default String type(AlgebraicType type){
+       return type.getName() + "_t*";
+    }
+
     default String type(IntType type) {
         if (type.getSize().isPresent()) {
             int originalSize = type.getSize().getAsInt();

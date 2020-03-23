@@ -11,6 +11,9 @@ import se.lth.cs.tycho.reporting.Diagnostic.Kind;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Network;
+import se.lth.cs.tycho.type.AlgebraicType;
+import se.lth.cs.tycho.type.ProductType;
+import se.lth.cs.tycho.type.SumType;
 import se.lth.cs.tycho.type.Type;
 
 import java.util.List;
@@ -24,10 +27,6 @@ public interface ChannelsUtils {
     @Binding(BindingKind.INJECTED)
     MulticoreBackend backend();
 
-    default String sourceEndTypeSize(Connection.End source) {
-        return backend().typeseval().type(sourceEndType(source));
-    }
-
     default Type sourceEndType(Connection.End source) {
         Network network = backend().task().getNetwork();
         List<Connection> connections = network.getConnections().stream()
@@ -37,23 +36,32 @@ public interface ChannelsUtils {
         return type;
     }
 
-    default String targetEndTypeSize(Connection.End target) {
+    default Type targetEndType(Connection.End target) {
         Network network = backend().task().getNetwork();
         Connection connection = network.getConnections().stream()
                 .filter(conn -> conn.getTarget().equals(target))
                 .findFirst().get();
         Type type = backend().types().connectionType(network, connection);
-        return backend().typeseval().type(type);
+        return type;
     }
 
-
     default String inputPortTypeSize(Port port) {
-        return targetEndTypeSize(new Connection.End(Optional.of(backend().instancebox().get().getInstanceName()), port.getName()));
+        Type type = targetEndType(new Connection.End(Optional.of(backend().instancebox().get().getInstanceName()), port.getName()));
+        if (type instanceof AlgebraicType) {
+            return "ref";
+        } else {
+            return backend().typeseval().type(type);
+        }
     }
 
     default String outputPortTypeSize(Port port) {
         Connection.End source = new Connection.End(Optional.of(backend().instancebox().get().getInstanceName()), port.getName());
-        return sourceEndTypeSize(source);
+        Type type = sourceEndType(source);
+        if (type instanceof AlgebraicType) {
+            return "ref";
+        } else {
+            return backend().typeseval().type(type);
+        }
     }
 
     default Type outputPortType(Port port) {
@@ -77,7 +85,6 @@ public interface ChannelsUtils {
         return definedInput;
     }
 
-
     default String definedOutputPort(Port port) {
         Entity entity = backend().entitybox().get();
         PortDecl portDecl = entity.getOutputPorts().stream().filter(p -> p.getName().equals(port.getName())).findAny().orElse(null);
@@ -96,18 +103,17 @@ public interface ChannelsUtils {
 
     default int targetEndSize(Connection.End target) {
         Network network = backend().task().getNetwork();
-        try {            
+        try {
             Connection connection = network.getConnections().stream()
                     .filter(conn -> conn.getTarget().equals(target))
                     .findFirst().get();
             return connectionBufferSize(connection);
-        } catch (NoSuchElementException e){
+        } catch (NoSuchElementException e) {
             backend().context().getReporter().report(new Diagnostic(Diagnostic.Kind.ERROR, String.format("floating port %s.%s", target.getInstance().get(), target.getPort())));
             throw new RuntimeException(e);
         }
 
     }
-
 
     default int connectionBufferSize(Connection connection) {
         Optional<ToolValueAttribute> attribute = connection.getValueAttribute("buffersize");
@@ -120,6 +126,5 @@ public interface ChannelsUtils {
             return 4096;
         }
     }
-
 
 }

@@ -192,17 +192,18 @@ public interface ExpressionEvaluator {
     void evaluateWithLvalue(String lvalue, Expression expr);
 
     default void evaluateWithLvalue(String lvalue, ExprInput input) {
+        String type = channelsutils().inputPortTypeSize(input.getPort());
         if (input.hasRepeat()) {
             if (input.getOffset() == 0) {
-                emitter().emit("pinPeekRepeat_%s(%s, %s, %d);", channelsutils().inputPortTypeSize(input.getPort()), channelsutils().definedInputPort(input.getPort()), lvalue, input.getRepeat());
+                emitter().emit("pinPeekRepeat_%s(%s, %s, %d);", type, channelsutils().definedInputPort(input.getPort()), lvalue, input.getRepeat());
             } else {
                 throw new RuntimeException("not implemented");
             }
         } else {
             if (input.getOffset() == 0) {
-                emitter().emit("%s = pinPeekFront_%s(%s);", lvalue, channelsutils().inputPortTypeSize(input.getPort()), channelsutils().definedInputPort(input.getPort()));
+                emitter().emit("%s = pinPeekFront_%s(%s);", lvalue, type, channelsutils().definedInputPort(input.getPort()));
             } else {
-                emitter().emit("%s = pinPeek_%s(%s, %d);", lvalue, channelsutils().inputPortTypeSize(input.getPort()), channelsutils().definedInputPort(input.getPort()), input.getOffset());
+                emitter().emit("%s = pinPeek_%s(%s, %d);", lvalue, type, channelsutils().definedInputPort(input.getPort()), input.getOffset());
             }
         }
     }
@@ -603,5 +604,15 @@ public interface ExpressionEvaluator {
         return evaluate(let.getBody());
     }
 
+    default String evaluate(ExprTypeConstruction construction){
+        return "NULL;// -- Not Implemented yet : ExprTypeConstruction";
+    }
 
+    default String evaluate(ExprTypeAssertion assertion) {
+        return "// -- Not Implemented yet : ExprTypeAssertion";
+    }
+
+    default String evaluate(ExprField field) {
+        return String.format("%s->members.%s", evaluate(field.getStructure()), field.getField().getName());
+    }
 }

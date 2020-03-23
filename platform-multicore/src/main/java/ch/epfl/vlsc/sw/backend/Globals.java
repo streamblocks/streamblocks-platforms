@@ -41,6 +41,9 @@ public interface Globals {
         backend().includeUser("globals.h");
         emitter().emitNewLine();
 
+        emitter().emit("// -- Type helper function Definitions");
+        backend().algebraic().defineAlgebraicTypeHelperFunctions();
+
         emitter().emit("// -- Global variables" );
         globalVariableDefinition(getGlobalVarDecls());
         emitter().emitNewLine();
@@ -80,6 +83,9 @@ public interface Globals {
         backend().includeUser("actors-rts.h");
         backend().includeUser("natives.h");
         emitter().emitNewLine();
+
+        emitter().emit("// -- Type declarations");
+        backend().algebraic().declareAlgebraicTypes();
 
         emitter().emit("// -- External Callables Declaration");
         backend().task().walk().forEach(backend().callablesInActor()::externalCallableDeclaration);

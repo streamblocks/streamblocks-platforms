@@ -12,8 +12,10 @@ import org.multij.MultiJ;
 import se.lth.cs.tycho.attribute.GlobalNames;
 import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.ir.Port;
+import se.lth.cs.tycho.ir.ValueParameter;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.decl.LocalVarDecl;
+import se.lth.cs.tycho.ir.decl.ParameterVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
@@ -24,9 +26,7 @@ import se.lth.cs.tycho.ir.expr.ExprProc;
 import se.lth.cs.tycho.ir.expr.Expression;
 import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Instance;
-import se.lth.cs.tycho.type.CallableType;
-import se.lth.cs.tycho.type.ListType;
-import se.lth.cs.tycho.type.Type;
+import se.lth.cs.tycho.type.*;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -252,7 +252,6 @@ public interface Instances {
 
         emitter().emit("int32_t program_counter;");
 
-
         // -- Scopes
         for (Scope scope : am.getScopes()) {
             emitter().emit("// -- Scope %d", am.getScopes().indexOf(scope));
@@ -265,6 +264,16 @@ public interface Instances {
                     emitter().emit("%s;", decl);
                 }
 
+            }
+        }
+
+        // -- Parameters
+        if (!am.getValueParameters().isEmpty()) {
+            emitter().emitNewLine();
+            emitter().emit("// -- Parameters");
+            for (ParameterVarDecl vp : am.getValueParameters()) {
+                String decl = declarations().declaration(types().declaredType(vp), backend().variables().declarationName(vp));
+                emitter().emit("%s;", decl);
             }
         }
 
@@ -325,7 +334,7 @@ public interface Instances {
             emitter().increaseIndentation();
 
             for (PortDecl inputPort : entity.getInputPorts()) {
-                String type = channelutils().targetEndTypeSize(new Connection.End(Optional.of(instanceName), inputPort.getName()));
+                Type type = channelutils().targetEndType(new Connection.End(Optional.of(instanceName), inputPort.getName()));
                 portDescriptionByPort(inputPort.getName(), type);
             }
 
@@ -340,7 +349,7 @@ public interface Instances {
 
             for (PortDecl outputPort : entity.getOutputPorts()) {
                 Connection.End source = new Connection.End(Optional.of(instanceName), outputPort.getName());
-                String type = channelutils().sourceEndTypeSize(source);
+                Type type = channelutils().sourceEndType(source);
                 portDescriptionByPort(outputPort.getName(), type);
             }
 
@@ -351,8 +360,14 @@ public interface Instances {
 
     }
 
-    default void portDescriptionByPort(String name, String type) {
-        emitter().emit("{0, \"%s\", (sizeof(%s))", name, type);
+    default void portDescriptionByPort(String name, Type type) {
+        String evaluatedType;
+        if (type instanceof ProductType | type instanceof SumType) {
+            evaluatedType = "void*";
+        } else {
+            evaluatedType = backend().typeseval().type(type);
+        }
+        emitter().emit("{0, \"%s\", (sizeof(%s))", name, evaluatedType);
         emitter().emit("#ifdef CAL_RT_CALVIN");
         emitter().emit(", NULL");
         emitter().emit("#endif");
@@ -787,8 +802,16 @@ public interface Instances {
                     }
                 }
             }
-
         }
+
+        // -- Parameters
+
+        for (ParameterVarDecl vp : am.getValueParameters()) {
+            // -- TODO: Implement me
+            //String decl = declarations().declaration(types().declaredType(vp), backend().variables().declarationName(vp));
+            //emitter().emit("%s;", decl);
+        }
+
         emitter().decreaseIndentation();
         emitter().emit("}");
         emitter().emitNewLine();
@@ -818,6 +841,8 @@ public interface Instances {
                 }
             }
         }
+
+
         emitter().decreaseIndentation();
         emitter().emit("}");
         emitter().emitNewLine();
