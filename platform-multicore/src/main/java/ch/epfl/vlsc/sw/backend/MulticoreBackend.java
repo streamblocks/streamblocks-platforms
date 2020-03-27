@@ -149,6 +149,16 @@ public interface MulticoreBackend {
         return MultiJ.from(AlgebraicTypes.class).bind("backend").to(this).instance();
     }
 
+    @Binding(LAZY)
+    default DefaultValues defaultValues() {
+        return MultiJ.instance(DefaultValues.class);
+    }
+
+    @Binding(LAZY)
+    default MemoryStack memoryStack() {
+        return MultiJ.from(MemoryStack.class).bind("backend").to(this).instance();
+    }
+
     // -- LValues
     @Binding(LAZY)
     default LValues lvalues() {

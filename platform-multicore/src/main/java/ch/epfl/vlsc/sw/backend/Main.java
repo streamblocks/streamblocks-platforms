@@ -128,16 +128,18 @@ public interface Main {
             emitter().emit("%s = createActorInstance(&ActorClass_%s);", joinQID, actorClass);
             // -- Instantiate Parameters
             for (ValueParameter parameter : instance.getValueParameters()) {
-                emitter().emit("setParameter(%s, \"%s\", \"%s\");", joinQID, parameter.getName(), evaluator().evaluate(parameter.getValue()).replaceAll("^\"|\"$", ""));
+                if (entityDecl.getExternal()) {
+                    emitter().emit("setParameter(%s, \"%s\", \"%s\");", joinQID, parameter.getName(), evaluator().evaluate(parameter.getValue()).replaceAll("^\"|\"$", ""));
+                }
             }
 
             // -- Instantiate instance ports
             for (PortDecl inputPort : entityDecl.getEntity().getInputPorts()) {
-                
-                
+
+
                 int bufferSize = backend().channelsutils().targetEndSize(new Connection.End(Optional.of(instance.getInstanceName()), inputPort.getName()));
                 emitter().emit("%s_%s = createInputPort(%1$s, \"%2$s\", %d);", joinQID, inputPort.getName(), bufferSize);
-                
+
             }
             for (PortDecl outputPort : entityDecl.getEntity().getOutputPorts()) {
                 Connection.End end = new Connection.End(Optional.of(instance.getInstanceName()), outputPort.getName());
@@ -169,6 +171,7 @@ public interface Main {
 
             emitter().emit("connectPorts(%s_%s, %s_%s);", srcJoinQID, connection.getSource().getPort(), tgtJoinQID, connection.getTarget().getPort());
         }
+        emitter().emitNewLine();
 
         emitter().emit("// -- Initialize Global Variables");
         emitter().emit("init_global_variables();");

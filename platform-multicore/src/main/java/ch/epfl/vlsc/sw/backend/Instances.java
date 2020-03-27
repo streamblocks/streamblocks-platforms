@@ -11,6 +11,7 @@ import org.multij.Module;
 import org.multij.MultiJ;
 import se.lth.cs.tycho.attribute.GlobalNames;
 import se.lth.cs.tycho.attribute.Types;
+import se.lth.cs.tycho.ir.Parameter;
 import se.lth.cs.tycho.ir.Port;
 import se.lth.cs.tycho.ir.ValueParameter;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
@@ -640,7 +641,9 @@ public interface Instances {
             emitter().emit("ART_CONDITION(%s, %s){", conditionName, actorInstanceName);
             emitter().increaseIndentation();
             emitter().emit("ART_CONDITION_ENTER(%s, %d)", conditionName, am.getConditions().indexOf(condition));
+            backend().memoryStack().enterScope();
             emitter().emit("bool cond = %s;", evaluateCondition(condition));
+            backend().memoryStack().exitScope();
             emitter().emit("ART_CONDITION_EXIT(%s, %d)", conditionName, am.getConditions().indexOf(condition));
             emitter().emit("return cond;");
 
@@ -717,8 +720,9 @@ public interface Instances {
 
             emitter().emit("ART_ACTION_ENTER(%s_transition_%d, %2$d);", instanceName, am.getTransitions().indexOf(transition));
 
-
+            backend().memoryStack().enterScope();
             transition.getBody().forEach(statements()::execute);
+            backend().memoryStack().exitScope();
 
             emitter().emit("ART_ACTION_EXIT(%s_transition_%d, %2$d);", instanceName, am.getTransitions().indexOf(transition));
 
@@ -782,7 +786,9 @@ public interface Instances {
                         } else {
                             emitter().emit("{");
                             emitter().increaseIndentation();
+                            backend().memoryStack().enterScope();
                             statements().copy(types().declaredType(var), "thisActor->" + backend().variables().declarationName(var), types().type(var.getValue()), expressioneval().evaluate(var.getValue()));
+                            backend().memoryStack().exitScope();
                             emitter().decreaseIndentation();
                             emitter().emit("}");
                         }
@@ -805,11 +811,19 @@ public interface Instances {
         }
 
         // -- Parameters
+        Instance instance = backend().instancebox().get();
 
-        for (ParameterVarDecl vp : am.getValueParameters()) {
-            // -- TODO: Implement me
-            //String decl = declarations().declaration(types().declaredType(vp), backend().variables().declarationName(vp));
-            //emitter().emit("%s;", decl);
+        for (ParameterVarDecl par : am.getValueParameters()) {
+            boolean assigned = false;
+            for (Parameter<Expression, ?> assignment : instance.getValueParameters()) {
+                if (par.getName().equals(assignment.getName())) {
+                    emitter().emit("thisActor->%s = %s;", backend().variables().declarationName(par), expressioneval().evaluate(assignment.getValue()));
+                    assigned = true;
+                }
+            }
+            if (!assigned) {
+                throw new RuntimeException(String.format("Could not assign to %s. Candidates: {%s}.", par.getName(), String.join(", ", instance.getValueParameters().map(Parameter::getName))));
+            }
         }
 
         emitter().decreaseIndentation();
@@ -842,6 +856,13 @@ public interface Instances {
             }
         }
 
+        for (ParameterVarDecl par : am.getValueParameters()) {
+            Type type = types().declaredType(par);
+            if (type instanceof AlgebraicType) {
+                AlgebraicType at = (AlgebraicType) type;
+                emitter().emit("%s(thisActor->%s, 1);", backend().algebraic().destructor((AlgebraicType) type), backend().variables().declarationName(par));
+            }
+        }
 
         emitter().decreaseIndentation();
         emitter().emit("}");

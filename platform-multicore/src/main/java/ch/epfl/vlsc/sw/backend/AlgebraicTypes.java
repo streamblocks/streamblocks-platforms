@@ -12,6 +12,7 @@ import se.lth.cs.tycho.type.SumType;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Stream;
 
 @Module
@@ -339,6 +340,14 @@ public interface AlgebraicTypes {
                 emitter().emit("\tbreak;");
 
                 emitter().emit("}");
+            } else {
+                ProductType product = (ProductType) type;
+                for (FieldType field : product.getFields()) {
+                    if (field.getType() instanceof AlgebraicType) {
+                        emitter().emit("(*dst)->members.%s = NULL;", field.getName());
+                        emitter().emit("copyStruct%s_t(&(*dst)->members.%s, src->members.%2$s);", ((AlgebraicType) field.getType()).getName(), field.getName());
+                    }
+                }
             }
             emitter().emit("return 1;");
 
@@ -576,4 +585,31 @@ public interface AlgebraicTypes {
         emitter().emitNewLine();
     }
 
+    default String type(AlgebraicType type) {
+        return type.getName() + "_t";
+    }
+
+    default String constructor(String constructor) {
+        return types()
+                .filter(type -> {
+                    if (type instanceof ProductType) {
+                        return Objects.equals(type.getName(), constructor);
+                    } else {
+                        return ((SumType) type).getVariants().stream().anyMatch(variant -> Objects.equals(variant.getName(), constructor));
+                    }
+                })
+                .map(type -> {
+                    if (type instanceof ProductType) {
+                        return "construct" + type(type);
+                    } else {
+                        return ((SumType) type).getVariants().stream().filter(variant -> Objects.equals(variant.getName(), constructor)).map(variant -> "construct" + type.getName() + "___" + variant.getName()).findAny().get();
+                    }
+                })
+                .findAny()
+                .get();
+    }
+
+    default String destructor(AlgebraicType type) {
+        return String.format("freeStruct%s_t", type.getName());
+    }
 }

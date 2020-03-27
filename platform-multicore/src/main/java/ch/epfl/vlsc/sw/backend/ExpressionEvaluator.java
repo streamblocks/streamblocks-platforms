@@ -15,6 +15,7 @@ import se.lth.cs.tycho.ir.stmt.StmtAssignment;
 import se.lth.cs.tycho.ir.stmt.StmtCall;
 import se.lth.cs.tycho.ir.stmt.lvalue.LValueVariable;
 import se.lth.cs.tycho.ir.util.ImmutableList;
+import se.lth.cs.tycho.type.AlgebraicType;
 import se.lth.cs.tycho.type.ListType;
 import se.lth.cs.tycho.type.Type;
 
@@ -49,6 +50,10 @@ public interface ExpressionEvaluator {
 
     default TypesEvaluator typeseval() {
         return backend().typeseval();
+    }
+
+    default MemoryStack memoryStack() {
+        return backend().memoryStack();
     }
 
     // -- Evaluate Expressions
@@ -168,8 +173,11 @@ public interface ExpressionEvaluator {
         //    String maxIndex = typeseval().sizeByDimension((ListType) type).stream().map(Object::toString).collect(Collectors.joining("*"));
         //    emitter().emit("%s = malloc(sizeof(%s) * (%s));", declarations().declaration(types().type(input), tmp), maxIndex);
         //} else {
-        emitter().emit("%s;", declarations().declarationTemp(types().type(input), tmp));
+        emitter().emit("%s = %s;", declarations().declarationTemp(types().type(input), tmp), backend().defaultValues().defaultValue(types().type(input)));
         //}
+        if (type instanceof AlgebraicType) {
+           // memoryStack().trackPointer(tmp, type);
+        }
 
 
         if (input.hasRepeat()) {
@@ -248,11 +256,15 @@ public interface ExpressionEvaluator {
                 emitter().emit("_Bool %s;", andResult);
                 emitter().emit("if (%s) {", evaluate(left));
                 emitter().increaseIndentation();
+                memoryStack().enterScope();
                 emitter().emit("%s = %s;", andResult, evaluate(right));
+                memoryStack().exitScope();
                 emitter().decreaseIndentation();
                 emitter().emit("} else {");
                 emitter().increaseIndentation();
+                memoryStack().enterScope();
                 emitter().emit("%s = false;", andResult);
+                memoryStack().exitScope();
                 emitter().decreaseIndentation();
                 emitter().emit("}");
                 return andResult;
@@ -266,7 +278,9 @@ public interface ExpressionEvaluator {
                 emitter().decreaseIndentation();
                 emitter().emit("} else {");
                 emitter().increaseIndentation();
+                memoryStack().enterScope();
                 emitter().emit("%s = %s;", orResult, evaluate(right));
+                memoryStack().exitScope();
                 emitter().decreaseIndentation();
                 emitter().emit("}");
                 return orResult;
@@ -309,17 +323,17 @@ public interface ExpressionEvaluator {
         Type typeForTmp = t;
         IRNode parent = backend().tree().parent(comprehension);
         String name;
-        if(parent instanceof StmtAssignment){
+        if (parent instanceof StmtAssignment) {
             StmtAssignment stmt = (StmtAssignment) parent;
-            if(stmt.getLValue() instanceof LValueVariable){
+            if (stmt.getLValue() instanceof LValueVariable) {
                 LValueVariable lvalue = (LValueVariable) stmt.getLValue();
                 name = backend().variables().name(lvalue.getVariable());
-            }else{
+            } else {
                 name = variables().generateTemp();
                 String decl = declarations().declarationTemp(t, name);
                 emitter().emit("%s;", decl);
             }
-        }else{
+        } else {
             name = variables().generateTemp();
             String decl = declarations().declarationTemp(t, name);
             emitter().emit("%s;", decl);
@@ -360,12 +374,14 @@ public interface ExpressionEvaluator {
                 emitter().emit("%s = %s;", declarations().declaration(type, name), from);
                 emitter().emit("while (%s <= %s) {", name, to);
                 emitter().increaseIndentation();
+                memoryStack().enterScope();
             }
             action.run();
             List<VarDecl> reversed = new ArrayList<>(varDecls);
             Collections.reverse(reversed);
             for (VarDecl d : reversed) {
                 emitter().emit("%s++;", variables().declarationName(d));
+                memoryStack().exitScope();
                 emitter().decreaseIndentation();
                 emitter().emit("}");
             }
@@ -458,7 +474,7 @@ public interface ExpressionEvaluator {
         return backend().varDecls().declaration(expr);
     }
 
-    default VarDecl evalExprIndexVar(ExprGlobalVariable expr){
+    default VarDecl evalExprIndexVar(ExprGlobalVariable expr) {
         return backend().varDecls().declaration(expr);
     }
 
@@ -495,19 +511,26 @@ public interface ExpressionEvaluator {
     default String evaluate(ExprIf expr) {
         Type type = types().type(expr);
         String temp = variables().generateTemp();
+        if (type instanceof AlgebraicType) {
+            memoryStack().trackPointer(temp, type);
+        }
         String decl = declarations().declarationTemp(type, temp);
-        emitter().emit("%s;", decl);
+        emitter().emit("%s = %s;", decl, backend().defaultValues().defaultValue(type));
         emitter().emit("if (%s) {", evaluate(expr.getCondition()));
         emitter().increaseIndentation();
+        memoryStack().enterScope();
         Type thenType = types().type(expr.getThenExpr());
         String thenValue = evaluate(expr.getThenExpr());
         backend().statements().copy(type, temp, thenType, thenValue);
+        memoryStack().exitScope();
         emitter().decreaseIndentation();
         emitter().emit("} else {");
         emitter().increaseIndentation();
+        memoryStack().enterScope();
         Type elseType = types().type(expr.getElseExpr());
         String elseValue = evaluate(expr.getElseExpr());
         backend().statements().copy(type, temp, elseType, elseValue);
+        memoryStack().exitScope();
         emitter().decreaseIndentation();
         emitter().emit("}");
         return temp;
@@ -525,7 +548,7 @@ public interface ExpressionEvaluator {
         String fn;
         List<String> parameters = new ArrayList<>();
 
-        if(!directlyCallable){
+        if (!directlyCallable) {
             parameters.add("thisActor");
         }
         for (Expression parameter : apply.getArgs()) {
@@ -534,9 +557,12 @@ public interface ExpressionEvaluator {
 
 
         fn = evaluateCall(apply.getFunction());
-
+        Type type = types().type(apply);
         String result = variables().generateTemp();
         String decl = declarations().declarationTemp(types().type(apply), result);
+        if ((type instanceof AlgebraicType) || (type instanceof ListType && backend().typeseval().isAlgebraicTypeList((ListType) type))) {
+            memoryStack().trackPointer(result, type);
+        }
         emitter().emit("%s = %s(%s);", decl, fn, String.join(", ", parameters));
         return result;
     }
@@ -598,18 +624,38 @@ public interface ExpressionEvaluator {
         for (VarDecl decl : let.getVarDecls()) {
             Type type = types().declaredType(decl);
             String name = variables().declarationName(decl);
-            emitter().emit("%s;", declarations().declaration(type, name));
+            backend().memoryStack().trackPointer(name, type);
+            emitter().emit("%s = %s;", declarations().declaration(type, name),  backend().defaultValues().defaultValue(type));
             backend().statements().copy(type, name, types().type(decl.getValue()), evaluate(decl.getValue()));
         }
         return evaluate(let.getBody());
     }
 
-    default String evaluate(ExprTypeConstruction construction){
-        return "NULL;// -- Not Implemented yet : ExprTypeConstruction";
+    default String evaluate(ExprTypeConstruction construction) {
+        String fn = backend().algebraic().constructor(construction.getConstructor());
+        List<String> parameters = new ArrayList<>();
+
+        String result = variables().generateTemp();
+        parameters.add(String.format("&%s", result));
+        for (Expression parameter : construction.getArgs()) {
+            parameters.add(evaluate(parameter));
+        }
+
+        String decl = declarations().declaration(types().type(construction), result);
+
+        emitter().emit("%s = %s;", decl, backend().defaultValues().defaultValue(types().type(construction)));
+        emitter().emit("%s(%s);", fn, String.join(", ", parameters));
+        memoryStack().trackPointer(result, types().type(construction));
+        return result;
     }
 
     default String evaluate(ExprTypeAssertion assertion) {
-        return "// -- Not Implemented yet : ExprTypeAssertion";
+        Type type = types().type(assertion.getType());
+        String result = variables().generateTemp();
+        String decl = declarations().declaration(type, result);
+        emitter().emit("%s = (%s)(%s);", decl, typeseval().type(type) + (type instanceof AlgebraicType ? "*" : ""), evaluate(assertion.getExpression()));
+        return result;
+
     }
 
     default String evaluate(ExprField field) {

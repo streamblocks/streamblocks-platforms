@@ -116,4 +116,14 @@ public interface TypesEvaluator {
         return sizeByDim;
     }
 
+    default boolean isAlgebraicTypeList(ListType type) {
+        if (type.getElementType() instanceof AlgebraicType) {
+            return true;
+        } else if (!(type.getElementType() instanceof ListType)) {
+            return false;
+        } else {
+            return isAlgebraicTypeList((ListType) type.getElementType());
+        }
+    }
+
 }
