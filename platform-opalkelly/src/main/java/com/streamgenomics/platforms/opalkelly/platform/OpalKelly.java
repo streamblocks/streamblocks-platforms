@@ -1,7 +1,7 @@
-package com.streamgenomics.platform;
+package com.streamgenomics.platforms.opalkelly.platform;
 
 import ch.epfl.vlsc.hls.platform.VivadoHLS;
-import com.streamgenomics.phase.OpalKellyBackendPhase;
+import com.streamgenomics.platforms.opalkelly.phase.OpalKellyBackendPhase;
 import se.lth.cs.tycho.compiler.Compiler;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.phase.Phase;

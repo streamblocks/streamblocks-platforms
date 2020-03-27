@@ -1,4 +1,4 @@
-package com.streamgenomics.phase;
+package com.streamgenomics.platforms.opalkelly.phase;
 
 import ch.epfl.vlsc.hls.backend.VivadoHLSBackend;
 import ch.epfl.vlsc.hls.phase.VivadoHLSBackendPhase;
