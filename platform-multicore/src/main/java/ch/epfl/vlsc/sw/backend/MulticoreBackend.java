@@ -1,5 +1,6 @@
 package ch.epfl.vlsc.sw.backend;
 
+import ch.epfl.vlsc.platformutils.DefaultValues;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.utils.Box;
 import org.multij.Binding;
@@ -13,8 +14,6 @@ import se.lth.cs.tycho.ir.QID;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.phase.TreeShadow;
-import se.lth.cs.tycho.settings.Configuration;
-import se.lth.cs.tycho.settings.OnOffSetting;
 
 import static org.multij.BindingKind.INJECTED;
 import static org.multij.BindingKind.LAZY;
