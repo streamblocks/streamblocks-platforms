@@ -1,0 +1,8 @@
+<factorypath>
+    <factorypathentry kind="VARJAR" id="M2_REPO/commons-io/commons-io/2.6/commons-io-2.6.jar" enabled="true" runInBatchMode="false"/>
+    <factorypathentry kind="VARJAR" id="M2_REPO/se/lth/cs/tycho/core/1.0-SNAPSHOT/core-1.0-SNAPSHOT.jar" enabled="true" runInBatchMode="false"/>
+    <factorypathentry kind="VARJAR" id="M2_REPO/se/lth/cs/tycho/compiler/1.0-SNAPSHOT/compiler-1.0-SNAPSHOT.jar" enabled="true" runInBatchMode="false"/>
+    <factorypathentry kind="VARJAR" id="M2_REPO/org/multij/multij-core/0.1/multij-core-0.1.jar" enabled="true" runInBatchMode="false"/>
+    <factorypathentry kind="VARJAR" id="M2_REPO/org/multij/multij-processor/0.1/multij-processor-0.1.jar" enabled="true" runInBatchMode="false"/>
+    <factorypathentry kind="VARJAR" id="M2_REPO/ch/epfl/vlsc/streamblocks/platform-core/1.0-SNAPSHOT/platform-core-1.0-SNAPSHOT.jar" enabled="true" runInBatchMode="false"/>
+</factorypath>

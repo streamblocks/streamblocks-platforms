@@ -17,6 +17,7 @@
         <module>platform-vivadohls</module>
         <module>platform-node</module>
         <module>platform-opalkelly</module>
+        <module>platform-unified</module>
     </modules>
 
     <properties>
