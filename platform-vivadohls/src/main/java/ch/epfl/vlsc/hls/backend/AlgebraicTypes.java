@@ -13,6 +13,8 @@ import se.lth.cs.tycho.type.SumType;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Stream;
 
 @Module
 public interface AlgebraicTypes {
@@ -20,11 +22,17 @@ public interface AlgebraicTypes {
     @Binding(BindingKind.INJECTED)
     VivadoHLSBackend backend();
 
-    @Binding(BindingKind.INJECTED)
-    DefaultValues defaultValues();
+    default DefaultValues defaultValues() {
+        return backend().defaultValues();
+    }
 
     default Emitter emitter() {
         return backend().emitter();
+    }
+
+    default void declareAlgebraicTypes() {
+        types().forEachOrdered(this::declareType);
+        emitter().emitNewLine();
     }
 
     default void declareType(AlgebraicType type) {
@@ -41,14 +49,14 @@ public interface AlgebraicTypes {
                 {
                     emitter().increaseIndentation();
 
-                    emitter().emit("%s_None = 0,", sum.getName());
+                    emitter().emit("%s___None = 0,", sum.getName());
                     Iterator<SumType.VariantType> iter = sum.getVariants().iterator();
                     while (iter.hasNext()) {
                         SumType.VariantType variant = iter.next();
                         if (iter.hasNext()) {
-                            emitter().emit("%s_%s,", sum.getName(), variant.getName());
+                            emitter().emit("%s___%s,", sum.getName(), variant.getName());
                         } else {
-                            emitter().emit("%s_%s", sum.getName(), variant.getName());
+                            emitter().emit("%s___%s", sum.getName(), variant.getName());
                         }
                     }
 
@@ -66,9 +74,7 @@ public interface AlgebraicTypes {
                     {
                         emitter().increaseIndentation();
 
-                        variant.getFields().forEach(field -> {
-                            emitter().emit("%s;", backend().declarations().declaration(field.getType(), field.getName()));
-                        });
+                        variant.getFields().forEach(field -> emitter().emit("%s;", backend().declarations().declaration(field.getType(), field.getName())));
 
                         emitter().decreaseIndentation();
                     }
@@ -80,28 +86,43 @@ public interface AlgebraicTypes {
                     emitter().emit("struct %s %1$s;", variant.getName());
                 }
                 emitter().emitNewLine();
+            } else {
+                ProductType product = (ProductType) type;
+                product.getFields().forEach(field -> {
+                    emitter().emit("%s;", backend().declarations().declaration(field.getType(), field.getName()));
+                });
+
+                emitter().emitNewLine();
             }
 
             // -- Default Constructor
-            emitter().emit("%s(){");
+            emitter().emit("%s() {", type.getName());
             {
                 emitter().increaseIndentation();
 
                 if (type instanceof SumType) {
                     SumType sum = (SumType) type;
 
-                    emitter().emit("tag = %s_None;", sum.getName());
+                    emitter().emit("tag = %s___None;", sum.getName());
                     emitter().emitNewLine();
 
                     for (SumType.VariantType variant : sum.getVariants()) {
                         for (FieldType field : variant.getFields()) {
-                            emitter().emit("%s.%s = %s;", variant.getName(), field.getName(), defaultValues().defaultValue(field.getType()));
+                            if (field.getType() instanceof AlgebraicType) {
+                                emitter().emit("%s.%s = %s();", variant.getName(), field.getName(), ((AlgebraicType) field.getType()).getName());
+                            } else {
+                                emitter().emit("%s.%s = %s;", variant.getName(), field.getName(), defaultValues().defaultValue(field.getType()));
+                            }
                         }
                     }
                 } else {
                     ProductType product = (ProductType) type;
                     for (FieldType field : product.getFields()) {
-                        emitter().emit("%s = %s;", product.getName(), defaultValues().defaultValue(field.getType()));
+                        if (field.getType() instanceof AlgebraicType) {
+                            emitter().emit("%s = %s();", field.getName(), ((AlgebraicType) field.getType()).getName());
+                        } else {
+                            emitter().emit("%s = %s;", field.getName(), defaultValues().defaultValue(field.getType()));
+                        }
                     }
                 }
                 emitter().decreaseIndentation();
@@ -110,7 +131,7 @@ public interface AlgebraicTypes {
             emitter().emitNewLine();
 
             // -- Copy Constructor
-            emitter().emit("%s(const %1$s &t){", type.getName());
+            emitter().emit("%s(const %1$s &t) {", type.getName());
             {
                 emitter().increaseIndentation();
 
@@ -128,37 +149,85 @@ public interface AlgebraicTypes {
                 } else {
                     ProductType product = (ProductType) type;
                     for (FieldType field : product.getFields()) {
-                        emitter().emit("%s = t.%1$s;", product.getName());
+                        emitter().emit("%s = t.%1$s;", field.getName());
                     }
                 }
 
                 emitter().decreaseIndentation();
             }
             emitter().emit("}");
+            emitter().emitNewLine();
 
             // -- Constructor
             if (type instanceof SumType) {
                 SumType sum = (SumType) type;
+                for (SumType.VariantType variant : sum.getVariants()) {
+                    emitter().emit("%s %1$s_%s(%s){", type.getName(), variant.getName(), String.join(", ", fieldTypessAsList(variant.getFields())));
+                    {
+                        emitter().increaseIndentation();
 
+                        emitter().emit("%s t = %1$s();", sum.getName());
+                        emitter().emit("t.tag = %s___%s;", type.getName(), variant.getName());
+                        for (FieldType field : variant.getFields()) {
+                            emitter().emit("t.%s.%s = %2$s;", variant.getName(), field.getName());
+                        }
+                        emitter().emitNewLine();
+
+                        emitter().emit("return t;");
+                        emitter().decreaseIndentation();
+                    }
+                    emitter().emit("}");
+                    emitter().emitNewLine();
+                }
             } else {
                 ProductType product = (ProductType) type;
+                emitter().emit("%s(%s) {", type.getName(), String.join(", ", fieldTypessAsList(product.getFields())));
+                {
+                    emitter().increaseIndentation();
 
+                    product.getFields().forEach(f -> emitter().emit("this->%s = %1$s;", f.getName()));
 
+                    emitter().decreaseIndentation();
+                }
+                emitter().emit("}");
             }
-
-
+            emitter().emitNewLine();
             emitter().decreaseIndentation();
         }
         emitter().emit("};");
+        emitter().emitNewLine();
+    }
 
+    default String constructor(String constructor) {
+        return types()
+                .filter(type -> {
+                    if (type instanceof ProductType) {
+                        return Objects.equals(type.getName(), constructor);
+                    } else {
+                        return ((SumType) type).getVariants().stream().anyMatch(variant -> Objects.equals(variant.getName(), constructor));
+                    }
+                })
+                .map(type -> {
+                    if (type instanceof ProductType) {
+                        return type.getName();
+                    } else {
+                        return ((SumType) type).getVariants().stream().filter(variant -> Objects.equals(variant.getName(), constructor)).map(variant -> type.getName() + "_" + variant.getName()).findAny().get();
+                    }
+                })
+                .findAny()
+                .get();
     }
 
     default List<String> fieldTypessAsList(List<FieldType> list) {
         List<String> fields = new ArrayList<>();
-        list.forEach(field -> {
-            fields.add(String.format("%s", backend().declarations().declaration(field.getType(), field.getName())));
-        });
+        list.forEach(field -> fields.add(String.format("%s", backend().declarations().declaration(field.getType(), field.getName()))));
         return fields;
     }
 
+    default Stream<AlgebraicType> types() {
+        return backend().task()
+                .getSourceUnits().stream()
+                .flatMap(unit -> unit.getTree().getTypeDecls().stream())
+                .map(decl -> (AlgebraicType) backend().types().declaredGlobalType(decl));
+    }
 }

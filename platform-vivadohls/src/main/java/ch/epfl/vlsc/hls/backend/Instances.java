@@ -7,8 +7,10 @@ import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.GlobalNames;
 import se.lth.cs.tycho.attribute.Types;
+import se.lth.cs.tycho.ir.Parameter;
 import se.lth.cs.tycho.ir.Port;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
+import se.lth.cs.tycho.ir.decl.ParameterVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
@@ -371,6 +373,16 @@ public interface Instances {
             emitter().emit("int __ret;");
             emitter().emitNewLine();
 
+            if(!actor.getValueParameters().isEmpty()){
+                emitter().emit("// -- Parameters");
+                for (ParameterVarDecl vp : actor.getValueParameters()) {
+                    String decl = declarations().declaration(types().declaredType(vp), backend().variables().declarationName(vp));
+                    emitter().emit("%s;", decl);
+                }
+                emitter().emitNewLine();
+            }
+
+
             emitter().emit("// -- Scopes");
             for (Scope s : actor.getScopes()) {
                 if (!(s.getDeclarations().isEmpty() || actor.getScopes().indexOf(s) == 0)) {
@@ -379,12 +391,13 @@ public interface Instances {
             }
             emitter().emit("// -- Conditions");
             actor.getConditions().forEach(c -> emitter().emit("%s;", conditionPrototype(instanceName, c, actor.getConditions().indexOf(c), false)));
+            emitter().emitNewLine();
+
             emitter().emit("// -- Transitions");
             actor.getTransitions().forEach(t -> emitter().emit("%s;", transitionPrototype(instanceName, t, actor.getTransitions().indexOf(t), false)));
-
+            emitter().emitNewLine();
 
             emitter().decreaseIndentation();
-            emitter().emitNewLine();
         }
 
         // -- Public
@@ -442,6 +455,22 @@ public interface Instances {
                         }
 
                     }
+                }
+            }
+
+            // -- Parameters
+            Instance instance = backend().instancebox().get();
+
+            for (ParameterVarDecl par : actor.getValueParameters()) {
+                boolean assigned = false;
+                for (Parameter<Expression, ?> assignment : instance.getValueParameters()) {
+                    if (par.getName().equals(assignment.getName())) {
+                        emitter().emit("this->%s = %s;", backend().variables().declarationName(par), expressioneval().evaluate(assignment.getValue()));
+                        assigned = true;
+                    }
+                }
+                if (!assigned) {
+                    throw new RuntimeException(String.format("Could not assign to %s. Candidates: {%s}.", par.getName(), String.join(", ", instance.getValueParameters().map(Parameter::getName))));
                 }
             }
 

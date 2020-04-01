@@ -32,6 +32,11 @@ public interface Globals {
         emitter().emit("#define __GLOBALS_%s__", backend().task().getIdentifier().getLast().toString().toUpperCase());
         emitter().emitNewLine();
 
+        // -- Includes
+        emitter().emit("#include <stdint.h>");
+        emitter().emit("#include \"ap_int.h\"");
+        emitter().emitNewLine();
+
         // -- Return
         emitter().emit("// -- Actor Return values");
         emitter().emit("#define RETURN_IDLE 0");
@@ -39,6 +44,12 @@ public interface Globals {
         emitter().emit("#define RETURN_TEST 2");
         emitter().emit("#define RETURN_EXECUTED 3");
         emitter().emitNewLine();
+
+        // -- Types
+        if(backend().algebraicTypes().types().count() != 0){
+            emitter().emit("// -- User Types");
+            backend().algebraicTypes().declareAlgebraicTypes();
+        }
 
         // -- Pins
         emitter().emit("// -- Pins");

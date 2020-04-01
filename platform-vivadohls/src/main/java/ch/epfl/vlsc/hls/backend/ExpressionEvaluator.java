@@ -117,6 +117,20 @@ public interface ExpressionEvaluator {
         return "(*" + evaluate(deref.getReference()) + ")";
     }
 
+    default String evaluate(ExprField field){
+        return String.format("%s.%s", evaluate(field.getStructure()), field.getField().getName());
+    }
+
+    default String evaluate(ExprTypeConstruction construction){
+        String fn = backend().algebraicTypes().constructor(construction.getConstructor());
+        List<String> parameters = new ArrayList<>();
+
+        for (Expression parameter : construction.getArgs()) {
+            parameters.add(evaluate(parameter));
+        }
+        return String.format("%s(%s)", fn, String.join(", ", parameters));
+    }
+
     /**
      * Evaluate an expression Globals variable
      *

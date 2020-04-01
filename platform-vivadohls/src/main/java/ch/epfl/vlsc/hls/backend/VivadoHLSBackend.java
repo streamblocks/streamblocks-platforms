@@ -10,6 +10,7 @@ import ch.epfl.vlsc.hls.backend.scripts.VivadoTCL;
 import ch.epfl.vlsc.hls.backend.simulators.WcfgWaveform;
 import ch.epfl.vlsc.hls.backend.verilog.VerilogNetwork;
 import ch.epfl.vlsc.hls.backend.verilog.VerilogTestbench;
+import ch.epfl.vlsc.platformutils.DefaultValues;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.utils.Box;
 import org.multij.Binding;
@@ -157,6 +158,18 @@ public interface VivadoHLSBackend {
         return MultiJ.from(CallablesInActors.class).bind("backend").to(this).instance();
     }
 
+    // -- Algebraic Types
+    @Binding(LAZY)
+    default AlgebraicTypes algebraicTypes() {
+        return MultiJ.from(AlgebraicTypes.class).bind("backend").to(this).instance();
+    }
+
+    // -- Default Values
+    @Binding(LAZY)
+    default DefaultValues defaultValues(){
+        return MultiJ.from(DefaultValues.class).instance();
+    }
+
     // -- ChannelUtils
     @Binding(LAZY)
     default ChannelsUtils channelsutils() {
@@ -184,7 +197,7 @@ public interface VivadoHLSBackend {
     default BranchingController branchingController() {
         return MultiJ.from(BranchingController.class).bind("backend").to(this).instance();
     }
-    
+
 
     // Experimental strawman contoller
     // Author: Mahyar
@@ -195,7 +208,7 @@ public interface VivadoHLSBackend {
 
 
     @Binding(LAZY)
-    default ExternalMemory externalMemory(){
+    default ExternalMemory externalMemory() {
         return MultiJ.from(ExternalMemory.class)
                 .bind("variableScopes").to(task().getModule(VariableScopes.key))
                 .bind("types").to(task().getModule(Types.key))

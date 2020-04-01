@@ -147,6 +147,7 @@ public interface TypesEvaluator {
         return type(type.getType()) + "*";
     }
 
+    default String type(AlgebraicType type){ return type.getName(); }
 
     /**
      * Get The most inner type of a type

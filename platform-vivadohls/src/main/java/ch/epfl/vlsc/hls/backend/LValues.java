@@ -7,10 +7,7 @@ import org.multij.Module;
 import se.lth.cs.tycho.ir.Variable;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.expr.ExprIndexer;
-import se.lth.cs.tycho.ir.stmt.lvalue.LValue;
-import se.lth.cs.tycho.ir.stmt.lvalue.LValueDeref;
-import se.lth.cs.tycho.ir.stmt.lvalue.LValueIndexer;
-import se.lth.cs.tycho.ir.stmt.lvalue.LValueVariable;
+import se.lth.cs.tycho.ir.stmt.lvalue.*;
 import se.lth.cs.tycho.type.ListType;
 import se.lth.cs.tycho.type.Type;
 
@@ -45,6 +42,10 @@ public interface LValues {
 
     default String lvalue(LValueDeref deref) {
         return "(*" + lvalue(deref.getVariable()) + ")";
+    }
+
+    default String lvalue(LValueField field) {
+        return String.format("%s.%s", lvalue(field.getStructure()), field.getField().getName());
     }
 
     default String lvalue(LValueIndexer indexer) {
