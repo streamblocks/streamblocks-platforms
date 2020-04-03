@@ -2,18 +2,13 @@ package ch.epfl.vlsc.hls.backend;
 
 import ch.epfl.vlsc.platformutils.DefaultValues;
 import ch.epfl.vlsc.platformutils.Emitter;
+import ch.epfl.vlsc.platformutils.utils.Pair;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
-import se.lth.cs.tycho.type.AlgebraicType;
-import se.lth.cs.tycho.type.FieldType;
-import se.lth.cs.tycho.type.ProductType;
-import se.lth.cs.tycho.type.SumType;
+import se.lth.cs.tycho.type.*;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Stream;
 
 @Module
@@ -211,7 +206,7 @@ public interface AlgebraicTypes {
                     if (type instanceof ProductType) {
                         return type.getName();
                     } else {
-                        return ((SumType) type).getVariants().stream().filter(variant -> Objects.equals(variant.getName(), constructor)).map(variant -> type.getName() + "_" + variant.getName()).findAny().get();
+                        return ((SumType) type).getVariants().stream().filter(variant -> Objects.equals(variant.getName(), constructor)).map(variant -> String.format("%s().%1$s_%s", type.getName(), variant.getName())).findAny().get();
                     }
                 })
                 .findAny()
@@ -230,4 +225,33 @@ public interface AlgebraicTypes {
                 .flatMap(unit -> unit.getTree().getTypeDecls().stream())
                 .map(decl -> (AlgebraicType) backend().types().declaredGlobalType(decl));
     }
+
+
+    default List<Map.Entry<String, Type>> flattenFieldNames(AlgebraicType type, String extension) {
+        List<Map.Entry<String, Type>> names = new ArrayList<>();
+
+        if (type instanceof SumType) {
+            SumType sum = (SumType) type;
+            for (SumType.VariantType variant : sum.getVariants()) {
+                for (FieldType field : variant.getFields()) {
+                    if (field.getType() instanceof AlgebraicType) {
+                        names.addAll(flattenFieldNames((AlgebraicType) field.getType(), field.getName() + "_"));
+                    } else {
+                        names.add(Pair.of(extension + field.getName(), field.getType()));
+                    }
+                }
+            }
+        } else {
+            ProductType product = (ProductType) type;
+            for (FieldType field : product.getFields()) {
+                if (field.getType() instanceof AlgebraicType) {
+                    names.addAll(flattenFieldNames((AlgebraicType) field.getType(), field.getName() + "_"));
+                } else {
+                    names.add(Pair.of(extension + field.getName(), field.getType()));
+                }
+            }
+        }
+        return names;
+    }
+
 }

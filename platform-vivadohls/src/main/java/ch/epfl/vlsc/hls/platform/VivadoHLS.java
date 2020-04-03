@@ -57,6 +57,7 @@ public class VivadoHLS implements Platform {
 
     private static final List<Phase> phases = ImmutableList.<Phase>builder()
             .addAll(Compiler.frontendPhases())
+            .add(new RecursiveTypeDetectionPhase())
             .addAll(networkElaborationPhases())
             .addAll(actorMachinePhases())
             .add(new RemoveUnusedEntityDeclsPhase())

@@ -18,8 +18,7 @@ import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.network.Network;
 import se.lth.cs.tycho.ir.util.ImmutableList;
-import se.lth.cs.tycho.type.ListType;
-import se.lth.cs.tycho.type.Type;
+import se.lth.cs.tycho.type.*;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -285,34 +284,79 @@ public interface VerilogNetwork {
     default void getFifoQueueWires(List<Connection> connections) {
 
         for (Connection connection : connections) {
-            int dataWidth = getQueueDataWidth(connection);
             String queueName = queueNames().get(connection);
+            Type type = getQueueType(connection);
 
             emitter().emit("// -- Queue wires : %s", queueName);
             if (connection.getSource().getInstance().isPresent()) {
-                String source = String.format("q_%s_%s", connection.getSource().getInstance().get(),
-                        connection.getSource().getPort());
-                emitter().emit("wire [%d:0] %s_din;", dataWidth - 1, source);
-                emitter().emit("wire %s_full_n;", source);
-                emitter().emit("wire %s_write;", source);
-                emitter().emitNewLine();
+                if (type instanceof AlgebraicType) {
+                    List<Map.Entry<String, Type>> flattenFields = backend().algebraicTypes().flattenFieldNames((AlgebraicType) type, "");
+                    for (Map.Entry<String, Type> field : flattenFields) {
+                        String source = String.format("q_%s_%s_%s", connection.getSource().getInstance().get(),
+                                connection.getSource().getPort(), field.getKey());
+                        getFifoQueueWiresIO(TypeUtils.sizeOfBits(field.getValue()), source, true);
+                        emitter().emitNewLine();
+                    }
+                } else {
+                    int dataWidth = getQueueDataWidth(connection);
+
+                    String source = String.format("q_%s_%s", connection.getSource().getInstance().get(),
+                            connection.getSource().getPort());
+                    getFifoQueueWiresIO(dataWidth, source, true);
+                    emitter().emitNewLine();
+                }
             }
 
             if (connection.getTarget().getInstance().isPresent()) {
-                String target = String.format("q_%s_%s", connection.getTarget().getInstance().get(),
-                        connection.getTarget().getPort());
-                emitter().emit("wire [%d:0] %s_dout;", dataWidth - 1, target);
-                emitter().emit("wire %s_empty_n;", target);
-                emitter().emit("wire %s_read;", target);
-                emitter().emitNewLine();
+                if (type instanceof AlgebraicType) {
+                    List<Map.Entry<String, Type>> flattenFields = backend().algebraicTypes().flattenFieldNames((AlgebraicType) type, "");
+                    for (Map.Entry<String, Type> field : flattenFields) {
+                        String target = String.format("q_%s_%s_%s", connection.getTarget().getInstance().get(),
+                                connection.getTarget().getPort(), field.getKey());
+                        getFifoQueueWiresIO(TypeUtils.sizeOfBits(field.getValue()), target, false);
+                        emitter().emitNewLine();
+                    }
+                } else {
+                    int dataWidth = getQueueDataWidth(connection);
+
+                    String target = String.format("q_%s_%s", connection.getTarget().getInstance().get(),
+                            connection.getTarget().getPort());
+                    getFifoQueueWiresIO(dataWidth, target, false);
+                    emitter().emitNewLine();
+                }
             }
 
-            emitter().emit("wire [%d:0] %s_peek;", dataWidth - 1, queueName);
-            emitter().emit("wire [31:0] %s_count;", queueName);
-            emitter().emit("wire [31:0] %s_size;", queueName);
-            emitter().emitNewLine();
+            if (type instanceof AlgebraicType) {
+                List<Map.Entry<String, Type>> flattenFields = backend().algebraicTypes().flattenFieldNames((AlgebraicType) type, "");
+                for (Map.Entry<String, Type> field : flattenFields) {
+                    emitter().emit("wire [%d:0] %s_%s_peek;", TypeUtils.sizeOfBits(field.getValue()) - 1, queueName, field.getKey());
+                    emitter().emit("wire [31:0] %s_%s_count;", queueName, field.getKey());
+                    emitter().emit("wire [31:0] %s_%s_size;", queueName, field.getKey());
+                    emitter().emitNewLine();
+                }
+            } else {
+                int dataWidth = getQueueDataWidth(connection);
+                emitter().emit("wire [%d:0] %s_peek;", dataWidth - 1, queueName);
+                emitter().emit("wire [31:0] %s_count;", queueName);
+                emitter().emit("wire [31:0] %s_size;", queueName);
+                emitter().emitNewLine();
+            }
         }
     }
+
+    default void getFifoQueueWiresIO(Integer dataWidth, String name, Boolean isInput) {
+        if (isInput) {
+            emitter().emit("wire [%d:0] %s_din;", dataWidth - 1, name);
+            emitter().emit("wire %s_full_n;", name);
+            emitter().emit("wire %s_write;", name);
+        } else {
+            emitter().emit("wire [%d:0] %s_dout;", dataWidth - 1, name);
+            emitter().emit("wire %s_empty_n;", name);
+            emitter().emit("wire %s_read;", name);
+        }
+
+    }
+
 
     default void getInstanceApControlWires(List<Instance> instances) {
         for (Instance instance : instances) {
@@ -346,8 +390,8 @@ public interface VerilogNetwork {
             emitter().emit("wire    %s_trigger_ap_idle;", qidName);
             emitter().emit("wire    %s_trigger_ap_ready;\t// currently inactive", qidName);
 
-            // Local syncronization signals
-            emitter().emit("// -- Local syncronization signals");
+            // Local synchronization signals
+            emitter().emit("// -- Local synchronization signals");
             emitter().emit("wire    %s;", getTriggerSignalByName(instance, "sleep"));
             emitter().emit("wire    %s;", getTriggerSignalByName(instance, "sync_wait"));
             emitter().emit("wire    %s;", getTriggerSignalByName(instance, "sync_exec"));
@@ -355,11 +399,11 @@ public interface VerilogNetwork {
             // Local IO sync signals
 
             emitter().emit("// -- Local IO sync signals");
-            for (PortDecl port: backend().task().getNetwork().getInputPorts())
+            for (PortDecl port : backend().task().getNetwork().getInputPorts())
                 emitter().emit("wire    %s;", getPortTriggerSignalByName(port, "sync"));
-            for (PortDecl port: backend().task().getNetwork().getOutputPorts())
+            for (PortDecl port : backend().task().getNetwork().getOutputPorts())
                 emitter().emit("wire    %s;", getPortTriggerSignalByName(port, "sync"));
-            
+
             emitter().emit("// -- Signals for the module");
             emitter().emit("wire    %s_ap_start;", qidName);
             emitter().emit("wire    %s_ap_idle;", qidName);
@@ -367,7 +411,7 @@ public interface VerilogNetwork {
             emitter().emit("wire    %s_ap_ready;", qidName);
             emitter().emit("wire    [31 : 0] %s_ap_return;", qidName);
 
-            emitter().emit("// -- Singal for wake up and sleep");
+            emitter().emit("// -- Signal for wake up and sleep");
             emitter().emit("wire    %s_waited;", qidName);
             emitter().emit("wire    %s_all_waited;", qidName);
             emitter().emitNewLine();
@@ -389,7 +433,70 @@ public interface VerilogNetwork {
 
     default void getQueue(Connection connection) {
         String queueName = queueNames().get(connection);
-        int dataWidth = getQueueDataWidth(connection);
+
+        String source;
+        if (connection.getSource().getInstance().isPresent()) {
+            source = String.format("q_%s_%s", connection.getSource().getInstance().get(),
+                    connection.getSource().getPort());
+        } else {
+            source = connection.getSource().getPort();
+        }
+        String target;
+        if (connection.getTarget().getInstance().isPresent()) {
+            target = String.format("q_%s_%s", connection.getTarget().getInstance().get(),
+                    connection.getTarget().getPort());
+        } else {
+            target = connection.getTarget().getPort();
+        }
+
+        Type type = getQueueType(connection);
+
+        if (type instanceof AlgebraicType) {
+            if (type instanceof SumType) {
+                SumType sum = (SumType) type;
+                String extension = "_tag";
+                getQueueInstantiation(queueName + extension, MathUtils.nearestPowTwo(sum.getVariants().size()), source + extension, target + extension);
+                for (SumType.VariantType variant : sum.getVariants()) {
+                    for (FieldType field : variant.getFields()) {
+                        getFieldQueues(field, queueName, source, target);
+                    }
+                }
+            } else {
+                ProductType product = (ProductType) type;
+                for (FieldType field : product.getFields()) {
+                    getFieldQueues(field, queueName, source, target);
+                }
+            }
+        } else {
+            int dataWidth = getQueueDataWidth(connection);
+            getQueueInstantiation(queueName, dataWidth, source, target);
+        }
+    }
+
+    default void getFieldQueues(FieldType field, String queueName, String source, String target) {
+        if (field.getType() instanceof SumType) {
+            SumType sum = (SumType) field.getType();
+            String extension = "_" + field.getName();
+            String tag = "_tag";
+            getQueueInstantiation(queueName + extension + tag, MathUtils.nearestPowTwo(sum.getVariants().size()), source + extension + tag, target + extension + tag);
+            for (SumType.VariantType variant : sum.getVariants()) {
+                for (FieldType f : variant.getFields()) {
+                    getFieldQueues(f, queueName + extension, source + extension, target + extension);
+                }
+            }
+        } else if (field.getType() instanceof ProductType) {
+            ProductType product = (ProductType) field.getType();
+            for (FieldType f : product.getFields()) {
+                String extension = "_" + field.getName();
+                getFieldQueues(f, queueName + extension, source + extension, target + extension);
+            }
+        } else {
+            String extension = "_" + field.getName();
+            getQueueInstantiation(queueName + "_" + field.getName(), TypeUtils.sizeOfBits(field.getType()), source + extension, target + extension);
+        }
+    }
+
+    default void getQueueInstantiation(String queueName, int dataWidth, String source, String target) {
         emitter().emit("// -- Queue FIFO : %s", queueName);
         emitter().emit("FIFO #(");
         {
@@ -405,25 +512,11 @@ public interface VerilogNetwork {
             emitter().emit(".clk(ap_clk),");
             emitter().emit(".reset_n(ap_rst_n),");
 
-            String source;
-            if (connection.getSource().getInstance().isPresent()) {
-                source = String.format("q_%s_%s", connection.getSource().getInstance().get(),
-                        connection.getSource().getPort());
-            } else {
-                source = connection.getSource().getPort();
-            }
             emitter().emit(".if_full_n(%s_full_n),", source);
             emitter().emit(".if_write(%s_write),", source);
             emitter().emit(".if_din(%s_din),", source);
             emitter().emitNewLine();
 
-            String target;
-            if (connection.getTarget().getInstance().isPresent()) {
-                target = String.format("q_%s_%s", connection.getTarget().getInstance().get(),
-                        connection.getTarget().getPort());
-            } else {
-                target = connection.getTarget().getPort();
-            }
             emitter().emit(".if_empty_n(%s_empty_n),", target);
             emitter().emit(".if_read(%s_read),", target);
             emitter().emit(".if_dout(%s_dout),", target);
@@ -552,24 +645,13 @@ public interface VerilogNetwork {
 
             // -- Inputs
             for (PortDecl port : entity.getInputPorts()) {
-                String portName = port.getName();
-                emitter().emit(".%s%s_empty_n(%s),", portName, getPortExtension(),
-                        String.format("q_%s_%s_empty_n", name, portName));
-                emitter().emit(".%s%s_read(%s),", portName, getPortExtension(),
-                        String.format("q_%s_%s_read", name, portName));
-                emitter().emit(".%s%s_dout(%s),", portName, getPortExtension(),
-                        String.format("q_%s_%s_dout", name, portName));
+                getInstancePortDeclaration(port, name, true);
                 emitter().emitNewLine();
+
             }
             // -- Outputs
             for (PortDecl port : entity.getOutputPorts()) {
-                String portName = port.getName();
-                emitter().emit(".%s%s_full_n(%s),", portName, getPortExtension(),
-                        String.format("q_%s_%s_full_n", name, portName));
-                emitter().emit(".%s%s_write(%s),", portName, getPortExtension(),
-                        String.format("q_%s_%s_write", name, portName));
-                emitter().emit(".%s%s_din(%s),", portName, getPortExtension(),
-                        String.format("q_%s_%s_din", name, portName));
+                getInstancePortDeclaration(port, name, false);
                 emitter().emitNewLine();
             }
 
@@ -582,8 +664,18 @@ public interface VerilogNetwork {
                             .filter(c -> c.getTarget().equals(target)).findAny().orElse(null);
                     String queueName = queueNames().get(connection);
 
-                    emitter().emit(".io_%s_peek(%s),", portName, String.format("%s_peek", queueName));
-                    emitter().emit(".io_%s_count(%s),", portName, String.format("%s_count", queueName));
+                    Type type = backend().types().declaredPortType(port);
+                    if (type instanceof AlgebraicType) {
+                        List<Map.Entry<String, Type>> flattenFields = backend().algebraicTypes().flattenFieldNames((AlgebraicType) type, "");
+                        for (Map.Entry<String, Type> fieldPeek : flattenFields) {
+                            emitter().emit(".io_%s_peek_%s(%s),", portName, fieldPeek.getKey(), String.format("%s_%s_peek", queueName, fieldPeek.getKey()));
+                        }
+                        emitter().emit(".io_%s_count(%s),", portName, String.format("%s_%s_count", queueName, flattenFields.get(0)));
+                    } else {
+                        emitter().emit(".io_%s_peek(%s),", portName, String.format("%s_peek", queueName));
+                        emitter().emit(".io_%s_count(%s),", portName, String.format("%s_count", queueName));
+                    }
+
                     emitter().emitNewLine();
                 }
 
@@ -594,8 +686,16 @@ public interface VerilogNetwork {
                     Connection connection = backend().task().getNetwork().getConnections().stream()
                             .filter(c -> c.getSource().equals(source)).findAny().orElse(null);
                     String queueName = queueNames().get(connection);
-                    emitter().emit(".io_%s_size(%s),", portName, String.format("%s_size", queueName));
-                    emitter().emit(".io_%s_count(%s),", portName, String.format("%s_count", queueName));
+                    Type type = backend().types().declaredPortType(port);
+                    if (type instanceof AlgebraicType) {
+                        List<Map.Entry<String, Type>> flattenFields = backend().algebraicTypes().flattenFieldNames((AlgebraicType) type, "");
+                        emitter().emit(".io_%s_size(%s),", portName, String.format("%s_%s_size", queueName, flattenFields.get(0).getKey()));
+                        emitter().emit(".io_%s_count(%s),", portName, String.format("%s_%s_count", queueName, flattenFields.get(0).getKey()));
+                    } else {
+                        emitter().emit(".io_%s_size(%s),", portName, String.format("%s_size", queueName));
+                        emitter().emit(".io_%s_count(%s),", portName, String.format("%s_count", queueName));
+                    }
+
                     emitter().emitNewLine();
                 }
             }
@@ -614,6 +714,72 @@ public interface VerilogNetwork {
         }
         emitter().emit(");");
         return qidName;
+    }
+
+
+    default void getInstancePortDeclaration(PortDecl port, String name, Boolean isInput) {
+        String portName = port.getName();
+        Type type = backend().types().declaredPortType(port);
+        if (type instanceof AlgebraicType) {
+            if (type instanceof SumType) {
+                SumType sum = (SumType) type;
+                getInstanceIOPortDeclaration(portName, "_tag", name, isInput);
+                for (SumType.VariantType variant : sum.getVariants()) {
+                    for (FieldType field : variant.getFields()) {
+                        getInstanceAlgebraicTypePortDeclaration(field, isInput, portName, name, "");
+                    }
+                }
+            } else {
+                ProductType product = (ProductType) type;
+                for (FieldType field : product.getFields()) {
+                    getInstanceAlgebraicTypePortDeclaration(field, isInput, portName, name, "");
+                }
+            }
+        } else {
+            getInstanceIOPortDeclaration(portName, name, "", isInput);
+            emitter().emitNewLine();
+        }
+
+    }
+
+    default void getInstanceIOPortDeclaration(String portName, String name, String portNameExtension, Boolean isInput) {
+        if (isInput) {
+            emitter().emit(".%s%s%s_empty_n(%s),", portName, getPortExtension(), portNameExtension,
+                    String.format("q_%s_%s%s_empty_n", name, portName, portNameExtension));
+            emitter().emit(".%s%s%s_read(%s),", portName, getPortExtension(), portNameExtension,
+                    String.format("q_%s_%s%s_read", name, portName, portNameExtension));
+            emitter().emit(".%s%s%s_dout(%s),", portName, getPortExtension(), portNameExtension,
+                    String.format("q_%s_%s%s_dout", name, portName, portNameExtension));
+        } else {
+            emitter().emit(".%s%s%s_full_n(%s),", portName, getPortExtension(), portNameExtension,
+                    String.format("q_%s_%s%s_full_n", name, portName, portNameExtension));
+            emitter().emit(".%s%s%s_write(%s),", portName, getPortExtension(), portNameExtension,
+                    String.format("q_%s_%s%s_write", name, portName, portNameExtension));
+            emitter().emit(".%s%s%s_din(%s),", portName, getPortExtension(), portNameExtension,
+                    String.format("q_%s_%s%s_din", name, portName, portNameExtension));
+        }
+    }
+
+
+    default void getInstanceAlgebraicTypePortDeclaration(FieldType field, Boolean isInput, String portName, String name, String portNameExtension) {
+        Type type = field.getType();
+        String extension = portNameExtension + "_" + field.getName();
+        if (type instanceof SumType) {
+            SumType sum = (SumType) type;
+            getInstanceIOPortDeclaration(portName, extension + "_tag", name, isInput);
+            for (SumType.VariantType variant : sum.getVariants()) {
+                for (FieldType f : variant.getFields()) {
+                    getInstanceAlgebraicTypePortDeclaration(f, isInput, portName, name, extension);
+                }
+            }
+        } else if (type instanceof ProductType) {
+            ProductType product = (ProductType) type;
+            for (FieldType f : product.getFields()) {
+                getInstanceAlgebraicTypePortDeclaration(f, isInput, portName, name, extension);
+            }
+        } else {
+            getInstanceIOPortDeclaration(portName, name, extension, isInput);
+        }
     }
 
     // ------------------------------------------------------------------------
@@ -652,7 +818,7 @@ public interface VerilogNetwork {
 
     }
 
-    default void getNeworkIsBeingExecutingAssignment(Network network) {
+    default void getNetworkIsBeingExecutingAssignment(Network network) {
         emitter().emit("// -- Network is executing");
         emitter().emit("assign active_instances = %s;",
                 String.join(" || ", network.getInstances().stream().filter(i -> {
@@ -704,71 +870,7 @@ public interface VerilogNetwork {
     }
 
     // ------------------------------------------------------------------------
-    // -- Helper methods
-
-    default String getPortExtension() {
-        // -- TODO : Add _V_V for type accuracy
-        return "_V";
-    }
-
-    @Binding(BindingKind.LAZY)
-    default Map<Connection, String> queueNames() {
-        return new HashMap<>();
-    }
-
-    default String getQueueName(Connection connection) {
-        if (!queueNames().containsKey(connection)) {
-            Connection.End source = connection.getSource();
-            Connection.End target = connection.getTarget();
-
-            if (!source.getInstance().isPresent()) {
-                if (target.getInstance().isPresent()) {
-                    queueNames().put(connection, String.format("q_%s_%s_%s", source.getPort(),
-                            target.getInstance().get(), target.getPort()));
-                }
-            } else {
-                if (target.getInstance().isPresent()) {
-                    queueNames().put(connection, String.format("q_%s_%s_%s_%s", source.getInstance().get(),
-                            source.getPort(), target.getInstance().get(), target.getPort()));
-                } else {
-                    queueNames().put(connection, String.format("q_%s_%s_%s", source.getInstance().get(),
-                            source.getPort(), target.getPort()));
-                }
-            }
-        }
-        return queueNames().get(connection);
-    }
-
-    default int getQueueDataWidth(Connection connection) {
-        int dataWidth;
-        if (!connection.getSource().getInstance().isPresent()) {
-            String portName = connection.getSource().getPort();
-            Network network = backend().task().getNetwork();
-            PortDecl port = network.getInputPorts().stream().filter(p -> p.getName().equals(portName)).findAny()
-                    .orElse(null);
-            dataWidth = TypeUtils.sizeOfBits(backend().types().declaredPortType(port));
-        } else {
-            Network network = backend().task().getNetwork();
-            String srcInstanceName = connection.getSource().getInstance().get();
-            Instance srcInstance = network.getInstances().stream()
-                    .filter(p -> p.getInstanceName().equals(srcInstanceName)).findAny().orElse(null);
-            GlobalEntityDecl entityDecl = backend().globalnames().entityDecl(srcInstance.getEntityName(), true);
-            Entity entity = entityDecl.getEntity();
-            String portName = connection.getSource().getPort();
-            PortDecl port = entity.getOutputPorts().stream().filter(p -> p.getName().equals(portName)).findAny()
-                    .orElse(null);
-            dataWidth = TypeUtils.sizeOfBits(backend().types().declaredPortType(port));
-        }
-        return dataWidth;
-    }
-
-    default int getQueueAddrWidth(Connection connection) {
-
-        if (connection.getSource().getInstance().isPresent() && connection.getTarget().getInstance().isPresent())
-            return MathUtils.log2Ceil(backend().channelsutils().connectionBufferSize(connection));
-        else
-            return 12;
-    }
+    // -- Trigger Logic
 
     default void getApDoneLogic() {
         emitter().emit("// ------------------------------------------------------------------------");
@@ -914,7 +1016,7 @@ public interface VerilogNetwork {
                             lastWaitedSignals.stream()
                                     .filter(x -> !x.equals(getTriggerSignalByName(instance, "waited")))
                                     .collect(Collectors.toList())));
-            
+
         }
 
         for (PortDecl port : backend().task().getNetwork().getInputPorts()) {
@@ -931,7 +1033,7 @@ public interface VerilogNetwork {
                             lastWaitedSignals.stream()
                                     .filter(x -> !x.equals(getPortTriggerSignalByName(port, "waited")))
                                     .collect(Collectors.toList())));
-            
+
         }
 
         emitter().emitNewLine();
@@ -1032,6 +1134,75 @@ public interface VerilogNetwork {
         emitter().emit(".m_axi_%s_BID(m_axi_%s_BID),", safeName, name);
         emitter().emit(".m_axi_%s_BUSER(m_axi_%s_BUSER),", safeName, name);
         emitter().emitNewLine();
+    }
+
+    // ------------------------------------------------------------------------
+    // -- Helper methods
+
+    default String getPortExtension() {
+        // -- TODO : Add _V_V for type accuracy
+        return "_V";
+    }
+
+    @Binding(BindingKind.LAZY)
+    default Map<Connection, String> queueNames() {
+        return new HashMap<>();
+    }
+
+    default String getQueueName(Connection connection) {
+        if (!queueNames().containsKey(connection)) {
+            Connection.End source = connection.getSource();
+            Connection.End target = connection.getTarget();
+
+            if (!source.getInstance().isPresent()) {
+                if (target.getInstance().isPresent()) {
+                    queueNames().put(connection, String.format("q_%s_%s_%s", source.getPort(),
+                            target.getInstance().get(), target.getPort()));
+                }
+            } else {
+                if (target.getInstance().isPresent()) {
+                    queueNames().put(connection, String.format("q_%s_%s_%s_%s", source.getInstance().get(),
+                            source.getPort(), target.getInstance().get(), target.getPort()));
+                } else {
+                    queueNames().put(connection, String.format("q_%s_%s_%s", source.getInstance().get(),
+                            source.getPort(), target.getPort()));
+                }
+            }
+        }
+        return queueNames().get(connection);
+    }
+
+    default int getQueueDataWidth(Connection connection) {
+        return TypeUtils.sizeOfBits(getQueueType(connection));
+    }
+
+    default Type getQueueType(Connection connection) {
+        if (!connection.getSource().getInstance().isPresent()) {
+            String portName = connection.getSource().getPort();
+            Network network = backend().task().getNetwork();
+            PortDecl port = network.getInputPorts().stream().filter(p -> p.getName().equals(portName)).findAny()
+                    .orElse(null);
+            return backend().types().declaredPortType(port);
+        } else {
+            Network network = backend().task().getNetwork();
+            String srcInstanceName = connection.getSource().getInstance().get();
+            Instance srcInstance = network.getInstances().stream()
+                    .filter(p -> p.getInstanceName().equals(srcInstanceName)).findAny().orElse(null);
+            GlobalEntityDecl entityDecl = backend().globalnames().entityDecl(srcInstance.getEntityName(), true);
+            Entity entity = entityDecl.getEntity();
+            String portName = connection.getSource().getPort();
+            PortDecl port = entity.getOutputPorts().stream().filter(p -> p.getName().equals(portName)).findAny()
+                    .orElse(null);
+            return backend().types().declaredPortType(port);
+        }
+    }
+
+    default int getQueueAddrWidth(Connection connection) {
+
+        if (connection.getSource().getInstance().isPresent() && connection.getTarget().getInstance().isPresent())
+            return MathUtils.log2Ceil(backend().channelsutils().connectionBufferSize(connection));
+        else
+            return 12;
     }
 
 }
