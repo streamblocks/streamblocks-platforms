@@ -289,59 +289,30 @@ public interface VerilogNetwork {
 
             emitter().emit("// -- Queue wires : %s", queueName);
             if (connection.getSource().getInstance().isPresent()) {
-                if (type instanceof AlgebraicType) {
-                    List<Map.Entry<String, Type>> flattenFields = backend().algebraicTypes().flattenFieldNames((AlgebraicType) type, "");
-                    for (Map.Entry<String, Type> field : flattenFields) {
-                        String source = String.format("q_%s_%s_%s", connection.getSource().getInstance().get(),
-                                connection.getSource().getPort(), field.getKey());
-                        getFifoQueueWiresIO(TypeUtils.sizeOfBits(field.getValue()), source, true);
-                        emitter().emitNewLine();
-                    }
-                } else {
-                    int dataWidth = getQueueDataWidth(connection);
+                int dataWidth = getQueueDataWidth(connection);
 
-                    String source = String.format("q_%s_%s", connection.getSource().getInstance().get(),
-                            connection.getSource().getPort());
-                    getFifoQueueWiresIO(dataWidth, source, true);
-                    emitter().emitNewLine();
-                }
+                String source = String.format("q_%s_%s", connection.getSource().getInstance().get(),
+                        connection.getSource().getPort());
+                getFifoQueueWiresIO(dataWidth, source, true);
+                emitter().emitNewLine();
             }
 
             if (connection.getTarget().getInstance().isPresent()) {
-                if (type instanceof AlgebraicType) {
-                    List<Map.Entry<String, Type>> flattenFields = backend().algebraicTypes().flattenFieldNames((AlgebraicType) type, "");
-                    for (Map.Entry<String, Type> field : flattenFields) {
-                        String target = String.format("q_%s_%s_%s", connection.getTarget().getInstance().get(),
-                                connection.getTarget().getPort(), field.getKey());
-                        getFifoQueueWiresIO(TypeUtils.sizeOfBits(field.getValue()), target, false);
-                        emitter().emitNewLine();
-                    }
-                } else {
-                    int dataWidth = getQueueDataWidth(connection);
-
-                    String target = String.format("q_%s_%s", connection.getTarget().getInstance().get(),
-                            connection.getTarget().getPort());
-                    getFifoQueueWiresIO(dataWidth, target, false);
-                    emitter().emitNewLine();
-                }
-            }
-
-            if (type instanceof AlgebraicType) {
-                List<Map.Entry<String, Type>> flattenFields = backend().algebraicTypes().flattenFieldNames((AlgebraicType) type, "");
-                for (Map.Entry<String, Type> field : flattenFields) {
-                    emitter().emit("wire [%d:0] %s_%s_peek;", TypeUtils.sizeOfBits(field.getValue()) - 1, queueName, field.getKey());
-                    emitter().emit("wire [31:0] %s_%s_count;", queueName, field.getKey());
-                    emitter().emit("wire [31:0] %s_%s_size;", queueName, field.getKey());
-                    emitter().emitNewLine();
-                }
-            } else {
                 int dataWidth = getQueueDataWidth(connection);
-                emitter().emit("wire [%d:0] %s_peek;", dataWidth - 1, queueName);
-                emitter().emit("wire [31:0] %s_count;", queueName);
-                emitter().emit("wire [31:0] %s_size;", queueName);
+
+                String target = String.format("q_%s_%s", connection.getTarget().getInstance().get(),
+                        connection.getTarget().getPort());
+                getFifoQueueWiresIO(dataWidth, target, false);
                 emitter().emitNewLine();
             }
+
+            int dataWidth = getQueueDataWidth(connection);
+            emitter().emit("wire [%d:0] %s_peek;", dataWidth - 1, queueName);
+            emitter().emit("wire [31:0] %s_count;", queueName);
+            emitter().emit("wire [31:0] %s_size;", queueName);
+            emitter().emitNewLine();
         }
+
     }
 
     default void getFifoQueueWiresIO(Integer dataWidth, String name, Boolean isInput) {
@@ -449,51 +420,8 @@ public interface VerilogNetwork {
             target = connection.getTarget().getPort();
         }
 
-        Type type = getQueueType(connection);
-
-        if (type instanceof AlgebraicType) {
-            if (type instanceof SumType) {
-                SumType sum = (SumType) type;
-                String extension = "_tag";
-                getQueueInstantiation(queueName + extension, MathUtils.nearestPowTwo(sum.getVariants().size()), source + extension, target + extension);
-                for (SumType.VariantType variant : sum.getVariants()) {
-                    for (FieldType field : variant.getFields()) {
-                        getFieldQueues(field, queueName, source, target);
-                    }
-                }
-            } else {
-                ProductType product = (ProductType) type;
-                for (FieldType field : product.getFields()) {
-                    getFieldQueues(field, queueName, source, target);
-                }
-            }
-        } else {
-            int dataWidth = getQueueDataWidth(connection);
-            getQueueInstantiation(queueName, dataWidth, source, target);
-        }
-    }
-
-    default void getFieldQueues(FieldType field, String queueName, String source, String target) {
-        if (field.getType() instanceof SumType) {
-            SumType sum = (SumType) field.getType();
-            String extension = "_" + field.getName();
-            String tag = "_tag";
-            getQueueInstantiation(queueName + extension + tag, MathUtils.nearestPowTwo(sum.getVariants().size()), source + extension + tag, target + extension + tag);
-            for (SumType.VariantType variant : sum.getVariants()) {
-                for (FieldType f : variant.getFields()) {
-                    getFieldQueues(f, queueName + extension, source + extension, target + extension);
-                }
-            }
-        } else if (field.getType() instanceof ProductType) {
-            ProductType product = (ProductType) field.getType();
-            for (FieldType f : product.getFields()) {
-                String extension = "_" + field.getName();
-                getFieldQueues(f, queueName + extension, source + extension, target + extension);
-            }
-        } else {
-            String extension = "_" + field.getName();
-            getQueueInstantiation(queueName + "_" + field.getName(), TypeUtils.sizeOfBits(field.getType()), source + extension, target + extension);
-        }
+        int dataWidth = getQueueDataWidth(connection);
+        getQueueInstantiation(queueName, dataWidth, source, target);
     }
 
     default void getQueueInstantiation(String queueName, int dataWidth, String source, String target) {
@@ -663,18 +591,8 @@ public interface VerilogNetwork {
                     Connection connection = backend().task().getNetwork().getConnections().stream()
                             .filter(c -> c.getTarget().equals(target)).findAny().orElse(null);
                     String queueName = queueNames().get(connection);
-
-                    Type type = backend().types().declaredPortType(port);
-                    if (type instanceof AlgebraicType) {
-                        List<Map.Entry<String, Type>> flattenFields = backend().algebraicTypes().flattenFieldNames((AlgebraicType) type, "");
-                        for (Map.Entry<String, Type> fieldPeek : flattenFields) {
-                            emitter().emit(".io_%s_peek_%s(%s),", portName, fieldPeek.getKey(), String.format("%s_%s_peek", queueName, fieldPeek.getKey()));
-                        }
-                        emitter().emit(".io_%s_count(%s),", portName, String.format("%s_%s_count", queueName, flattenFields.get(0)));
-                    } else {
-                        emitter().emit(".io_%s_peek(%s),", portName, String.format("%s_peek", queueName));
-                        emitter().emit(".io_%s_count(%s),", portName, String.format("%s_count", queueName));
-                    }
+                    emitter().emit(".io_%s_peek(%s),", portName, String.format("%s_peek", queueName));
+                    emitter().emit(".io_%s_count(%s),", portName, String.format("%s_count", queueName));
 
                     emitter().emitNewLine();
                 }
@@ -686,15 +604,9 @@ public interface VerilogNetwork {
                     Connection connection = backend().task().getNetwork().getConnections().stream()
                             .filter(c -> c.getSource().equals(source)).findAny().orElse(null);
                     String queueName = queueNames().get(connection);
-                    Type type = backend().types().declaredPortType(port);
-                    if (type instanceof AlgebraicType) {
-                        List<Map.Entry<String, Type>> flattenFields = backend().algebraicTypes().flattenFieldNames((AlgebraicType) type, "");
-                        emitter().emit(".io_%s_size(%s),", portName, String.format("%s_%s_size", queueName, flattenFields.get(0).getKey()));
-                        emitter().emit(".io_%s_count(%s),", portName, String.format("%s_%s_count", queueName, flattenFields.get(0).getKey()));
-                    } else {
-                        emitter().emit(".io_%s_size(%s),", portName, String.format("%s_size", queueName));
-                        emitter().emit(".io_%s_count(%s),", portName, String.format("%s_count", queueName));
-                    }
+
+                    emitter().emit(".io_%s_size(%s),", portName, String.format("%s_size", queueName));
+                    emitter().emit(".io_%s_count(%s),", portName, String.format("%s_count", queueName));
 
                     emitter().emitNewLine();
                 }
@@ -719,27 +631,8 @@ public interface VerilogNetwork {
 
     default void getInstancePortDeclaration(PortDecl port, String name, Boolean isInput) {
         String portName = port.getName();
-        Type type = backend().types().declaredPortType(port);
-        if (type instanceof AlgebraicType) {
-            if (type instanceof SumType) {
-                SumType sum = (SumType) type;
-                getInstanceIOPortDeclaration(portName, "_tag", name, isInput);
-                for (SumType.VariantType variant : sum.getVariants()) {
-                    for (FieldType field : variant.getFields()) {
-                        getInstanceAlgebraicTypePortDeclaration(field, isInput, portName, name, "");
-                    }
-                }
-            } else {
-                ProductType product = (ProductType) type;
-                for (FieldType field : product.getFields()) {
-                    getInstanceAlgebraicTypePortDeclaration(field, isInput, portName, name, "");
-                }
-            }
-        } else {
-            getInstanceIOPortDeclaration(portName, name, "", isInput);
-            emitter().emitNewLine();
-        }
-
+        getInstanceIOPortDeclaration(portName, name, "", isInput);
+        emitter().emitNewLine();
     }
 
     default void getInstanceIOPortDeclaration(String portName, String name, String portNameExtension, Boolean isInput) {
@@ -760,27 +653,6 @@ public interface VerilogNetwork {
         }
     }
 
-
-    default void getInstanceAlgebraicTypePortDeclaration(FieldType field, Boolean isInput, String portName, String name, String portNameExtension) {
-        Type type = field.getType();
-        String extension = portNameExtension + "_" + field.getName();
-        if (type instanceof SumType) {
-            SumType sum = (SumType) type;
-            getInstanceIOPortDeclaration(portName, extension + "_tag", name, isInput);
-            for (SumType.VariantType variant : sum.getVariants()) {
-                for (FieldType f : variant.getFields()) {
-                    getInstanceAlgebraicTypePortDeclaration(f, isInput, portName, name, extension);
-                }
-            }
-        } else if (type instanceof ProductType) {
-            ProductType product = (ProductType) type;
-            for (FieldType f : product.getFields()) {
-                getInstanceAlgebraicTypePortDeclaration(f, isInput, portName, name, extension);
-            }
-        } else {
-            getInstanceIOPortDeclaration(portName, name, extension, isInput);
-        }
-    }
 
     // ------------------------------------------------------------------------
     // -- ILA for debug

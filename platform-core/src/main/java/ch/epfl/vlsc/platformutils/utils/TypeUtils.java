@@ -1,7 +1,6 @@
 package ch.epfl.vlsc.platformutils.utils;
 
-import se.lth.cs.tycho.type.IntType;
-import se.lth.cs.tycho.type.Type;
+import se.lth.cs.tycho.type.*;
 
 import java.util.OptionalInt;
 
@@ -25,9 +24,41 @@ public class TypeUtils {
             } else {
                 return 32;
             }
+        } else if (type instanceof RealType) {
+            RealType r = (RealType) type;
+            if (r.getSize() == 64) {
+                return 64;
+            } else {
+                return 32;
+            }
+        } else if (type instanceof ListType) {
+            ListType l = (ListType) type;
+            if (l.getSize().isPresent()) {
+                return l.getSize().getAsInt() * sizeOfBits(l.getElementType());
+            }else{
+                throw new UnsupportedOperationException("Size of the list should be given.");
+            }
+        } else if (type instanceof SumType) {
+            SumType sum = (SumType) type;
+            int size = 0;
+            size += MathUtils.countBit(sum.getVariants().size());
+
+            for (SumType.VariantType variant : sum.getVariants()) {
+                for (FieldType field : variant.getFields()) {
+                    size += sizeOfBits(field.getType());
+                }
+            }
+
+            return size;
+        } else if (type instanceof ProductType) {
+            ProductType product = (ProductType) type;
+            int size = 0;
+            for (FieldType field : product.getFields()) {
+                size += sizeOfBits(field.getType());
+            }
+            return size;
         } else {
             return 32;
         }
     }
-
 }

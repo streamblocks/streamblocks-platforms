@@ -18,6 +18,7 @@ import se.lth.cs.tycho.ir.entity.am.*;
 import se.lth.cs.tycho.ir.entity.cal.CalActor;
 import se.lth.cs.tycho.ir.expr.*;
 import se.lth.cs.tycho.ir.network.Instance;
+import se.lth.cs.tycho.type.AlgebraicType;
 import se.lth.cs.tycho.type.CallableType;
 import se.lth.cs.tycho.type.ListType;
 import se.lth.cs.tycho.type.Type;
@@ -147,6 +148,17 @@ public interface Instances {
         String name = backend().instaceQID(instance.getInstanceName(), "_");
         emitter().emitClikeBlockComment("HLS Top Function");
         emitter().emit("int %s(%s) {", name, entityPorts(withIO, true));
+
+        // -- Data pack I/O with algebraic types
+        List<String> algebraicIO = new ArrayList<>();
+        List<String> algebraicPeek = new ArrayList<>();
+        algebraicIO.addAll(entity.getInputPorts().stream().filter(p -> types().declaredPortType(p) instanceof AlgebraicType).map(PortDecl::getName).collect(Collectors.toList()));
+        algebraicPeek.addAll(algebraicIO);
+        algebraicIO.addAll(entity.getOutputPorts().stream().filter(p -> types().declaredPortType(p) instanceof AlgebraicType).map(PortDecl::getName).collect(Collectors.toList()));
+        algebraicIO.forEach(io -> emitter().emit("#pragma HLS DATA_PACK variable=%s", io));
+        algebraicPeek.forEach(peek -> emitter().emit("#pragma HLS DATA_PACK variable=io.%s_peek", peek));
+
+        // -- Large state variables to external memories
         for (VarDecl decl : externalMemories().keySet()) {
             ListType listType = (ListType) types().declaredType(decl);
             List<Integer> dim = backend().typeseval().sizeByDimension(listType);
@@ -155,6 +167,7 @@ public interface Instances {
         }
         emitter().increaseIndentation();
 
+        // -- Static call
         String className = "class_" + backend().instaceQID(instance.getInstanceName(), "_");
         emitter().emit("static %s i_%s;", className, name);
         emitter().emitNewLine();
@@ -213,8 +226,8 @@ public interface Instances {
         // -- Instance Name
         String instanceName = instance.getInstanceName();
 
-        emitter().emit("#ifndef __%s__",  backend().instaceQID(instanceName, "_").toUpperCase());
-        emitter().emit("#define __%s__",  backend().instaceQID(instanceName, "_").toUpperCase());
+        emitter().emit("#ifndef __%s__", backend().instaceQID(instanceName, "_").toUpperCase());
+        emitter().emit("#define __%s__", backend().instaceQID(instanceName, "_").toUpperCase());
         emitter().emitNewLine();
 
         // -- Includes
@@ -229,7 +242,7 @@ public interface Instances {
         // -- Instance State
         instanceClass(instanceName, entity);
 
-        emitter().emit("#endif // __%s__",  backend().instaceQID(instanceName, "_").toUpperCase());
+        emitter().emit("#endif // __%s__", backend().instaceQID(instanceName, "_").toUpperCase());
         emitter().emitNewLine();
 
         // -- EOF
@@ -373,7 +386,7 @@ public interface Instances {
             emitter().emit("int __ret;");
             emitter().emitNewLine();
 
-            if(!actor.getValueParameters().isEmpty()){
+            if (!actor.getValueParameters().isEmpty()) {
                 emitter().emit("// -- Parameters");
                 for (ParameterVarDecl vp : actor.getValueParameters()) {
                     String decl = declarations().declaration(types().declaredType(vp), backend().variables().declarationName(vp));
@@ -569,7 +582,7 @@ public interface Instances {
                 backend().fsmController().emitController(instanceName, actor);
             } else {
                 backend().quickJumpController().emitController(instanceName, actor);
-                
+
             }
 
             emitter().decreaseIndentation();
