@@ -60,5 +60,22 @@ public class PlatformSettings {
             return false;
         }
     };
+    // -- Partition phase setting
+    static public OnOffSetting PartitionNetwork =  new OnOffSetting() {
+        @Override
+        public String getKey() {
+            return "partitioning";
+        }
+
+        @Override
+        public String getDescription() {
+            return "Partitions the network into SW and HW, if an instance has no tag it will be placed in SW.";
+        }
+
+        @Override
+        public Boolean defaultValue(Configuration configuration) {
+            return false;
+        }
+    };
 
 }

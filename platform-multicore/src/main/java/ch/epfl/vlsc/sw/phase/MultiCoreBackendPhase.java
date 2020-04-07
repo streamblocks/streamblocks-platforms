@@ -1,14 +1,18 @@
 package ch.epfl.vlsc.sw.phase;
 
+import ch.epfl.vlsc.phases.HardwarePartitioningPhase;
 import ch.epfl.vlsc.platformutils.ControllerToGraphviz;
 import ch.epfl.vlsc.platformutils.PathUtils;
 import ch.epfl.vlsc.settings.PlatformSettings;
 import ch.epfl.vlsc.sw.backend.MulticoreBackend;
+import ch.epfl.vlsc.sw.ir.PartitionLink;
 import org.multij.MultiJ;
 import se.lth.cs.tycho.compiler.CompilationTask;
 import se.lth.cs.tycho.compiler.Compiler;
 import se.lth.cs.tycho.compiler.Context;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
+import se.lth.cs.tycho.ir.entity.Entity;
+import se.lth.cs.tycho.ir.entity.am.ActorMachine;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.phase.Phase;
@@ -162,8 +166,22 @@ public class MultiCoreBackendPhase implements Phase {
     public static void generateInstrances(MulticoreBackend multicoreBackend) {
         for (Instance instance : multicoreBackend.task().getNetwork().getInstances()) {
             GlobalEntityDecl entityDecl = multicoreBackend.globalnames().entityDecl(instance.getEntityName(), true);
-            if (!entityDecl.getExternal())
-                multicoreBackend.instance().generateInstance(instance);
+            Entity entity = entityDecl.getEntity();
+            if (!entityDecl.getExternal()) {
+                if (entity instanceof PartitionLink) {
+                    multicoreBackend.context()
+                            .getReporter()
+                            .report(new Diagnostic(Diagnostic.Kind.INFO, "Emitting OpenCLDevice"));
+                    throw new CompilationException(new Diagnostic(Diagnostic.Kind.ERROR,
+                            "PartitionLink not implemented!"));
+                    // TODO: Emit the OpenCL Device code and actor code here using and interface
+                }
+
+                else
+                    multicoreBackend.instance().generateInstance(instance);
+
+            }
+
         }
     }
 

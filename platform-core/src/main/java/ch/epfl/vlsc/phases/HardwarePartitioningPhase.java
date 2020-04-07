@@ -1,6 +1,7 @@
 package ch.epfl.vlsc.phases;
 
 
+import ch.epfl.vlsc.settings.PlatformSettings;
 import se.lth.cs.tycho.attribute.GlobalNames;
 import se.lth.cs.tycho.compiler.CompilationTask;
 import se.lth.cs.tycho.compiler.Context;
@@ -18,6 +19,7 @@ import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.phase.Phase;
 import se.lth.cs.tycho.reporting.CompilationException;
 import se.lth.cs.tycho.reporting.Diagnostic;
+import se.lth.cs.tycho.settings.Setting;
 
 
 import java.lang.reflect.Type;
@@ -35,6 +37,11 @@ public class HardwarePartitioningPhase implements Phase {
     private Map<String, PartitionKind> partition;
 
     @Override
+    public List<Setting<?>> getPhaseSettings() {
+
+        return ImmutableList.of(PlatformSettings.PartitionNetwork);
+    }
+    @Override
     public String getDescription() {
         return "partitions the network based on the given attributes";
     }
@@ -44,9 +51,13 @@ public class HardwarePartitioningPhase implements Phase {
         partition = new HashMap<String, PartitionKind>();
         partition.put("sw", PartitionKind.SW);
         partition.put("hw", PartitionKind.HW);
+        if(PlatformSettings.PartitionNetwork.read("on").isPresent()) {
+            Map<PartitionKind, Network> networks = partitionNetwork(task, context);
+            return task.withNetwork(networks.get(PartitionKind.HW));
+        } else {
+            return task;
+        }
 
-        Map<PartitionKind, Network> networks = partitionNetwork(task, context);
-        return task.withNetwork(networks.get(PartitionKind.HW));
     }
 
     private PartitionKind getInstancePartition(Instance instance, Context context) {

@@ -1,5 +1,6 @@
 package ch.epfl.vlsc.sw.platform;
 
+import ch.epfl.vlsc.phases.HardwarePartitioningPhase;
 import ch.epfl.vlsc.sw.phase.MultiCoreBackendPhase;
 import se.lth.cs.tycho.compiler.Compiler;
 import se.lth.cs.tycho.ir.util.ImmutableList;
@@ -40,6 +41,7 @@ public class Multicore implements Platform {
     private static final List<Phase> phases = ImmutableList.<Phase>builder()
             .addAll(Compiler.frontendPhases())
             .addAll(Compiler.networkElaborationPhases())
+            .addAll(new HardwarePartitioningPhase())    // control with --set partitioning=on|off
             .addAll(Compiler.nameAndTypeAnalysis())
             .addAll(Compiler.actorMachinePhases())
             .add(new RemoveUnusedEntityDeclsPhase())
