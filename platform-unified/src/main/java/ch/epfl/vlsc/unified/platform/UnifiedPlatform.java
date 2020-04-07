@@ -1,9 +1,11 @@
 package ch.epfl.vlsc.unified.platform;
 
-// import ch.epfl.vlsc.hls.phase.VivadoHLSBackendPhase;
+
 import ch.epfl.vlsc.phases.AddFanoutPhase;
 import ch.epfl.vlsc.phases.CalToAmHwPhase;
 import ch.epfl.vlsc.phases.LiftExprInputFromScopesPhase;
+import ch.epfl.vlsc.unified.phase.DeclarePartitionLinkPhase;
+import ch.epfl.vlsc.unified.phase.NetworkPartitionPhase;
 import se.lth.cs.tycho.compiler.Compiler;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.phase.*;
@@ -24,8 +26,11 @@ public class UnifiedPlatform implements Platform {
 
     public static List<Phase> networkElaborationPhases() {
         return ImmutableList.of(
-                new CreateNetworkPhase()
-          
+            new CreateNetworkPhase(),
+            new ResolveGlobalEntityNamesPhase(),
+            new ResolveGlobalVariableNamesPhase(),
+            new ElaborateNetworkPhase(),
+            new RemoveUnusedGlobalDeclarations()
         );
     }
 
@@ -34,6 +39,8 @@ public class UnifiedPlatform implements Platform {
     private static final List<Phase> phases = ImmutableList.<Phase>builder()
             .addAll(Compiler.frontendPhases())
             .addAll(networkElaborationPhases())
+            .add(new DeclarePartitionLinkPhase())
+            .add(new NetworkPartitionPhase())
             // .addAll(actorMachinePhases())
             .build();
 
