@@ -3,7 +3,6 @@ package ch.epfl.vlsc.hls.backend.kernel;
 import ch.epfl.vlsc.hls.backend.VivadoHLSBackend;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.PathUtils;
-import ch.epfl.vlsc.platformutils.utils.TypeUtils;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
@@ -88,7 +87,7 @@ public interface TopKernel {
             String memName = mems.get(decl);
             ListType listType = (ListType) backend().types().declaredType(decl);
             Type type = listType.getElementType();
-            int bitSize = TypeUtils.sizeOfBits(type);
+            int bitSize = backend().typeseval().sizeOfBits(type);
             emitter().emit("parameter integer C_M_AXI_%s_ADDR_WIDTH = %d,", memName.toUpperCase(), AxiConstants.C_M_AXI_ADDR_WIDTH);
             emitter().emit("parameter integer C_M_AXI_%s_DATA_WIDTH = %d,", memName.toUpperCase(), Math.max(bitSize, 32));
             emitter().emit("parameter integer C_M_AXI_%s_ID_WIDTH = %d,", memName.toUpperCase(), 1);
@@ -103,7 +102,7 @@ public interface TopKernel {
         if (!network.getInputPorts().isEmpty()) {
             for (PortDecl port : network.getInputPorts()) {
                 Type type = backend().types().declaredPortType(port);
-                int bitSize = TypeUtils.sizeOfBits(type);
+                int bitSize = backend().typeseval().sizeOfBits(type);
                 emitter().emit("parameter integer C_M_AXI_%s_ADDR_WIDTH = %d,", port.getName().toUpperCase(), AxiConstants.C_M_AXI_ADDR_WIDTH);
                 emitter().emit("parameter integer C_M_AXI_%s_DATA_WIDTH = %d,", port.getName().toUpperCase(), Math.max(bitSize, 32));
                 emitter().emit("parameter integer C_M_AXI_%s_ID_WIDTH = %d,", port.getName().toUpperCase(), 1);
@@ -118,7 +117,7 @@ public interface TopKernel {
         if (!network.getOutputPorts().isEmpty()) {
             for (PortDecl port : network.getOutputPorts()) {
                 Type type = backend().types().declaredPortType(port);
-                int bitSize = TypeUtils.sizeOfBits(type);
+                int bitSize = backend().typeseval().sizeOfBits(type);
                 emitter().emit("parameter integer C_M_AXI_%s_ADDR_WIDTH = %d,", port.getName().toUpperCase(), AxiConstants.C_M_AXI_ADDR_WIDTH);
                 emitter().emit("parameter integer C_M_AXI_%s_DATA_WIDTH = %d,", port.getName().toUpperCase(), Math.max(bitSize, 32));
                 emitter().emit("parameter integer C_M_AXI_%s_ID_WIDTH = %d,", port.getName().toUpperCase(), 1);

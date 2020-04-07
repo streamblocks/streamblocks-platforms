@@ -3,7 +3,6 @@ package ch.epfl.vlsc.hls.backend.kernel;
 import ch.epfl.vlsc.hls.backend.VivadoHLSBackend;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.PathUtils;
-import ch.epfl.vlsc.platformutils.utils.TypeUtils;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
@@ -51,21 +50,21 @@ public interface KernelXml {
                     for (VarDecl decl : mems.keySet()) {
                         String memName = mems.get(decl);
                         ListType listType = (ListType) backend().types().declaredType(decl);
-                        int bitSize = TypeUtils.sizeOfBits(listType.getElementType());
+                        int bitSize = backend().typeseval().sizeOfBits(listType.getElementType());
                         xmlPort("m_axi_" + memName, "master", "0xFFFFFFFF", Math.max(bitSize, 32));
                     }
 
                     // -- Input ports
                     for (PortDecl port : network.getInputPorts()) {
                         Type type = backend().types().declaredPortType(port);
-                        int bitSize = TypeUtils.sizeOfBits(type);
+                        int bitSize = backend().typeseval().sizeOfBits(type);
                         xmlPort("m_axi_" + port.getName(), "master", "0xFFFFFFFF", Math.max(bitSize, 32));
                     }
 
                     // -- Output ports
                     for (PortDecl port : network.getOutputPorts()) {
                         Type type = backend().types().declaredPortType(port);
-                        int bitSize = TypeUtils.sizeOfBits(type);
+                        int bitSize = backend().typeseval().sizeOfBits(type);
                         xmlPort("m_axi_" + port.getName(), "master", "0xFFFFFFFF", Math.max(bitSize, 32));
                     }
 

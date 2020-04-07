@@ -119,7 +119,7 @@ public interface VivadoHLSBackend {
     // -- Types evaluator
     @Binding(LAZY)
     default TypesEvaluator typeseval() {
-        return MultiJ.from(TypesEvaluator.class).bind("types").to(task().getModule(Types.key)).instance();
+        return MultiJ.from(TypesEvaluator.class).bind("backend").to(this).instance();
     }
 
     // -- Declarations

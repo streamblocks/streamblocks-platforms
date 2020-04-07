@@ -3,7 +3,6 @@ package ch.epfl.vlsc.hls.backend.verilog;
 import ch.epfl.vlsc.hls.backend.VivadoHLSBackend;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.PathUtils;
-import ch.epfl.vlsc.platformutils.utils.TypeUtils;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
@@ -198,7 +197,7 @@ public interface VerilogTestbench {
 
     default void ioRegWires(PortDecl port, boolean isInput) {
         Type type = backend().types().declaredPortType(port);
-        int bitSize = TypeUtils.sizeOfBits(type);
+        int bitSize = backend().typeseval().sizeOfBits(type);
         boolean isSigned = false;
 
         if (type instanceof IntType) {
@@ -255,7 +254,7 @@ public interface VerilogTestbench {
         String portName = port.getName();
         String queueName = "q_" + name + "_" + portName;
         Type type = backend().types().declaredPortType(port);
-        int bitSize = TypeUtils.sizeOfBits(type);
+        int bitSize = backend().typeseval().sizeOfBits(type);
 
         emitter().emit("// -- Queue wires for port : %s", portName);
         if (isInput) {
@@ -525,7 +524,7 @@ public interface VerilogTestbench {
         String portName = port.getName();
         String queueName = "q_" + name + "_" + portName;
         Type type = backend().types().declaredPortType(port);
-        int bitSize = TypeUtils.sizeOfBits(type);
+        int bitSize = backend().typeseval().sizeOfBits(type);
 
 
         emitter().emit("// -- Queue FIFO for port : %s", portName);

@@ -61,4 +61,21 @@ public class PlatformSettings {
         }
     };
 
+    static public OnOffSetting arbitraryPrecisionIntegers = new OnOffSetting() {
+        @Override
+        public String getKey() {
+            return "arbitrary-precision-integers";
+        }
+
+        @Override
+        public String getDescription() {
+            return "Enable arbitrary precision integer data types.";
+        }
+
+        @Override
+        public Boolean defaultValue(Configuration configuration) {
+            return false;
+        }
+    };
+
 }

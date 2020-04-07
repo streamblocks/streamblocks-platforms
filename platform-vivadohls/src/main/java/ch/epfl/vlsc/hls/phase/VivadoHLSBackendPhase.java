@@ -67,7 +67,7 @@ public class VivadoHLSBackendPhase implements Phase {
     @Override
     public List<Setting<?>> getPhaseSettings() {
 
-        return ImmutableList.of(PlatformSettings.scopeLivenessAnalysis, PlatformSettings.C99Host);
+        return ImmutableList.of(PlatformSettings.scopeLivenessAnalysis, PlatformSettings.C99Host, PlatformSettings.arbitraryPrecisionIntegers);
     }
 
     /**
@@ -186,6 +186,7 @@ public class VivadoHLSBackendPhase implements Phase {
 
     /**
      * ReportInformation on Actor Machines to be generated
+     *
      * @param task
      * @param reporter
      * @param backend

@@ -3,15 +3,11 @@ package ch.epfl.vlsc.hls.backend.kernel;
 import ch.epfl.vlsc.hls.backend.VivadoHLSBackend;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.PathUtils;
-import ch.epfl.vlsc.platformutils.utils.TypeUtils;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.type.Type;
-
-import java.util.ArrayList;
-import java.util.List;
 
 @Module
 public interface OutputStage {
@@ -36,7 +32,7 @@ public interface OutputStage {
         emitter().emitNewLine();
 
         Type type = backend().types().declaredPortType(port);
-        int bitSize = TypeUtils.sizeOfBits(type);
+        int bitSize = backend().typeseval().sizeOfBits(type);
 
         emitter().emit("module %s_output_stage #(", port.getName());
         {

@@ -146,15 +146,6 @@ public interface ExpressionEvaluator {
         return variables().globalName(variable);
     }
 
-    /**
-     * Evaluate an expression Pattern Variable
-     *
-     * @param variable
-     * @return
-     */
-    default String evaluate(ExprPatternVariable variable) {
-        return variable.getVariable().getName();
-    }
 
     /**
      * Evaluate expression literal

@@ -3,11 +3,9 @@ package ch.epfl.vlsc.hls.backend.kernel;
 import ch.epfl.vlsc.hls.backend.VivadoHLSBackend;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.PathUtils;
-import ch.epfl.vlsc.platformutils.utils.TypeUtils;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
-import se.lth.cs.tycho.ir.Port;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.network.Network;
@@ -118,7 +116,7 @@ public interface KernelWrapper {
             String memName = mems.get(decl);
             ListType listType = (ListType) backend().types().declaredType(decl);
             Type type = listType.getElementType();
-            int bitSize = TypeUtils.sizeOfBits(type);
+            int bitSize = backend().typeseval().sizeOfBits(type);
             boolean lastElement = network.getOutputPorts().isEmpty() && network.getInputPorts().isEmpty()
                     && !itr.hasNext();
             emitter().emit("parameter integer C_M_AXI_%s_ADDR_WIDTH = %d,", memName.toUpperCase(),
@@ -136,7 +134,7 @@ public interface KernelWrapper {
 
         for (PortDecl port : network.getInputPorts()) {
             Type type = backend().types().declaredPortType(port);
-            int bitSize = TypeUtils.sizeOfBits(type);
+            int bitSize = backend().typeseval().sizeOfBits(type);
             boolean lastElement = network.getOutputPorts().isEmpty()
                     && (network.getInputPorts().size() - 1 == network.getInputPorts().indexOf(port));
             emitter().emit("parameter integer C_M_AXI_%s_ADDR_WIDTH = %d,", port.getName().toUpperCase(),
@@ -154,7 +152,7 @@ public interface KernelWrapper {
 
         for (PortDecl port : network.getOutputPorts()) {
             Type type = backend().types().declaredPortType(port);
-            int bitSize = TypeUtils.sizeOfBits(type);
+            int bitSize = backend().typeseval().sizeOfBits(type);
             emitter().emit("parameter integer C_M_AXI_%s_ADDR_WIDTH = %d,", port.getName().toUpperCase(),
                     AxiConstants.C_M_AXI_ADDR_WIDTH);
             emitter().emit("parameter integer C_M_AXI_%s_DATA_WIDTH = %d,", port.getName().toUpperCase(),
@@ -244,7 +242,7 @@ public interface KernelWrapper {
         emitter().emit("// -- Network I/O for %s module", moduleName);
         for (PortDecl port : network.getInputPorts()) {
             Type type = backend().types().declaredPortType(port);
-            int bitSize = TypeUtils.sizeOfBits(type);
+            int bitSize = backend().typeseval().sizeOfBits(type);
             emitter().emit("wire    [%d:0] %s_din;", bitSize - 1, port.getName());
             emitter().emit("wire    %s_full_n;", port.getName());
             emitter().emit("wire    %s_write;", port.getName());
@@ -255,7 +253,7 @@ public interface KernelWrapper {
 
         for (PortDecl port : network.getOutputPorts()) {
             Type type = backend().types().declaredPortType(port);
-            int bitSize = TypeUtils.sizeOfBits(type);
+            int bitSize = backend().typeseval().sizeOfBits(type);
             emitter().emit("wire    [%d:0] %s_dout;", bitSize - 1, port.getName());
             emitter().emit("wire    %s_empty_n;", port.getName());
             emitter().emit("wire    %s_read;", port.getName());

@@ -3,7 +3,6 @@ package ch.epfl.vlsc.hls.backend.simulators;
 import ch.epfl.vlsc.hls.backend.VivadoHLSBackend;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.PathUtils;
-import ch.epfl.vlsc.platformutils.utils.TypeUtils;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
@@ -98,7 +97,7 @@ public interface WcfgWaveform {
     default void wvObjectArrayPort(String hierarchy, PortDecl port, boolean isInput, boolean hasExtension) {
         String portName = port.getName();
         Type type = backend().types().declaredPortType(port);
-        int bitSize = TypeUtils.sizeOfBits(type);
+        int bitSize = backend().typeseval().sizeOfBits(type);
         emitter().emit("<wvobject type=\"array\" fp_name=\"/%s/%s%s%s\">", hierarchy, portName, getPortExtension(hasExtension), isInput ? "_dout" : "_din");
         {
             emitter().increaseIndentation();
@@ -290,7 +289,7 @@ public interface WcfgWaveform {
         int currentGroupCounter = groupCounter;
         currentGroupCounter++;
         Type type = backend().types().declaredPortType(port);
-        int bitSize = TypeUtils.sizeOfBits(type);
+        int bitSize = backend().typeseval().sizeOfBits(type);
         emitter().emit("<wvobject type=\"group\" fp_name=\"%d\">", currentGroupCounter);
         {
             emitter().increaseIndentation();

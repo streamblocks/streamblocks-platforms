@@ -5,7 +5,6 @@ import ch.epfl.vlsc.hls.backend.kernel.AxiConstants;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.PathUtils;
 import ch.epfl.vlsc.platformutils.utils.MathUtils;
-import ch.epfl.vlsc.platformutils.utils.TypeUtils;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
@@ -84,7 +83,7 @@ public interface VerilogNetwork {
                 String memName = mems.get(decl);
                 ListType listType = (ListType) backend().types().declaredType(decl);
                 Type type = listType.getElementType();
-                int bitSize = TypeUtils.sizeOfBits(type);
+                int bitSize = backend().typeseval().sizeOfBits(type);
                 boolean lastElement = !itr.hasNext();
                 emitter().emit("parameter integer C_M_AXI_%s_ADDR_WIDTH = %d,", memName.toUpperCase(),
                         AxiConstants.C_M_AXI_ADDR_WIDTH);
@@ -181,7 +180,7 @@ public interface VerilogNetwork {
 
     default void getPortDeclaration(PortDecl port, boolean isInput) {
         Type type = backend().types().declaredPortType(port);
-        int bitSize = TypeUtils.sizeOfBits(type);
+        int bitSize = backend().typeseval().sizeOfBits(type);
         if (isInput) {
             emitter().emit("input  wire [%d:0] %s_din,", bitSize - 1, port.getName());
             emitter().emit("output wire %s_full_n,", port.getName());
@@ -1045,7 +1044,7 @@ public interface VerilogNetwork {
     }
 
     default int getQueueDataWidth(Connection connection) {
-        return TypeUtils.sizeOfBits(getQueueType(connection));
+        return backend().typeseval().sizeOfBits(getQueueType(connection));
     }
 
     default Type getQueueType(Connection connection) {
