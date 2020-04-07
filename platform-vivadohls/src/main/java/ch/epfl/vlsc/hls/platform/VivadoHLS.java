@@ -3,6 +3,7 @@ package ch.epfl.vlsc.hls.platform;
 import ch.epfl.vlsc.hls.phase.VivadoHLSBackendPhase;
 import ch.epfl.vlsc.phases.AddFanoutPhase;
 import ch.epfl.vlsc.phases.CalToAmHwPhase;
+import ch.epfl.vlsc.phases.HardwarePartitioningPhase;
 import ch.epfl.vlsc.phases.LiftExprInputFromScopesPhase;
 import se.lth.cs.tycho.compiler.Compiler;
 import se.lth.cs.tycho.ir.util.ImmutableList;
@@ -29,6 +30,8 @@ public class VivadoHLS implements Platform {
                 new ResolveGlobalEntityNamesPhase(),
                 new ResolveGlobalVariableNamesPhase(),
                 new ElaborateNetworkPhase(),
+                new HardwarePartitioningPhase(),
+                new ResolveGlobalEntityNamesPhase(),
                 new AddFanoutPhase(),
                 new ResolveGlobalEntityNamesPhase(),
                 new RemoveUnusedGlobalDeclarations()
