@@ -216,7 +216,8 @@ public class HardwarePartitioningPhase implements Phase {
                         Connection srcCon =
                                 new Connection(
                                         new Connection.End(con.getSource().getInstance(), con.getSource().getPort()),
-                                        new Connection.End(Optional.empty(), con.getSource().getPort()));
+                                        new Connection.End(Optional.empty(),
+                                                con.getSource().getInstance().get() + "_" + con.getSource().getPort()));
                         partToCon.get(sourcePartition).add(srcCon);
                     }
 
@@ -238,10 +239,12 @@ public class HardwarePartitioningPhase implements Phase {
                     Connection srcCon =
                             new Connection(
                                     new Connection.End(con.getSource().getInstance(), con.getSource().getPort()),
-                                    new Connection.End(Optional.empty(), con.getSource().getPort()));
+                                    new Connection.End(Optional.empty(),
+                                            con.getSource().getInstance().get() + "_" + con.getSource().getPort()));
                     Connection tgtCon =
                             new Connection(
-                                    new Connection.End(Optional.empty(), con.getTarget().getPort()),
+                                    new Connection.End(Optional.empty(),
+                                            con.getTarget().getInstance().get() + "_" + con.getTarget().getPort()),
                                     new Connection.End(con.getTarget().getInstance(), con.getTarget().getPort()));
 
                     partToCon.get(sourcePartition).add(srcCon);
