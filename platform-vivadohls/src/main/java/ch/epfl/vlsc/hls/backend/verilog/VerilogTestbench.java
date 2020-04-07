@@ -625,12 +625,13 @@ public interface VerilogTestbench {
         emitter().emitNewLine();
 
         emitter().emit("// -- Network input idle");
-        emitter().emit("assign input_idle = %s;", String.join(" & ", network.getInputPorts()
-                .stream()
-                .map(p -> p.getName() + "_idle")
-                .collect(Collectors.toList())));
-        emitter().emitNewLine();
-
+        if (!network.getInputPorts().isEmpty()) {
+            emitter().emit("assign input_idle = %s;", String.join(" & ", network.getInputPorts()
+                    .stream()
+                    .map(p -> p.getName() + "_idle")
+                    .collect(Collectors.toList())));
+            emitter().emitNewLine();
+        }
         emitter().emit("%s dut(", identifier);
         emitter().increaseIndentation();
         {
@@ -640,12 +641,16 @@ public interface VerilogTestbench {
             // -- Outputs
             network.getOutputPorts().forEach(p -> getDutIO("", p, false));
 
+            if (!network.getInputPorts().isEmpty()) {
+                emitter().emit(".input_idle(input_idle),");
+            }
+
             emitter().emit(".ap_clk(clock),");
             emitter().emit(".ap_rst_n(reset_n),");
             emitter().emit(".ap_start(ap_start),");
             emitter().emit(".ap_idle(idle),");
-            emitter().emit(".ap_done(done),");
-            emitter().emit(".input_idle(input_idle)");
+            emitter().emit(".ap_done(done)");
+
         }
         emitter().decreaseIndentation();
         emitter().emit(");");

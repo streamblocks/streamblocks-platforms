@@ -117,11 +117,16 @@ public interface ExpressionEvaluator {
         return "(*" + evaluate(deref.getReference()) + ")";
     }
 
-    default String evaluate(ExprField field){
+    default String evaluate(ExprField field) {
         return String.format("%s.%s", evaluate(field.getStructure()), field.getField().getName());
     }
 
-    default String evaluate(ExprTypeConstruction construction){
+    default String evaluate(ExprCase caseExpr) {
+        return backend().patternMatching().evaluate(caseExpr);
+    }
+
+
+    default String evaluate(ExprTypeConstruction construction) {
         String fn = backend().algebraicTypes().constructor(construction.getConstructor());
         List<String> parameters = new ArrayList<>();
 
@@ -139,6 +144,16 @@ public interface ExpressionEvaluator {
      */
     default String evaluate(ExprGlobalVariable variable) {
         return variables().globalName(variable);
+    }
+
+    /**
+     * Evaluate an expression Pattern Variable
+     *
+     * @param variable
+     * @return
+     */
+    default String evaluate(ExprPatternVariable variable) {
+        return variable.getVariable().getName();
     }
 
     /**
@@ -474,7 +489,7 @@ public interface ExpressionEvaluator {
         return backend().varDecls().declaration(expr);
     }
 
-    default VarDecl evalExprIndexVar(ExprGlobalVariable expr){
+    default VarDecl evalExprIndexVar(ExprGlobalVariable expr) {
         return backend().varDecls().declaration(expr);
     }
 

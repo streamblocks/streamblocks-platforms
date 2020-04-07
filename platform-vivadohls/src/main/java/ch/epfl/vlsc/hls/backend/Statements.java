@@ -12,15 +12,15 @@ import se.lth.cs.tycho.ir.entity.cal.CalActor;
 import se.lth.cs.tycho.ir.expr.ExprBinaryOp;
 import se.lth.cs.tycho.ir.expr.ExprInput;
 import se.lth.cs.tycho.ir.expr.Expression;
+import se.lth.cs.tycho.ir.expr.pattern.PatternDeconstructor;
 import se.lth.cs.tycho.ir.stmt.*;
 import se.lth.cs.tycho.ir.stmt.lvalue.LValue;
 import se.lth.cs.tycho.ir.stmt.lvalue.LValueVariable;
 import se.lth.cs.tycho.type.ListType;
+import se.lth.cs.tycho.type.SumType;
 import se.lth.cs.tycho.type.Type;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Module
@@ -176,6 +176,9 @@ public interface Statements {
         //}
     }
 
+    default String compare(Type lvalueType, String lvalue, Type rvalueType, String rvalue) {
+        return String.format("(%s == %s)", lvalue, rvalue);
+    }
 
     /*
      * Statement Call
@@ -218,6 +221,13 @@ public interface Statements {
         block.getStatements().forEach(this::execute);
         emitter().decreaseIndentation();
         emitter().emit("}");
+    }
+
+    /*
+     * Statement Case
+     */
+    default void execute(StmtCase stmt) {
+        backend().patternMatching().execute(stmt);
     }
 
     /*

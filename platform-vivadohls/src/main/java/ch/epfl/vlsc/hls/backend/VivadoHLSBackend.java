@@ -164,6 +164,12 @@ public interface VivadoHLSBackend {
         return MultiJ.from(AlgebraicTypes.class).bind("backend").to(this).instance();
     }
 
+    // -- Pattern Matching
+    @Binding(LAZY)
+    default PatternMatching patternMatching(){
+        return MultiJ.from(PatternMatching.class).bind("backend").to(this).instance();
+    }
+
     // -- Default Values
     @Binding(LAZY)
     default DefaultValues defaultValues(){
