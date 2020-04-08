@@ -171,7 +171,7 @@ public class MultiCoreBackendPhase implements Phase {
                             .getReporter()
                             .report(new Diagnostic(Diagnostic.Kind.INFO, "Emitting OpenCLDevice"));
                     throw new CompilationException(new Diagnostic(Diagnostic.Kind.ERROR,
-                            "PartitionLink not implemented!"));
+                            "PartitionLink backend not implemented!"));
                     // TODO: Emit the OpenCL Device code and actor code here using and interface
                 }
 

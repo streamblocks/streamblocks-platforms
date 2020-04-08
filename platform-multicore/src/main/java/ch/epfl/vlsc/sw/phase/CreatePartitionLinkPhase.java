@@ -105,7 +105,7 @@ public class CreatePartitionLinkPhase implements Phase {
 
         // -- create a PartitionLink instance
         Instance plinkInstance =
-                new Instance(plinkInstanceName, QID.of(plinkInstanceName), null, null);
+                new Instance(plinkInstanceName, QID.of(plinkEntityName), null, null);
 
         // -- Connect the floating connections to the PartitionLink instance
         List<Connection> attachedConnections =
