@@ -1,6 +1,7 @@
 package ch.epfl.vlsc.phases;
 
 
+import ch.epfl.vlsc.compiler.PartitionedCompilationTask;
 import ch.epfl.vlsc.settings.PlatformSettings;
 import se.lth.cs.tycho.attribute.GlobalNames;
 import se.lth.cs.tycho.compiler.CompilationTask;
@@ -27,11 +28,11 @@ import java.util.*;
 
 import java.util.stream.Collectors;
 
-public class HardwarePartitioningPhase implements Phase {
+import ch.epfl.vlsc.compiler.PartitionedCompilationTask.PartitionKind;
 
-    public enum PartitionKind {
-        HW, SW
-    }
+public class NetworkPartitioningPhase implements Phase {
+
+
     private final String partitionKey = "partition";
 
     private Map<String, PartitionKind> partition;
@@ -47,15 +48,16 @@ public class HardwarePartitioningPhase implements Phase {
     }
 
     @Override
-    public CompilationTask execute(CompilationTask task, Context context) throws CompilationException {
+    public PartitionedCompilationTask execute(CompilationTask task, Context context) throws CompilationException {
         partition = new HashMap<String, PartitionKind>();
         partition.put("sw", PartitionKind.SW);
         partition.put("hw", PartitionKind.HW);
         if(PlatformSettings.PartitionNetwork.read("on").isPresent()) {
             Map<PartitionKind, Network> networks = partitionNetwork(task, context);
-            return task.withNetwork(networks.get(PartitionKind.HW));
+            return PartitionedCompilationTask.of(task, networks);
+
         } else {
-            return task;
+            return PartitionedCompilationTask.of(task);
         }
 
     }

@@ -1,6 +1,5 @@
 package ch.epfl.vlsc.sw.phase;
 
-import ch.epfl.vlsc.phases.HardwarePartitioningPhase;
 import ch.epfl.vlsc.platformutils.ControllerToGraphviz;
 import ch.epfl.vlsc.platformutils.PathUtils;
 import ch.epfl.vlsc.settings.PlatformSettings;
@@ -12,7 +11,6 @@ import se.lth.cs.tycho.compiler.Compiler;
 import se.lth.cs.tycho.compiler.Context;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
-import se.lth.cs.tycho.ir.entity.am.ActorMachine;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.phase.Phase;
