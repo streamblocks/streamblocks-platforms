@@ -191,6 +191,9 @@ public interface MulticoreBackend {
         return MultiJ.from(Instances.class).bind("backend").to(this).instance();
     }
 
+    // -- PartitionLink generator
+    @Binding(LAZY)
+    default PLink plink() { return MultiJ.from(PLink.class).bind("backend").to(this).instance(); }
     // -- Main generator
     @Binding(LAZY)
     default Main main() {
