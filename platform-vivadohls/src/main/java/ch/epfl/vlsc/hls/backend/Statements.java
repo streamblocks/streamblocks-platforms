@@ -1,6 +1,7 @@
 package ch.epfl.vlsc.hls.backend;
 
 import ch.epfl.vlsc.platformutils.Emitter;
+import ch.epfl.vlsc.settings.PlatformSettings;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
@@ -11,6 +12,7 @@ import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.cal.CalActor;
 import se.lth.cs.tycho.ir.expr.ExprBinaryOp;
 import se.lth.cs.tycho.ir.expr.ExprInput;
+import se.lth.cs.tycho.ir.expr.ExprLiteral;
 import se.lth.cs.tycho.ir.expr.Expression;
 import se.lth.cs.tycho.ir.expr.pattern.PatternDeconstructor;
 import se.lth.cs.tycho.ir.stmt.*;
@@ -213,7 +215,22 @@ public interface Statements {
                     // -- Do nothing
                     //expressioneval().evaluateWithLvalue(backend().variables().declarationName(decl), (ExprInput) decl.getValue());
                 } else {
-                    copy(t, declarationName, types().type(decl.getValue()), expressioneval().evaluate(decl.getValue()));
+                    if (backend().context().getConfiguration().get(PlatformSettings.arbitraryPrecisionIntegers)) {
+                        if (decl.getValue() instanceof ExprLiteral) {
+                            ExprLiteral literal = (ExprLiteral) decl.getValue();
+                            if (literal.getKind() == ExprLiteral.Kind.Integer) {
+                                int radix = literal.intRadix().getAsInt();
+                                String value = radix != 8 ? expressioneval().evaluate(decl.getValue()) : expressioneval().evaluate(decl.getValue()).substring(1);
+                                emitter().emit("%s = %s(\"%s\", %d);", declarationName, typeseval().type(t), value, radix);
+                            } else {
+                                copy(t, declarationName, types().type(decl.getValue()), expressioneval().evaluate(decl.getValue()));
+                            }
+                        } else {
+                            copy(t, declarationName, types().type(decl.getValue()), expressioneval().evaluate(decl.getValue()));
+                        }
+                    } else {
+                        copy(t, declarationName, types().type(decl.getValue()), expressioneval().evaluate(decl.getValue()));
+                    }
                 }
             }
 
