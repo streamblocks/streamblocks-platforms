@@ -34,20 +34,9 @@ public class ExtractSoftwarePartition implements Phase {
 
         if (paritioningEnabled && task instanceof PartitionedCompilationTask) {
 
-            Optional<Network> network = ((PartitionedCompilationTask) task).getPartition(PartitionKind.SW);
-            if (!network.isPresent()) {
-                context.getReporter().report(
-                        new Diagnostic(Diagnostic.Kind.WARNING, "Software network partition is empty!"));
-                return task.withNetwork(null);
-            } else {
+            PartitionedCompilationTask ptask = (PartitionedCompilationTask) task;
+            return ptask.extractPartition(context, PartitionKind.SW);
 
-                context.getReporter().report(
-                        new Diagnostic(Diagnostic.Kind.INFO, "Software network partition contains " +
-                                String.join(", ",
-                                        network.get().getInstances().map(Instance::getInstanceName))));
-                return task.withNetwork(network.get().deepClone());
-
-            }
         } else {
             if (paritioningEnabled)
                 throw new CompilationException(

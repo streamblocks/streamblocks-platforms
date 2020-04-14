@@ -194,9 +194,7 @@ public interface InputStage {
         emitter().emit("wire    %s_input_stage_ap_idle;", port.getName());
         emitter().emit("wire    [31 : 0] %s_input_stage_ap_return;", port.getName());
 
-        // emitter().emit("wire %s_sync_wait;", port.getSafeName());
-        // emitter().emit("wire %s_sync_exec;", port.getSafeName());
-        // emitter().emit("wire %s_sleep;", port.getSafeName());
+
 
         emitter().emit("wire    %s_input_stage_launch_predicate;", port.getName());
         emitter().emit("wire    %s_at_least_half_empty;", port.getName());

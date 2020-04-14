@@ -1,5 +1,7 @@
 package ch.epfl.vlsc.compiler;
 
+import se.lth.cs.tycho.compiler.Context;
+import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.reporting.CompilationException;
 import se.lth.cs.tycho.compiler.CompilationTask;
 
@@ -33,7 +35,7 @@ public class PartitionedCompilationTask extends CompilationTask {
      * @return
      */
     public static PartitionedCompilationTask of(CompilationTask task) {
-        return PartitionedCompilationTask.of(task, null);
+        return PartitionedCompilationTask.of(task, new HashMap<>());
     }
 
     /**
@@ -50,7 +52,7 @@ public class PartitionedCompilationTask extends CompilationTask {
     }
     public PartitionedCompilationTask(List<SourceUnit> sourceUnits, QID identifier, Network network) {
         super(sourceUnits, identifier, network);
-        this.networkPartitions = null;
+        this.networkPartitions = new HashMap<>();
     }
     public PartitionedCompilationTask(List<SourceUnit> sourceUnits, QID identifier, Network network,
                                        Map<PartitionKind, Network> networkPartitions) {
@@ -65,7 +67,7 @@ public class PartitionedCompilationTask extends CompilationTask {
         if (Lists.sameElements(this.getSourceUnits(), sourceUnits)
                 && Objects.equals(this.getIdentifier(), identifier)
                 && this.getNetwork() == network
-                && networkPartitions.equals(this.networkPartitions)) {
+                && this.networkPartitions.equals(networkPartitions)) {
             return this;
         } else {
             return new PartitionedCompilationTask(sourceUnits, identifier, network, networkPartitions);
@@ -128,7 +130,7 @@ public class PartitionedCompilationTask extends CompilationTask {
     public void forEachChild(Consumer<? super IRNode> action) {
         this.getSourceUnits().forEach(action);
         if (this.getNetwork() != null) action.accept(this.getNetwork());
-        if (this.networkPartitions != null) {
+        if (this.networkPartitions.isEmpty() == false) {
             for (PartitionKind p: this.networkPartitions.keySet())
                 action.accept(this.networkPartitions.get(p));
         }
@@ -141,8 +143,8 @@ public class PartitionedCompilationTask extends CompilationTask {
         Network network = this.getNetwork() == null ? null : transformation
                                                                 .applyChecked(Network.class, this.getNetwork());
         Map<PartitionKind, Network> newPartitions =
-                this.networkPartitions == null ? null : new HashMap<>(this.networkPartitions);
-        if (this.networkPartitions != null)
+                this.networkPartitions.isEmpty() ? new HashMap<>() : new HashMap<>(this.networkPartitions);
+        if (!this.networkPartitions.isEmpty())
             newPartitions.replaceAll((k, v) -> transformation.applyChecked(Network.class, v));
         return copy(sourceUnits, getIdentifier(), network, newPartitions);
     }
@@ -162,6 +164,23 @@ public class PartitionedCompilationTask extends CompilationTask {
             return Optional.of(this.networkPartitions.get(partition));
         else
             return Optional.empty();
+    }
+
+    public CompilationTask extractPartition(Context context, PartitionKind kind) {
+        Optional<Network> network = this.getPartition(kind);
+        if (!network.isPresent()) {
+            context.getReporter().report(
+                    new Diagnostic(Diagnostic.Kind.WARNING, kind.name() + " network partition is empty!"));
+            return this.withNetwork(null);
+        } else {
+
+            context.getReporter().report(
+                    new Diagnostic(Diagnostic.Kind.INFO, kind.name() + " network partition contains " +
+                            String.join(", ",
+                                    network.get().getInstances().map(Instance::getInstanceName))));
+            return this.withNetwork(network.get().deepClone());
+
+        }
     }
 
 }

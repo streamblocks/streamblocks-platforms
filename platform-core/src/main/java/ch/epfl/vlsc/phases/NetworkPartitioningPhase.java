@@ -52,7 +52,9 @@ public class NetworkPartitioningPhase implements Phase {
         partition = new HashMap<String, PartitionKind>();
         partition.put("sw", PartitionKind.SW);
         partition.put("hw", PartitionKind.HW);
-        if(PlatformSettings.PartitionNetwork.read("on").isPresent()) {
+        Boolean paritioningEnabled = context.getConfiguration().isDefined(PlatformSettings.PartitionNetwork)
+                && context.getConfiguration().get(PlatformSettings.PartitionNetwork);
+        if(paritioningEnabled) {
             Map<PartitionKind, Network> networks = partitionNetwork(task, context);
             return PartitionedCompilationTask.of(task, networks);
 
@@ -118,7 +120,7 @@ public class NetworkPartitioningPhase implements Phase {
                         .collect(Collectors.toList());
         if (connections.size() != network.getConnections().size())
             throw new CompilationException(
-                    new Diagnostic(Diagnostic.Kind.ERROR, "CAL network should not floating I/O"));
+                    new Diagnostic(Diagnostic.Kind.ERROR, "CAL network should not have floating I/O"));
 
         for (Instance inst : network.getInstances()) {
             PartitionKind p = getInstancePartition(inst, context);

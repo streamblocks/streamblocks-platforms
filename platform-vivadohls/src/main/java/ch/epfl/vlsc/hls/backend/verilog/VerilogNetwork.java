@@ -279,6 +279,13 @@ public interface VerilogNetwork {
         getGlobalTriggerWires();
         getLocalTriggerWires(network.getInstances());
 
+        // Local IO sync signals
+        emitter().emitNewLine();
+        emitter().emit("// -- Local IO sync signals");
+        for (PortDecl port: backend().task().getNetwork().getInputPorts())
+            emitter().emit("wire    %s;", getPortTriggerSignalByName(port, "sync"));
+        for (PortDecl port: backend().task().getNetwork().getOutputPorts())
+            emitter().emit("wire    %s;", getPortTriggerSignalByName(port, "sync"));
         emitter().emitNewLine();
     }
 
@@ -352,13 +359,7 @@ public interface VerilogNetwork {
             emitter().emit("wire    %s;", getTriggerSignalByName(instance, "sync_wait"));
             emitter().emit("wire    %s;", getTriggerSignalByName(instance, "sync_exec"));
             emitter().emit("wire    %s;", getTriggerSignalByName(instance, "sync"));
-            // Local IO sync signals
 
-            emitter().emit("// -- Local IO sync signals");
-            for (PortDecl port: backend().task().getNetwork().getInputPorts())
-                emitter().emit("wire    %s;", getPortTriggerSignalByName(port, "sync"));
-            for (PortDecl port: backend().task().getNetwork().getOutputPorts())
-                emitter().emit("wire    %s;", getPortTriggerSignalByName(port, "sync"));
             
             emitter().emit("// -- Signals for the module");
             emitter().emit("wire    %s_ap_start;", qidName);
