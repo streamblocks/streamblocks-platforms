@@ -178,7 +178,7 @@ public interface PLink {
 
 
             emitter().emit("// -- device handle object");
-            emitter().emit("DeviceHandle_t * dev;");
+            emitter().emit("DeviceHandle_t dev;");
             emitter().emit("%s cl_buffer_size;", defaultSizeType());
             emitter().emit("%s req_size[%d];", defaultIntType(), entity.getInputPorts().size());
 
@@ -261,7 +261,7 @@ public interface PLink {
                         entity.getInputPorts().size() == 0 ? "0" : "inputPortDescriptions");
                 emitter().emit("%d, %s,", entity.getOutputPorts().size(),
                         entity.getOutputPorts().size() == 0 ? "0" : "outputPortDescriptions");
-                emitter().emit("0, actionDescriptions, ");
+                emitter().emit("3, actionDescriptions, ");
                 emitter().emit("0, conditionDescriptions,");
                 emitter().emit("0, stateVariableDescriptions");
                 emitter().decreaseIndentation();
@@ -280,6 +280,7 @@ public interface PLink {
         String actorInstanceName = "ActorInstance_" + backend().instaceQID(name, "_");
         emitter().emit("static void %s_constructor(AbstractActorInstance *pBase) {", actorInstanceName);
         {
+            emitter().increaseIndentation();
             emitter().emit("%s *thisActor = (%1$s *) pBase;", actorInstanceName);
 
             emitter().emit("thisActor->program_counter = 0;");
@@ -317,6 +318,7 @@ public interface PLink {
             emitter().emit("init_global_variables();");
             emitter().emit("#endif");
             emitter().emitNewLine();
+            emitter().decreaseIndentation();
 
         }
         emitter().emit("}");
@@ -395,6 +397,7 @@ public interface PLink {
             emitter().emit("TX: { // -- Transmit to FPGA memory");
             {
                 emitter().increaseIndentation();
+                emitter().emit("ART_ACTION_TX(TX, 0);");
                 for (PortDecl port: entity.getInputPorts()) {
                     String type = typeseval().type(types().declaredPortType(port));
                     emitter().emit("thisActor->req_size[%d] = pinAvailIn_%s(IN%1$d_%s);",
@@ -407,6 +410,7 @@ public interface PLink {
                 emitter().emit("DeviceHandle_setRequestSize(&thisActor->dev, thisActor->req_size);");
                 emitter().emit("DeviceHandle_run(&thisActor->dev);");
                 emitter().emit("thisActor->program_counter = %d;", entity.getInputPorts().size() + 1);
+                emitter().emit("ART_ACTION_TX(TX, 0);");
                 emitter().emit("goto YIELD;");
                 emitter().decreaseIndentation();
             }
@@ -416,6 +420,7 @@ public interface PLink {
             emitter().emit("RX: { // -- Receive from FPGA");
             {
                 emitter().increaseIndentation();
+                emitter().emit("ART_ACTION_ENTER(RX, 1);");
                 emitter().emit("DeviceHandle_waitForDevice(&thisActor->dev);");
                 emitter().emit("// -- Consume on behalf of device");
                 for (PortDecl port: entity.getInputPorts()) {
@@ -430,6 +435,7 @@ public interface PLink {
                 }
                 emitter().emitNewLine();
                 emitter().emit("thisActor->program_counter = %d;", entity.getInputPorts().size() + 2);
+                emitter().emit("ART_ACTION_EXIT(RX, 1);");
                 emitter().emit("goto WRITE;");
                 emitter().decreaseIndentation();
             }
@@ -437,6 +443,7 @@ public interface PLink {
             emitter().emit("WRITE: {// -- retry reading");
             {
                 emitter().increaseIndentation();
+                emitter().emit("ART_ACTION_ENTER(WRITE, 2);");
                 emitter().emit("uint32_t done_reading = 0;");
                 for (PortDecl port: entity.getOutputPorts()) {
                     String type = typeseval().type(types().declaredPortType(port));
@@ -487,6 +494,7 @@ public interface PLink {
                     emitter().decreaseIndentation();
                 }
                 emitter().emit("}");
+                emitter().emit("ART_ACTION_EXIT(WRITE, 2);");
                 emitter().emit("goto YIELD;");
                 emitter().decreaseIndentation();
             }
