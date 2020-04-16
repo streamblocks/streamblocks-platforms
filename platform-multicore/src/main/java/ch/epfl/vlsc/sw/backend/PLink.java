@@ -397,7 +397,7 @@ public interface PLink {
             emitter().emit("TX: { // -- Transmit to FPGA memory");
             {
                 emitter().increaseIndentation();
-                emitter().emit("ART_ACTION_TX(TX, 0);");
+                emitter().emit("ART_ACTION_ENTER(TX, 0);");
                 for (PortDecl port: entity.getInputPorts()) {
                     String type = typeseval().type(types().declaredPortType(port));
                     emitter().emit("thisActor->req_size[%d] = pinAvailIn_%s(IN%1$d_%s);",
@@ -410,7 +410,7 @@ public interface PLink {
                 emitter().emit("DeviceHandle_setRequestSize(&thisActor->dev, thisActor->req_size);");
                 emitter().emit("DeviceHandle_run(&thisActor->dev);");
                 emitter().emit("thisActor->program_counter = %d;", entity.getInputPorts().size() + 1);
-                emitter().emit("ART_ACTION_TX(TX, 0);");
+                emitter().emit("ART_ACTION_ENTER(TX, 0);");
                 emitter().emit("goto YIELD;");
                 emitter().decreaseIndentation();
             }

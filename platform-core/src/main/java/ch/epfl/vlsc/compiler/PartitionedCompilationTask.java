@@ -18,6 +18,7 @@ import java.util.*;
 import java.util.function.Consumer;
 
 /**
+ * @author Mahyar Emami (mahyar.emami@epfl.ch)
  * An extended CompliationTask that can be used in the network partitioning phases.
  * This class is intended for intermediate use only.
  */
@@ -166,6 +167,12 @@ public class PartitionedCompilationTask extends CompilationTask {
             return Optional.empty();
     }
 
+    /**
+     * returns a vanilla CompilationTask that has the desired network partition
+     * @param context - context of compilation for reporting
+     * @param kind - the network partition kind of the task network
+     * @return - A CompilationTask with the desired network partition in the network field
+     */
     public CompilationTask extractPartition(Context context, PartitionKind kind) {
         Optional<Network> network = this.getPartition(kind);
         if (!network.isPresent()) {

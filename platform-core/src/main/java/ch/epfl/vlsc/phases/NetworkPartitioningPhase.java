@@ -8,7 +8,6 @@ import se.lth.cs.tycho.compiler.CompilationTask;
 import se.lth.cs.tycho.compiler.Context;
 import se.lth.cs.tycho.ir.ToolAttribute;
 import se.lth.cs.tycho.ir.ToolValueAttribute;
-import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.expr.ExprLiteral;
@@ -22,14 +21,16 @@ import se.lth.cs.tycho.reporting.CompilationException;
 import se.lth.cs.tycho.reporting.Diagnostic;
 import se.lth.cs.tycho.settings.Setting;
 
-
-import java.lang.reflect.Type;
 import java.util.*;
-
 import java.util.stream.Collectors;
-
 import ch.epfl.vlsc.compiler.PartitionedCompilationTask.PartitionKind;
 
+/**
+ * @author Mahyar Emami (mahyar.emami@epfl.ch)
+ * Partition the network into HW and SW partitions, the phase returns the same task but with an augmented field
+ * that is a map from partition kind to the a network partition.
+ * Later phases should take the PartitionedCompilationTask and extract the desired network partitions from it.
+ */
 public class NetworkPartitioningPhase implements Phase {
 
 
@@ -176,7 +177,12 @@ public class NetworkPartitioningPhase implements Phase {
                 partToCon.get(sourcePartition).add(con);
 
             } else {
-
+                /**
+                 * The source and target are on different partitions. In this case any connection
+                 * that is of the form SOURCE_INST.OUT_PORT --> TARGET_INST.IN_PORT
+                 * should be replaced by an output  port declaration in the source partition
+                 * that is named as
+                 */
                 Entity srcEntity=
                         task.getModule(GlobalNames.key)
                                 .entityDecl(source.getEntityName(), true).getEntity();
@@ -210,16 +216,16 @@ public class NetworkPartitioningPhase implements Phase {
                                                         " is not valid")));
 
 
-
+                String portName = getPortNameFromConnection(con);
                 if (fanoutSource.containsKey(con)) {
                     // this is a cross-partition fanout connection
                     if (!fanoutHasSourcePort.get(fanoutSource.get(con))) {
                         PortDecl inputFO = new PortDecl(
-                                con.getSource().getInstance().get() + "_" + con.getSource().getPort(),
+                                portName,
                                 (TypeExpr) entityOutput.getType().deepClone());
 
                         PortDecl outputFO= new PortDecl(
-                                con.getSource().getInstance().get() + "_" + con.getSource().getPort(),
+                                portName,
                                 (TypeExpr) entityOutput.getType().deepClone());
 
                         fanoutPort.put(fanoutSource.get(con), inputFO);
@@ -231,8 +237,7 @@ public class NetworkPartitioningPhase implements Phase {
                         Connection srcCon =
                                 new Connection(
                                         new Connection.End(con.getSource().getInstance(), con.getSource().getPort()),
-                                        new Connection.End(Optional.empty(),
-                                                con.getSource().getInstance().get() + "_" + con.getSource().getPort()));
+                                        new Connection.End(Optional.empty(), portName));
                         partToCon.get(sourcePartition).add(srcCon);
                     }
 
@@ -242,24 +247,18 @@ public class NetworkPartitioningPhase implements Phase {
                                     new Connection.End(con.getTarget().getInstance(), con.getTarget().getPort()));
                     partToCon.get(targetPartition).add(tgtCon);
                 } else {
-                    PortDecl input = new PortDecl(
-                            con.getTarget().getInstance().get() + "_" + con.getTarget().getPort(),
-                            (TypeExpr) entityInput.getType().deepClone());
-                    PortDecl output = new PortDecl(
-                            con.getSource().getInstance().get() + "_" + con.getSource().getPort(),
-                            (TypeExpr) entityOutput.getType().deepClone());
+                    PortDecl input = new PortDecl(portName, (TypeExpr) entityInput.getType().deepClone());
+                    PortDecl output = new PortDecl(portName, (TypeExpr) entityOutput.getType().deepClone());
                     // this is a normal cross-partition conneciton, should become a 2 ports and 2 connection
                     partToOutputs.get(sourcePartition).add(output);
                     partToInputs.get(targetPartition).add(input);
                     Connection srcCon =
                             new Connection(
                                     new Connection.End(con.getSource().getInstance(), con.getSource().getPort()),
-                                    new Connection.End(Optional.empty(),
-                                            con.getSource().getInstance().get() + "_" + con.getSource().getPort()));
+                                    new Connection.End(Optional.empty(), portName));
                     Connection tgtCon =
                             new Connection(
-                                    new Connection.End(Optional.empty(),
-                                            con.getTarget().getInstance().get() + "_" + con.getTarget().getPort()),
+                                    new Connection.End(Optional.empty(), portName),
                                     new Connection.End(con.getTarget().getInstance(), con.getTarget().getPort()));
 
                     partToCon.get(sourcePartition).add(srcCon);
@@ -283,7 +282,11 @@ public class NetworkPartitioningPhase implements Phase {
 
         return nets;
     }
-
+    private String getPortNameFromConnection(Connection connection) {
+        return connection.getSource().getInstance().get() + "_" +
+                connection.getSource().getPort() + "_" + connection.getTarget().getInstance().get() + "_" +
+                connection.getTarget().getPort();
+    }
     private Optional<Instance> findInstanceByName(Network network, String name) {
         Optional<Instance> instance = Optional.empty();
         for (Instance inst: network.getInstances()) {

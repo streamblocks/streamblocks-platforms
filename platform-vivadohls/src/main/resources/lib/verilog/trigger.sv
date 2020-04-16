@@ -73,14 +73,9 @@ module trigger
 );
 	timeunit 1ps;
 	timeprecision 1ps;
-	parameter mode_t mode = ACTOR_TRIGGER;
+	parameter mode_t mode = ACTOR_TRIGGER; // deprecated
 	state_t state = IDLE_STATE;
 	state_t next_state;
-	state_t TRY_SLEEP = (mode == ACTOR_TRIGGER) ? SLEEP : IDLE_STATE;
-	state_t SYNC_OR_TRY_LAUNCH = (mode != ACTOR_TRIGGER) ? LAUNCH : SYNC_LAUNCH;
-	state_t SLEEP_OR_LAUNCH = (mode != ACTOR_TRIGGER) ? SLEEP : LAUNCH;
-	state_t WAIT_OR_LAUNCH = (mode == OUTPUT_TRIGGER) ? SLEEP : LAUNCH;
-
 
     logic waited_on_last_step = 1'b0;
 
@@ -96,7 +91,7 @@ module trigger
     end
 	always_ff @(posedge ap_clk) begin
         if (~ap_rst_n) 
-                state <= IDLE_STATE;
+            state <= IDLE_STATE;
         else
             state <= next_state;
 	end
@@ -105,18 +100,16 @@ module trigger
         case (state)
           IDLE_STATE: begin
               if (ap_start)
-                  next_state = WAIT_OR_LAUNCH;
+                  next_state = LAUNCH;
               else
                   next_state = IDLE_STATE;
           end
           LAUNCH: begin
               if (actor_done) begin
-                  if (actor_return == IDLE)   //internally idle
-                      next_state = TRY_SLEEP;
-                  else if (actor_return == EXECUTED ||  actor_return == TEST || external_enqueue)
-                      next_state = SLEEP_OR_LAUNCH;
+                  if (actor_return == EXECUTED ||  actor_return == TEST || external_enqueue)
+                      next_state = LAUNCH;
                   else // (actor_return != EXECUTED && !external_enqueue)
-                      next_state = TRY_SLEEP;
+                      next_state = SLEEP;
               end
               else begin // !actor_done
                   next_state = CHECK;
@@ -124,12 +117,10 @@ module trigger
           end
           CHECK: begin
               if (actor_done) begin
-                  if (actor_return == IDLE)   //internally idle
-                      next_state = TRY_SLEEP;
-                  else if (actor_return == EXECUTED || actor_return == TEST || external_enqueue)
-                      next_state = SLEEP_OR_LAUNCH;
+                  if (actor_return == EXECUTED || actor_return == TEST || external_enqueue)
+                      next_state = LAUNCH;
                   else // (actor_return != EXECUTED && !external_enqueue)
-                      next_state = TRY_SLEEP;
+                      next_state = SLEEP;
               end
               else begin
                   next_state = CHECK;
@@ -137,9 +128,9 @@ module trigger
           end
           SLEEP: begin
               if (all_sleep)
-                  next_state = SYNC_OR_TRY_LAUNCH;
+                  next_state = SYNC_LAUNCH;
               else if (!all_waited)
-                next_state = LAUNCH;
+                  next_state = LAUNCH;
               else
                   next_state = SLEEP;
           end
