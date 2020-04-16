@@ -150,7 +150,7 @@ public interface PLink {
 
     default void defineIncludes() {
         backend().instance().defineIncludes();
-        emitter().emit("#include \"device_handle.h\"");
+        emitter().emit("#include \"device-handle.h\"");
         emitter().emit("#define MIN(a, b) (a < b ? a : b)");
     }
 

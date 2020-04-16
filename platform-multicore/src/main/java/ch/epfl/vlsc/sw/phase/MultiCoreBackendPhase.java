@@ -172,6 +172,7 @@ public class MultiCoreBackendPhase implements Phase {
                             .report(new Diagnostic(Diagnostic.Kind.INFO, "Emitting PartitionLink instance"));
 
                     multicoreBackend.plink().generatePLink(instance);
+                    multicoreBackend.devicehandle().generateDeviceHandle(instance);
                 }
 
                 else
@@ -271,5 +272,6 @@ public class MultiCoreBackendPhase implements Phase {
             throw new CompilationException(new Diagnostic(Diagnostic.Kind.ERROR, String.format("Could not copy multicoreBackend resources")));
         }
     }
+
 
 }
