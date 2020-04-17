@@ -3,6 +3,7 @@ package ch.epfl.vlsc.sw.phase;
 import ch.epfl.vlsc.phases.ExtractSoftwarePartition;
 import ch.epfl.vlsc.phases.NetworkPartitioningPhase;
 import ch.epfl.vlsc.settings.PlatformSettings;
+import ch.epfl.vlsc.sw.ir.PartitionHandle;
 import ch.epfl.vlsc.sw.ir.PartitionLink;
 import se.lth.cs.tycho.attribute.GlobalNames;
 import se.lth.cs.tycho.compiler.CompilationTask;
@@ -27,6 +28,10 @@ import se.lth.cs.tycho.reporting.Diagnostic;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import ch.epfl.vlsc.sw.ir.PartitionHandle.Field;
+import ch.epfl.vlsc.sw.ir.PartitionHandle.Method;
+import ch.epfl.vlsc.sw.ir.PartitionHandle.Type;
 
 public class CreatePartitionLinkPhase implements Phase {
 
@@ -99,7 +104,8 @@ public class CreatePartitionLinkPhase implements Phase {
         String plinkEntityName = "system_plink";
 
         // -- create a PartitionLink entity
-        PartitionLink plink = new PartitionLink(inputPorts, outputPorts);
+        PartitionHandle handle = createPartitionHandle(ImmutableList.from(inputPorts), ImmutableList.from(outputPorts));
+        PartitionLink plink = new PartitionLink(inputPorts, outputPorts, handle);
         GlobalEntityDecl plinkEntity = GlobalEntityDecl.global(Availability.PUBLIC, plinkEntityName, plink, false);
         String plinkInstanceName = uniquePlinkName(task.getNetwork(), plinkEntityName);
 
@@ -215,11 +221,177 @@ public class CreatePartitionLinkPhase implements Phase {
      *                 returned
      * @return a unique name
      */
-    private String uniquePlinkName(Network network, String baseName) {
+    public static String uniquePlinkName(Network network, String baseName) {
         Set<String> names = network.getInstances().stream().map(Instance::getInstanceName)
                 .filter(n -> n.equals(baseName))
                 .collect(Collectors.toSet());
         return baseName + "_" + names.size();
 
     }
+
+    private PartitionHandle createPartitionHandle(ImmutableList<PortDecl> inputPorts,
+                                                  ImmutableList<PortDecl> outputPorts) {
+        ImmutableList<PartitionHandle.Method> methods = createMethods(inputPorts, outputPorts);
+        ImmutableList<Field> fields = createFields(inputPorts, outputPorts);
+        String className = createName();
+        PartitionHandle.Method constructor = createConstructor();
+        PartitionHandle.Method desttructor = createDestructor();
+        return new PartitionHandle(className, methods, fields, constructor, desttructor);
+    }
+
+    /**
+     * Creates the signature of the PartitionHandle methods, each backend (C or C++) should override this.
+     * @return - A list of methods defined and implemented by the PartitionHandle
+     */
+    private ImmutableList<PartitionHandle.Method> createMethods(ImmutableList<PortDecl> inputPorts,
+                                                                ImmutableList<PortDecl> outputPorts) {
+
+        ImmutableList.Builder<Method> funcs = ImmutableList.builder();
+
+        // -- independent methods
+        funcs.addAll(
+                Method.of("cl_int", "load_file_to_memory",
+                        ImmutableList.of(
+                                Method.MethodArg("const char*", "filename"),
+                                Method.MethodArg("char**", "result")), true),
+                Method.of("void", "createCLBuffers"),
+                Method.of("void", "setArgs"),
+                Method.of("void", "enqueueExecution"),
+                Method.of("void", "enqueueWriteBuffer"),
+                Method.of("void", "enqueueReadBuffer"),
+                Method.of("void", "waitForDevice"),
+                Method.of("void", "initEvents"),
+                Method.of("void", "releaseMemObjects"),
+                Method.of("void", "releaseReadEvents"),
+                Method.of("void", "releaseKernelEvent"),
+                Method.of("void", "releaseWriteEvent")
+        );
+
+        // -- topology dependent methods
+
+        // -- set request size
+        inputPorts.stream().forEachOrdered(
+                p -> funcs.add(
+                        Method.of("void", "set_" + p.getName() +"_request_size",
+                                ImmutableList.of(Method.MethodArg("uint32_t", "req_sz")))));
+        // -- set pointers
+        Stream.concat(inputPorts.stream(), outputPorts.stream()).forEachOrdered(
+                p -> funcs.addAll(
+                        Method.of("void", "set_" + p.getName() + "_buffer_ptr",
+                                ImmutableList.of(Method.MethodArg(Type.of(p.getType(), true), "ptr"))),
+                        Method.of("void", "set_" + p.getName() + "_size_ptr",
+                                ImmutableList.of(Method.MethodArg(Type.of("uint32_t", true), "ptr")))));
+        // -- get pointers
+        Stream.concat(inputPorts.stream(), outputPorts.stream()).forEachOrdered(
+                p -> funcs.addAll(
+                        Method.of(Type.of(p.getType(), true), "get_" + p.getName() + "_buffer_ptr"),
+                        Method.of(Type.of("uint32_t", true), "get_" + p.getName() + "_size_ptr")));
+
+        return funcs.build();
+    }
+
+    /**
+     * Creates the a name for the PartitionHandle class, each backend should override this separately.
+     * @return name of the class
+     */
+    private String createName() {
+        return "DeviceHandle_t";
+    }
+
+    /**
+     * Creates the list of fields in the PartitionHandle class.
+     * @return
+     */
+    private ImmutableList<Field> createFields(ImmutableList<PortDecl> inputPorts,
+                                                              ImmutableList<PortDecl> outputPorts) {
+
+        ImmutableList.Builder<Field> fields = ImmutableList.builder();
+
+        fields.addAll(
+            Field.of("OCLWorld", "world"),
+            Field.of("cl_program", "program"),
+            Field.of("cl_kernel", "kernel"),
+            Field.of("size_t", "global"),
+            Field.of("size_t", "local"),
+            Field.of("uint32_t", "num_inputs"),
+            Field.of("uint32_t", "num_outputs"),
+            Field.of("size_t", "buffer_size"),
+            Field.of("size_t", "mem_alignment"),
+            Field.of("uint64_t", "kernel_command", "the kernel command word (deprecated)"),
+            Field.of("uint32_t", "command_is_set", "the kernel command status (deprecated)"),
+            Field.of("uint32_t", "pending_status", "status of a kernel run (deprecated)"),
+            Field.of(
+                    "cl_event",
+                    "write_buffer_event[" + inputPorts.size() + "]",
+                    "an array containing write buffer events"),
+            Field.of(
+                    "cl_event",
+                    "read_size_event[" + (inputPorts.size() + outputPorts.size()) + "]",
+                    "an array containing read size events"),
+            Field.of(
+                    "cl_event",
+                    "read_buffer_event[" + outputPorts.size() + "]",
+                    "an array containing read buffer events"),
+            Field.of("cl_event",
+                    "kernel_event",
+                    "kernel enqueue event"),
+            Field.of("cl_event", "kernel_event", "kernel enqueue event"),
+            Field.of(
+                    Type.of("EventInfo", true),
+                    "write_buffer_event_info", "write buffer event info"),
+            Field.of(
+                    Type.of("EventInfo", true),
+                    "read_size_event_info", "read size event info"),
+            Field.of(Type.of("EventInfo", true),
+                    "read_buffer_event_info", "read buffer event info"),
+            Field.of(
+                    Type.of("EventInfo", true),
+                    "kernel_event_info", "kernel enqueue event info")
+        );
+
+        for (PortDecl port: inputPorts) {
+            fields.add(
+                    Field.of(
+                            "uint32_t",
+                            port.getName() + "_request_size",
+                            "Size of transfer for " + port.getName()));
+        }
+
+
+        Stream.concat(inputPorts.stream(), outputPorts.stream())
+                .forEachOrdered(p -> fields.addAll(
+                        Field.of(
+                                Type.of(p.getType(), true),
+                                p.getName() + "_buffer",
+                                "host buffer for port " + p.getName()),
+                        Field.of(
+                                Type.of("uint32_t", true),
+                                p.getName() + "_size",
+                                "host size buffer for port " + p.getName()),
+                        Field.of(
+                                "cl_mem",
+                                p.getName() + "_cl_buffer",
+                                "device buffer for port " + p.getName()
+                        ),
+                        Field.of(
+                                "cl_mem",
+                                p.getName() + "_cl_size",
+                                "device size buffer for port " + p.getName())));
+
+        return ImmutableList.empty();
+    }
+
+    private PartitionHandle.Method createConstructor() {
+        return Method.of("void", "constructor",
+                ImmutableList.of(
+                        Method.MethodArg("char*", "kernel_name"),
+                        Method.MethodArg("char*", "target_device_name"),
+                        Method.MethodArg("char*", "dir"),
+                        Method.MethodArg("bool", "hw_emu")));
+    }
+
+    private PartitionHandle.Method createDestructor() {
+        return Method.of("void", "terminate");
+    }
+
 }

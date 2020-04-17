@@ -5,16 +5,27 @@ package ch.epfl.vlsc.sw.ir;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
+import se.lth.cs.tycho.ir.util.Lists;
 
 
 import java.util.List;
 
 public class PartitionLink extends Entity {
 
-    public PartitionLink(List<PortDecl> inputPorts, List<PortDecl> outputPorts) {
-        super(null, inputPorts, outputPorts, null, null);
+    /**
+     * PartitionHandle, represents an OpenCL communication class, specific to Multicore backend
+     */
+    private final PartitionHandle handle;
 
+    public PartitionLink(List<PortDecl> inputPorts, List<PortDecl> outputPorts) {
+        this(inputPorts, outputPorts, null);
     }
+
+    public PartitionLink(List<PortDecl> inputPorts, List<PortDecl> outputPorts, PartitionHandle handle) {
+        super(null, inputPorts, outputPorts, null, null);
+        this.handle = handle;
+    }
+
     @Override
     public PartitionLink transformChildren(Transformation transformation) {
         return new PartitionLink(
@@ -22,4 +33,7 @@ public class PartitionLink extends Entity {
                 (ImmutableList) outputPorts.map(transformation));
 
     }
+
+
 }
+
