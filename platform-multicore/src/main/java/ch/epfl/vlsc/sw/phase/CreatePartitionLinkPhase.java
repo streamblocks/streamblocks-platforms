@@ -254,11 +254,12 @@ public class CreatePartitionLinkPhase implements Phase {
                         ImmutableList.of(
                                 Method.MethodArg("const char*", "filename"),
                                 Method.MethodArg("char**", "result")), true),
-                Method.of("void", "createCLBuffers"),
+                Method.of("void", "createCLBuffers",
+                        ImmutableList.of(Method.MethodArg("size_t", "sz"))),
                 Method.of("void", "setArgs"),
                 Method.of("void", "enqueueExecution"),
-                Method.of("void", "enqueueWriteBuffer"),
-                Method.of("void", "enqueueReadBuffer"),
+                Method.of("void", "enqueueWriteBuffers"),
+                Method.of("void", "enqueueReadBuffers"),
                 Method.of("void", "waitForDevice"),
                 Method.of("void", "initEvents"),
                 Method.of("void", "releaseMemObjects"),
@@ -278,13 +279,13 @@ public class CreatePartitionLinkPhase implements Phase {
         Stream.concat(inputPorts.stream(), outputPorts.stream()).forEachOrdered(
                 p -> funcs.addAll(
                         Method.of("void", "set_" + p.getName() + "_buffer_ptr",
-                                ImmutableList.of(Method.MethodArg(Type.of(p.getType(), true), "ptr"))),
+                                ImmutableList.of(Method.MethodArg(Type.of(p, true), "ptr"))),
                         Method.of("void", "set_" + p.getName() + "_size_ptr",
                                 ImmutableList.of(Method.MethodArg(Type.of("uint32_t", true), "ptr")))));
         // -- get pointers
         Stream.concat(inputPorts.stream(), outputPorts.stream()).forEachOrdered(
                 p -> funcs.addAll(
-                        Method.of(Type.of(p.getType(), true), "get_" + p.getName() + "_buffer_ptr"),
+                        Method.of(Type.of(p, true), "get_" + p.getName() + "_buffer_ptr"),
                         Method.of(Type.of("uint32_t", true), "get_" + p.getName() + "_size_ptr")));
 
         return funcs.build();
@@ -295,7 +296,7 @@ public class CreatePartitionLinkPhase implements Phase {
      * @return name of the class
      */
     private String createName() {
-        return "DeviceHandle_t";
+        return "DeviceHandle";
     }
 
     /**
@@ -345,7 +346,7 @@ public class CreatePartitionLinkPhase implements Phase {
             Field.of(Type.of("EventInfo", true),
                     "read_buffer_event_info", "read buffer event info"),
             Field.of(
-                    Type.of("EventInfo", true),
+                    Type.of("EventInfo", false),
                     "kernel_event_info", "kernel enqueue event info")
         );
 
@@ -361,7 +362,7 @@ public class CreatePartitionLinkPhase implements Phase {
         Stream.concat(inputPorts.stream(), outputPorts.stream())
                 .forEachOrdered(p -> fields.addAll(
                         Field.of(
-                                Type.of(p.getType(), true),
+                                Type.of(p, true),
                                 p.getName() + "_buffer",
                                 "host buffer for port " + p.getName()),
                         Field.of(
@@ -378,7 +379,7 @@ public class CreatePartitionLinkPhase implements Phase {
                                 p.getName() + "_cl_size",
                                 "device size buffer for port " + p.getName())));
 
-        return ImmutableList.empty();
+        return fields.build();
     }
 
     private PartitionHandle.Method createConstructor() {

@@ -2,8 +2,11 @@ package ch.epfl.vlsc.sw.ir;
 
 
 
+import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.type.TypeExpr;
 import se.lth.cs.tycho.ir.util.ImmutableList;
+import se.lth.cs.tycho.reporting.CompilationException;
+import se.lth.cs.tycho.reporting.Diagnostic;
 
 
 import java.util.List;
@@ -27,17 +30,47 @@ public class PartitionHandle {
         this.destructor = destructor;
     }
 
+
+
+    public ImmutableList<Method> getMethods() { return this.methods; }
+
+    public ImmutableList<Field> getFields() { return this.fields; }
+
+    public Method getConstructor() { return this.constructor; }
+
+    public Method getDestructor() { return this.destructor; }
+
+    public String getName() { return this.name; }
+
+    public Optional<Method> findMethod(String methodName) {
+        return methods.stream().filter(
+                m -> m.getName().equals(methodName))
+                .findAny();
+    }
+
+    public Optional<Field> findField(String fieldName) {
+        return fields.stream().filter(
+                f -> f.getName().equals(fieldName))
+                .findAny();
+    }
+
     public static class Method {
-        public final String name;
-        public final Type retType;
-        public final ImmutableList<Pair<Type, String>> args;
-        public final boolean global;
+        private final String name;
+        private final Type retType;
+        private final ImmutableList<Pair<Type, String>> args;
+        private final boolean global;
         public Method(Type retType, String name, List<Pair<Type, String>> args, boolean global) {
             this.retType = retType;
             this.name = name;
             this.args = ImmutableList.from(args);
             this.global = global;
         }
+
+        public String getName() { return this.name; }
+        public Type getReturnType() { return this.retType; }
+        public ImmutableList<Pair<Type, String>> getArgs() { return this.args; }
+        public boolean isGlobal() { return global; }
+
 
         public static Pair<Type, String> MethodArg(String type, String name) {
             return Pair.of(Type.of(type), name);
@@ -68,21 +101,30 @@ public class PartitionHandle {
         }
     }
     public static class Field {
-        public final Pair<Type, String> field;
-        public final String description;
+
+        private final String name;
+        private final Type type;
+        private final String description;
 
         public Field (String type, String name, String description) {
-            this.field = Pair.of(Type.of(type), name);
+            this.type = Type.of(type);
+            this.name = name;
             this.description = description;
         }
-        public Field (TypeExpr type, String name, String description) {
-            this.field = Pair.of(Type.of(type), name);
+        public Field (PortDecl port, String name, String description) {
+            this.name = name;
+            this.type = Type.of(port);
             this.description = description;
         }
         public Field(Type type, String name, String description) {
-            this.field = Pair.of(type, name);
+            this.name = name;
+            this.type = type;
             this.description = description;
         }
+
+        public String getName() { return this.name; }
+        public Type getType() { return this.type; }
+        public String getDescription() { return this.description; }
 
         /**
          * Factory methods
@@ -95,16 +137,16 @@ public class PartitionHandle {
             return new Field(type, name, description);
         }
 
-        static public Field of(TypeExpr type, String name, String description) {
-            return new Field(type, name, description);
+        static public Field of(PortDecl port, String name, String description) {
+            return new Field(port, name, description);
         }
 
         static public Field of(String type, String name) {
             return Field.of(type, name, "");
         }
 
-        static public Field of(TypeExpr type, String name) {
-            return Field.of(type, name);
+        static public Field of(PortDecl port, String name) {
+            return Field.of(port, name);
         }
 
         static public Field of(Type type, String name) {
@@ -127,35 +169,36 @@ public class PartitionHandle {
     public static class Type {
 
         private final Optional<String> type;
-        private final Optional<TypeExpr> typeExpr;
+        private final Optional<PortDecl> port;
         private boolean isRef;
 
         public Type(String type, boolean isRef) {
             this.type = Optional.of(type);
-            this.typeExpr = Optional.empty();
+            this.port = Optional.empty();
             this.isRef = isRef;
         }
         public Type(String type) {
             this(type, false);
         }
-        public Type(TypeExpr type, boolean isRef) {
+        public Type(PortDecl port, boolean isRef) {
             this.type = Optional.empty();
-            this.typeExpr = Optional.of(type);
+            this.port = Optional.of(port);
             this.isRef = isRef;
         }
-        public Type(TypeExpr type) {
-            this(type, false);
+        public Type(PortDecl port) {
+            this(port, false);
         }
 
 
-        public Boolean isEvaluated() { return type.isPresent(); }
-        public Optional<TypeExpr> getTypeExpr() {return this.typeExpr; }
+        public boolean isEvaluated() { return type.isPresent(); }
+        public Optional<PortDecl> getPort() {return this.port; }
         public Optional<String> getType() { return this.type; }
+        public boolean isReference() { return this.isRef; }
 
         public static Type of(String type, boolean isRef) { return new Type(type, isRef); }
-        public static Type of(TypeExpr type, boolean isRef) { return new Type(type, isRef); }
+        public static Type of(PortDecl port, boolean isRef) { return new Type(port, isRef); }
         public static Type of(String type) { return new Type(type); }
-        public static Type of(TypeExpr typeExpr) { return new Type(typeExpr); }
+        public static Type of(PortDecl port) { return new Type(port); }
     }
 
 

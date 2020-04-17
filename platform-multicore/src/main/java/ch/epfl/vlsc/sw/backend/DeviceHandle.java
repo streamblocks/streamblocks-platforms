@@ -1,24 +1,25 @@
 package ch.epfl.vlsc.sw.backend;
 
 import ch.epfl.vlsc.platformutils.PathUtils;
-
-
-
-import se.lth.cs.tycho.ir.entity.Entity;
-import se.lth.cs.tycho.ir.util.ImmutableList;
-
-import se.lth.cs.tycho.reporting.CompilationException;
+import ch.epfl.vlsc.sw.ir.PartitionHandle;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.sw.ir.PartitionLink;
+import ch.epfl.vlsc.sw.ir.PartitionHandle.Field;
+import ch.epfl.vlsc.sw.ir.PartitionHandle.Method;
+import ch.epfl.vlsc.sw.ir.PartitionHandle.Type;
+import ch.epfl.vlsc.sw.ir.PartitionHandle.Pair;
+
 import org.multij.Module;
 import org.multij.Binding;
 import org.multij.BindingKind;
 
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
+import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.reporting.Diagnostic;
-
+import se.lth.cs.tycho.ir.util.ImmutableList;
+import se.lth.cs.tycho.reporting.CompilationException;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -45,6 +46,41 @@ public interface DeviceHandle {
                 stackTrace[2].getMethodName() + " method not implemented!"));
     }
 
+
+
+    default String methodReturn(PartitionHandle handle, Method method) {
+        return evalType(method.getReturnType());
+    }
+
+    default String evalType(Type type) {
+        return type.isEvaluated() ? type.getType().get() : portType(type.getPort().get());
+    }
+
+    default String handleClassName(PartitionHandle handle) {
+        return handle.getName() + "_t";
+    }
+    default String evalArg(Pair<Type, String> arg) {
+        String type = evalType(arg._1);
+        String name = arg._1.isReference() ? "*" + arg._2 : arg._2;
+        return type + "\t" + name;
+    }
+
+    default String methodName(PartitionHandle handle, Method method) {
+
+        if (method.isGlobal()) {
+            return method.getName();
+        } else {
+            String origName = method.getName();
+            String methodName = "DeviceHandle" +
+                    String.valueOf(origName.charAt(0)).toUpperCase() + origName.substring(1);
+            return methodName;
+        }
+    }
+
+    default String methodSignature(PartitionHandle handle, Method method) {
+        return String.format("%s %s(%s)",
+                methodReturn(handle, method), methodName(handle, method), methodArgs(handle, method));
+    }
     default Emitter emitter() { return backend().emitter(); }
     default String defaultClEvent() { return "cl_event"; }
     default String ClMem() { return "cl_mem"; }
@@ -91,6 +127,7 @@ public interface DeviceHandle {
         return backend().typeseval().type(backend().types().declaredPortType(port));
     }
 
+
     default void generateDeviceHandle(Instance instance) {
 
         String networkId = backend().task().getIdentifier().getLast().toString();
@@ -103,7 +140,7 @@ public interface DeviceHandle {
                             " generating device handle code for the network " + networkId + " but did not find one." +
                             " Make sure the NetworkPartitionPhase and ExtractSWPartitionPhases are turned on."));
 
-        Entity entity = entityDecl.getEntity();
+        PartitionLink entity = (PartitionLink) entityDecl.getEntity();
 
         generateDeviceHandleSource(entity);
         generateDeviceHandleHeader(entity);
@@ -114,7 +151,7 @@ public interface DeviceHandle {
      * Generates the source file device-handle.c
      * @param entity the PartitionLink entity for which the source file is generated.
      */
-    default void generateDeviceHandleSource(Entity entity) {
+    default void generateDeviceHandleSource(PartitionLink entity) {
         // -- open output file
         Path artPlinkPath = PathUtils.createDirectory(PathUtils.getTargetLib(backend().context()), "art-plink");
         emitter().open(artPlinkPath.resolve("device-handle.c"));
@@ -145,15 +182,23 @@ public interface DeviceHandle {
 
         getReleaseMemObjects(entity);
 
-        getSetAndGetPtrs(Stream.concat(
-                entity.getInputPorts().stream(), entity.getOutputPorts().stream()).collect(Collectors.toList()));
+        getSetAndGetPtrs(entity);
 
         emitter().close();
     }
 
-    default void getCreateClBuffers(Entity entity) {
-        emitter().emit("void %s(DeviceHandle_t *dev, %s sz) {",
-                getMethodName("createCLBuffers"), defaultSizeType());
+    default Method getMethod(PartitionHandle handle, String methodName) {
+        Method method = handle.findMethod(methodName)
+                .orElseThrow(() ->
+                        new CompilationException(new Diagnostic(Diagnostic.Kind.ERROR, "Can not find " +
+                                methodName + " method in the PartitionHandle class.")));
+
+        return method;
+    }
+    default void getCreateClBuffers(PartitionLink entity) {
+        Method method = getMethod(entity.getHandle(), "createCLBuffers");
+
+        emitter().emit("%s {", methodSignature(entity.getHandle(), method));
         {
             emitter().increaseIndentation();
             emitter().emit("dev->buffer_size = sz;");
@@ -187,8 +232,10 @@ public interface DeviceHandle {
     default void getCreateCLBuffer(String name, String mode, String size) {
         emitter().emit("dev->%s = clCreateCLBuffer(dev->world.context, %s, %s, NULL, NULL);", name, mode, size);
     }
-    default void getSetArgs(Entity entity) {
-        emitter().emit("void %s(DeviceHandle_t *dev) {", getMethodName("setKernelArgs"));
+    default void getSetArgs(PartitionLink entity) {
+        Method method = getMethod(entity.getHandle(), "setArgs");
+
+        emitter().emit("%s {", methodSignature(entity.getHandle(), method));
         {
             emitter().increaseIndentation();
             OclMsg("Setting kernel args\\n");
@@ -230,9 +277,10 @@ public interface DeviceHandle {
         OclCheck("clSetKernelArg(dev->kernel, %d, %s, &dev->%s)", index, size, name);
     }
 
-    default void getEnqueueWriteBuffers(Entity entity) {
+    default void getEnqueueWriteBuffers(PartitionLink entity) {
+        Method method = getMethod(entity.getHandle(), "enqueueWriteBuffers");
 
-        emitter().emit("void %s(DeviceHandle_t *dev) {", getMethodName("enqueueWriteBuffers"));
+        emitter().emit("%s {", methodSignature(entity.getHandle(), method));
         {
             emitter().increaseIndentation();
 
@@ -287,9 +335,9 @@ public interface DeviceHandle {
         emitter().emit("}");
     }
 
-    default void getEnqueueReadBuffers(Entity entity) {
-
-        emitter().emit("void %s(DeviceHandle_t *dev) {", getMethodName("enqueueReadBuffers"));
+    default void getEnqueueReadBuffers(PartitionLink entity) {
+        Method method = getMethod(entity.getHandle(), "enqueueReadBuffers");
+        emitter().emit("%s {", methodSignature(entity.getHandle(), method));
         {
             emitter().increaseIndentation();
 
@@ -382,8 +430,9 @@ public interface DeviceHandle {
         emitter().emit("}");
 
     }
-    default void getReleaseMemObjects(Entity entity) {
-        emitter().emit("void %s(DeviceHandle_t *dev) {", getMethodName("ReleaseMemObjects"));
+    default void getReleaseMemObjects(PartitionLink entity) {
+        Method method = getMethod(entity.getHandle(), "releaseMemObjects");
+        emitter().emit("%s {", methodSignature(entity.getHandle(), method));
         {
             emitter().increaseIndentation();
             Stream.concat(entity.getInputPorts().stream(), entity.getOutputPorts().stream())
@@ -402,33 +451,41 @@ public interface DeviceHandle {
         emitter().emitNewLine();
     }
 
-    default void getSetAndGetPtrs(List<PortDecl> ports) {
+    default void getSetAndGetPtrs(PartitionLink entity) {
         emitter().emit("// -- get pointer methods");
-        ports.forEach(this::getGetPtr);
+        Stream.concat(entity.getInputPorts().stream(), entity.getOutputPorts().stream())
+                .forEachOrdered(p -> getGetPtr(entity.getHandle(), p));
+
         emitter().emitNewLine();
         emitter().emit(" // -- set pointer methods");
-        ports.forEach(this::getSetPtr);
+        Stream.concat(entity.getInputPorts().stream(), entity.getOutputPorts().stream())
+                .forEachOrdered(p -> getSetPtr(entity.getHandle(), p));
     }
 
-    default void getGetPtr(PortDecl port) {
+    default void getGetPtr(PartitionHandle handle, PortDecl port) {
+        Method getBuffmethod = getMethod(handle, "get_" + port.getName() + "_buffer_ptr");
 
         emitter().emitNewLine();
         emitter().emit("// -- get pointers for %s", port.getName());
-        emitter().emit("%s* %s_%s_buffer_ptr(DeviceHandle_t *dev) { return dev->%3$s_buffer; }",
-                portType(port), getMethodName("Get"), port.getName());
+        emitter().emit("%s { return dev->%s_buffer; }",
+                methodSignature(handle, getBuffmethod), port.getName());
 
-        emitter().emit("%s* %s_%s_size_ptr(DeviceHandle_t *dev) { return dev->%3$s_size; }",
-                defaultIntType(), getMethodName("Get"), port.getName());
+        Method getSizemethod = getMethod(handle, "get_" + port.getName() + "_size_ptr");
+        emitter().emit("%s { return dev->%s_size; }",
+                methodSignature(handle, getSizemethod), port.getName());
         emitter().emitNewLine();
     }
 
-    default void getSetPtr(PortDecl port) {
+    default void getSetPtr(PartitionHandle handle, PortDecl port) {
+        Method setBuffMethod = getMethod(handle, "set_" + port.getName() + "_buffer_ptr");
+        Method setSizeMethod = getMethod(handle, "set_" + port.getName() + "_size_ptr");
         emitter().emitNewLine();
         emitter().emit("// -- set pointers for %s", port.getName());
-        emitter().emit("void %s_%s_buffer_ptr(DeviceHandle_t *dev, %s *ptr) { dev->%2$s_buffer = ptr; }",
-                getMethodName("Set"), port.getName(), portType(port));
-        emitter().emit("void %s_%s_size_ptr(DeviceHandle_t *dev, %s *ptr) { dev->%2$s_size = ptr; }",
-                getMethodName("Set"), port.getName(), defaultIntType());
+        emitter().emit("%s { dev->%s_buffer = ptr; }",
+                methodSignature(handle, setBuffMethod), port.getName());
+        emitter().emitNewLine();
+        emitter().emit("%s { dev->%s_size = ptr; }",
+                methodSignature(handle, setSizeMethod), port.getName());
         emitter().emitNewLine();
     }
 
@@ -436,7 +493,7 @@ public interface DeviceHandle {
      * Generates the header file device-handle.h
      * @param entity the PartitionLink entity for which the header file is generated
      */
-    default void generateDeviceHandleHeader(Entity entity) {
+    default void generateDeviceHandleHeader(PartitionLink entity) {
 
         // -- open output file
         Path artPlinkPath = PathUtils.createDirectory(PathUtils.getTargetLib(backend().context()), "art-plink");
@@ -479,7 +536,7 @@ public interface DeviceHandle {
         emitter().emitNewLine();
     }
 
-    default void getDefines(Entity entity) {
+    default void getDefines(PartitionLink entity) {
 
         emitter().emitNewLine();
         emitter().emit("// -- OpenCL and actor specific defines");
@@ -578,7 +635,7 @@ public interface DeviceHandle {
 
     }
 
-    default void getDeviceHandleStruct(Entity entity) {
+    default void getDeviceHandleStruct(PartitionLink entity) {
 
         emitter().emit("// -- Device Handle struct");
         emitter().emit("typedef struct DeviceHandle_t {");
@@ -596,233 +653,57 @@ public interface DeviceHandle {
 
     }
 
-    class Func {
-        public final String name;
-        public final String retType;
-        public final ImmutableList<Pair<String, String>> args;
-        public final boolean global;
-        public Func (String retType, String name, List<Pair<String, String>> args, boolean global) {
-            this.retType = retType;
-            this.name = name;
-            this.args = ImmutableList.from(args);
-            this.global = global;
-        }
-        public Func (String retType, String name, List<Pair<String, String>> args) {
-            this(retType, name, args, false);
-        }
-        static public Func of(String retType, String name, List<Pair<String, String>> args, boolean global) {
-            return new Func(retType, name, args, global);
-        }
-        static public Func of(String retType, String name, List<Pair<String, String>> args) {
-            return new Func(retType, name, args);
-        }
-        static public Func of(String retType, String name) {
-            return new Func(retType, name, ImmutableList.empty());
-        }
+
+    default void getMethodDeclarations(PartitionLink entity) {
+
+        // -- emit constructor
+        emitMethodDecl(entity.getHandle(), entity.getHandle().getConstructor());
+        // -- emit destructor
+        emitMethodDecl(entity.getHandle(), entity.getHandle().getDestructor());
+        // -- the rest of methods
+        entity.getHandle().getMethods().stream().forEachOrdered(m -> emitMethodDecl(entity.getHandle(), m));
     }
 
-    default Pair<String, String> FuncArg(String type, String name) {
-        return Pair.of(type, name);
-    }
-
-    default void getMethodDeclarations(Entity entity) {
-
-        ImmutableList.Builder<Func> funcs = ImmutableList.builder();
-
-        // -- independent methods
-        funcs.addAll(
-            Func.of("void", "constructor",
-                  ImmutableList.of(
-                          FuncArg("char*", "kernel_name"),
-                          FuncArg("char*", "target_device_name"),
-                          FuncArg("char*", "dir"),
-                          FuncArg("bool", "hw_emu"))),
-            Func.of("cl_int", "load_file_to_memory",
-                  ImmutableList.of(
-                          FuncArg("const char*", "filename"),
-                          FuncArg("char**", "result")), true),
-            Func.of("void", "terminate"),
-            Func.of("void", "createCLBuffers"),
-            Func.of("void", "setArgs"),
-            Func.of("void", "enqueueExecution"),
-            Func.of("void", "enqueueWriteBuffer"),
-            Func.of("void", "enqueueReadBuffer"),
-            Func.of("void", "waitForDevice"),
-            Func.of("void", "initEvents"),
-            Func.of("void", "releaseMemObjects"),
-            Func.of("void", "releaseReadEvents"),
-            Func.of("void", "releaseKernelEvent"),
-            Func.of("void", "releaseWriteEvent")
-        );
-
-        // -- topology dependent methods
-
-        // -- set request size
-        entity.getInputPorts().stream().forEachOrdered(
-                p -> funcs.add(
-                        Func.of("void", "set_" + p.getName() +"_request_size",
-                        ImmutableList.of(FuncArg(defaultIntType(), "req_sz")))));
-        // -- set pointers
-        Stream.concat(entity.getInputPorts().stream(), entity.getOutputPorts().stream()).forEachOrdered(
-                p -> funcs.addAll(
-                        Func.of("void", "set_" + p.getName() + "_buffer_ptr",
-                                ImmutableList.of(FuncArg(portType(p) + "*", "ptr"))),
-                        Func.of("void", "set_" + p.getName() + "_size_ptr",
-                                ImmutableList.of(FuncArg(defaultIntType() + "*", "ptr")))));
-        // -- get pointers
-        Stream.concat(entity.getInputPorts().stream(), entity.getOutputPorts().stream()).forEachOrdered(
-                p -> funcs.addAll(
-                        Func.of(portType(p) + "*", "get_" + p.getName() + "_buffer_ptr"),
-                        Func.of(defaultIntType() + "*", "get_" + p.getName() + "_size_ptr")));
-        funcs.build().stream().forEachOrdered(this::emitFuncDecl);
-    }
-    default void emitFuncDecl(Func func) {
-        if (func.global) {
-            // non-member function
-            emitter().emit("%s %s(%s);",
-                    func.retType, func.name,
-                    String.join(", ",
-                            func.args.stream()
-                                    .map(arg ->
-                                            String.format("%s\t%s", arg._1, arg._2))
-                                    .collect(Collectors.toList())));
-        } else {
-            // member function
-            String methodName = "dev" + String.valueOf(func.name.charAt(0)).toUpperCase() + func.name.substring(1);
-
-            ImmutableList<Pair<String, String>> methodArgs = ImmutableList.<Pair<String, String>>builder()
-                    .add(FuncArg("DeviceHandle_t*", "dev")).addAll(func.args).build();
-            emitter().emit("%s %s(%s);",
-                    func.retType, methodName,
-                    String.join(", ",
-                            methodArgs.stream()
-                                    .map(arg ->
-                                            String.format("%s\t%s", arg._1, arg._2))
-                                    .collect(Collectors.toList())));
-
-        }
-    }
-    class Pair<X, Y> {
-        public final X _1;
-        public final Y _2;
-        public Pair(X x, Y y) {
-            this._1 = x;
-            this._2 = y;
-        }
-        public static <X, Y> Pair<X, Y> of(X x, Y y) {
-            return new Pair(x, y);
-        }
-    }
-    class StructField {
-        public final Pair<String, String> field;
-        public final String description;
-        public StructField(Pair<String, String> field) {
-            this.field = field;
-            description = "";
-        }
-        public StructField(String type, String name) {
-            this.field = new Pair(type, name);
-            description = "";
-        }
-
-        public StructField(String type, String name, String description) {
-            this.field = new Pair(type, name);
-            this.description = description;
-        }
-
-        public StructField(Pair<String, String> field, String description) {
-            this.field = field;
-            this.description = description;
-        }
-        static public StructField of(String type, String name) {
-            return new StructField(type, name);
-        }
-        static public StructField of(String type, String name, String description) {
-            return new StructField(type, name, description);
-        }
-        static public StructField of(Pair<String, String> field) {
-            return new StructField(field);
-        }
-        static public StructField of(Pair<String, String> field, String description) {
-            return new StructField(field, description);
-        }
-
-    }
-    default void getDeviceHandleFields(Entity entity) {
-
-        emitter().emit("// -- openCL world");
-        ImmutableList.Builder<StructField> fields = ImmutableList.builder();
-        fields.addAll(
-                StructField.of("OCLWorld", "world"),
-                StructField.of("cl_program", "program"),
-                StructField.of("cl_kernel", "kernel"),
-                StructField.of(defaultSizeType(), "global"),
-                StructField.of(defaultSizeType(), "local"),
-                StructField.of(defaultIntType(), "num_inputs"),
-                StructField.of(defaultIntType(), "num_outputs"),
-                StructField.of(defaultSizeType(), "buffer_size"),
-                StructField.of(defaultSizeType(), "mem_alignment"),
-                StructField.of("uint64_t", "kernel_command", "the kernel command word (deprecated)"),
-                StructField.of(defaultIntType(), "command_is_set", "the kernel command status (deprecated)"),
-                StructField.of(defaultIntType(), "pending_status", "status of a kernel run (deprecated)"),
-                StructField.of(
-                        "cl_event",
-                        "write_buffer_event[" + entity.getInputPorts().size() + "]",
-                        "an array containing write buffer events"),
-                StructField.of(
-                        "cl_event",
-                        "read_size_event[" + (entity.getInputPorts().size() + entity.getOutputPorts().size()) + "]",
-                        "an array containing read size events"),
-                StructField.of(
-                        "cl_event",
-                        "read_buffer_event[" + entity.getOutputPorts().size() + "]",
-                        "an array containing read buffer events"),
-                StructField.of("cl_event",
-                        "kernel_event",
-                        "kernel enqueue event"),
-                StructField.of("cl_event", "kernel_event", "kernel enqueue event"),
-                StructField.of("EventInfo*", "write_buffer_event_info", "write buffer event info"),
-                StructField.of("EventInfo*", "read_size_event_info", "read size event info"),
-                StructField.of("EventInfo*", "read_buffer_event_info", "read buffer event info"),
-                StructField.of("EventInfo ", "kernel_event_info", "kernel enqueue event info")
-        );
-
-        for (PortDecl port: entity.getInputPorts()) {
-            fields.add(
-                    StructField.of(
-                            defaultIntType(),
-                            port.getName() + "_request_size",
-                            "Size of transfer for " + port.getName()));
-        }
-
-
-        Stream.concat(entity.getInputPorts().stream(), entity.getOutputPorts().stream())
-                .forEachOrdered(p -> fields.addAll(
-                        StructField.of(
-                                portType(p) + "*",
-                                p.getName() + "_buffer",
-                                "host buffer for port " + p.getName()),
-                        StructField.of(
-                                defaultIntType() + "*",
-                                p.getName() + "_size",
-                                "host size buffer for port " + p.getName()),
-                        StructField.of(
-                                "cl_mem",
-                                p.getName() + "_cl_buffer",
-                                "device buffer for port " + p.getName()
-                                ),
-                        StructField.of(
-                                "cl_mem",
-                                p.getName() + "_cl_size",
-                                "device size buffer for port " + p.getName())));
-
-        fields.build().forEach(this::emitField);
-    }
-    default void emitField(StructField field) {
+    default void emitMethodDecl(PartitionHandle handle, Method method) {
+        String name = methodName(handle, method);
         emitter().emitNewLine();
-        if (!field.description.isEmpty())
-            emitter().emit("// -- %s", field.description);
-        emitter().emit("%s\t\t%s;", field.field._1, field.field._2);
+        emitter().emit("%s;", methodSignature(handle, method));
+        emitter().emitNewLine();
     }
 
+
+    default String methodArgs(PartitionHandle handle, Method method) {
+
+        if(method.isGlobal()) {
+            return
+                String.join(", ", method.getArgs().stream().map(this::evalArg).collect(Collectors.toList()));
+        } else {
+            Pair<Type, String> thisArg = Method.MethodArg(Type.of(handleClassName(handle), true), "dev");
+            ImmutableList<Pair<Type, String>> xArgs =
+                    ImmutableList.<Pair<Type, String>>builder().add(thisArg)
+                            .addAll(method.getArgs()).build();
+            return
+                String.join(", ", xArgs.stream().map(this::evalArg).collect(Collectors.toList()));
+
+        }
+    }
+
+
+
+    default void getDeviceHandleFields(PartitionLink entity) {
+
+        entity.getHandle().getFields().stream().forEachOrdered(f -> emitField(entity.getHandle(), f));
+
+    }
+
+    default void emitField(PartitionHandle handle, Field field) {
+        emitter().emitNewLine();
+        if (!field.getDescription().isEmpty()) {
+            emitter().emit("// -- %s", field.getDescription());
+        }
+        String name = field.getType().isReference() ? "*" + field.getName() : field.getName();
+        String type = evalType(field.getType());
+        emitter().emit("%s %s;", type, name);
+        emitter().emitNewLine();
+    }
 }
