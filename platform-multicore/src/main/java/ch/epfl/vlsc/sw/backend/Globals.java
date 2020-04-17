@@ -268,7 +268,7 @@ public interface Globals {
         varDecls.forEach(decl -> {
             Type type = backend().types().declaredType(decl);
             if (!(type instanceof CallableType)) {
-                backend().statements().copy(type, backend().variables().declarationName(decl), backend().types().type(decl.getValue()), backend().expressioneval().evaluate(decl.getValue()));
+                backend().statements().copy(type, backend().variables().declarationName(decl), backend().types().type(decl.getValue()), backend().expressionEval().evaluate(decl.getValue()));
             }
         });
         emitter().decreaseIndentation();

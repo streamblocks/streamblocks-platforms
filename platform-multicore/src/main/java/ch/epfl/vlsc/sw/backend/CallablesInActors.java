@@ -59,7 +59,7 @@ public interface CallablesInActors {
     default void callableDefinition(String instanceName, ExprLambda lambda) {
         backend().emitter().emit("%s {", lambdaHeader(instanceName, lambda));
         backend().emitter().increaseIndentation();
-        backend().emitter().emit("return %s;", backend().expressioneval().evaluate(lambda.getBody()));
+        backend().emitter().emit("return %s;", backend().expressionEval().evaluate(lambda.getBody()));
         backend().emitter().decreaseIndentation();
         backend().emitter().emit("}");
     }
@@ -110,7 +110,7 @@ public interface CallablesInActors {
         for (int i = 0; i < parameterNames.size(); i++) {
             parameters.add(backend().declarations().declarationParameter(type.getParameterTypes().get(i), parameterNames.get(i)));
         }
-        String result = backend().typeseval().type(type.getReturnType());
+        String result = backend().typesEval().type(type.getReturnType());
         result += " ";
         result += name;
         result += "(";
@@ -127,7 +127,7 @@ public interface CallablesInActors {
         for (int i = 0; i < parameterNames.size(); i++) {
             parameters.add(backend().declarations().declarationParameter(type.getParameterTypes().get(i), parameterNames.get(i)));
         }
-        String result = backend().typeseval().type(type.getReturnType());
+        String result = backend().typesEval().type(type.getReturnType());
         result += " ";
         result += name;
         result += "(";

@@ -6,7 +6,6 @@ import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.GlobalNames;
-import se.lth.cs.tycho.reporting.Diagnostic;
 import se.lth.cs.tycho.ir.ValueParameter;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.entity.PortDecl;
@@ -32,7 +31,7 @@ public interface Main {
     }
 
     default ExpressionEvaluator evaluator() {
-        return backend().expressioneval();
+        return backend().expressionEval();
     }
 
     default void main() {

@@ -49,7 +49,7 @@ public interface ExpressionEvaluator {
     }
 
     default TypesEvaluator typeseval() {
-        return backend().typeseval();
+        return backend().typesEval();
     }
 
     default MemoryStack memoryStack() {
@@ -560,7 +560,7 @@ public interface ExpressionEvaluator {
         Type type = types().type(apply);
         String result = variables().generateTemp();
         String decl = declarations().declarationTemp(types().type(apply), result);
-        if ((type instanceof AlgebraicType) || (type instanceof ListType && backend().typeseval().isAlgebraicTypeList((ListType) type))) {
+        if ((type instanceof AlgebraicType) || (type instanceof ListType && backend().typesEval().isAlgebraicTypeList((ListType) type))) {
             memoryStack().trackPointer(result, type);
         }
         emitter().emit("%s = %s(%s);", decl, fn, String.join(", ", parameters));

@@ -113,9 +113,9 @@ public interface Callables {
 
     default void declareCallableFatPointerType(CallableType type) {
         String name = mangle(type).encode();
-        String returnType = backend().typeseval().type(type.getReturnType());
+        String returnType = backend().typesEval().type(type.getReturnType());
         Stream<String> parameterStream = type.getParameterTypes().stream()
-                .map(backend().typeseval()::type);
+                .map(backend().typesEval()::type);
         String parameters = Stream.concat(Stream.of("void *restrict"), parameterStream).collect(Collectors.joining(", "));
         backend().emitter().emit("typedef struct {");
         backend().emitter().increaseIndentation();
@@ -221,7 +221,7 @@ public interface Callables {
         backend().emitter().increaseIndentation();
         lambda.forEachChild(this::declareEnvironmentForCallablesInScope);
         backend().emitter().emit("envt_%s *env = (envt_%s*) e;", name, name);
-        backend().emitter().emit("return %s;", backend().expressioneval().evaluate(lambda.getBody()));
+        backend().emitter().emit("return %s;", backend().expressionEval().evaluate(lambda.getBody()));
         backend().emitter().decreaseIndentation();
         backend().emitter().emit("}");
     }
@@ -386,7 +386,7 @@ public interface Callables {
         for (int i = 0; i < parameterNames.size(); i++) {
             parameters.add(backend().declarations().declarationParameter(type.getParameterTypes().get(i), parameterNames.get(i)));
         }
-        String result = backend().typeseval().type(type.getReturnType());
+        String result = backend().typesEval().type(type.getReturnType());
         result += " ";
         result += name;
         result += "(";
@@ -398,13 +398,13 @@ public interface Callables {
     String resultFromType(Type type);
 
     default String resultFromType(CallableType type) {
-        return backend().typeseval().type(type.getReturnType());
+        return backend().typesEval().type(type.getReturnType());
     }
 
     Stream<String> parametersFromType(Type type);
 
     default Stream<String> parametersFromType(CallableType type) {
-        return type.getParameterTypes().stream().map(backend().typeseval()::type);
+        return type.getParameterTypes().stream().map(backend().typesEval()::type);
     }
 
     Stream<String> parametersFromValue(Expression expr);

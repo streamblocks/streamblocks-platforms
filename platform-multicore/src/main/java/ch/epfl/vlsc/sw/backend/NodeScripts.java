@@ -32,7 +32,7 @@ public interface NodeScripts {
     }
 
     default ExpressionEvaluator evaluator() {
-        return backend().expressioneval();
+        return backend().expressionEval();
     }
 
     default void scriptNetwork() {

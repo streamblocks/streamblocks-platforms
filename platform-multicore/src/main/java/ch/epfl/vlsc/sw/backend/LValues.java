@@ -9,7 +9,6 @@ import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.expr.ExprIndexer;
 import se.lth.cs.tycho.ir.stmt.lvalue.*;
 import se.lth.cs.tycho.type.ListType;
-import se.lth.cs.tycho.type.Type;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -31,7 +30,7 @@ public interface LValues {
     }
 
     default ExpressionEvaluator expressioneval() {
-        return backend().expressioneval();
+        return backend().expressionEval();
     }
 
     String lvalue(LValue lvalue);
@@ -58,7 +57,7 @@ public interface LValues {
             VarDecl varDecl = backend().varDecls().declaration(var);
             ListType type = (ListType) backend().types().declaredType(varDecl);
 
-            List<Integer> sizeByDim = backend().typeseval().sizeByDimension((ListType) type.getElementType());
+            List<Integer> sizeByDim = backend().typesEval().sizeByDimension((ListType) type.getElementType());
             List<String> indexByDim = getListIndexes((LValueIndexer) indexer.getStructure());
             Collections.reverse(indexByDim);
 

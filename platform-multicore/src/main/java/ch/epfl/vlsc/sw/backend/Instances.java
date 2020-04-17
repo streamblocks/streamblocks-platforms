@@ -13,9 +13,7 @@ import se.lth.cs.tycho.attribute.GlobalNames;
 import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.ir.Parameter;
 import se.lth.cs.tycho.ir.Port;
-import se.lth.cs.tycho.ir.ValueParameter;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
-import se.lth.cs.tycho.ir.decl.LocalVarDecl;
 import se.lth.cs.tycho.ir.decl.ParameterVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
@@ -59,7 +57,7 @@ public interface Instances {
     }
 
     default TypesEvaluator typeseval() {
-        return backend().typeseval();
+        return backend().typesEval();
     }
 
     default Statements statements() {
@@ -71,7 +69,7 @@ public interface Instances {
     }
 
     default ExpressionEvaluator expressioneval() {
-        return backend().expressioneval();
+        return backend().expressionEval();
     }
 
     default void generateInstance(Instance instance) {
@@ -366,7 +364,7 @@ public interface Instances {
         if (type instanceof ProductType | type instanceof SumType) {
             evaluatedType = "void*";
         } else {
-            evaluatedType = backend().typeseval().type(type);
+            evaluatedType = backend().typesEval().type(type);
         }
         emitter().emit("{0, \"%s\", (sizeof(%s))", name, evaluatedType);
         emitter().emit("#ifdef CAL_RT_CALVIN");

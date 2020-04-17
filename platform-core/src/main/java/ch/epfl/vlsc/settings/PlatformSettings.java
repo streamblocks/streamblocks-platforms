@@ -1,6 +1,7 @@
 package ch.epfl.vlsc.settings;
 
 import se.lth.cs.tycho.settings.Configuration;
+import se.lth.cs.tycho.settings.IntegerSetting;
 import se.lth.cs.tycho.settings.OnOffSetting;
 
 public class PlatformSettings {
@@ -75,6 +76,40 @@ public class PlatformSettings {
         @Override
         public Boolean defaultValue(Configuration configuration) {
             return false;
+        }
+    };
+
+    static public OnOffSetting enableTraces = new OnOffSetting() {
+        @Override
+        public String getKey() {
+            return "enable-traces";
+        }
+
+        @Override
+        public String getDescription() {
+            return "Enable fifo traces";
+        }
+
+        @Override
+        public Boolean defaultValue(Configuration configuration) {
+            return false;
+        }
+    };
+
+    static public IntegerSetting defaultBufferDepth = new IntegerSetting() {
+        @Override
+        public String getKey() {
+            return "buffer-depth";
+        }
+
+        @Override
+        public String getDescription() {
+            return "The depth of the fifo queues.";
+        }
+
+        @Override
+        public Integer defaultValue(Configuration configuration) {
+            return 4096;
         }
     };
 

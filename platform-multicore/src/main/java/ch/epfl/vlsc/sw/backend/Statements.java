@@ -12,7 +12,6 @@ import se.lth.cs.tycho.ir.expr.ExprInput;
 import se.lth.cs.tycho.ir.expr.ExprVariable;
 import se.lth.cs.tycho.ir.expr.Expression;
 import se.lth.cs.tycho.ir.stmt.*;
-import se.lth.cs.tycho.ir.stmt.lvalue.LValueField;
 import se.lth.cs.tycho.ir.stmt.lvalue.LValueVariable;
 import se.lth.cs.tycho.type.AlgebraicType;
 import se.lth.cs.tycho.type.ListType;
@@ -31,7 +30,7 @@ public interface Statements {
     }
 
     default ExpressionEvaluator expressioneval() {
-        return backend().expressioneval();
+        return backend().expressionEval();
     }
 
     default LValues lvalues() {
@@ -51,7 +50,7 @@ public interface Statements {
     }
 
     default TypesEvaluator typeseval() {
-        return backend().typeseval();
+        return backend().typesEval();
     }
 
     default ChannelsUtils channelsutils() {

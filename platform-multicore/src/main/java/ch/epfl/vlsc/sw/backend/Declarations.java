@@ -14,7 +14,7 @@ public interface Declarations {
     MulticoreBackend backend();
 
     default String declaration(Type type, String name) {
-        return backend().typeseval().type(type) + " " + name;
+        return backend().typesEval().type(type) + " " + name;
     }
 
     default String declaration(UnitType type, String name) {
@@ -22,7 +22,7 @@ public interface Declarations {
     }
 
     default String declaration(ListType type, String name) {
-        return backend().typeseval().type(type) + "* " + name;
+        return backend().typesEval().type(type) + "* " + name;
     }
 
     default String declaration(RefType type, String name) {
@@ -52,8 +52,8 @@ public interface Declarations {
     }
 
     default String declarationTemp(ListType type, String name) {
-        String maxIndex = backend().typeseval().sizeByDimension((ListType) type).stream().map(Object::toString).collect(Collectors.joining("*"));
-        return String.format("%s %s[%s]", backend().typeseval().type(type), name, maxIndex);
+        String maxIndex = backend().typesEval().sizeByDimension((ListType) type).stream().map(Object::toString).collect(Collectors.joining("*"));
+        return String.format("%s %s[%s]", backend().typesEval().type(type), name, maxIndex);
     }
 
     /*

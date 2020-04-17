@@ -7,13 +7,10 @@ import se.lth.cs.tycho.ir.Port;
 import se.lth.cs.tycho.ir.ToolValueAttribute;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.reporting.Diagnostic;
-import se.lth.cs.tycho.reporting.Diagnostic.Kind;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Network;
 import se.lth.cs.tycho.type.AlgebraicType;
-import se.lth.cs.tycho.type.ProductType;
-import se.lth.cs.tycho.type.SumType;
 import se.lth.cs.tycho.type.Type;
 
 import java.util.List;
@@ -50,7 +47,7 @@ public interface ChannelsUtils {
         if (type instanceof AlgebraicType) {
             return "ref";
         } else {
-            return backend().typeseval().type(type);
+            return backend().typesEval().type(type);
         }
     }
 
@@ -60,7 +57,7 @@ public interface ChannelsUtils {
         if (type instanceof AlgebraicType) {
             return "ref";
         } else {
-            return backend().typeseval().type(type);
+            return backend().typesEval().type(type);
         }
     }
 

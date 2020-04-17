@@ -438,7 +438,7 @@ public interface AlgebraicTypes {
                         if (field.getType() instanceof AlgebraicType) {
                             emitter().emit("p = serializeStruct%s_t(src->members.%s.%s, p);", ((AlgebraicType) field.getType()).getName(), variant.getName(), field.getName());
                         } else {
-                            String castStr = backend().typeseval().type(field.getType());
+                            String castStr = backend().typesEval().type(field.getType());
                             emitter().emit("*(%s *) p = src->members.%s.%s;", castStr, variant.getName(), field.getName());
                             emitter().emit("p = (char *) ((%s *) p + 1);", castStr);
                         }
@@ -458,7 +458,7 @@ public interface AlgebraicTypes {
                     if (field.getType() instanceof AlgebraicType) {
                         emitter().emit("p = serializeStruct%s_t(src->members.%s, p);", ((AlgebraicType) field.getType()).getName(), field.getName());
                     } else {
-                        String castStr = backend().typeseval().type(field.getType());
+                        String castStr = backend().typesEval().type(field.getType());
                         emitter().emit("*(%s *) p = src->members.%s;", castStr, field.getName());
                         emitter().emit("p = (char *) ((%s *) p + 1);", castStr);
                     }
@@ -498,7 +498,7 @@ public interface AlgebraicTypes {
                         if (field.getType() instanceof AlgebraicType) {
                             emitter().emit("p = deserializeStruct%s_t(&(*dst)->members.%s.%s, p);", ((AlgebraicType) field.getType()).getName(), variant.getName(), field.getName());
                         } else {
-                            String castStr = backend().typeseval().type(field.getType());
+                            String castStr = backend().typesEval().type(field.getType());
                             emitter().emit("(*dst)->members.%s.%s = *(%s *) p;", variant.getName(), field.getName(), castStr);
                             emitter().emit("p = (char *) ((%s *) p + 1);", castStr);
                         }
@@ -518,7 +518,7 @@ public interface AlgebraicTypes {
                     if (field.getType() instanceof AlgebraicType) {
                         emitter().emit("p = deserializeStruct%s_t(&(*dst)->members.%s, p);", ((AlgebraicType) field.getType()).getName(), field.getName());
                     } else {
-                        String castStr = backend().typeseval().type(field.getType());
+                        String castStr = backend().typesEval().type(field.getType());
                         emitter().emit("(*dst)->members.%s = *(%s *) p;", field.getName(), castStr);
                         emitter().emit("p = (char *) ((%s *) p + 1);", castStr);
                     }

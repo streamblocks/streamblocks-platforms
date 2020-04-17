@@ -133,13 +133,13 @@ public interface MulticoreBackend {
 
     // -- Expression evaluator
     @Binding(LAZY)
-    default ExpressionEvaluator expressioneval() {
+    default ExpressionEvaluator expressionEval() {
         return MultiJ.from(ExpressionEvaluator.class).bind("backend").to(this).instance();
     }
 
     // -- TypesEvaluator
     @Binding(LAZY)
-    default TypesEvaluator typeseval() {
+    default TypesEvaluator typesEval() {
         return MultiJ.from(TypesEvaluator.class).bind("backend").to(this).instance();
     }
 
