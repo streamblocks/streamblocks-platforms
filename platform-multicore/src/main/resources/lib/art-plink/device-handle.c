@@ -211,7 +211,7 @@ cl_int load_file_to_memory(const char *filename, char **result) {
   return size;
 }
 
-void DeviceHandle_enqueueExecution(DeviceHandle_t* dev) {
+void DeviceHandleEnqueueExecution(DeviceHandle_t* dev) {
   OCL_MSG("Enqueueing NDRange kernel.\n");
 
   OCL_CHECK(clEnqueueNDRangeKernel(
@@ -222,8 +222,6 @@ void DeviceHandle_enqueueExecution(DeviceHandle_t* dev) {
 
 void DeviceHandleRun(DeviceHandle_t *dev) {
 
-  if (dev->command_is_set == 0)
-    OCL_ERR("kernel command not set\n");
 
   OCL_MSG("Migrating to Device\n");
   DeviceHandleEnqueueWriteBuffer(dev);

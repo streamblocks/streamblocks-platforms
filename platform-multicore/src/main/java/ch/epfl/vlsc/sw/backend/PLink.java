@@ -4,6 +4,7 @@ package ch.epfl.vlsc.sw.backend;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.PathUtils;
 import ch.epfl.vlsc.settings.PlatformSettings;
+import ch.epfl.vlsc.sw.ir.PartitionHandle;
 import ch.epfl.vlsc.sw.ir.PartitionLink;
 import org.multij.Binding;
 import org.multij.BindingKind;
@@ -180,8 +181,14 @@ public interface PLink {
             emitter().emit("// -- device handle object");
             emitter().emit("DeviceHandle_t dev;");
             emitter().emit("%s cl_buffer_size;", defaultSizeType());
-            emitter().emit("%s req_size[%d];", defaultIntType(), entity.getInputPorts().size());
 
+            // -- request size
+            for (PortDecl port: entity.getInputPorts()) {
+                emitter().emit("uint32_t %s_request_size;", port.getName());
+            }
+            emitter().emitNewLine();
+
+            // -- buffers
             for (PortDecl port: Stream.concat(
                     entity.getInputPorts().stream(),
                     entity.getOutputPorts().stream()).collect(Collectors.toList())) {
@@ -272,12 +279,17 @@ public interface PLink {
         emitter().emitNewLine();
     }
 
+    default String getMethod(PartitionHandle handle, String name) {
+        return backend().devicehandle().methodName(handle, backend().devicehandle().getMethod(handle, name));
+    }
 
     default void constructorDefinition(String name, Entity entity) {
 
         emitter().emit("// -- Constructor definition");
 
         String actorInstanceName = "ActorInstance_" + backend().instaceQID(name, "_");
+        PartitionHandle handle = ((PartitionLink) entity).getHandle();
+
         emitter().emit("static void %s_constructor(AbstractActorInstance *pBase) {", actorInstanceName);
         {
             emitter().increaseIndentation();
@@ -285,15 +297,28 @@ public interface PLink {
 
             emitter().emit("thisActor->program_counter = 0;");
             emitter().emit("thisActor->cl_buffer_size = (1 << 20); // 4MiB CL buffers");
-            // -- construct the FPGA device handle
-            String kernelID = backend().task().getIdentifier().getLast().toString() + "_kernel";
-            emitter().emit("// -- Construct the FPGA device handle");
-            // FIXME: The device name should not be hardcoded...
-            emitter().emit("DeviceHandle_constructor(&thisActor->dev, \"%s\", " +
-                    "\"xilinx_kcu1500_dynamic_5_0\", \"bin/xclbin\", false);", kernelID);
-            emitter().emit("// -- allocate CL buffers");
-            emitter().emit("DeviceHandle_createCLBuffers(&thisActor->dev, thisActor->cl_buffer_size);");
+            emitter().emitNewLine();
 
+            String kernelID = backend().task().getIdentifier().getLast().toString() + "_kernel";
+
+
+            // -- Constructor
+            emitter().emit("// -- Construct the FPGA device handle");
+            String consName = backend().devicehandle().methodName(handle, handle.getConstructor());
+            emitter().emit("%s(&thisActor->dev, \"%s\", \"xilinx_kcu1500_dynamic_5_0\", \"bin/xclbin\", false);",
+                    consName, kernelID);
+            emitter().emitNewLine();
+
+
+            // -- createCLBuffers
+            emitter().emit("// -- allocate CL buffers");
+            emitter().emit("%s(&thisActor->dev, thisActor->cl_buffer_size);",
+                    getMethod(handle, "createCLBuffers"));
+            emitter().emitNewLine();
+
+
+
+            // -- allocate host buffers
             emitter().emit("// -- allocate host buffers");
             for (PortDecl port: Stream.concat(
                     entity.getInputPorts().stream(), entity.getOutputPorts().stream()).collect(Collectors.toList())) {
@@ -309,9 +334,6 @@ public interface PLink {
                         port.getName());
             }
 
-            // FIXME: fix the kernel command
-            emitter().emit("// -- deprecated");
-            emitter().emit("DeviceHandle_setKernelCommand(&thisActor->dev, 0);");
             emitter().emitNewLine();
 
             emitter().emit("#ifdef CAL_RT_CALVIN");
@@ -327,12 +349,20 @@ public interface PLink {
     default void destructorDefinition(String name, Entity entity) {
         emitter().emit("// -- destructor definition");
         String actorInstanceName = "ActorInstance_" + backend().instaceQID(name, "_");
+        PartitionHandle handle = ((PartitionLink) entity).getHandle();
+
         emitter().emit("static void %s_destructor(AbstractActorInstance *pBase) {", actorInstanceName);
         {
             emitter().increaseIndentation();
 
             emitter().emit("%s *thisActor = (%1$s *) pBase;", actorInstanceName);
-            emitter().emit("DeviceHandle_terminate(&thisActor->dev);");
+            emitter().emitNewLine();
+            // -- device destructor
+            String decons = backend().devicehandle().methodName(handle, handle.getDestructor());
+            emitter().emit("%s(&thisActor->dev);", decons);
+
+            emitter().emitNewLine();
+            // -- host buffer deallocation
             for(PortDecl port: Stream.concat(
                     entity.getInputPorts().stream(), entity.getOutputPorts().stream()).collect(Collectors.toList())){
                 emitter().emit("free(thisActor->%s_buffer);", port.getName());
@@ -344,6 +374,8 @@ public interface PLink {
         emitter().emitNewLine();
     }
     default void scheduler(String name, Entity entity) {
+
+        PartitionHandle handle = ((PartitionLink) entity).getHandle();
 
         emitter().emit("// -- scheduler definitions");
         emitter().emit("static const int exitcode_block_any[3] = {1, 0, 1};");
@@ -400,15 +432,30 @@ public interface PLink {
                 emitter().emit("ART_ACTION_ENTER(TX, 0);");
                 for (PortDecl port: entity.getInputPorts()) {
                     String type = typeseval().type(types().declaredPortType(port));
-                    emitter().emit("thisActor->req_size[%d] = pinAvailIn_%s(IN%1$d_%s);",
-                            entity.getInputPorts().indexOf(port), type, port.getName());
+                    String setReq = getMethod(handle, "set_" + port.getName() + "_request_size");
+
+                    // --set request size
+                    emitter().emit("// -- set request size");
+                    emitter().emit("thisActor->%s_request_size = pinAvailIn_%s(IN%d_%1$s);",
+                            port.getName(), type, entity.getInputPorts().indexOf(port));
+
+                    emitter().emit("%s (&thisActor->dev, thisActor->%s_request_size);",
+                            setReq, port.getName());
+                    emitter().emitNewLine();
+
+                    // -- peek the buffer
                     emitter().emit("pinPeekRepeat_%s(IN%d_%s, thisActor->%3$s_buffer," +
-                            " thisActor->req_size[%2$d]);", type, entity.getInputPorts().indexOf(port), port.getName());
+                            " thisActor->%3$s_request_size);",
+                            type, entity.getInputPorts().indexOf(port), port.getName());
+                    emitter().emitNewLine();
 
                 }
+
+
+                // -- execute the kernel
+                emitter().emit("%s(&thisActor->dev);", getMethod(handle, "run"));
                 emitter().emitNewLine();
-                emitter().emit("DeviceHandle_setRequestSize(&thisActor->dev, thisActor->req_size);");
-                emitter().emit("DeviceHandle_run(&thisActor->dev);");
+
                 emitter().emit("thisActor->program_counter = %d;", entity.getInputPorts().size() + 1);
                 emitter().emit("ART_ACTION_ENTER(TX, 0);");
                 emitter().emit("goto YIELD;");
@@ -421,7 +468,12 @@ public interface PLink {
             {
                 emitter().increaseIndentation();
                 emitter().emit("ART_ACTION_ENTER(RX, 1);");
-                emitter().emit("DeviceHandle_waitForDevice(&thisActor->dev);");
+                //-- wait on device
+                emitter().emit("%s(&thisActor->dev);", getMethod(handle, "waitForDevice"));
+
+                emitter().emitNewLine();
+
+                // -- consume tokens
                 emitter().emit("// -- Consume on behalf of device");
                 for (PortDecl port: entity.getInputPorts()) {
                     String type = typeseval().type(types().declaredPortType(port));

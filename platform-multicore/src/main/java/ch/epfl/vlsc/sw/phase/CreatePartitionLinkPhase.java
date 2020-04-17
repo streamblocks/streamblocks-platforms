@@ -261,6 +261,7 @@ public class CreatePartitionLinkPhase implements Phase {
                 Method.of("void", "enqueueWriteBuffers"),
                 Method.of("void", "enqueueReadBuffers"),
                 Method.of("void", "waitForDevice"),
+                Method.of("void", "run"),
                 Method.of("void", "initEvents"),
                 Method.of("void", "releaseMemObjects"),
                 Method.of("void", "releaseReadEvents"),

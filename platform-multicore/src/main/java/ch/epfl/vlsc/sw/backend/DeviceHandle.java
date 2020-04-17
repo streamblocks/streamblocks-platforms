@@ -14,7 +14,7 @@ import org.multij.Binding;
 import org.multij.BindingKind;
 
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
-import se.lth.cs.tycho.ir.entity.Entity;
+
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.reporting.Diagnostic;
@@ -25,7 +25,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Path;
-import java.util.List;
+
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -120,9 +120,7 @@ public interface DeviceHandle {
         emitter().emit("OCL_MSG(\"%s\");", String.format(format, values));
     }
 
-    default String getMethodName(String method) {
-        return methodPrefix() + method;
-    }
+
     default String portType(PortDecl port) {
         return backend().typeseval().type(backend().types().declaredPortType(port));
     }
