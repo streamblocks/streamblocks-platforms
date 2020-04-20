@@ -337,7 +337,7 @@ public class CreatePartitionLinkPhase implements Phase {
             Field.of("cl_event",
                     "kernel_event",
                     "kernel enqueue event"),
-            Field.of("cl_event", "kernel_event", "kernel enqueue event"),
+
             Field.of(
                     Type.of("EventInfo", true),
                     "write_buffer_event_info", "write buffer event info"),

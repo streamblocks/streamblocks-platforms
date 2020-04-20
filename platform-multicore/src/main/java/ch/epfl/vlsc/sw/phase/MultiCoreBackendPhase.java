@@ -249,6 +249,9 @@ public class MultiCoreBackendPhase implements Phase {
      */
     private void copyBackendResources(MulticoreBackend multicoreBackend) {
 
+        boolean hasPlink = multicoreBackend.context().getConfiguration().isDefined(PlatformSettings.PartitionNetwork)
+                && multicoreBackend.context().getConfiguration().get(PlatformSettings.PartitionNetwork);
+
         try {
             // -- Copy Runtime
             URL url = getClass().getResource("/lib/");
@@ -264,6 +267,12 @@ public class MultiCoreBackendPhase implements Phase {
 
             // -- Copy streamblcoks.py
             Files.copy(getClass().getResourceAsStream("/python/streamblocks.py"), PathUtils.getTargetBin(multicoreBackend.context()).resolve("streamblocks.py"), StandardCopyOption.REPLACE_EXISTING);
+
+            // -- replace some files if plink is available
+            if (hasPlink) {
+                Files.copy(libPath.resolve("CMakeLists.plink.txt"), libPath.resolve("CMakeLists.txt"),
+                        StandardCopyOption.REPLACE_EXISTING);
+            }
         } catch (IOException e) {
             throw new CompilationException(new Diagnostic(Diagnostic.Kind.ERROR, "Could not copy multicoreBackend resources"));
         } catch (URISyntaxException e) {
@@ -271,6 +280,8 @@ public class MultiCoreBackendPhase implements Phase {
         } catch (FileSystemNotFoundException e) {
             throw new CompilationException(new Diagnostic(Diagnostic.Kind.ERROR, String.format("Could not copy multicoreBackend resources")));
         }
+
+
     }
 
 

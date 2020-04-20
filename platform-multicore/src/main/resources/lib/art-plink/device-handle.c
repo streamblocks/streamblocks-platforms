@@ -37,7 +37,7 @@ void on_completion(cl_event event, void *info) {
       clSetEventCallback(event, CL_COMPLETE, completion_handler, (void *)info));
 }
 
-void DeviceHandle_constructor(DeviceHandle_t *dev, char *kernel_name,
+void DeviceHandleConstructor(DeviceHandle_t *dev, char *kernel_name,
                   char *target_device_name, char *dir, bool hw_emu) {
   // cl_int err;
   dev->buffer_size = BUFFER_SIZE;
@@ -189,7 +189,7 @@ void DeviceHandle_constructor(DeviceHandle_t *dev, char *kernel_name,
   dev->pending_status = false;
   OCL_MSG("Allocating buffers\n");
 
-  DeviceHandle_initEvents(dev);
+  DeviceHandleInitEvents(dev);
 }
 cl_int load_file_to_memory(const char *filename, char **result) {
   cl_int size = 0;
@@ -224,7 +224,7 @@ void DeviceHandleRun(DeviceHandle_t *dev) {
 
 
   OCL_MSG("Migrating to Device\n");
-  DeviceHandleEnqueueWriteBuffer(dev);
+  DeviceHandleEnqueueWriteBuffers(dev);
 
   OCL_MSG("Setting kernel arguments\n");
   DeviceHandleSetArgs(dev);
@@ -233,7 +233,7 @@ void DeviceHandleRun(DeviceHandle_t *dev) {
   DeviceHandleEnqueueExecution(dev);
 
   OCL_MSG("Migrating to host\n");
-  DeviceHandleEnqueueReadBuffer(dev);
+  DeviceHandleEnqueueReadBuffers(dev);
 
 }
 
@@ -242,7 +242,7 @@ void DeviceHandleTerminate(DeviceHandle_t *dev) {
   clFinish(dev->world.command_queue);
   OCL_CHECK(clReleaseKernel(dev->kernel));
   OCL_CHECK(clReleaseProgram(dev->program));
-  DeviceHandle_releaseMemObjects(dev);
+  DeviceHandleReleaseMemObjects(dev);
   OCL_CHECK(clReleaseContext(dev->world.context));
   DeviceHandleFreeEvents(dev);
 }

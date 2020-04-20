@@ -16,10 +16,10 @@ import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.reporting.CompilationException;
 import se.lth.cs.tycho.reporting.Diagnostic;
-import se.lth.cs.tycho.type.Type;
+
 
 import java.nio.file.Path;
-import java.util.List;
+
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -325,13 +325,15 @@ public interface PLink {
                 String type = typeseval().type(types().declaredPortType(port));
                 emitter().emit("thisActor->%s_buffer = (%s *) aligned_alloc(MEM_ALIGNMENT, " +
                         "thisActor->cl_buffer_size * sizeof(%2$s));", port.getName(), type);
-                emitter().emit("DeviceHandle_set_%s_buffer_ptr(&thisActor->dev, thisActor->%1$s_buffer);",
-                        port.getName());
+                String setPtrName = getMethod(handle, "set_" + port.getName() + "_buffer_ptr");
+                emitter().emit("%s(&thisActor->dev, thisActor->%s_buffer);",
+                        setPtrName, port.getName());
 
                 emitter().emit("thisActor->%s_size = (%s *) aligned_alloc(MEM_ALIGNMENT, sizeof(%2$s));",
                         port.getName(), defaultIntType());
-                emitter().emit("DeviceHandle_set_%s_size_ptr(&thisActor->dev, thisActor->%1$s_size);",
-                        port.getName());
+                String setSizePtrName = getMethod(handle, "set_" + port.getName() + "_size_ptr");
+                emitter().emit("%s(&thisActor->dev, thisActor->%s_size);",
+                        setSizePtrName, port.getName());
             }
 
             emitter().emitNewLine();

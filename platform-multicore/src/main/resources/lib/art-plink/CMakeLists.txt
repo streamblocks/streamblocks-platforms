@@ -4,12 +4,12 @@ set(art_plink_source
         )
 
 # ART PLink includes
-set(art_runtime_header
+set(art_plink_header
         device-handle.h
         )
 
 # -- Set CMake module path, for finding the necessary tools
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/lib/cmake)
 find_package(Vivado REQUIRED)
 find_package(VivadoHLS REQUIRED)
 find_package(SDAccel REQUIRED)
@@ -24,6 +24,7 @@ include_directories(${extra_includes})
 add_definitions(${extra_definitions})
 
 add_library(art-plink STATIC ${art_plink_source} ${art_plink_header})
+set_target_properties(art-plink PROPERTIES COMPILE_FLAGS "-Wall -fPIC")
 
 install(TARGETS art-plink
         ARCHIVE DESTINATION lib)

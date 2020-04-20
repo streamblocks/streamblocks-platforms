@@ -182,6 +182,9 @@ public interface DeviceHandle {
 
         getSetAndGetPtrs(entity);
 
+        emitter().emit("// -- set request size");
+        entity.getInputPorts().stream().forEachOrdered(p -> getSetRequestSize(entity.getHandle(), p));
+
         emitter().close();
     }
 
@@ -228,7 +231,7 @@ public interface DeviceHandle {
     }
 
     default void getCreateCLBuffer(String name, String mode, String size) {
-        emitter().emit("dev->%s = clCreateCLBuffer(dev->world.context, %s, %s, NULL, NULL);", name, mode, size);
+        emitter().emit("dev->%s = clCreateBuffer(dev->world.context, %s, %s, NULL, NULL);", name, mode, size);
     }
     default void getSetArgs(PartitionLink entity) {
         Method method = getMethod(entity.getHandle(), "setArgs");
@@ -403,11 +406,11 @@ public interface DeviceHandle {
                             emitter().emit("1, // -- number of events to wait on");
                             emitter().emit("&dev->kernel_event, // -- the list of events to wait on");
                             emitter().emit("&dev->read_buffer_event[%d])); // -- the generated event",
-                                    ports.indexOf(port));
+                                    entity.getOutputPorts().indexOf(port));
                             emitter().emitNewLine();
                             emitter().emit("// -- register event call back ");
                             emitter().emit("on_completion(dev->read_buffer_event[%d], " +
-                                    "&dev->read_buffer_event_info[%1$d]);", ports.indexOf(port));
+                                    "&dev->read_buffer_event_info[%1$d]);", entity.getOutputPorts().indexOf(port));
                             emitter().emitNewLine();
                             emitter().decreaseIndentation();
                         }
@@ -458,6 +461,9 @@ public interface DeviceHandle {
         emitter().emit(" // -- set pointer methods");
         Stream.concat(entity.getInputPorts().stream(), entity.getOutputPorts().stream())
                 .forEachOrdered(p -> getSetPtr(entity.getHandle(), p));
+
+        emitter().emitNewLine();
+
     }
 
     default void getGetPtr(PartitionHandle handle, PortDecl port) {
@@ -487,6 +493,14 @@ public interface DeviceHandle {
         emitter().emitNewLine();
     }
 
+    default void getSetRequestSize(PartitionHandle handle, PortDecl port) {
+        Method setReq = getMethod(handle, "set_" + port.getName() + "_request_size");
+        emitter().emitNewLine();
+        emitter().emit("// -- set request size for %s", port.getName());
+        emitter().emit("%s { dev->%s_request_size = req_sz; }", methodSignature(handle, setReq),
+                port.getName());
+        emitter().emitNewLine();
+    }
     /**
      * Generates the header file device-handle.h
      * @param entity the PartitionLink entity for which the header file is generated
@@ -589,7 +603,7 @@ public interface DeviceHandle {
         }
         emitter().emitNewLine();
         // -- OCL ERR
-        emitter().emit("#define OCL_MSG(fmt, args...)\t\t\\");
+        emitter().emit("#define OCL_ERR(fmt, args...)\t\t\\");
         {
             emitter().increaseIndentation();
             emitter().emit("do {\t\t\\");
