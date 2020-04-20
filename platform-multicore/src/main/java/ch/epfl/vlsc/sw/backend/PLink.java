@@ -14,6 +14,7 @@ import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.network.Instance;
+import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.reporting.CompilationException;
 import se.lth.cs.tycho.reporting.Diagnostic;
 
@@ -399,35 +400,53 @@ public interface PLink {
             {
                 emitter().increaseIndentation();
                 if (entity.getInputPorts().size() > 0) {
-                    for(PortDecl port: entity.getInputPorts()) {
-                        emitter().emit("case %d: goto CHECK_%1$d;", entity.getInputPorts().indexOf(port));
-                    }
+                    emitter().emit("case 0: goto CHECK;");
                 } else {
                     emitter().emit("case 0: goto TX;");
                 }
-                emitter().emit("case %d: goto RX;", entity.getInputPorts().size() + 1);
-                emitter().emit("case %s: goto WRITE;", entity.getInputPorts().size() + 2);
+                emitter().emit("case 2: goto RX;", entity.getInputPorts().size() + 1);
+                emitter().emit("case 3: goto WRITE;", entity.getInputPorts().size() + 2);
                 emitter().decreaseIndentation();
             }
             emitter().emit("}");
 
-            for (PortDecl port: entity.getInputPorts()) {
-                emitter().emit("CHECK_%d: {", entity.getInputPorts().indexOf(port));
-                {
-                    emitter().increaseIndentation();
+
+            emitter().emit("CHECK: {");
+            {
+                emitter().increaseIndentation();
+                ImmutableList.Builder<String> tokens = ImmutableList.builder();
+                for(PortDecl port: entity.getInputPorts()) {
+
                     String type = typeseval().type(types().declaredPortType(port));
                     Boolean last = entity.getInputPorts().size() - 1 == entity.getInputPorts().indexOf(port);
-                    emitter().emit("thisActor->program_counter = %d;", entity.getInputPorts().indexOf(port));
-                    emitter().emit("if (pinAvailIn_%s(IN%d_%s) > 0)", type,
-                            entity.getInputPorts().indexOf(port), port.getName());
-                    emitter().emit("\tgoto %s;", last ? "TX" :
-                            "CHECK_" + (entity.getInputPorts().indexOf(port) + 1));
-                    emitter().emit("else");
+                    tokens.add("tokens_" + port.getName());
+                    emitter().emit("uint32_t tokens_%s = pinAvailIn_%s(IN%d_%1$s); ", port.getName(), type, entity.getInputPorts().indexOf(port));
+
+                }
+                emitter().emitNewLine();
+                String canTransmit = String.join(" && ",
+                        tokens.build().stream().map(t -> "(" + t + " > 0)").collect(Collectors.toList()));
+                emitter().emit("if (%s) {", canTransmit);
+                {
+                    emitter().increaseIndentation();
+                    emitter().emit("thisActor->program_counter = 1;");
+                    emitter().emit("goto TX;");
+                    emitter().decreaseIndentation();
+                }
+
+                emitter().emit("} else {");
+                {
+                    emitter().increaseIndentation();
+                    emitter().emit("thisActor->program_counter = 0;");
                     emitter().emit("\tgoto YIELD;");
                     emitter().decreaseIndentation();
                 }
                 emitter().emit("}");
+                emitter().decreaseIndentation();
             }
+
+            emitter().emit("}");
+
             emitter().emit("TX: { // -- Transmit to FPGA memory");
             {
                 emitter().increaseIndentation();
@@ -458,7 +477,7 @@ public interface PLink {
                 emitter().emit("%s(&thisActor->dev);", getMethod(handle, "run"));
                 emitter().emitNewLine();
 
-                emitter().emit("thisActor->program_counter = %d;", entity.getInputPorts().size() + 1);
+                emitter().emit("thisActor->program_counter = 2;");
                 emitter().emit("ART_ACTION_ENTER(TX, 0);");
                 emitter().emit("goto YIELD;");
                 emitter().decreaseIndentation();
@@ -488,7 +507,7 @@ public interface PLink {
                     emitter().emit("thisActor->%s_offset = 0;", port.getName());
                 }
                 emitter().emitNewLine();
-                emitter().emit("thisActor->program_counter = %d;", entity.getInputPorts().size() + 2);
+                emitter().emit("thisActor->program_counter = 3;", entity.getInputPorts().size() + 2);
                 emitter().emit("ART_ACTION_EXIT(RX, 1);");
                 emitter().emit("goto WRITE;");
                 emitter().decreaseIndentation();
@@ -544,7 +563,7 @@ public interface PLink {
                 emitter().emit("} else {");
                 {
                     emitter().increaseIndentation();
-                    emitter().emit("thisActor->program_counter = %d;", entity.getInputPorts().size() + 2);
+                    emitter().emit("thisActor->program_counter = 3;");
                     emitter().decreaseIndentation();
                 }
                 emitter().emit("}");
