@@ -6,10 +6,7 @@ import se.lth.cs.tycho.ir.decl.InputVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.am.PortCondition;
 import se.lth.cs.tycho.ir.entity.am.Transition;
-import se.lth.cs.tycho.ir.entity.cal.Action;
-import se.lth.cs.tycho.ir.entity.cal.CalActor;
-import se.lth.cs.tycho.ir.entity.cal.InputPattern;
-import se.lth.cs.tycho.ir.entity.cal.OutputExpression;
+import se.lth.cs.tycho.ir.entity.cal.*;
 import se.lth.cs.tycho.ir.expr.ExprVariable;
 import se.lth.cs.tycho.ir.stmt.Statement;
 import se.lth.cs.tycho.ir.stmt.StmtAssignment;
@@ -83,7 +80,8 @@ public class Transitions {
         for (InputPattern inputPattern : action.getInputPatterns()) {
             List<VarDecl> foundDecl = new ArrayList<>();
             ImmutableList.Builder<LValue> lvalues = ImmutableList.builder();
-            for (InputVarDecl var : inputPattern.getVariables()) {
+            for(Match match : inputPattern.getMatches()){
+                InputVarDecl var = match.getDeclaration();
                 LValueVariable lvalue = new LValueVariable(Variable.variable(var.getName()));
                 lvalues.add(lvalue);
 
@@ -97,6 +95,7 @@ public class Transitions {
                 }
 
             }
+
             Statement read = new StmtRead((Port) inputPattern.getPort().deepClone(), lvalues.build(), inputPattern.getRepeatExpr());
             builder.accept(read);
 
@@ -109,9 +108,7 @@ public class Transitions {
                     builder.accept(assign);
                 }
             }
-
         }
-
     }
 
     private void addOutputStmts(ImmutableList<OutputExpression> outputExpressions, Consumer<Statement> builder) {

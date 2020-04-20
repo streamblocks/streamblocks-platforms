@@ -100,6 +100,11 @@ public interface ChannelUtils {
         }
     }
 
+    default Type inputPortType(Port port) {
+        Type type = targetEndType(new Connection.End(Optional.of(backend().instancebox().get().getInstanceName()), port.getName()));
+        return type;
+    }
+
     default String outputPortTypeSize(Port port) {
         Connection.End source = new Connection.End(Optional.of(backend().instancebox().get().getInstanceName()), port.getName());
         Type type = sourceEndType(source);

@@ -17,7 +17,7 @@ public interface TypesEvaluator {
 
     String type(Type type);
 
-    default String type(AlgebraicType type){
+    default String type(AlgebraicType type) {
         return type.getName() + "_t*";
     }
 
@@ -72,6 +72,31 @@ public interface TypesEvaluator {
         return type(type.getType()) + "*";
     }
 
+    String printFormat(Type type);
+
+    default String printFormat(BoolType type) {
+        return "i";
+    }
+
+    default String printFormat(IntType type) {
+        if (type.getSize().isPresent()) {
+            if (type.getSize().getAsInt() <= 32) {
+                return type.isSigned() ? "i" : "u";
+            } else {
+                return type.isSigned() ? "lli" : "llu";
+            }
+        } else {
+            return type.isSigned() ? "i" : "u";
+        }
+    }
+
+    default String printFormat(RealType type) {
+        return "f";
+    }
+
+    default String printFormat(StringType type) {
+        return "s";
+    }
 
     /**
      * Get The most inner type of a type
@@ -89,23 +114,23 @@ public interface TypesEvaluator {
         return inner;
     }
 
-    default Integer listDimensions(ListType type){
+    default Integer listDimensions(ListType type) {
         Integer dim = 0;
-        if(type.getElementType() instanceof ListType){
+        if (type.getElementType() instanceof ListType) {
             dim += listDimensions(((ListType) type.getElementType()));
-        }else{
+        } else {
             dim = 1;
         }
 
         return dim;
     }
 
-    default List<Integer> sizeByDimension(ListType type){
+    default List<Integer> sizeByDimension(ListType type) {
         List<Integer> sizeByDim = new ArrayList<>();
-        if(type.getElementType() instanceof ListType){
+        if (type.getElementType() instanceof ListType) {
             sizeByDim.add(type.getSize().getAsInt());
             sizeByDimension(((ListType) type.getElementType())).stream().forEachOrdered(sizeByDim::add);
-        }else{
+        } else {
             sizeByDim.add(type.getSize().getAsInt());
         }
 

@@ -531,14 +531,14 @@ public interface Instances {
             Instance instance = backend().instancebox().get();
             Connection.End source = new Connection.End(Optional.of(instance.getInstanceName()), condition.getPortName().getName());
             int readers = 0;
-            for(Connection.End end : backend().main().connectionEndNbrReaders().keySet()){
-                if(source.equals(end)){
+            for (Connection.End end : backend().main().connectionEndNbrReaders().keySet()) {
+                if (source.equals(end)) {
                     readers = backend().main().connectionEndNbrReaders().get(end);
                 }
             }
             List<String> nbrReaderConditions = new ArrayList<>();
-            for(int i = 0; i < readers; i++){
-                String outCondition = String.format("(%d > SIZE_%s - index_%2$s + %s_%2$s->read_inds[%d])", condition.N(), condition.getPortName().getName(),instanceQidName(),  i);
+            for (int i = 0; i < readers; i++) {
+                String outCondition = String.format("(%d > SIZE_%s - index_%2$s + %s_%2$s->read_inds[%d])", condition.N(), condition.getPortName().getName(), instanceQidName(), i);
                 nbrReaderConditions.add(outCondition);
             }
 
@@ -561,9 +561,48 @@ public interface Instances {
             {
                 emitter().increaseIndentation();
 
+                // -- Traces IN
+                if (enableTraces() && !transition.getInputRates().isEmpty()) {
+
+                    emitter().emit("{");
+                    {
+                        emitter().increaseIndentation();
+
+                        for (Port port : transition.getInputRates().keySet()) {
+                            String index = backend().variables().generateTemp();
+                            emitter().emit("for (size_t %1$s = 0; %1$s < (%2$s); %1$s++) {", index, transition.getInputRates().get(port));
+                            emitter().emit("\tfprintf(file_%1$s, \"%%%3$s\\n\" ,tokens_%1$s[(index_%1$s + (%2$s)) %% SIZE_%1$s]);", port.getName(), index, typesEval().printFormat(backend().channelUtils().inputPortType(port)));
+                            emitter().emit("}");
+                        }
+
+                        emitter().decreaseIndentation();
+                        emitter().emit("}");
+                    }
+                }
+
                 backend().memoryStack().enterScope();
                 transition.getBody().forEach(backend().statements()::execute);
                 backend().memoryStack().exitScope();
+
+
+                // -- Traces OUT
+                if (enableTraces() && !transition.getOutputRates().isEmpty()) {
+
+                    emitter().emit("{");
+                    {
+                        emitter().increaseIndentation();
+
+                        for (Port port : transition.getOutputRates().keySet()) {
+                            String index = backend().variables().generateTemp();
+                            emitter().emit("for (size_t %1$s = 0; %1$s < (%2$s); %1$s++) {", index, transition.getOutputRates().get(port));
+                            emitter().emit("\tfprintf(file_%1$s, \"%%%3$s\\n\" ,tokens_%1$s[(index_%1$s + (%2$s)) %% SIZE_%1$s]);", port.getName(), index, typesEval().printFormat(backend().channelUtils().outputPortType(port)));
+                            emitter().emit("}");
+                        }
+
+                        emitter().decreaseIndentation();
+                        emitter().emit("}");
+                    }
+                }
 
                 // -- I/O Update
                 for (Port port : transition.getInputRates().keySet()) {

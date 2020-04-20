@@ -91,6 +91,11 @@ public class OrccBackendPhase implements Phase {
         // -- Binary path
         binPath = PathUtils.createDirectory(targetPath, "bin");
 
+        // -- Traces path
+        if (context.getConfiguration().get(PlatformSettings.enableTraces)) {
+            PathUtils.createDirectory(binPath, "traces");
+        }
+
         // -- Auxiliary path
         auxiliaryPath = PathUtils.createDirectory(codeGenPath, "auxiliary");
     }

@@ -128,6 +128,7 @@ public interface Statements {
         Type type = types().lvalueType(assign.getLValue());
         String lvalue = lvalues().lvalue(assign.getLValue());
         if (type instanceof ListType && assign.getLValue() instanceof LValueVariable) {
+            // -- FIXME : List ...
             expressioneval().evaluate(assign.getExpression());
         } else {
             copy(type, lvalue, types().type(assign.getExpression()), expressioneval().evaluate(assign.getExpression()));

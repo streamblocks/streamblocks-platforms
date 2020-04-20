@@ -14,15 +14,15 @@ import se.lth.cs.tycho.ir.expr.ExprBinaryOp;
 import se.lth.cs.tycho.ir.expr.ExprInput;
 import se.lth.cs.tycho.ir.expr.ExprLiteral;
 import se.lth.cs.tycho.ir.expr.Expression;
-import se.lth.cs.tycho.ir.expr.pattern.PatternDeconstructor;
 import se.lth.cs.tycho.ir.stmt.*;
 import se.lth.cs.tycho.ir.stmt.lvalue.LValue;
 import se.lth.cs.tycho.ir.stmt.lvalue.LValueVariable;
 import se.lth.cs.tycho.type.ListType;
-import se.lth.cs.tycho.type.SumType;
 import se.lth.cs.tycho.type.Type;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Module
@@ -158,7 +158,9 @@ public interface Statements {
         if (type instanceof ListType && assign.getLValue() instanceof LValueVariable) {
             expressioneval().evaluate(assign.getExpression());
         } else {
-            copy(type, lvalue, types().type(assign.getExpression()), expressioneval().evaluate(assign.getExpression()));
+            Type t = types().type(assign.getExpression());
+            String eval = expressioneval().evaluate(assign.getExpression());
+            copy(type, lvalue, t, eval);
         }
     }
 
@@ -235,7 +237,11 @@ public interface Statements {
             }
 
         }
-        block.getStatements().forEach(this::execute);
+        //block.getStatements().forEach(this::execute);
+
+        for(Statement stmt : block.getStatements()){
+            execute(stmt);
+        }
         emitter().decreaseIndentation();
         emitter().emit("}");
     }

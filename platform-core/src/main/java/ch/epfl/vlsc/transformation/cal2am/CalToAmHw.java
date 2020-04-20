@@ -1,6 +1,7 @@
 package ch.epfl.vlsc.transformation.cal2am;
 
 import se.lth.cs.tycho.attribute.ConstantEvaluator;
+import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.ir.Port;
 import se.lth.cs.tycho.ir.QID;
 import se.lth.cs.tycho.ir.entity.am.ActorMachine;
@@ -33,14 +34,14 @@ public class CalToAmHw {
 
     private final Map<CalState, CalState> stateCache;
 
-    public CalToAmHw(CalActor actor, Configuration configuration, ConstantEvaluator constants) {
+    public CalToAmHw(CalActor actor, Configuration configuration, ConstantEvaluator constants, Types types) {
         this.actor = actor;
         this.onWait = configuration.get(KnowledgeRemoval.forgetOnWait);
         this.onExec = configuration.get(KnowledgeRemoval.forgetOnExec);
         this.priorities = new Priorities(actor);
         this.schedule = new Schedule(actor);
         this.conditions = new Conditions(actor, constants);
-        this.scopes = new Scopes(actor, constants);
+        this.scopes = new Scopes(actor, constants, types);
         this.transitions = new Transitions(actor, scopes, conditions);
         this.stateCache = new HashMap<>();
     }

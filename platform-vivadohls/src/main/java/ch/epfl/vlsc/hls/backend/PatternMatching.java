@@ -5,10 +5,8 @@ import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.ir.expr.ExprCase;
-import se.lth.cs.tycho.ir.expr.pattern.Pattern;
-import se.lth.cs.tycho.ir.expr.pattern.PatternDeconstructor;
-import se.lth.cs.tycho.ir.expr.pattern.PatternExpression;
-import se.lth.cs.tycho.ir.expr.pattern.PatternWildcard;
+import se.lth.cs.tycho.ir.expr.Expression;
+import se.lth.cs.tycho.ir.expr.pattern.*;
 import se.lth.cs.tycho.ir.stmt.StmtCase;
 import se.lth.cs.tycho.type.BoolType;
 import se.lth.cs.tycho.type.ProductType;
@@ -16,6 +14,7 @@ import se.lth.cs.tycho.type.SumType;
 import se.lth.cs.tycho.type.Type;
 
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Module
 public interface PatternMatching {
@@ -48,6 +47,7 @@ public interface PatternMatching {
         emitter().emit("}");
         return result;
     }
+
 
     default void execute(StmtCase caseStmt) {
         String expr = backend().variables().generateTemp();
@@ -104,7 +104,7 @@ public interface PatternMatching {
 
     void openPattern(Pattern pattern, String target, String deref, String member);
 
-    default void openPattern(PatternDeconstructor pattern, String target, String deref, String member) {
+    default void openPattern(PatternDeconstruction pattern, String target, String deref, String member) {
         Type type = backend().types().type(pattern);
         if (type instanceof SumType) {
             SumType sum = (SumType) type;
@@ -128,12 +128,62 @@ public interface PatternMatching {
         emitter().increaseIndentation();
     }
 
-    default void openPattern(PatternWildcard pattern, String target, String deref, String member) {
+
+    default void openPattern(PatternBinding pattern, String target, String deref, String member) {
+        emitter().emit("%s = %s%s%s;", backend().declarations().declaration(backend().types().type(pattern), backend().variables().declarationName(pattern.getDeclaration())), target, deref, member);
+    }
+
+    default void openPattern(PatternVariable pattern, String target, String deref, String member) {
+        emitter().emit("%s = %s%s%s;", backend().variables().name(pattern.getVariable()), target, deref, member);
+    }
+
+    default void openPattern(PatternLiteral pattern, String target, String deref, String member) {
+        Type type = backend().types().type(pattern.getLiteral());
+        emitter().emit("if (%s) {", backend().statements().compare(type, String.format("%s%s%s", target, deref, member), type, backend().expressioneval().evaluate(pattern.getLiteral())));
+        emitter().increaseIndentation();
+    }
+
+    default void openPattern(PatternAlias pattern, String target, String deref, String member) {
+        Type type = backend().types().type(pattern.getExpression());
+        String expr = backend().expressioneval().evaluate(pattern.getExpression());
+        String alias;
+        if (pattern.getAlias() instanceof PatternVariable) {
+            alias = backend().variables().name(((PatternVariable) pattern.getAlias()).getVariable());
+            backend().statements().copy(type, alias, type, expr);
+        } else if (pattern.getAlias() instanceof PatternBinding) {
+            alias = backend().variables().declarationName(((PatternBinding) pattern.getAlias()).getDeclaration());
+            emitter().emit("%s = %s;", backend().declarations().declaration(type, alias), backend().defaultValues().defaultValue(type));
+            backend().statements().copy(type, alias, type, expr);
+        } else {
+            alias = expr;
+        }
+        emitter().emit("if (%s) {", backend().statements().compare(type, String.format("%s%s%s", target, deref, member), type, alias));
+        emitter().increaseIndentation();
+    }
+
+    default void openPattern(PatternAlternative pattern, String target, String deref, String member) {
+        emitter().emit("if (%s) {", pattern.getPatterns().stream().map(p -> {
+            Expression expr;
+            if (p instanceof PatternLiteral) {
+                expr = ((PatternLiteral) p).getLiteral();
+            } else {
+                expr = ((PatternExpression) p).getExpression();
+            }
+            Type type = backend().types().type(expr);
+            return backend().statements().compare(type, String.format("%s%s%s", target, deref, member), type, backend().expressioneval().evaluate(expr));
+        }).collect(Collectors.joining(" || ")));
+        emitter().increaseIndentation();
+    }
+
+    default void openPattern(PatternList pattern, String target, String deref, String member) {
+        for (int i = 0; i < pattern.getPatterns().size(); ++i) {
+            openPattern(pattern.getPatterns().get(i), target, deref, String.format("%s.data[%d]", member, i));
+        }
     }
 
     void closePattern(Pattern pattern);
 
-    default void closePattern(PatternDeconstructor pattern) {
+    default void closePattern(PatternDeconstruction pattern) {
         Type type = backend().types().type(pattern);
         if (type instanceof SumType) {
             emitter().decreaseIndentation();
@@ -147,8 +197,31 @@ public interface PatternMatching {
         emitter().emit("}");
     }
 
+    default void closePattern(PatternDeclaration pattern) {
 
-    default void closePattern(PatternWildcard pattern) {
+    }
+
+    default void closePattern(PatternVariable pattern) {
+
+    }
+
+    default void closePattern(PatternLiteral pattern) {
+        emitter().decreaseIndentation();
+        emitter().emit("}");
+    }
+
+    default void closePattern(PatternAlias pattern) {
+        emitter().decreaseIndentation();
+        emitter().emit("}");
+    }
+
+    default void closePattern(PatternAlternative pattern) {
+        emitter().decreaseIndentation();
+        emitter().emit("}");
+    }
+
+    default void closePattern(PatternList pattern) {
+        pattern.getPatterns().forEach(this::closePattern);
     }
 
 }

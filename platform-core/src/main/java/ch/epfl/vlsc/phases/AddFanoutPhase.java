@@ -323,9 +323,14 @@ public class AddFanoutPhase implements Phase {
         ImmutableList.Builder<InputVarDecl> inputVarDecls = ImmutableList.builder();
         inputVarDecls.add(VarDecl.input("token"));
 
+        // -- Matchs
+        ImmutableList.Builder<Match> matches = ImmutableList.builder();
+        Match match = new Match(VarDecl.input("token"), null);
+        matches.add(match);
+
         // -- Input pattern
         ImmutableList.Builder<InputPattern> inputPatters = ImmutableList.builder();
-        InputPattern inputPattern = new InputPattern(inPort, inputVarDecls.build(), null);
+        InputPattern inputPattern = new InputPattern(inPort, matches.build(), null);
         inputPatters.add(inputPattern);
 
         // -- Output Expression

@@ -109,7 +109,7 @@ public class PlatformSettings {
 
         @Override
         public Integer defaultValue(Configuration configuration) {
-            return 4096;
+            return 512;
         }
     };
 

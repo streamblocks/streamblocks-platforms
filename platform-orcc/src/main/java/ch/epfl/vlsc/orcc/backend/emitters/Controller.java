@@ -41,7 +41,19 @@ public interface Controller {
         emitter().increaseIndentation();
 
         emitter().emit("int i = 0;");
+        emitter().emit("si->ports = 0;");
         emitter().emitNewLine();
+
+        // -- Traces
+        if (backend().instance().enableTraces()) {
+            actorMachine.getInputPorts().forEach(port ->
+                    emitter().emit("file_%s = fopen(\"traces/%s_%1$s.txt\", \"a\");", port.getName(), backend().instance().instanceQidName())
+            );
+            actorMachine.getOutputPorts().forEach(port ->
+                    emitter().emit("file_%s = fopen(\"traces/%s_%1$s.txt\", \"a\");", port.getName(), backend().instance().instanceQidName())
+            );
+            emitter().emitNewLine();
+        }
 
         actorMachine.getInputPorts().forEach(p -> emitter().emit("read_%s();", p.getName()));
         actorMachine.getOutputPorts().forEach(p -> emitter().emit("write_%s();", p.getName()));
@@ -68,6 +80,14 @@ public interface Controller {
         }
 
         emitter().emit("finished:");
+        // -- Traces
+        if (backend().instance().enableTraces()) {
+            actorMachine.getInputPorts().forEach(port ->
+                    emitter().emit("fclose(file_%s);", port.getName()));
+            actorMachine.getOutputPorts().forEach(port ->
+                    emitter().emit("fclose(file_%s);", port.getName()));
+            emitter().emitNewLine();
+        }
         actorMachine.getInputPorts().forEach(p -> emitter().emit("read_end_%s();", p.getName()));
         actorMachine.getOutputPorts().forEach(p -> emitter().emit("write_end_%s();", p.getName()));
 
