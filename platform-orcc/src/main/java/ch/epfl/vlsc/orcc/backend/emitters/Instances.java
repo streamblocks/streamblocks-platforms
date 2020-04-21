@@ -271,36 +271,46 @@ public interface Instances {
         ActorMachine am = (ActorMachine) entity;
 
         for (Scope scope : am.getScopes()) {
-            if (scope.getDeclarations().size() > 0)
-                emitter().emit("// -- Scope %d", am.getScopes().indexOf(scope));
-            for (VarDecl var : scope.getDeclarations()) {
-                if (var.getValue() == null) {
-                    String decl = backend().declarations().declaration(types().declaredType(var), backend().variables().declarationName(var));
-                    emitter().emit("static %s;", decl);
-                } else {
-                    if (var.getValue() instanceof ExprLambda || var.getValue() instanceof ExprProc) {
-                        // -- Do nothing
-                    } else if (var.getValue() instanceof ExprList) {
-                        String decl = backend().declarations().declaration(types().declaredType(var), backend().variables().declarationName(var));
-                        emitter().emit("static %s%s = {%s};", var.isConstant() ? "const " : "", decl, backend().expressionEval().evaluateExprList(var.getValue()));
-                    } else if (var.getValue() instanceof ExprInput) {
+            if (scope.isPersistent()) {
+                if (scope.getDeclarations().size() > 0)
+                    emitter().emit("// -- Scope %d", am.getScopes().indexOf(scope));
+                for (VarDecl var : scope.getDeclarations()) {
+                    if (var.getValue() == null) {
                         String decl = backend().declarations().declaration(types().declaredType(var), backend().variables().declarationName(var));
                         emitter().emit("static %s;", decl);
-                    } else if (var.getValue() instanceof ExprLiteral) {
-                        if (var.isConstant()) {
-                            emitter().emit("#define %s %s", backend().variables().declarationName(var), backend().expressionEval().evaluate(var.getValue()));
+                    } else {
+                        if (var.getValue() instanceof ExprLambda || var.getValue() instanceof ExprProc) {
+                            // -- Do nothing
+                        } else if (var.getValue() instanceof ExprInput) {
+                            String decl = backend().declarations().declaration(types().declaredType(var), backend().variables().declarationName(var));
+                            emitter().emit("static %s;", decl);
+                        } else if (var.getValue() instanceof ExprLiteral) {
+                            if (var.isConstant()) {
+                                emitter().emit("#define %s %s", backend().variables().declarationName(var), backend().expressionEval().evaluate(var.getValue()));
+                            } else {
+                                String decl = backend().declarations().declaration(types().declaredType(var), backend().variables().declarationName(var));
+                                emitter().emit("static %s%s = %s;", var.isConstant() ? "const " : "", decl, backend().expressionEval().evaluate(var.getValue()));
+                            }
                         } else {
                             String decl = backend().declarations().declaration(types().declaredType(var), backend().variables().declarationName(var));
-                            emitter().emit("static %s%s = %s;", var.isConstant() ? "const " : "", decl, backend().expressionEval().evaluate(var.getValue()));
+                            emitter().emit("static %s;", decl);
+                            //emitter().emit("static %s%s = %s;", var.isConstant() ? "const " : "", decl, backend().expressionEval().evaluate(var.getValue()));
                         }
+                    }
+                }
+            } else {
+                if (scope.getDeclarations().size() > 0)
+                    emitter().emit("// -- Scope %d", am.getScopes().indexOf(scope));
+                for (VarDecl var : scope.getDeclarations()) {
+                    if (var.getValue() instanceof ExprLambda || var.getValue() instanceof ExprProc) {
+                        // -- Do nothing
                     } else {
                         String decl = backend().declarations().declaration(types().declaredType(var), backend().variables().declarationName(var));
-                        emitter().emit("static %s%s = %s;", var.isConstant() ? "const " : "", decl, backend().expressionEval().evaluate(var.getValue()));
+                        emitter().emit("static %s;", decl);
                     }
                 }
             }
         }
-
         emitter().emitNewLine();
     }
 
@@ -370,7 +380,10 @@ public interface Instances {
         String qidInstanceName = instanceQidName();
         for (PortDecl port : entity.getInputPorts()) {
             Connection.End target = new Connection.End(Optional.of(backend().instancebox().get().getInstanceName()), port.getName());
+
             int readerId = connectionReaderId.get(backend().channelUtils().sourceEndConnection(target));
+
+            // int readerId =  backend().main().connectionId().get(backend().channelUtils().sourceEndConnection(target).getSource());
 
             emitter().emit("static void read_%s(){", port.getName());
             {
@@ -507,10 +520,7 @@ public interface Instances {
             String conditionName = instanceQidName() + "_condition_" + am.getConditions().indexOf(condition);
             emitter().emit("static i32 %s() {", conditionName);
             emitter().increaseIndentation();
-            backend().memoryStack().enterScope();
-            emitter().emit("i32 cond = %s;", evaluateCondition(condition));
-            backend().memoryStack().exitScope();
-            emitter().emit("return cond;");
+            evaluateCondition(condition);
 
             emitter().decreaseIndentation();
             emitter().emit("}");
@@ -518,15 +528,19 @@ public interface Instances {
         }
     }
 
-    String evaluateCondition(Condition condition);
+    void evaluateCondition(Condition condition);
 
-    default String evaluateCondition(PredicateCondition condition) {
-        return expressionEval().evaluate(condition.getExpression());
+    default void evaluateCondition(PredicateCondition condition) {
+        backend().memoryStack().enterScope();
+        emitter().emit("i32 cond = %s;", expressionEval().evaluate(condition.getExpression()));
+        backend().memoryStack().exitScope();
+        emitter().emit("return cond;");
     }
 
-    default String evaluateCondition(PortCondition condition) {
+    default void evaluateCondition(PortCondition condition) {
         if (condition.isInputCondition()) {
-            return String.format("numTokens_%s - index_%1$s >= %d", condition.getPortName().getName(), condition.N());
+            emitter().emit("i32 cond = %s;", String.format("numTokens_%s - index_%1$s >= %d", condition.getPortName().getName(), condition.N()));
+            emitter().emit("return cond;");
         } else {
             Instance instance = backend().instancebox().get();
             Connection.End source = new Connection.End(Optional.of(instance.getInstanceName()), condition.getPortName().getName());
@@ -538,11 +552,15 @@ public interface Instances {
             }
             List<String> nbrReaderConditions = new ArrayList<>();
             for (int i = 0; i < readers; i++) {
-                String outCondition = String.format("(%d > SIZE_%s - index_%2$s + %s_%2$s->read_inds[%d])", condition.N(), condition.getPortName().getName(), instanceQidName(), i);
+                String outCondition = String.format("%d > SIZE_%s - index_%2$s + %s_%2$s->read_inds[%d]", condition.N(), condition.getPortName().getName(), instanceQidName(), i);
+                emitter().emit("if(%s){", outCondition);
+                emitter().emit("\treturn false;");
+                emitter().emit("}");
                 nbrReaderConditions.add(outCondition);
             }
 
-            return "!(" + String.join(" && ", nbrReaderConditions) + ")";
+            emitter().emit("return true;");
+
         }
     }
 
@@ -607,11 +625,15 @@ public interface Instances {
                 // -- I/O Update
                 for (Port port : transition.getInputRates().keySet()) {
                     emitter().emit("index_%s += %d;", port.getName(), transition.getInputRates().get(port));
-                    emitter().emit("read_end_%s();", port.getName());
+                    if (transition.getInputRates().get(port) > 2) {
+                        emitter().emit("read_end_%s();", port.getName());
+                    }
                 }
                 for (Port port : transition.getOutputRates().keySet()) {
                     emitter().emit("index_%s += %d;", port.getName(), transition.getOutputRates().get(port));
-                    emitter().emit("write_end_%s();", port.getName());
+                    if (transition.getOutputRates().get(port) > 2) {
+                        emitter().emit("write_end_%s();", port.getName());
+                    }
                 }
                 for (Port port : transition.getInputRates().keySet()) {
                     emitter().emit("rate_%s += %d;", port.getName(), transition.getInputRates().get(port));
@@ -640,6 +662,32 @@ public interface Instances {
                 emitter().emit("write_%s();", port.getName());
             }
             emitter().emitNewLine();
+
+            // -- Init Scopes
+            assert !(entity instanceof ActorMachine);
+            ActorMachine am = (ActorMachine) entity;
+            for (Scope scope : am.getScopes()) {
+                if (scope.isPersistent())
+                    if (scope.getDeclarations().size() > 0) {
+                        emitter().emit("// -- Scope %d", am.getScopes().indexOf(scope));
+                        emitter().emit("{");
+                        emitter().increaseIndentation();
+                        for (VarDecl decl : scope.getDeclarations()) {
+                            if (decl.getValue() != null) {
+                                if (!(decl.getValue() instanceof ExprLiteral) && !(decl.getValue() instanceof ExprLambda) && !(decl.getValue() instanceof ExprProc) && !(decl.getValue() instanceof ExprInput)) {
+                                    emitter().emit("{");
+                                    emitter().increaseIndentation();
+                                    backend().statements().copy(types().declaredType(decl), backend().variables().declarationName(decl), types().type(decl.getValue()), backend().expressionEval().evaluate(decl.getValue()));
+                                    emitter().decreaseIndentation();
+                                    emitter().emit("}");
+                                }
+                            }
+                        }
+                        emitter().decreaseIndentation();
+                        emitter().emit("}");
+                    }
+            }
+
 
             emitter().emit("/* Set initial state to current FSM state */");
             emitter().emit("_FSM_state = my_state_S0;");

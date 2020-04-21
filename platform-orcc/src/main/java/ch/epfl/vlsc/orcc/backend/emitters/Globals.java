@@ -103,8 +103,12 @@ public interface Globals {
                     }
                 }
             } else {
-                String d = backend().declarations().declaration(type, backend().variables().declarationName(decl));
-                emitter().emit("extern const %s;", d);
+                if (decl.getValue() instanceof ExprList) {
+                    String d = backend().declarations().declaration(type, backend().variables().declarationName(decl));
+                    emitter().emit("extern const %s;", d);
+                } else {
+                    emitter().emit("#define %s  %s", backend().variables().declarationName(decl), backend().expressionEval().evaluate(decl.getValue()));
+                }
             }
         });
     }
@@ -129,10 +133,7 @@ public interface Globals {
         varDecls.forEach(decl -> {
             Type type = backend().types().declaredType(decl);
             if (!(type instanceof CallableType)) {
-                if (decl.getValue() instanceof ExprLiteral) {
-                    String d = backend().declarations().declaration(type, backend().variables().declarationName(decl));
-                    emitter().emit("const %s = %s;", d, backend().expressionEval().evaluate(decl.getValue()));
-                } else if (decl.getValue() instanceof ExprList) {
+                if (decl.getValue() instanceof ExprList) {
                     String d = backend().declarations().declaration(backend().types().declaredType(decl), backend().variables().declarationName(decl));
                     emitter().emit("const %s = {%s};", d, backend().expressionEval().evaluateExprList(decl.getValue()));
                 }

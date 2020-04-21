@@ -19,7 +19,7 @@ public class PlatformSettings {
 
         @Override
         public Boolean defaultValue(Configuration configuration) {
-            return true;
+            return false;
         }
     };
 
@@ -109,7 +109,7 @@ public class PlatformSettings {
 
         @Override
         public Integer defaultValue(Configuration configuration) {
-            return 512;
+            return 4096;
         }
     };
 
