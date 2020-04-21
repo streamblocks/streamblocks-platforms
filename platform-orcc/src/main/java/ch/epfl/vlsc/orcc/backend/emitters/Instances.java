@@ -423,7 +423,7 @@ public interface Instances {
                     if (decl.getValue() != null) {
                         Expression expr = decl.getValue();
                         if (expr instanceof ExprLambda || expr instanceof ExprProc) {
-                            backend().callablesInActors().callablePrototypes(expr);
+                            emitter().emit("static %s;", backend().callablesInActors().callablePrototypes(expr));
                             emitter().emitNewLine();
                         }
                     }

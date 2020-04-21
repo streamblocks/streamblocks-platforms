@@ -98,13 +98,13 @@ public interface Globals {
                 if (decl.getValue() != null) {
                     Expression expr = decl.getValue();
                     if (expr instanceof ExprLambda || expr instanceof ExprProc) {
-                        backend().callablesInActors().callablePrototypes(expr);
+                        emitter().emit("extern %s;", backend().callablesInActors().callablePrototypes(expr));
                         emitter().emitNewLine();
                     }
                 }
             } else {
                 String d = backend().declarations().declaration(type, backend().variables().declarationName(decl));
-                emitter().emit("extern %s;", d);
+                emitter().emit("extern const %s;", d);
             }
         });
     }
@@ -131,10 +131,10 @@ public interface Globals {
             if (!(type instanceof CallableType)) {
                 if (decl.getValue() instanceof ExprLiteral) {
                     String d = backend().declarations().declaration(type, backend().variables().declarationName(decl));
-                    emitter().emit("%s = %s;", d, backend().expressionEval().evaluate(decl.getValue()));
+                    emitter().emit("const %s = %s;", d, backend().expressionEval().evaluate(decl.getValue()));
                 } else if (decl.getValue() instanceof ExprList) {
                     String d = backend().declarations().declaration(backend().types().declaredType(decl), backend().variables().declarationName(decl));
-                    emitter().emit("%s = {%s};", d, backend().expressionEval().evaluateExprList(decl.getValue()));
+                    emitter().emit("const %s = {%s};", d, backend().expressionEval().evaluateExprList(decl.getValue()));
                 }
                 // emitter().emit("%s;", d);
             }

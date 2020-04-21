@@ -69,14 +69,14 @@ public interface ExpressionEvaluator {
 
     default String evaluateCall(ExprVariable variable) {
         IRNode parent = backend().tree().parent(variable);
-
+/*
         if (parent instanceof StmtCall || parent instanceof ExprApplication) {
             VarDecl decl = backend().varDecls().declaration(variable.getVariable());
             IRNode parentDecl = backend().tree().parent(decl);
             Instance instance = backend().instancebox().get();
             return variable.getVariable().getName();
         }
-
+*/
         return variables().name(variable.getVariable());
     }
 

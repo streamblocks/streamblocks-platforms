@@ -6,6 +6,7 @@ import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.ir.IRNode;
 import se.lth.cs.tycho.ir.NamespaceDecl;
+import se.lth.cs.tycho.ir.QID;
 import se.lth.cs.tycho.ir.Variable;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.expr.ExprLambda;
@@ -35,7 +36,7 @@ public interface CallablesInActors {
         IRNode parent = backend().tree().parent(callable);
         if (parent instanceof VarDecl) {
             VarDecl decl = (VarDecl) parent;
-            return decl.getName();
+            return backend().variables().declarationName(decl);
         } else {
             throw new UnsupportedOperationException("Unsupported Callable");
         }
@@ -73,15 +74,14 @@ public interface CallablesInActors {
     }
 
 
-    default void callablePrototypes(IRNode callable) {
+    String callablePrototypes(IRNode callable);
+
+    default String callablePrototypes(ExprLambda lambda) {
+        return lambdaHeader(lambda);
     }
 
-    default void callablePrototypes(ExprLambda lambda) {
-        backend().emitter().emit("static %s;", lambdaHeader(lambda));
-    }
-
-    default void callablePrototypes(ExprProc proc) {
-        backend().emitter().emit("static %s;", procHeader(proc));
+    default String callablePrototypes(ExprProc proc) {
+        return procHeader(proc);
     }
 
     /**
