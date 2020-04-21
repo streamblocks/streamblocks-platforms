@@ -139,7 +139,8 @@ public interface DeviceHandle {
                             " Make sure the NetworkPartitionPhase and ExtractSWPartitionPhases are turned on."));
 
         PartitionLink entity = (PartitionLink) entityDecl.getEntity();
-
+        backend().context().getReporter().report(new Diagnostic(Diagnostic.Kind.INFO,
+                "Generating OpenCL device handle."));
         generateDeviceHandleSource(entity);
         generateDeviceHandleHeader(entity);
 

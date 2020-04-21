@@ -8,8 +8,10 @@ import se.lth.cs.tycho.compiler.CompilationTask;
 import se.lth.cs.tycho.compiler.Context;
 import se.lth.cs.tycho.ir.ToolAttribute;
 import se.lth.cs.tycho.ir.ToolValueAttribute;
+
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
+
 import se.lth.cs.tycho.ir.expr.ExprLiteral;
 import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Instance;
@@ -23,6 +25,8 @@ import se.lth.cs.tycho.settings.Setting;
 
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 import ch.epfl.vlsc.compiler.PartitionedCompilationTask.PartitionKind;
 
 /**
@@ -41,7 +45,7 @@ public class NetworkPartitioningPhase implements Phase {
     @Override
     public List<Setting<?>> getPhaseSettings() {
 
-        return ImmutableList.of(PlatformSettings.PartitionNetwork);
+        return ImmutableList.of(PlatformSettings.PartitionNetwork, PlatformSettings.DefaultPartition);
     }
     @Override
     public String getDescription() {
@@ -53,6 +57,14 @@ public class NetworkPartitioningPhase implements Phase {
         partition = new HashMap<String, PartitionKind>();
         partition.put("sw", PartitionKind.SW);
         partition.put("hw", PartitionKind.HW);
+
+        context.getReporter().report(new Diagnostic(Diagnostic.Kind.INFO, "Partitioning the CAL network"));
+        context.getReporter().report(new Diagnostic(Diagnostic.Kind.INFO, "Partitions kinds are " +
+                String.join(", ",
+                        Arrays.stream(PartitionKind.values())
+                                .map(PartitionKind::toString)
+                                .collect(Collectors.toList())) + "."));
+
         Boolean paritioningEnabled = context.getConfiguration().isDefined(PlatformSettings.PartitionNetwork)
                 && context.getConfiguration().get(PlatformSettings.PartitionNetwork);
         if(paritioningEnabled) {
@@ -67,17 +79,24 @@ public class NetworkPartitioningPhase implements Phase {
 
     private PartitionKind getInstancePartition(Instance instance, Context context) {
 
-        PartitionKind defaultPartition = PartitionKind.SW;
+        PartitionKind defaultPartition = PlatformSettings.DefaultPartition.defaultValue(context.getConfiguration());
+        if (context.getConfiguration().isDefined(PlatformSettings.DefaultPartition))
+            defaultPartition = context.getConfiguration().get(PlatformSettings.DefaultPartition);
 
         ImmutableList<ToolAttribute> pattrs =
                 ImmutableList.from(instance.getAttributes()
                         .stream().filter(a -> a.getName().equals(partitionKey)).collect(Collectors.toList()));
+
+
         if (pattrs.size() == 0) {
             context
                     .getReporter()
                     .report(
-                            new Diagnostic(Diagnostic.Kind.INFO,
-                                    "No partition attribute specified for instance " + instance.getInstanceName()));
+                            new Diagnostic(Diagnostic.Kind.WARNING,
+                                    "No partition attribute specified for instance "
+                                            + instance.getInstanceName() +
+                                            ", using default partition " + defaultPartition.toString() + ".\n" +
+                                    "Use attribute partition=hw|sw in actor instantiation to manually set partitions."));
             return defaultPartition;
         } else if (pattrs.size() == 1) {
             if (pattrs.get(0) instanceof ToolValueAttribute) {
@@ -128,7 +147,9 @@ public class NetworkPartitioningPhase implements Phase {
             instToPart.put(inst, p);
             partToInst.putIfAbsent(p, new ArrayList<>());
             partToInst.get(p).add(inst);
+
         }
+
 
 
         List<Connection> fanouts =

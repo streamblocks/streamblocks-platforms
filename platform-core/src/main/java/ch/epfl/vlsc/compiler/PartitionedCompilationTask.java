@@ -26,7 +26,22 @@ public class PartitionedCompilationTask extends CompilationTask {
 
 
 
-    public enum PartitionKind {HW, SW};
+    public enum PartitionKind {
+        HW, SW;
+
+        @Override
+        public String toString() {
+            String ret;
+            switch (this) {
+                case HW:
+                    return "hw";
+                case SW:
+                    return "sw";
+                default:
+                    return "ERROR";
+            }
+        }
+    };
 
     private final Map<PartitionKind, Network> networkPartitions;
 
@@ -177,12 +192,12 @@ public class PartitionedCompilationTask extends CompilationTask {
         Optional<Network> network = this.getPartition(kind);
         if (!network.isPresent()) {
             context.getReporter().report(
-                    new Diagnostic(Diagnostic.Kind.WARNING, kind.name() + " network partition is empty!"));
+                    new Diagnostic(Diagnostic.Kind.ERROR, kind.toString() + " network partition is empty!"));
             return this.withNetwork(null);
         } else {
 
             context.getReporter().report(
-                    new Diagnostic(Diagnostic.Kind.INFO, kind.name() + " network partition contains " +
+                    new Diagnostic(Diagnostic.Kind.INFO, kind.toString() + " network partition contains " +
                             String.join(", ",
                                     network.get().getInstances().map(Instance::getInstanceName))));
             return this.withNetwork(network.get().deepClone());

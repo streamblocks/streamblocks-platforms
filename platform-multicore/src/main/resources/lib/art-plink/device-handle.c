@@ -25,7 +25,7 @@ void CL_CALLBACK completion_handler(cl_event event, cl_int cmd_status,
   default:
     command_str = "unsupported";
   }
-  char callback_msg[1024];
+  char callback_msg[2048];
   sprintf(callback_msg, "<<Completed %s (%d)>>: %s\n", command_str,
           event_info->counter, (char *)event_info->msg);
   event_info->counter++;

@@ -28,7 +28,9 @@ public class ExtractHardwarePartition implements Phase {
     public CompilationTask execute(CompilationTask task, Context context) throws CompilationException {
         Boolean paritioningEnabled = context.getConfiguration().isDefined(PlatformSettings.PartitionNetwork)
                 && context.getConfiguration().get(PlatformSettings.PartitionNetwork);
-
+        context.getReporter().report(
+                new Diagnostic(Diagnostic.Kind.INFO, "Extracting " +
+                        PartitionedCompilationTask.PartitionKind.HW.toString() +" partition"));
         if (paritioningEnabled && task instanceof PartitionedCompilationTask) {
 
             PartitionedCompilationTask ptask = (PartitionedCompilationTask) task;

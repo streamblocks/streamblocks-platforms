@@ -43,6 +43,8 @@ public class CreatePartitionLinkPhase implements Phase {
 
     @Override
     public CompilationTask execute(CompilationTask task, Context context) throws CompilationException {
+
+        context.getReporter().report(new Diagnostic(Diagnostic.Kind.INFO, "Generating PartitionLink entity."));
         if (context.getConfiguration().isDefined(PlatformSettings.PartitionNetwork)
                 && context.getConfiguration().get(PlatformSettings.PartitionNetwork))
             return createPartitionLink(task, context);

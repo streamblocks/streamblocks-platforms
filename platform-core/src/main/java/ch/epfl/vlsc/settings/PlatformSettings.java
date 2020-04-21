@@ -1,7 +1,10 @@
 package ch.epfl.vlsc.settings;
 
+import ch.epfl.vlsc.compiler.PartitionedCompilationTask.PartitionKind;
 import se.lth.cs.tycho.settings.Configuration;
+import se.lth.cs.tycho.settings.EnumSetting;
 import se.lth.cs.tycho.settings.OnOffSetting;
+
 
 public class PlatformSettings {
 
@@ -75,6 +78,24 @@ public class PlatformSettings {
         @Override
         public Boolean defaultValue(Configuration configuration) {
             return false;
+        }
+    };
+
+    // -- Default partition setting
+    static public EnumSetting<PartitionKind> DefaultPartition = new EnumSetting<PartitionKind>(PartitionKind.class) {
+        @Override
+        public String getKey() {
+            return "default-partition";
+        }
+
+        @Override
+        public String getDescription() {
+            return "default partition of instances";
+        }
+
+        @Override
+        public PartitionKind defaultValue(Configuration configuration) {
+            return PartitionKind.SW;
         }
     };
 
