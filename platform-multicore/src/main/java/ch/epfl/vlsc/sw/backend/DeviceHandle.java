@@ -195,6 +195,8 @@ public interface DeviceHandle {
 
         getReleaseReadEvents(entity);
 
+        getWaitForDevice(entity);
+
         getFreeEvents(entity);
 
         emitter().emit("// -- set request size");
@@ -697,6 +699,32 @@ public interface DeviceHandle {
             }
             emitter().decreaseIndentation();
         }
+        emitter().emit("}");
+    }
+
+
+    default void getWaitForDevice(PartitionLink entity) {
+
+        Method method = getMethod(entity.getHandle(), "waitForDevice");
+        emitter().emit("%s {", methodSignature(entity.getHandle(), method));
+        {
+            emitter().increaseIndentation();
+            if (entity.getOutputPorts().size() > 0)
+                emitter().emit("clWaitForEvents(dev->num_outputs, dev->read_buffer_event);");
+            if (entity.getInputPorts().size() > 0){
+                Method releaseWrites = getMethod(entity.getHandle(), "releaseWriteEvents");
+                emitter().emit("%s(dev);", methodName(entity.getHandle(), releaseWrites));
+            }
+
+
+            Method releaseReads = getMethod(entity.getHandle(), "releaseReadEvents");
+            emitter().emit("%s(dev);", methodName(entity.getHandle(), releaseReads));
+
+            Method releaseKernel = getMethod(entity.getHandle(), "releaseKernelEvent");
+            emitter().emit("%s(dev);", methodName(entity.getHandle(), releaseKernel));
+            emitter().decreaseIndentation();
+        }
+
         emitter().emit("}");
     }
     /**

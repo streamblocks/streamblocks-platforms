@@ -238,14 +238,6 @@ void DeviceHandleTerminate(DeviceHandle_t *dev) {
   DeviceHandleFreeEvents(dev);
 }
 
-void DeviceHandleWaitForDevice(DeviceHandle_t *dev) {
-  clWaitForEvents(dev->num_outputs, dev->read_buffer_event);
-  DeviceHandleReleaseWriteEvents(dev);
-  DeviceHandleReleaseReadEvents(dev);
-  DeviceHandleReleaseKernelEvent(dev);
-
-}
-
 void DeviceHandleReleaseKernelEvent(DeviceHandle_t *dev) {
   OCL_MSG("Releasing kernel event\n");
   OCL_CHECK(clReleaseEvent(dev->kernel_event));
