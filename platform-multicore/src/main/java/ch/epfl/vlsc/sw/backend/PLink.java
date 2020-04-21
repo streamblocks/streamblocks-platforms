@@ -410,42 +410,42 @@ public interface PLink {
             }
             emitter().emit("}");
 
-
-            emitter().emit("CHECK: {");
-            {
-                emitter().increaseIndentation();
-                ImmutableList.Builder<String> tokens = ImmutableList.builder();
-                for(PortDecl port: entity.getInputPorts()) {
-
-                    String type = typeseval().type(types().declaredPortType(port));
-                    Boolean last = entity.getInputPorts().size() - 1 == entity.getInputPorts().indexOf(port);
-                    tokens.add("tokens_" + port.getName());
-                    emitter().emit("uint32_t tokens_%s = pinAvailIn_%s(IN%d_%1$s); ", port.getName(), type, entity.getInputPorts().indexOf(port));
-
-                }
-                emitter().emitNewLine();
-                String canTransmit = String.join(" && ",
-                        tokens.build().stream().map(t -> "(" + t + " > 0)").collect(Collectors.toList()));
-                emitter().emit("if (%s) {", canTransmit);
+            if (entity.getInputPorts().size() > 0 ){
+                emitter().emit("CHECK: {");
                 {
                     emitter().increaseIndentation();
-                    emitter().emit("thisActor->program_counter = 1;");
-                    emitter().emit("goto TX;");
-                    emitter().decreaseIndentation();
-                }
+                    ImmutableList.Builder<String> tokens = ImmutableList.builder();
+                    for(PortDecl port: entity.getInputPorts()) {
 
-                emitter().emit("} else {");
-                {
-                    emitter().increaseIndentation();
-                    emitter().emit("thisActor->program_counter = 0;");
-                    emitter().emit("\tgoto YIELD;");
+                        String type = typeseval().type(types().declaredPortType(port));
+                        Boolean last = entity.getInputPorts().size() - 1 == entity.getInputPorts().indexOf(port);
+                        tokens.add("tokens_" + port.getName());
+                        emitter().emit("uint32_t tokens_%s = pinAvailIn_%s(IN%d_%1$s); ", port.getName(), type, entity.getInputPorts().indexOf(port));
+
+                    }
+                    emitter().emitNewLine();
+                    String canTransmit = String.join(" && ",
+                            tokens.build().stream().map(t -> "(" + t + " > 0)").collect(Collectors.toList()));
+                    emitter().emit("if (%s) {", canTransmit);
+                    {
+                        emitter().increaseIndentation();
+                        emitter().emit("thisActor->program_counter = 1;");
+                        emitter().emit("goto TX;");
+                        emitter().decreaseIndentation();
+                    }
+
+                    emitter().emit("} else {");
+                    {
+                        emitter().increaseIndentation();
+                        emitter().emit("thisActor->program_counter = 0;");
+                        emitter().emit("goto YIELD;");
+                        emitter().decreaseIndentation();
+                    }
+                    emitter().emit("}");
                     emitter().decreaseIndentation();
                 }
                 emitter().emit("}");
-                emitter().decreaseIndentation();
             }
-
-            emitter().emit("}");
 
             emitter().emit("TX: { // -- Transmit to FPGA memory");
             {

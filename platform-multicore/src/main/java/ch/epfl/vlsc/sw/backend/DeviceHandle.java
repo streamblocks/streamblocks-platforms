@@ -1,5 +1,6 @@
 package ch.epfl.vlsc.sw.backend;
 
+import ch.epfl.vlsc.compiler.PartitionedCompilationTask;
 import ch.epfl.vlsc.platformutils.PathUtils;
 import ch.epfl.vlsc.sw.ir.PartitionHandle;
 import ch.epfl.vlsc.platformutils.Emitter;
@@ -175,13 +176,26 @@ public interface DeviceHandle {
         // -- methods definitions
 
         getCreateClBuffers(entity);
+
+        getInitEvents(entity);
+
         getSetArgs(entity);
+
         getEnqueueWriteBuffers(entity);
+
+        getEnqueueExecution(entity);
+
         getEnqueueReadBuffers(entity);
 
         getReleaseMemObjects(entity);
 
         getSetAndGetPtrs(entity);
+
+        getReleaseWriteEvents(entity);
+
+        getReleaseReadEvents(entity);
+
+        getFreeEvents(entity);
 
         emitter().emit("// -- set request size");
         entity.getInputPorts().stream().forEachOrdered(p -> getSetRequestSize(entity.getHandle(), p));
@@ -233,6 +247,64 @@ public interface DeviceHandle {
 
     default void getCreateCLBuffer(String name, String mode, String size) {
         emitter().emit("dev->%s = clCreateBuffer(dev->world.context, %s, %s, NULL, NULL);", name, mode, size);
+    }
+
+    default void getInitEvents(PartitionLink entity) {
+        Method method = getMethod(entity.getHandle(), "initEvents");
+        emitter().emit("%s {", methodSignature(entity.getHandle(), method));
+        {
+            emitter().increaseIndentation();
+            if (entity.getInputPorts().size() > 0) {
+                emitter().emit("dev->write_buffer_event_info = ");
+                emitter().emit("\t(EventInfo *)malloc(dev->num_inputs * sizeof(EventInfo));");
+                emitter().emitNewLine();
+                emitter().emit("for(int i = 0; i < dev->num_inputs; i++) {");
+                {
+                    emitter().increaseIndentation();
+                    emitter().emit("dev->write_buffer_event_info[i].counter = 0;");
+                    emitter().emit("sprintf(dev->write_buffer_event_info[i].msg, \"write buffer event %%d\", i);");
+                    emitter().decreaseIndentation();
+                }
+                emitter().emit("}");
+
+            }
+
+            if (entity.getOutputPorts().size() > 0) {
+                emitter().emit("dev->read_buffer_event_info =");
+                emitter().emit("\t(EventInfo *)malloc(dev->num_outputs * sizeof(EventInfo));");
+                emitter().emitNewLine();
+                emitter().emit("for(int i = 0; i < dev->num_outputs; i++) {");
+                {
+                    emitter().increaseIndentation();
+                    emitter().emit("dev->read_buffer_event_info[i].counter = 0;");
+                    emitter().emit("sprintf(dev->read_buffer_event_info[i].msg, \"read buffer event %%d\", i);");
+                    emitter().decreaseIndentation();
+
+                }
+                emitter().emit("}");
+
+            }
+
+            emitter().emitNewLine();
+            emitter().emit("dev->read_size_event_info = ");
+            emitter().emit("\t(EventInfo*)malloc((dev->num_inputs + dev->num_outputs) * sizeof(EventInfo));");
+            emitter().emit("for (int i = 0; i < dev->num_inputs + dev->num_outputs; i++) {");
+            {
+                emitter().increaseIndentation();
+                emitter().emit("dev->read_size_event_info[i].counter = 0;");
+                emitter().emit("sprintf(dev->read_size_event_info[i].msg, \"read size event %%d\", i);");
+                emitter().decreaseIndentation();
+            }
+            emitter().emit("}");
+
+            emitter().emitNewLine();
+            emitter().emit("dev->kernel_event_info.counter = 0;");
+            emitter().emit("sprintf(dev->kernel_event_info.msg, \"kernel event\");");
+            emitter().decreaseIndentation();
+        }
+        emitter().emitNewLine();
+        emitter().emit("}");
+
     }
     default void getSetArgs(PartitionLink entity) {
         Method method = getMethod(entity.getHandle(), "setArgs");
@@ -335,6 +407,50 @@ public interface DeviceHandle {
             emitter().decreaseIndentation();
         }
         emitter().emit("}");
+    }
+
+
+    default void getEnqueueExecution(PartitionLink entity) {
+
+        Method method = getMethod(entity.getHandle(), "enqueueExecution");
+        emitter().emit("%s {", methodSignature(entity.getHandle(), method));
+        {
+            emitter().increaseIndentation();
+            OclMsg("Equeueing kernel\\n");
+            emitter().emit("OCL_CHECK(");
+            {
+                emitter().increaseIndentation();
+                emitter().emit("clEnqueueNDRangeKernel(");
+                {
+                    emitter().increaseIndentation();
+                    emitter().emit("dev->world.command_queue, // -- command queue");
+                    emitter().emit("dev->kernel, // -- kernel");
+                    emitter().emit("1, // -- work dimension");
+                    emitter().emit("NULL, // -- global work offset");
+                    emitter().emit("&dev->global, //-- global work size");
+                    emitter().emit("&dev->local, //-- local work size");
+                    if (entity.getInputPorts().size() > 0){
+
+                        emitter().emit("dev->num_inputs, // -- number of events to wait on");
+                        emitter().emit("dev->write_buffer_event, // -- event wait list");
+                    }
+                    else {
+
+                        emitter().emit("0, // -- number of events to wait on");
+                        emitter().emit("NULL, // -- event wait list");
+
+                    }
+                    emitter().emit("&dev->kernel_event)); // -- the generated event");
+                    emitter().decreaseIndentation();
+                }
+                emitter().decreaseIndentation();
+
+            }
+            emitter().emit("on_completion(dev->kernel_event, &dev->kernel_event_info);");
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("}");
+
     }
 
     default void getEnqueueReadBuffers(PartitionLink entity) {
@@ -501,6 +617,87 @@ public interface DeviceHandle {
         emitter().emit("%s { dev->%s_request_size = req_sz; }", methodSignature(handle, setReq),
                 port.getName());
         emitter().emitNewLine();
+    }
+
+
+    default void getFreeEvents(PartitionLink entity) {
+        Method method = getMethod(entity.getHandle(), "freeEvents");
+        emitter().emit("%s {", methodSignature(entity.getHandle(), method));
+        {
+            emitter().increaseIndentation();
+            if (entity.getInputPorts().size() > 0) {
+                OclMsg("Freeing write buffer event info...\\n");
+                emitter().emit("free(dev->write_buffer_event_info);");
+            }
+            if(entity.getOutputPorts().size() > 0) {
+                OclMsg("Freeing read buffer event info...\\n");
+                emitter().emit("free(dev->read_buffer_event_info);");
+            }
+            OclMsg("Freeing read size event info.. \\n");
+            emitter().emit("free(dev->read_size_event_info);");
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("}");
+
+
+    }
+
+    default void getReleaseWriteEvents(PartitionLink entity) {
+        Method method = getMethod(entity.getHandle(), "releaseWriteEvents");
+        emitter().emit("%s {", methodSignature(entity.getHandle(), method));
+        {
+            emitter().increaseIndentation();
+            if (entity.getInputPorts().size() > 0) {
+
+                OclMsg("Releasing write buffer events..\\n");
+                emitter().emit("for (int i = 0; i < dev->num_inputs; i++)");
+                {
+                    emitter().increaseIndentation();
+                    OclCheck("clReleaseEvent(dev->write_buffer_event[i])");
+                    emitter().decreaseIndentation();
+                }
+                OclMsg("All write buffer events released.\\n");
+            } else {
+                OclMsg("No write events present.\\n");
+            }
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("}");
+    }
+
+
+    default void getReleaseReadEvents(PartitionLink entity) {
+        Method method = getMethod(entity.getHandle(), "releaseReadEvents");
+        emitter().emit("%s {", methodSignature(entity.getHandle(), method));
+        {
+            emitter().increaseIndentation();
+
+            OclMsg("Releasing read size events..\\n");
+            emitter().emit("for (int i = 0; i < dev->num_inputs + dev->num_outputs; i++) {");
+            {
+                emitter().increaseIndentation();
+                OclCheck("clReleaseEvent(dev->read_size_event[i])");
+                emitter().decreaseIndentation();
+            }
+            emitter().emit("}");
+            emitter().emitNewLine();
+
+            if (entity.getOutputPorts().size() > 0) {
+
+                OclMsg("Releasing read buffer events..\\n");
+                emitter().emit("for (int i = 0; i < dev->num_outputs; i++)");
+                {
+                    emitter().increaseIndentation();
+                    OclCheck("clReleaseEvent(dev->read_buffer_event[i])");
+                    emitter().decreaseIndentation();
+                }
+                OclMsg("All read buffer events released.\\n");
+            } else {
+                OclMsg("No read events present.");
+            }
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("}");
     }
     /**
      * Generates the header file device-handle.h

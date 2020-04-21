@@ -95,14 +95,17 @@ public class CreatePartitionLinkPhase implements Phase {
                 new Diagnostic(Diagnostic.Kind.INFO, "Adding a PartitionLink entity to " +
                         task.getIdentifier().getLast()));
         // -- get the output ports from connections with missing source
-        List<PortDecl> outputPorts =
-                floatingSourceConnections.stream()
-                        .map(c -> getPortDeclFromConnection(task, c, true)).collect(Collectors.toList());
+//        List<PortDecl> outputPorts =
+//                floatingSourceConnections.stream()
+//                        .map(c -> getPortDeclFromConnection(task, c, true)).collect(Collectors.toList());
+        List<PortDecl> outputPorts = task.getNetwork().getInputPorts().stream().map(PortDecl::deepClone)
+                .collect(Collectors.toList());
         // -- get the input ports from connections with missing target
-        List<PortDecl> inputPorts =
-                floatingTargetConnections.stream()
-                        .map(c -> getPortDeclFromConnection(task, c, false)).collect(Collectors.toList());
-
+//        List<PortDecl> inputPorts =
+//                floatingTargetConnections.stream()
+//                        .map(c -> getPortDeclFromConnection(task, c, false)).collect(Collectors.toList());
+        List<PortDecl> inputPorts = task.getNetwork().getOutputPorts().stream().map(PortDecl::deepClone)
+                .collect(Collectors.toList());
         String plinkEntityName = "system_plink";
 
         // -- create a PartitionLink entity
@@ -268,7 +271,8 @@ public class CreatePartitionLinkPhase implements Phase {
                 Method.of("void", "releaseMemObjects"),
                 Method.of("void", "releaseReadEvents"),
                 Method.of("void", "releaseKernelEvent"),
-                Method.of("void", "releaseWriteEvent")
+                Method.of("void", "releaseWriteEvents"),
+                Method.of("void", "freeEvents")
         );
 
         // -- topology dependent methods
@@ -323,31 +327,48 @@ public class CreatePartitionLinkPhase implements Phase {
             Field.of("size_t", "mem_alignment"),
             Field.of("uint64_t", "kernel_command", "the kernel command word (deprecated)"),
             Field.of("uint32_t", "command_is_set", "the kernel command status (deprecated)"),
-            Field.of("uint32_t", "pending_status", "status of a kernel run (deprecated)"),
-            Field.of(
-                    "cl_event",
-                    "write_buffer_event[" + inputPorts.size() + "]",
-                    "an array containing write buffer events"),
-            Field.of(
-                    "cl_event",
-                    "read_size_event[" + (inputPorts.size() + outputPorts.size()) + "]",
-                    "an array containing read size events"),
-            Field.of(
-                    "cl_event",
-                    "read_buffer_event[" + outputPorts.size() + "]",
-                    "an array containing read buffer events"),
+            Field.of("uint32_t", "pending_status", "status of a kernel run (deprecated)"));
+        if (inputPorts.size() > 0) {
+            fields.addAll(
+                    Field.of(
+                            "cl_event",
+                            "write_buffer_event[" + inputPorts.size() + "]",
+                            "an array containing write buffer events"),
+                    Field.of(
+                            Type.of("EventInfo", true),
+                            "write_buffer_event_info", "write buffer event info")
+            );
+        }
+
+        if (inputPorts.size() + outputPorts.size() > 0) {
+            fields.addAll(
+                    Field.of(
+                            "cl_event",
+                            "read_size_event[" + (inputPorts.size() + outputPorts.size()) + "]",
+                            "an array containing read size events"),
+                    Field.of(
+                            Type.of("EventInfo", true),
+                            "read_size_event_info", "read size event info")
+            );
+        }
+
+        if (outputPorts.size() > 0) {
+            fields.addAll(
+                    Field.of(
+                            "cl_event",
+                            "read_buffer_event[" + outputPorts.size() + "]",
+                            "an array containing read buffer events"),
+                    Field.of(Type.of("EventInfo", true),
+                            "read_buffer_event_info", "read buffer event info")
+            );
+        }
+
+
+        fields.addAll(
             Field.of("cl_event",
                     "kernel_event",
                     "kernel enqueue event"),
 
-            Field.of(
-                    Type.of("EventInfo", true),
-                    "write_buffer_event_info", "write buffer event info"),
-            Field.of(
-                    Type.of("EventInfo", true),
-                    "read_size_event_info", "read size event info"),
-            Field.of(Type.of("EventInfo", true),
-                    "read_buffer_event_info", "read buffer event info"),
             Field.of(
                     Type.of("EventInfo", false),
                     "kernel_event_info", "kernel enqueue event info")

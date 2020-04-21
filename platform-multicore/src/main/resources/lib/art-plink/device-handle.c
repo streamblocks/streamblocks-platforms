@@ -211,15 +211,6 @@ cl_int load_file_to_memory(const char *filename, char **result) {
   return size;
 }
 
-void DeviceHandleEnqueueExecution(DeviceHandle_t* dev) {
-  OCL_MSG("Enqueueing NDRange kernel.\n");
-
-  OCL_CHECK(clEnqueueNDRangeKernel(
-      dev->world.command_queue, dev->kernel, 1, NULL, &dev->global, &dev->local,
-      dev->num_inputs, dev->write_buffer_event, &dev->kernel_event));
-  on_completion(dev->kernel_event, &dev->kernel_event_info);
-}
-
 void DeviceHandleRun(DeviceHandle_t *dev) {
 
 
@@ -255,67 +246,9 @@ void DeviceHandleWaitForDevice(DeviceHandle_t *dev) {
 
 }
 
-void DeviceHandleInitEvents(DeviceHandle_t *dev) {
-
-  dev->write_buffer_event_info =
-      (EventInfo *)malloc(dev->num_inputs * sizeof(EventInfo));
-  dev->read_size_event_info =
-      (EventInfo *)malloc((dev->num_inputs + dev->num_outputs) * sizeof(EventInfo));
-  dev->read_buffer_event_info =
-      (EventInfo *)malloc(dev->num_outputs * sizeof(EventInfo));
-
-  for (int i = 0; i < dev->num_inputs; i++) {
-    dev->write_buffer_event_info[i].counter = 0;
-    sprintf(dev->write_buffer_event_info[i].msg, "write buffer event %d", i);
-  }
-  for (int i = 0; i < dev->num_inputs + dev->num_outputs; i++) {
-    dev->read_size_event_info[i].counter = 0;
-    sprintf(dev->read_size_event_info[i].msg, "read size event %d", i);
-  }
-  for (int i = 0 ; i < dev->num_outputs; i++) {
-    dev->read_buffer_event_info[i].counter = 0;
-    sprintf(dev->read_buffer_event_info[i].msg, "read buffer event %d", i);
-  }
-  dev->kernel_event_info.counter = 0;
-  sprintf(dev->kernel_event_info.msg, "kernel event");
-}
-
-
-void DeviceHandleReleaseReadEvents(DeviceHandle_t *dev) {
-  OCL_MSG("Releasing read size events...\n");
-  for (int i = 0; i < dev->num_inputs + dev->num_outputs; i++) {
-    OCL_CHECK(clReleaseEvent(dev->read_size_event[i]));
-  }
-
-  OCL_MSG("Releasing read buffer events...\n");
-  for (int i = 0; i < dev->num_outputs; i++) {
-    OCL_CHECK(clReleaseEvent(dev->read_buffer_event[i]));
-  }
-
-  OCL_MSG("All read events released.\n");
-}
-
-void DeviceHandleReleaseWriteEvents(DeviceHandle_t *dev) {
-  OCL_MSG("Releasing write buffer events...\n");
-  for (int i = 0; i < dev->num_inputs; i++) {
-    OCL_CHECK(clReleaseEvent(dev->write_buffer_event[i]));
-  }
-  OCL_MSG("All write buffer events released.\n");
-}
-
 void DeviceHandleReleaseKernelEvent(DeviceHandle_t *dev) {
   OCL_MSG("Releasing kernel event\n");
   OCL_CHECK(clReleaseEvent(dev->kernel_event));
-}
-
-void DeviceHandleFreeEvents(DeviceHandle_t *dev) {
-   OCL_MSG("Freeing write buffers event info...\n");
-   free(dev->write_buffer_event_info);
-   OCL_MSG("Freeing read size event info...\n");
-   free(dev->read_size_event_info);
-   OCL_MSG("Freeing read buffer event info...\n");
-   free(dev->read_buffer_event_info);
-   OCL_MSG("All event info deallocated.\n");
 }
 
 void DeviceHandleSetKernelCommand(DeviceHandle_t *dev, uint64_t cmd) {
