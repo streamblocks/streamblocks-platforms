@@ -7,6 +7,7 @@ import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.Types;
+import se.lth.cs.tycho.ir.Port;
 import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.expr.*;
@@ -100,14 +101,39 @@ public interface Statements {
             Type valueType = types().type(write.getValues().get(0));
             Type portType = channelsutils().outputPortType(write.getPort());
             String value = expressioneval().evaluate(write.getValues().get(0));
+
+            boolean isInput = false;
+            Port port = null;
+            if (write.getValues().get(0) instanceof ExprVariable) {
+                ExprVariable var = (ExprVariable) write.getValues().get(0);
+                VarDecl decl = backend().varDecls().declaration(var);
+
+                if (decl.getValue() != null) {
+                    if (decl.getValue() instanceof ExprInput) {
+                        ExprInput e = (ExprInput) decl.getValue();
+                        if (e.hasRepeat()) {
+                            isInput = true;
+                            port = e.getPort();
+                        }
+                    }
+                }
+            }
+
+
             String repeat = expressioneval().evaluate(write.getRepeatExpression());
 
             // -- Hack type conversion : to be fixed
             if (valueType instanceof ListType) {
-                String index = variables().generateTemp();
-                emitter().emit("for (size_t %1$s = 0; %1$s < (%2$s); %1$s++) {", index, repeat);
-                emitter().emit("\ttokens_%1$s[(index_%1$s + (%2$s)) %% SIZE_%1$s] = %3$s[%4$s];", write.getPort().getName(), index, value, index);
-                emitter().emit("}");
+                if (!(write.getValues().get(0) instanceof ExprComprehension)) {
+                    String index = variables().generateTemp();
+                    emitter().emit("for (size_t %1$s = 0; %1$s < (%2$s); %1$s++) {", index, repeat);
+                    if (!isInput) {
+                        emitter().emit("\ttokens_%1$s[(index_%1$s + (%2$s)) %% SIZE_%1$s] = %3$s[%4$s];", write.getPort().getName(), index, value, index);
+                    } else {
+                        emitter().emit("\ttokens_%1$s[(index_%1$s + (%2$s)) %% SIZE_%1$s] = tokens_%3$s[(index_%3$s + (%4$s)) %% SIZE_%3$s];", write.getPort().getName(), index, port.getName(), index);
+                    }
+                    emitter().emit("}");
+                }
             } else {
                 emitter().emit("pinWriteRepeat_%s(%s, %s, %s);", channelsutils().outputPortTypeSize(write.getPort()), channelsutils().definedOutputPort(write.getPort()), value, repeat);
             }
@@ -125,7 +151,7 @@ public interface Statements {
         Type type = types().lvalueType(assign.getLValue());
         String lvalue = lvalues().lvalue(assign.getLValue());
         //if ((type instanceof ListType && assign.getLValue() instanceof LValueVariable) && !(assign.getExpression() instanceof ExprList)) {
-        if(assign.getExpression() instanceof ExprComprehension){
+        if (assign.getExpression() instanceof ExprComprehension) {
             expressioneval().evaluate(assign.getExpression());
         } else {
             copy(type, lvalue, types().type(assign.getExpression()), expressioneval().evaluate(assign.getExpression()));
@@ -186,13 +212,20 @@ public interface Statements {
                 memoryStack().trackPointer(declarationName, t);
             }
             String d = declarartions().declarationTemp(t, declarationName);
-            emitter().emit("%s = %s;", d, backend().defaultValues().defaultValue(t));
             if (decl.getValue() != null) {
                 if (decl.getValue() instanceof ExprInput) {
-                    expressioneval().evaluateWithLvalue(backend().variables().declarationName(decl), (ExprInput) decl.getValue());
+                    ExprInput e = (ExprInput) decl.getValue();
+                    if (!e.hasRepeat()) {
+                        emitter().emit("%s = %s;", d, backend().defaultValues().defaultValue(t));
+                        expressioneval().evaluateWithLvalue(backend().variables().declarationName(decl), (ExprInput) decl.getValue());
+                    }
                 } else {
+                    emitter().emit("%s = %s;", d, backend().defaultValues().defaultValue(t));
+
                     copy(t, declarationName, types().type(decl.getValue()), expressioneval().evaluate(decl.getValue()));
                 }
+            } else {
+                emitter().emit("%s = %s;", d, backend().defaultValues().defaultValue(t));
             }
 
         }

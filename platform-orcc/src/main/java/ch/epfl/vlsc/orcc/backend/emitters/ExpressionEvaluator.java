@@ -8,6 +8,7 @@ import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.ir.IRNode;
+import se.lth.cs.tycho.ir.Port;
 import se.lth.cs.tycho.ir.Variable;
 import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
@@ -15,6 +16,7 @@ import se.lth.cs.tycho.ir.expr.*;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.stmt.StmtAssignment;
 import se.lth.cs.tycho.ir.stmt.StmtCall;
+import se.lth.cs.tycho.ir.stmt.StmtWrite;
 import se.lth.cs.tycho.ir.stmt.lvalue.LValueVariable;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.type.AlgebraicType;
@@ -180,7 +182,7 @@ public interface ExpressionEvaluator {
         emitter().emit("%s = %s;", declarations().declarationTemp(types().type(input), tmp), backend().defaultValues().defaultValue(types().type(input)));
         //}
         if (type instanceof AlgebraicType) {
-           // memoryStack().trackPointer(tmp, type);
+            // memoryStack().trackPointer(tmp, type);
         }
 
         if (input.hasRepeat()) {
@@ -322,6 +324,7 @@ public interface ExpressionEvaluator {
         Type typeForTmp = t;
         IRNode parent = backend().tree().parent(comprehension);
         String name;
+        Boolean isStmtWrite = false;
         if (parent instanceof StmtAssignment) {
             StmtAssignment stmt = (StmtAssignment) parent;
             if (stmt.getLValue() instanceof LValueVariable) {
@@ -332,6 +335,9 @@ public interface ExpressionEvaluator {
                 String decl = declarations().declarationTemp(t, name);
                 emitter().emit("%s;", decl);
             }
+        } else if (parent instanceof StmtWrite) {
+            name = ((StmtWrite) parent).getPort().getName();
+            isStmtWrite = true;
         } else {
             name = variables().generateTemp();
             String decl = declarations().declarationTemp(t, name);
@@ -340,7 +346,12 @@ public interface ExpressionEvaluator {
 
         String index = variables().generateTemp();
         emitter().emit("size_t %s = 0;", index);
+
+        backend().writebox().set(isStmtWrite);
+
         evaluateListComprehension(comprehension, name, index);
+
+        backend().writebox().clear();
         return name;
     }
 
@@ -356,8 +367,14 @@ public interface ExpressionEvaluator {
     }
 
     default void evaluateListComprehension(ExprList list, String result, String index) {
-        list.getElements().forEach(element ->
-                emitter().emit("%s[%s++] = %s;", result, index, evaluate(element))
+        list.getElements().forEach(element -> {
+                    boolean isStmtWrite = backend().writebox().get();
+                    if(isStmtWrite){
+                        emitter().emit("tokens_%1$s[(index_%1$s + (%2$s++)) %% SIZE_%1$s] = %3$s;", result, index, evaluate(element));
+                    }else{
+                        emitter().emit("%s[%s++] = %s;", result, index, evaluate(element));
+                    }
+                }
         );
     }
 
@@ -433,6 +450,18 @@ public interface ExpressionEvaluator {
     default String evaluate(ExprIndexer indexer) {
         VarDecl varDecl = evalExprIndexVar(indexer);
 
+        boolean isInput = false;
+        Port port = null;
+        if (varDecl.getValue() != null) {
+            if (varDecl.getValue() instanceof ExprInput) {
+                ExprInput e = (ExprInput) varDecl.getValue();
+                if (e.hasRepeat()) {
+                    isInput = true;
+                    port = e.getPort();
+                }
+            }
+        }
+
         Optional<String> str = Optional.empty();
         String ind;
         if (indexer.getStructure() instanceof ExprIndexer) {
@@ -460,9 +489,17 @@ public interface ExpressionEvaluator {
         }
 
         if (str.isPresent()) {
-            return String.format("%s[%s + %s]", variables().name(varDecl), str.get(), ind);
+            if(isInput){
+                return String.format("tokens_%s[(index_%1$s + (%s + %s)) %% SIZE_%1$s]", port.getName(), str.get(), ind);
+            }else{
+                return String.format("%s[%s + %s]", variables().name(varDecl), str.get(), ind);
+            }
         } else {
-            return String.format("%s[%s]", variables().name(varDecl), ind);
+            if(isInput){
+                return String.format("tokens_%s[(index_%1$s + (%s)) %% SIZE_%1$s]", port.getName(), ind);
+            }else{
+                return String.format("%s[%s]", variables().name(varDecl), ind);
+            }
         }
     }
 
@@ -470,6 +507,7 @@ public interface ExpressionEvaluator {
 
 
     default VarDecl evalExprIndexVar(ExprVariable expr) {
+
         return backend().varDecls().declaration(expr);
     }
 
@@ -620,7 +658,7 @@ public interface ExpressionEvaluator {
             Type type = types().declaredType(decl);
             String name = variables().declarationName(decl);
             backend().memoryStack().trackPointer(name, type);
-            emitter().emit("%s = %s;", declarations().declaration(type, name),  backend().defaultValues().defaultValue(type));
+            emitter().emit("%s = %s;", declarations().declaration(type, name), backend().defaultValues().defaultValue(type));
             backend().statements().copy(type, name, types().type(decl.getValue()), evaluate(decl.getValue()));
         }
         return evaluate(let.getBody());

@@ -705,7 +705,6 @@ public interface Instances {
     }
 
     default void scheduler() {
-        emitter().emitClikeBlockComment("Transitions");
         Entity entity = backend().entitybox().get();
 
         assert !(entity instanceof ActorMachine);
