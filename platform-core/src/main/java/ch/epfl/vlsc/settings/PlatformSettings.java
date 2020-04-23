@@ -3,6 +3,7 @@ package ch.epfl.vlsc.settings;
 import ch.epfl.vlsc.compiler.PartitionedCompilationTask.PartitionKind;
 import se.lth.cs.tycho.settings.Configuration;
 import se.lth.cs.tycho.settings.EnumSetting;
+import se.lth.cs.tycho.settings.IntegerSetting;
 import se.lth.cs.tycho.settings.OnOffSetting;
 
 
@@ -96,6 +97,23 @@ public class PlatformSettings {
         @Override
         public PartitionKind defaultValue(Configuration configuration) {
             return PartitionKind.SW;
+        }
+    };
+
+    static public IntegerSetting defaultBufferSize = new IntegerSetting() {
+        @Override
+        public String getKey() {
+            return "buffer-size";
+        }
+
+        @Override
+        public String getDescription() {
+            return "size of buffers, default is 4096.";
+        }
+
+        @Override
+        public Integer defaultValue(Configuration configuration) {
+            return 4096;
         }
     };
 

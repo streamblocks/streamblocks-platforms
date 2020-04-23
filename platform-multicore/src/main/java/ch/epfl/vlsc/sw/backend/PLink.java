@@ -13,6 +13,7 @@ import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
+import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.reporting.CompilationException;
@@ -21,6 +22,7 @@ import se.lth.cs.tycho.reporting.Diagnostic;
 
 import java.nio.file.Path;
 
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -181,7 +183,10 @@ public interface PLink {
 
             emitter().emit("// -- device handle object");
             emitter().emit("DeviceHandle_t dev;");
-            emitter().emit("%s cl_buffer_size;", defaultSizeType());
+
+            emitter().emit("%s cl_write_buffer_size[%d];", defaultSizeType(), entity.getInputPorts().size());
+            emitter().emit("%s cl_read_buffer_size[%d];", defaultSizeType(), entity.getOutputPorts().size());
+//            emitter().emit("%s cl_buffer_size;", defaultSizeType());
 
             // -- request size
             for (PortDecl port: entity.getInputPorts()) {
@@ -297,8 +302,30 @@ public interface PLink {
             emitter().emit("%s *thisActor = (%1$s *) pBase;", actorInstanceName);
 
             emitter().emit("thisActor->program_counter = 0;");
-            emitter().emit("thisActor->cl_buffer_size = (1 << 20); // 4MiB CL buffers");
-            emitter().emitNewLine();
+
+            ImmutableList<Integer> inputBufferSize = ImmutableList.<Integer>from(
+                    entity.getInputPorts().stream().map(inputPort ->
+                    backend().channelsutils().targetEndSize(new Connection.End(Optional.of(name),
+                            inputPort.getName()))).collect(Collectors.toList()));
+
+            ImmutableList<Integer> outputBufferSize = ImmutableList.<Integer>from(
+                    entity.getOutputPorts().stream().map(outputPort ->
+                            backend().channelsutils().sourceEndSize(new Connection.End(Optional.of(name),
+                                    outputPort.getName()))).collect(Collectors.toList()));
+
+
+            for (PortDecl port: entity.getInputPorts()) {
+                int index = entity.getInputPorts().indexOf(port);
+                int size = inputBufferSize.get(index);
+               emitter().emit("thisActor->cl_write_buffer_size[%d] = %d; // -- cl buffer size for port %s", index, size, port.getName());
+            }
+            for (PortDecl port: entity.getOutputPorts()) {
+                int index = entity.getOutputPorts().indexOf(port);
+                int size = outputBufferSize.get(index);
+                emitter().emit("thisActor->cl_read_buffer_size[%d] = %d; // -- cl buffer size for port %s", index, size, port.getName());
+            }
+
+                emitter().emitNewLine();
 
             String kernelID = backend().task().getIdentifier().getLast().toString() + "_kernel";
 
@@ -306,29 +333,47 @@ public interface PLink {
             // -- Constructor
             emitter().emit("// -- Construct the FPGA device handle");
             String consName = backend().devicehandle().methodName(handle, handle.getConstructor());
-            emitter().emit("%s(&thisActor->dev, \"%s\", \"xilinx_kcu1500_dynamic_5_0\", \"bin/xclbin\", false);",
+            emitter().emit("%s(&thisActor->dev, \"%s\", \"xilinx_kcu1500_dynamic_5_0\", \"xclbin\", false);",
                     consName, kernelID);
             emitter().emitNewLine();
 
 
             // -- createCLBuffers
             emitter().emit("// -- allocate CL buffers");
-            emitter().emit("%s(&thisActor->dev, thisActor->cl_buffer_size);",
+            emitter().emit("%s(&thisActor->dev, thisActor->cl_write_buffer_size, thisActor->cl_read_buffer_size);",
                     getMethod(handle, "createCLBuffers"));
             emitter().emitNewLine();
 
-
-
             // -- allocate host buffers
-            emitter().emit("// -- allocate host buffers");
-            for (PortDecl port: Stream.concat(
-                    entity.getInputPorts().stream(), entity.getOutputPorts().stream()).collect(Collectors.toList())) {
+
+            emitter().emit("// -- allocate Host buffers");
+            for (PortDecl port: entity.getInputPorts()) {
                 String type = typeseval().type(types().declaredPortType(port));
                 emitter().emit("thisActor->%s_buffer = (%s *) aligned_alloc(MEM_ALIGNMENT, " +
-                        "thisActor->cl_buffer_size * sizeof(%2$s));", port.getName(), type);
+                        "thisActor->cl_write_buffer_size[%d] * sizeof(%2$s));", port.getName(), type,
+                        entity.getInputPorts().indexOf(port));
                 String setPtrName = getMethod(handle, "set_" + port.getName() + "_buffer_ptr");
                 emitter().emit("%s(&thisActor->dev, thisActor->%s_buffer);",
                         setPtrName, port.getName());
+
+            }
+
+            emitter().emitNewLine();
+            for (PortDecl port: entity.getOutputPorts()) {
+                String type = typeseval().type(types().declaredPortType(port));
+                emitter().emit("thisActor->%s_buffer = (%s *) aligned_alloc(MEM_ALIGNMENT, " +
+                                "thisActor->cl_read_buffer_size[%d] * sizeof(%2$s));", port.getName(), type,
+                        entity.getOutputPorts().indexOf(port));
+                String setPtrName = getMethod(handle, "set_" + port.getName() + "_buffer_ptr");
+                emitter().emit("%s(&thisActor->dev, thisActor->%s_buffer);",
+                        setPtrName, port.getName());
+
+            }
+
+
+            emitter().emit("// -- allocate buffers for TX/RX size buffers");
+            for (PortDecl port: Stream.concat(
+                    entity.getInputPorts().stream(), entity.getOutputPorts().stream()).collect(Collectors.toList())) {
 
                 emitter().emit("thisActor->%s_size = (%s *) aligned_alloc(MEM_ALIGNMENT, sizeof(%2$s));",
                         port.getName(), defaultIntType());

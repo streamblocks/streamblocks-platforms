@@ -1,5 +1,6 @@
 package ch.epfl.vlsc.sw.backend;
 
+import ch.epfl.vlsc.settings.PlatformSettings;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
@@ -108,16 +109,30 @@ public interface ChannelsUtils {
 
     }
 
+    default int sourceEndSize(Connection.End source) {
+        Network network = backend().task().getNetwork();
+        try {
+            Connection connection = network.getConnections().stream()
+                    .filter(conn -> conn.getSource().equals(source))
+                    .findFirst().get();
+            return connectionBufferSize(connection);
+        } catch (NoSuchElementException e) {
+            backend().context().getReporter().report(new Diagnostic(Diagnostic.Kind.ERROR, String.format("floating port %s.%s", source.getInstance().get(), source.getPort())));
+            throw new RuntimeException(e);
+        }
+    }
 
     default int connectionBufferSize(Connection connection) {
         Optional<ToolValueAttribute> attribute = connection.getValueAttribute("buffersize");
         if (!attribute.isPresent()) {
-            attribute = connection.getValueAttribute("bufferSize");
+            attribute = connection.getValueAttribute("buffersize");
         }
         if (attribute.isPresent()) {
             return (int) backend().constants().intValue(attribute.get().getValue()).getAsLong();
+        } else if (backend().context().getConfiguration().isDefined(PlatformSettings.defaultBufferSize)){
+            return backend().context().getConfiguration().get(PlatformSettings.defaultBufferSize);
         } else {
-            return 4096;
+            return PlatformSettings.defaultBufferSize.defaultValue(backend().context().getConfiguration());
         }
     }
 

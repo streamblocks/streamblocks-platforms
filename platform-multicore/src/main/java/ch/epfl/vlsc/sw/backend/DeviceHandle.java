@@ -2,6 +2,7 @@ package ch.epfl.vlsc.sw.backend;
 
 import ch.epfl.vlsc.compiler.PartitionedCompilationTask;
 import ch.epfl.vlsc.platformutils.PathUtils;
+import ch.epfl.vlsc.settings.PlatformSettings;
 import ch.epfl.vlsc.sw.ir.PartitionHandle;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.sw.ir.PartitionLink;
@@ -215,23 +216,34 @@ public interface DeviceHandle {
     }
     default void getCreateClBuffers(PartitionLink entity) {
         Method method = getMethod(entity.getHandle(), "createCLBuffers");
-
+        PartitionHandle handle = entity.getHandle();
         emitter().emit("%s {", methodSignature(entity.getHandle(), method));
         {
             emitter().increaseIndentation();
-            emitter().emit("dev->buffer_size = sz;");
+            emitter().emit("cl_uint err;");
             OclMsg("Creating input CL buffers\\n");
             emitter().emitNewLine();
             emitter().emit("// -- input buffers");
             for (PortDecl port: entity.getInputPorts()) {
-                String size = String.format("dev->buffer_size * sizeof(%s)", portType(port));
+                String size = String.format("cl_write_buffer_size[%d] * sizeof(%s)",
+                        entity.getInputPorts().indexOf(port), portType(port));
+
+                emitter().emit("dev->%s = cl_write_buffer_size[%d];",
+                        handle.findField(port.getName() + "_cl_buffer_alloc_size").get().getName(),
+                        entity.getInputPorts().indexOf(port));
                 getCreateCLBuffer(port.getName() + "_cl_buffer", "CL_MEM_READ_ONLY", size);
 
             }
             emitter().emitNewLine();
             emitter().emit("// -- output buffer");
             for (PortDecl port: entity.getOutputPorts()) {
-                String size = String.format("dev->buffer_size * sizeof(%s)", portType(port));
+                String size = String.format("cl_read_buffer_size[%d] * sizeof(%s)",
+                        entity.getOutputPorts().indexOf(port), portType(port));
+
+                emitter().emit("dev->%s = cl_read_buffer_size[%d];",
+                        handle.findField(port.getName() + "_cl_buffer_alloc_size").get().getName(),
+                        entity.getOutputPorts().indexOf(port));
+
                 getCreateCLBuffer(port.getName() + "_cl_buffer", "CL_MEM_WRITE_ONLY", size);
             }
             emitter().emitNewLine();
@@ -248,7 +260,13 @@ public interface DeviceHandle {
     }
 
     default void getCreateCLBuffer(String name, String mode, String size) {
-        emitter().emit("dev->%s = clCreateBuffer(dev->world.context, %s, %s, NULL, NULL);", name, mode, size);
+        emitter().emit("dev->%s = clCreateBuffer(dev->world.context, %s, %s, NULL, &err);", name, mode, size);
+        emitter().emit("if (err != CL_SUCCESS)");
+        {
+            emitter().increaseIndentation();
+            emitter().emit("OCL_ERR(\"clCreateBuffer failed for %s with error code %%d.\", err)", name);
+            emitter().decreaseIndentation();
+        }
     }
 
     default void getInitEvents(PartitionLink entity) {
@@ -331,7 +349,8 @@ public interface DeviceHandle {
             for (PortDecl port: entity.getOutputPorts()) {
                 emitter().emit("// -- device available size for outputs, " +
                         "should be at most as big as buffer_size");
-                getSetKernelArg(kernelIndex ++, "sizeof(cl_uint)", "buffer_size");
+                getSetKernelArg(kernelIndex ++, "sizeof(cl_uint)",
+                        entity.getHandle().findField(port.getName() + "_cl_buffer_alloc_size").get().getName());
             }
 
             for (PortDecl port: ports) {
@@ -368,7 +387,7 @@ public interface DeviceHandle {
                         port.getName(), entity.getInputPorts().indexOf(port));
                 {
                     emitter().increaseIndentation();
-                    emitter().emit("// -- DMA write transfer for %s", port.getName());
+                    emitter().emit("// -- DMA write transfer for %s\\n", port.getName());
                     OclMsg("Enqueueing write for %s", port.getName());
                     emitter().emit("OCL_CHECK(");
                     {
@@ -381,7 +400,7 @@ public interface DeviceHandle {
                             emitter().emit("CL_TRUE, // -- blocking write operation"); // TODO: should become CL_FALSE
                             emitter().emit("0, // -- buffer offset, not use");
                             emitter().emit("dev->%s_request_size * sizeof(%s), // -- size of data transfer in byte",
-                                    port.getName(), entity.getInputPorts().indexOf(port), portType(port));
+                                    port.getName(), portType(port));
                             emitter().emit("dev->%s_buffer, // -- pointer to the host memory", port.getName());
                             emitter().emit("0, // -- number of events in wait list, writes do not wait for anything");
                             emitter().emit("NULL, // -- the event wait list, not used for writes");
@@ -471,7 +490,7 @@ public interface DeviceHandle {
             // -- stream size buffers
             emitter().emit("// -- Enqueue read for i/o size buffers");
             for(PortDecl port: ports) {
-                OclMsg("Enqueue read for %s\\n", port.getName());
+                OclMsg("Enqueue read size for %s\\n", port.getName());
                 emitter().emit("OCL_CHECK(");
                 {
                     emitter().increaseIndentation();
@@ -778,10 +797,15 @@ public interface DeviceHandle {
 
         emitter().emitNewLine();
         emitter().emit("// -- OpenCL and actor specific defines");
-        emitter().emit("#define OCL_VERBOSE\t\t\t1");
+        emitter().emit("// The definition below is can be set by CMAKE option VERBOSE_OPENCL");
+        emitter().emit("// #define OCL_VERBOSE\t\t\t1 ");
         emitter().emit("#define OCL_ERROR\t\t\t1");
+        int bufferSize = PlatformSettings.defaultBufferSize.defaultValue(backend().context().getConfiguration());
+        if (backend().context().getConfiguration().isDefined(PlatformSettings.defaultBufferSize)) {
+            bufferSize = backend().context().getConfiguration().get(PlatformSettings.defaultBufferSize);
+        }
         emitter().emit("#define %s\t\t\t4096", memAlignment());
-        emitter().emit("#define BUFFER_SIZE (1 << 16)");
+        emitter().emit("#define BUFFER_SIZE (%d)", bufferSize);
         emitter().emit("#define NUM_INPUTS\t\t\t%d", entity.getInputPorts().size());
         emitter().emit("#define NUM_OUTPUTS\t\t\t%s", entity.getOutputPorts().size());
         emitter().emitNewLine();

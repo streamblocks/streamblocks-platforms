@@ -74,7 +74,10 @@ public class MultiCoreBackendPhase implements Phase {
 
     @Override
     public List<Setting<?>> getPhaseSettings() {
-        return ImmutableList.of(PlatformSettings.scopeLivenessAnalysis, PlatformSettings.runOnNode);
+        return ImmutableList.of(
+                PlatformSettings.scopeLivenessAnalysis,
+                PlatformSettings.runOnNode,
+                PlatformSettings.defaultBufferSize);
     }
 
     /**

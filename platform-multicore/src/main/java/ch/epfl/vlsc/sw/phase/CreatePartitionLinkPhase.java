@@ -12,6 +12,7 @@ import se.lth.cs.tycho.compiler.SourceUnit;
 import se.lth.cs.tycho.compiler.SyntheticSourceUnit;
 import se.lth.cs.tycho.ir.NamespaceDecl;
 import se.lth.cs.tycho.ir.QID;
+import se.lth.cs.tycho.ir.ToolAttribute;
 import se.lth.cs.tycho.ir.decl.Availability;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
@@ -124,11 +125,13 @@ public class CreatePartitionLinkPhase implements Phase {
                         floatingSourceConnections.stream()
                                 .map(c ->
                                         c.withSource(new Connection.End(Optional.of(plinkInstanceName),
-                                                c.getSource().getPort()))),
+                                                c.getSource().getPort()))
+                                            .withAttributes(c.getAttributes().map(ToolAttribute::deepClone))),
                         floatingTargetConnections.stream()
                                 .map(c ->
                                         c.withTarget(new Connection.End(Optional.of(plinkInstanceName),
-                                                c.getTarget().getPort())))
+                                                c.getTarget().getPort()))
+                                            .withAttributes(c.getAttributes().map(ToolAttribute::deepClone)))
                 ).collect(Collectors.toList());
         List<Connection> oldConnections =
                 task.getNetwork().getConnections().stream()
@@ -260,7 +263,9 @@ public class CreatePartitionLinkPhase implements Phase {
                                 Method.MethodArg("const char*", "filename"),
                                 Method.MethodArg("char**", "result")), true),
                 Method.of("void", "createCLBuffers",
-                        ImmutableList.of(Method.MethodArg("size_t", "sz"))),
+                        ImmutableList.of(
+                            Method.MethodArg(Type.of("size_t", true), "cl_write_buffer_size"),
+                            Method.MethodArg(Type.of("size_t", true), "cl_read_buffer_size"))),
                 Method.of("void", "setArgs"),
                 Method.of("void", "enqueueExecution"),
                 Method.of("void", "enqueueWriteBuffers"),
@@ -398,6 +403,9 @@ public class CreatePartitionLinkPhase implements Phase {
                                 p.getName() + "_cl_buffer",
                                 "device buffer for port " + p.getName()
                         ),
+                        Field.of("size_t",
+                                p.getName() + "_cl_buffer_alloc_size",
+                                "allocated size for the cl buffer of port " + p.getName()),
                         Field.of(
                                 "cl_mem",
                                 p.getName() + "_cl_size",

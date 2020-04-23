@@ -8,6 +8,8 @@ set(art_plink_header
         device-handle.h
         )
 
+
+
 # -- Set CMake module path, for finding the necessary tools
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/lib/cmake)
 find_package(Vivado REQUIRED)
@@ -23,8 +25,14 @@ endif()
 include_directories(${extra_includes})
 add_definitions(${extra_definitions})
 
+
+option(OPENCL_VERBOSE "Prints messages for OpenCL calls and events")
 add_library(art-plink STATIC ${art_plink_source} ${art_plink_header})
-set_target_properties(art-plink PROPERTIES COMPILE_FLAGS "-Wall -fPIC")
+set_target_properties(art-plink PROPERTIES COMPILE_FLAGS "-Wall -fPIC"
+)
+if (OPENCL_VERBOSE)
+        target_compile_definitions(art-plink PRIVATE OCL_VERBOSE=1)
+endif()
 
 install(TARGETS art-plink
         ARCHIVE DESTINATION lib)

@@ -282,8 +282,8 @@ public class NetworkPartitioningPhase implements Phase {
                                     new Connection.End(Optional.empty(), portName),
                                     new Connection.End(con.getTarget().getInstance(), con.getTarget().getPort()));
 
-                    partToCon.get(sourcePartition).add(srcCon);
-                    partToCon.get(targetPartition).add(tgtCon);
+                    partToCon.get(sourcePartition).add(srcCon.withAttributes(con.getAttributes().map(ToolAttribute::deepClone)));
+                    partToCon.get(targetPartition).add(tgtCon.withAttributes(con.getAttributes().map(ToolAttribute::deepClone)));
                 }
 
 
