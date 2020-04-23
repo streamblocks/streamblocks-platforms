@@ -32,6 +32,8 @@ set_target_properties(art-plink PROPERTIES COMPILE_FLAGS "-Wall -fPIC"
 )
 if (OPENCL_VERBOSE)
         target_compile_definitions(art-plink PRIVATE OCL_VERBOSE=1)
+else()
+        target_compile_definitions(art-plink PRIVATE OCL_VERBOSE=0)
 endif()
 
 install(TARGETS art-plink

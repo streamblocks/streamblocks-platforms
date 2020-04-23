@@ -282,6 +282,7 @@ public interface DeviceHandle {
                 {
                     emitter().increaseIndentation();
                     emitter().emit("dev->write_buffer_event_info[i].counter = 0;");
+                    emitter().emit("dev->write_buffer_event_info[i].active = false;");
                     emitter().emit("sprintf(dev->write_buffer_event_info[i].msg, \"write buffer event %%d\", i);");
                     emitter().decreaseIndentation();
                 }
@@ -297,6 +298,7 @@ public interface DeviceHandle {
                 {
                     emitter().increaseIndentation();
                     emitter().emit("dev->read_buffer_event_info[i].counter = 0;");
+                    emitter().emit("dev->read_buffer_event_info[i].active = false;");
                     emitter().emit("sprintf(dev->read_buffer_event_info[i].msg, \"read buffer event %%d\", i);");
                     emitter().decreaseIndentation();
 
@@ -312,6 +314,7 @@ public interface DeviceHandle {
             {
                 emitter().increaseIndentation();
                 emitter().emit("dev->read_size_event_info[i].counter = 0;");
+                emitter().emit("dev->read_size_event_info[i].active = false;");
                 emitter().emit("sprintf(dev->read_size_event_info[i].msg, \"read size event %%d\", i);");
                 emitter().decreaseIndentation();
             }
@@ -319,6 +322,7 @@ public interface DeviceHandle {
 
             emitter().emitNewLine();
             emitter().emit("dev->kernel_event_info.counter = 0;");
+            emitter().emit("dev->kernel_event_info.active = false;");
             emitter().emit("sprintf(dev->kernel_event_info.msg, \"kernel event\");");
             emitter().decreaseIndentation();
         }
@@ -388,7 +392,7 @@ public interface DeviceHandle {
                 {
                     emitter().increaseIndentation();
                     emitter().emit("// -- DMA write transfer for %s\\n", port.getName());
-                    OclMsg("Enqueueing write for %s", port.getName());
+                    OclMsg("Enqueueing write for %s\\n", port.getName());
                     emitter().emit("OCL_CHECK(");
                     {
                         emitter().increaseIndentation();
@@ -408,6 +412,9 @@ public interface DeviceHandle {
                                     entity.getInputPorts().indexOf(port));
                             emitter().emitNewLine();
                             emitter().emit("// -- register call back for the write event");
+                            emitter().emit("dev->%s[%d].active = true;",
+                                    entity.getHandle().findField("write_buffer_event_info").get().getName(),
+                                    entity.getInputPorts().indexOf(port));
                             emitter().emit("on_completion(dev->write_buffer_event[%d], " +
                                     "&dev->write_buffer_event_info[%1$d]);", entity.getInputPorts().indexOf(port));
                             emitter().decreaseIndentation();
@@ -419,6 +426,8 @@ public interface DeviceHandle {
                 emitter().emit("} else { // -- else do not make the DMA transfer");
                 {
                     emitter().increaseIndentation();
+                    emitter().emit("dev->%s[%d].active = false;",
+                            entity.getHandle().findField("write_buffer_event_info").get().getName(), entity.getInputPorts().indexOf(port));
                     OclMsg("Info: skipping a write transfer of size 0 for %s.\\n", port.getName());
                     emitter().decreaseIndentation();
                 }
@@ -547,6 +556,9 @@ public interface DeviceHandle {
                                     entity.getOutputPorts().indexOf(port));
                             emitter().emitNewLine();
                             emitter().emit("// -- register event call back ");
+                            emitter().emit("dev->%s[%d].active = true;",
+                                    entity.getHandle().findField("read_buffer_event_info").get().getName(),
+                                    entity.getOutputPorts().indexOf(port));
                             emitter().emit("on_completion(dev->read_buffer_event[%d], " +
                                     "&dev->read_buffer_event_info[%1$d]);", entity.getOutputPorts().indexOf(port));
                             emitter().emitNewLine();
@@ -559,6 +571,9 @@ public interface DeviceHandle {
                 } emitter().emit("} else {");
                 {
                     emitter().increaseIndentation();
+                    emitter().emit("dev->%s[%d].active = false;",
+                            entity.getHandle().findField("read_buffer_event_info").get().getName(),
+                            entity.getOutputPorts().indexOf(port));
                     OclMsg("Info: port %s did not produce any data, skipping read transfer.\\n", port.getName());
                     emitter().decreaseIndentation();
                 }
@@ -664,8 +679,9 @@ public interface DeviceHandle {
     }
 
     default void getReleaseWriteEvents(PartitionLink entity) {
-        Method method = getMethod(entity.getHandle(), "releaseWriteEvents");
-        emitter().emit("%s {", methodSignature(entity.getHandle(), method));
+        PartitionHandle handle = entity.getHandle();
+        Method method = getMethod(handle, "releaseWriteEvents");
+        emitter().emit("%s {", methodSignature(handle, method));
         {
             emitter().increaseIndentation();
             if (entity.getInputPorts().size() > 0) {
@@ -674,7 +690,13 @@ public interface DeviceHandle {
                 emitter().emit("for (int i = 0; i < dev->num_inputs; i++)");
                 {
                     emitter().increaseIndentation();
-                    OclCheck("clReleaseEvent(dev->write_buffer_event[i])");
+                    emitter().emit("if (dev->%s[i].active == true)",
+                            handle.findField("write_buffer_event_info").get().getName());
+                    {
+                        emitter().increaseIndentation();
+                        OclCheck("clReleaseEvent(dev->write_buffer_event[i])");
+                        emitter().decreaseIndentation();
+                    }
                     emitter().decreaseIndentation();
                 }
                 OclMsg("All write buffer events released.\\n");
@@ -709,7 +731,13 @@ public interface DeviceHandle {
                 emitter().emit("for (int i = 0; i < dev->num_outputs; i++)");
                 {
                     emitter().increaseIndentation();
-                    OclCheck("clReleaseEvent(dev->read_buffer_event[i])");
+                    emitter().emit("if (dev->%s[i].active == true)",
+                            entity.getHandle().findField("read_buffer_event_info").get().getName());
+                    {
+                        emitter().increaseIndentation();
+                        OclCheck("clReleaseEvent(dev->read_buffer_event[i])");
+                        emitter().decreaseIndentation();
+                    }
                     emitter().decreaseIndentation();
                 }
                 OclMsg("All read buffer events released.\\n");
@@ -876,6 +904,7 @@ public interface DeviceHandle {
         {
             emitter().increaseIndentation();
             emitter().emit("%s counter;", defaultSizeType());
+            emitter().emit("bool active;");
             emitter().emit("char msg[128];");
             emitter().decreaseIndentation();
         }

@@ -26,13 +26,17 @@ void CL_CALLBACK completion_handler(cl_event event, cl_int cmd_status,
     command_str = "unsupported";
   }
   char callback_msg[2048];
-  sprintf(callback_msg, "<<Completed %s (%d)>>: %s\n", command_str,
-          event_info->counter, (char *)event_info->msg);
+
+  if (OCL_VERBOSE)
+      sprintf(callback_msg, "<<Completed %s (%d)>>: %s\n", command_str,
+              event_info->counter, (char *)event_info->msg);
   event_info->counter++;
+
   OCL_MSG("%s", callback_msg);
   fflush(stdout);
 }
 void on_completion(cl_event event, void *info) {
+
   OCL_CHECK(
       clSetEventCallback(event, CL_COMPLETE, completion_handler, (void *)info));
 }
@@ -229,12 +233,13 @@ void DeviceHandleRun(DeviceHandle_t *dev) {
 }
 
 void DeviceHandleTerminate(DeviceHandle_t *dev) {
-  clFlush(dev->world.command_queue);
-  clFinish(dev->world.command_queue);
+//  clFlush(dev->world.command_queue);
+//  clFinish(dev->world.command_queue);
   OCL_CHECK(clReleaseKernel(dev->kernel));
   OCL_CHECK(clReleaseProgram(dev->program));
   DeviceHandleReleaseMemObjects(dev);
   OCL_CHECK(clReleaseContext(dev->world.context));
+  OCL_CHECK(clReleaseCommandQueue(dev->world.command_queue));
   DeviceHandleFreeEvents(dev);
 }
 
