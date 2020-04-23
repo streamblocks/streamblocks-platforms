@@ -2,15 +2,18 @@ package ch.epfl.vlsc.orcc.backend.emitters;
 
 import ch.epfl.vlsc.orcc.backend.OrccBackend;
 import ch.epfl.vlsc.platformutils.Emitter;
+import ch.epfl.vlsc.platformutils.utils.MathUtils;
 import ch.epfl.vlsc.settings.PlatformSettings;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.Ports;
 import se.lth.cs.tycho.attribute.ScopeLiveness;
+import se.lth.cs.tycho.ir.Port;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.entity.am.ActorMachine;
 import se.lth.cs.tycho.ir.entity.am.PortCondition;
+import se.lth.cs.tycho.ir.entity.am.Transition;
 import se.lth.cs.tycho.ir.entity.am.ctrl.*;
 
 import java.util.*;
@@ -137,7 +140,44 @@ public interface Controller {
     }
 
     default void emitInstruction(ActorMachine am, String name, Exec exec, Map<State, Integer> stateNumbers) {
-        emitter().emit("%s_transition_%d();", name, exec.transition());
+        boolean alwaysAligned = backend().instance().transitionAlwaysAligned().get(am.getTransitions().get(exec.transition()));
+        boolean alignable = backend().instance().transitionAlignable().get(am.getTransitions().get(exec.transition()));
+
+        if (alwaysAligned) {
+            emitter().emit("%s_transition_%d_aligned();", name, exec.transition());
+        } else if (alignable) {
+            emitter().emit("{");
+            emitter().increaseIndentation();
+            emitter().emit("i32 isAligned = 1;");
+            Transition transition = am.getTransitions().get(exec.transition());
+            for (Port port : transition.getInputRates().keySet()) {
+                boolean isAlignable = transition.getInputRates().get(port) >= 2;
+
+                if (isAlignable && !backend().instance().portAlwaysAligned().get(port)) {
+                    emitter().emit("isAligned &= ((index_%1$s %% SIZE_%1$s) < ((index_%1$s + %2$d) %% SIZE_%1$s));", port.getName(), transition.getInputRates().get(port));
+                }
+            }
+
+            for (Port port : transition.getOutputRates().keySet()) {
+                boolean isAlignable = transition.getOutputRates().get(port) >= 2;
+
+                if (isAlignable && !backend().instance().portAlwaysAligned().get(port)) {
+                    emitter().emit("isAligned &= ((index_%1$s %% SIZE_%1$s) < ((index_%1$s + %2$d) %% SIZE_%1$s));", port.getName(), transition.getOutputRates().get(port));
+                }
+            }
+
+
+            emitter().emit("if(isAligned){");
+            emitter().emit("\t%s_transition_%d_aligned();", name, exec.transition());
+            emitter().emit("} else {");
+            emitter().emit("\t%s_transition_%d();", name, exec.transition());
+            emitter().emit("}");
+            emitter().decreaseIndentation();
+            emitter().emit("}");
+        } else {
+            emitter().emit("%s_transition_%d();", name, exec.transition());
+        }
+
         emitter().emit("i++;");
         emitter().emit("goto l_S%d;", stateNumbers.get(exec.target()));
         emitter().emit("");

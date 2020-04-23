@@ -94,15 +94,24 @@ public interface LValues {
             ind = expressioneval().evaluate(indexer.getIndex());
         }
 
+        boolean aligned = backend().alignedBox().isEmpty() ? false : backend().alignedBox().get();
         if (str.isPresent()) {
             if (isInput) {
-                return String.format("tokens_%s[(index_%1$s + (%s + %s)) %% SIZE_%1$s]", port.getName(), str.get(), ind);
+                if(aligned){
+                    return String.format("tokens_%s[(index_%1$s %% SIZE_%1$s) + (%s + %s))]", port.getName(), str.get(), ind);
+                }else{
+                    return String.format("tokens_%s[(index_%1$s + (%s + %s)) %% SIZE_%1$s]", port.getName(), str.get(), ind);
+                }
             } else {
                 return String.format("%s[%s + %s]", variables().name(var), str.get(), ind);
             }
         } else {
             if(isInput){
-                return String.format("tokens_%s[(index_%1$s + (%s)) %% SIZE_%1$s]", port.getName(), ind);
+                if(aligned){
+                    return String.format("tokens_%s[(index_%1$s %% SIZE_%1$s) + %s]", port.getName(), ind);
+                }else{
+                    return String.format("tokens_%s[(index_%1$s + (%s)) %% SIZE_%1$s]", port.getName(), ind);
+                }
             }else{
                 return String.format("%s[%s]", variables().name(var), ind);
             }

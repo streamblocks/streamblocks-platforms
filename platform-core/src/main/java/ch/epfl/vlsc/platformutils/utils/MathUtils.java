@@ -36,6 +36,16 @@ public class MathUtils {
     }
 
 
+    /**
+     * Returns <code>true</code> if the given integer is a power of two.
+     *
+     * @param n an integer
+     * @return <code>true</code> if the given integer is a power of two
+     */
+    public static boolean isPowerOfTwo(int n) {
+        return (n > 0) && (n & (n - 1)) == 0;
+    }
+
     public static int countBit(int n) {
         return (int) Math.floor(Math.log(n) / Math.log(2)) + 1;
     }

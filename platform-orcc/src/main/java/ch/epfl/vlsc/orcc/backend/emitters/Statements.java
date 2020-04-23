@@ -127,10 +127,19 @@ public interface Statements {
                 if (!(write.getValues().get(0) instanceof ExprComprehension)) {
                     String index = variables().generateTemp();
                     emitter().emit("for (size_t %1$s = 0; %1$s < (%2$s); %1$s++) {", index, repeat);
+                    boolean aligned = backend().alignedBox().isEmpty() ? false : backend().alignedBox().get();
                     if (!isInput) {
-                        emitter().emit("\ttokens_%1$s[(index_%1$s + (%2$s)) %% SIZE_%1$s] = %3$s[%4$s];", write.getPort().getName(), index, value, index);
+                        if (aligned) {
+                            emitter().emit("\ttokens_%1$s[(index_%1$s %% SIZE_%1$s) + %2$s] = %3$s[%4$s];", write.getPort().getName(), index, value, index);
+                        } else {
+                            emitter().emit("\ttokens_%1$s[(index_%1$s + (%2$s)) %% SIZE_%1$s] = %3$s[%4$s];", write.getPort().getName(), index, value, index);
+                        }
                     } else {
-                        emitter().emit("\ttokens_%1$s[(index_%1$s + (%2$s)) %% SIZE_%1$s] = tokens_%3$s[(index_%3$s + (%4$s)) %% SIZE_%3$s];", write.getPort().getName(), index, port.getName(), index);
+                        if (aligned) {
+                            emitter().emit("\ttokens_%1$s[(index_%1$s  %% SIZE_%1$s) + %2$s] = tokens_%3$s[(index_%3$s %% SIZE_%3$s ) + %4$s];", write.getPort().getName(), index, port.getName(), index);
+                        } else {
+                            emitter().emit("\ttokens_%1$s[(index_%1$s + (%2$s)) %% SIZE_%1$s] = tokens_%3$s[(index_%3$s + (%4$s)) %% SIZE_%3$s];", write.getPort().getName(), index, port.getName(), index);
+                        }
                     }
                     emitter().emit("}");
                 }

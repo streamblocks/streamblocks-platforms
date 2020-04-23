@@ -13,9 +13,7 @@ import se.lth.cs.tycho.ir.Variable;
 import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.expr.*;
-import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.stmt.StmtAssignment;
-import se.lth.cs.tycho.ir.stmt.StmtCall;
 import se.lth.cs.tycho.ir.stmt.StmtWrite;
 import se.lth.cs.tycho.ir.stmt.lvalue.LValueVariable;
 import se.lth.cs.tycho.ir.util.ImmutableList;
@@ -347,11 +345,11 @@ public interface ExpressionEvaluator {
         String index = variables().generateTemp();
         emitter().emit("size_t %s = 0;", index);
 
-        backend().writebox().set(isStmtWrite);
+        backend().writeBox().set(isStmtWrite);
 
         evaluateListComprehension(comprehension, name, index);
 
-        backend().writebox().clear();
+        backend().writeBox().clear();
         return name;
     }
 
@@ -368,7 +366,7 @@ public interface ExpressionEvaluator {
 
     default void evaluateListComprehension(ExprList list, String result, String index) {
         list.getElements().forEach(element -> {
-                    boolean isStmtWrite = backend().writebox().get();
+                    boolean isStmtWrite = backend().writeBox().get();
                     if(isStmtWrite){
                         emitter().emit("tokens_%1$s[(index_%1$s + (%2$s++)) %% SIZE_%1$s] = %3$s;", result, index, evaluate(element));
                     }else{
@@ -488,15 +486,24 @@ public interface ExpressionEvaluator {
             ind = evaluate(indexer.getIndex());
         }
 
+        boolean aligned = backend().alignedBox().isEmpty() ? false : backend().alignedBox().get();
         if (str.isPresent()) {
-            if(isInput){
-                return String.format("tokens_%s[(index_%1$s + (%s + %s)) %% SIZE_%1$s]", port.getName(), str.get(), ind);
-            }else{
+            if (isInput) {
+                if(aligned){
+                    return String.format("tokens_%s[(index_%1$s %% SIZE_%1$s) + (%s + %s))]", port.getName(), str.get(), ind);
+                }else{
+                    return String.format("tokens_%s[(index_%1$s + (%s + %s)) %% SIZE_%1$s]", port.getName(), str.get(), ind);
+                }
+            } else {
                 return String.format("%s[%s + %s]", variables().name(varDecl), str.get(), ind);
             }
         } else {
             if(isInput){
-                return String.format("tokens_%s[(index_%1$s + (%s)) %% SIZE_%1$s]", port.getName(), ind);
+                if(aligned){
+                    return String.format("tokens_%s[(index_%1$s %% SIZE_%1$s) + %s]", port.getName(), ind);
+                }else{
+                    return String.format("tokens_%s[(index_%1$s + (%s)) %% SIZE_%1$s]", port.getName(), ind);
+                }
             }else{
                 return String.format("%s[%s]", variables().name(varDecl), ind);
             }

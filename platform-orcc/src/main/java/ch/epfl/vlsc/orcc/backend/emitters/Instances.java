@@ -3,6 +3,7 @@ package ch.epfl.vlsc.orcc.backend.emitters;
 import ch.epfl.vlsc.orcc.backend.OrccBackend;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.PathUtils;
+import ch.epfl.vlsc.platformutils.utils.MathUtils;
 import ch.epfl.vlsc.settings.PlatformSettings;
 import org.multij.Binding;
 import org.multij.BindingKind;
@@ -26,6 +27,7 @@ import se.lth.cs.tycho.type.Type;
 
 import java.nio.file.Path;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Module
 public interface Instances {
@@ -59,6 +61,26 @@ public interface Instances {
     default String instanceQidName() {
         Instance instance = backend().instancebox().get();
         return backend().instaceQID(instance.getInstanceName(), "_");
+    }
+
+    @Binding(BindingKind.LAZY)
+    default Map<Transition, Boolean> transitionAlignable() {
+        return new HashMap<>();
+    }
+
+    @Binding(BindingKind.LAZY)
+    default Map<Transition, Boolean> transitionAlwaysAligned() {
+        return new HashMap<>();
+    }
+
+    @Binding(BindingKind.LAZY)
+    default Map<Port, Map<String, Integer>> portTransitionRate() {
+        return new HashMap<>();
+    }
+
+    @Binding(BindingKind.LAZY)
+    default Map<Port, Boolean> portAlwaysAligned() {
+        return new HashMap<>();
     }
 
     default void generateInstance(Instance instance) {
@@ -564,6 +586,43 @@ public interface Instances {
         }
     }
 
+
+    default void portAlignability(Port port, int index, int rate) {
+        boolean isAlignable = rate >= 2;
+        if (portTransitionRate().containsKey(port)) {
+            if (isAlignable) {
+                portTransitionRate().get(port).put("transition_" + index + "_ALIGNABLE", rate);
+            } else {
+                portTransitionRate().get(port).put("transition_" + index + "_NON_ALIGNABLE", rate);
+
+            }
+        } else {
+            Map<String, Integer> m = new HashMap<>();
+            if (isAlignable) {
+                m.put("transition_" + index + "_ALIGNABLE", rate);
+            } else {
+                m.put("transition_" + index + "_NON_ALIGNABLE", rate);
+            }
+            portTransitionRate().put(port, m);
+        }
+    }
+
+    default void setPortAlwaysAligned(Port port, int rate) {
+        boolean isAlwaysAligned = rate >= 2 && MathUtils.isPowerOfTwo(rate);
+        if (isAlwaysAligned) {
+            isAlwaysAligned = isAlwaysAligned
+                    && portTransitionRate().get(port).keySet().stream().filter(n -> n.endsWith("_ALIGNABLE")).count() == 1
+                    && portTransitionRate().get(port).keySet().stream().filter(n -> n.endsWith("_NOT_ALIGNABLE")).count() == 0;
+
+            if (portTransitionRate().get(port).keySet().stream().filter(n -> n.endsWith("_ALIGNABLE")).count() > 1) {
+                for (String id : (portTransitionRate().get(port).keySet().stream().filter(n -> n.endsWith("_ALIGNABLE")).collect(Collectors.toList()))) {
+                    isAlwaysAligned = isAlwaysAligned && (portTransitionRate().get(port).get(id) == rate);
+                }
+            }
+        }
+        portAlwaysAligned().put(port, isAlwaysAligned);
+    }
+
     /**
      * Transitions
      */
@@ -574,78 +633,136 @@ public interface Instances {
         assert !(entity instanceof ActorMachine);
         ActorMachine am = (ActorMachine) entity;
 
+
+        // -- Aligned / Always aligned
+        portTransitionRate().clear();
         for (Transition transition : am.getTransitions()) {
-            emitter().emit("static void %s_transition_%d(){", instanceQidName(), am.getTransitions().indexOf(transition));
-            {
-                emitter().increaseIndentation();
+            boolean isVectorizable = false;
 
-                // -- Traces IN
-                if (enableTraces() && !transition.getInputRates().isEmpty()) {
+            for (Port port : transition.getInputRates().keySet()) {
+                isVectorizable = transition.getInputRates().get(port) >= 2 || isVectorizable;
 
-                    emitter().emit("{");
-                    {
-                        emitter().increaseIndentation();
-
-                        for (Port port : transition.getInputRates().keySet()) {
-                            String index = backend().variables().generateTemp();
-                            emitter().emit("for (size_t %1$s = 0; %1$s < (%2$s); %1$s++) {", index, transition.getInputRates().get(port));
-                            emitter().emit("\tfprintf(file_%1$s, \"%%%3$s\\n\" ,tokens_%1$s[(index_%1$s + (%2$s)) %% SIZE_%1$s]);", port.getName(), index, typesEval().printFormat(backend().channelUtils().inputPortType(port)));
-                            emitter().emit("}");
-                        }
-
-                        emitter().decreaseIndentation();
-                        emitter().emit("}");
-                    }
-                }
-
-                backend().memoryStack().enterScope();
-                transition.getBody().forEach(backend().statements()::execute);
-                backend().memoryStack().exitScope();
-
-
-                // -- Traces OUT
-                if (enableTraces() && !transition.getOutputRates().isEmpty()) {
-
-                    emitter().emit("{");
-                    {
-                        emitter().increaseIndentation();
-
-                        for (Port port : transition.getOutputRates().keySet()) {
-                            String index = backend().variables().generateTemp();
-                            emitter().emit("for (size_t %1$s = 0; %1$s < (%2$s); %1$s++) {", index, transition.getOutputRates().get(port));
-                            emitter().emit("\tfprintf(file_%1$s, \"%%%3$s\\n\" ,tokens_%1$s[(index_%1$s + (%2$s)) %% SIZE_%1$s]);", port.getName(), index, typesEval().printFormat(backend().channelUtils().outputPortType(port)));
-                            emitter().emit("}");
-                        }
-
-                        emitter().decreaseIndentation();
-                        emitter().emit("}");
-                    }
-                }
-
-                // -- I/O Update
-                for (Port port : transition.getInputRates().keySet()) {
-                    emitter().emit("index_%s += %d;", port.getName(), transition.getInputRates().get(port));
-                    if (transition.getInputRates().get(port) > 2) {
-                        emitter().emit("read_end_%s();", port.getName());
-                    }
-                }
-                for (Port port : transition.getOutputRates().keySet()) {
-                    emitter().emit("index_%s += %d;", port.getName(), transition.getOutputRates().get(port));
-                    if (transition.getOutputRates().get(port) > 2) {
-                        emitter().emit("write_end_%s();", port.getName());
-                    }
-                }
-                for (Port port : transition.getInputRates().keySet()) {
-                    emitter().emit("rate_%s += %d;", port.getName(), transition.getInputRates().get(port));
-                }
-
-                emitter().decreaseIndentation();
+                portAlignability(port, am.getTransitions().indexOf(transition), transition.getInputRate(port));
             }
 
-            emitter().emit("}");
-            emitter().emitNewLine();
+
+            for (Port port : transition.getOutputRates().keySet()) {
+                isVectorizable = transition.getOutputRates().get(port) >= 2 || isVectorizable;
+
+                portAlignability(port, am.getTransitions().indexOf(transition), transition.getOutputRate(port));
+            }
+            transitionAlignable().put(transition, isVectorizable);
+        }
+
+
+        for (Transition transition : am.getTransitions()) {
+            boolean isAlwaysAligned = !transition.getInputRates().isEmpty() || !transition.getOutputRates().isEmpty();
+
+            for (Port port : transition.getInputRates().keySet()) {
+                setPortAlwaysAligned(port, transition.getInputRates().get(port));
+                isAlwaysAligned = isAlwaysAligned && portAlwaysAligned().get(port);
+            }
+
+            for (Port port : transition.getOutputRates().keySet()) {
+                setPortAlwaysAligned(port, transition.getOutputRates().get(port));
+                isAlwaysAligned = isAlwaysAligned && portAlwaysAligned().get(port);
+            }
+            transitionAlwaysAligned().put(transition, isAlwaysAligned);
+        }
+
+
+        for (Transition transition : am.getTransitions()) {
+            // -- Aligned / Always aligned
+            if (transitionAlwaysAligned().get(transition) && false) {
+                transition(am, transition, true);
+            } else {
+                transition(am, transition, false);
+                emitter().emitNewLine();
+                if (transitionAlignable().get(transition)) {
+                    transition(am, transition, true);
+                }
+            }
         }
     }
+
+    default void transition(ActorMachine am, Transition transition, boolean isAligned) {
+        backend().alignedBox().set(isAligned);
+        if (isAligned) {
+            emitter().emit("static void %s_transition_%d_aligned(){", instanceQidName(), am.getTransitions().indexOf(transition));
+        } else {
+            emitter().emit("static void %s_transition_%d(){", instanceQidName(), am.getTransitions().indexOf(transition));
+        }
+        {
+            emitter().increaseIndentation();
+
+            // -- Traces IN
+            if (enableTraces() && !transition.getInputRates().isEmpty()) {
+
+                emitter().emit("{");
+                {
+                    emitter().increaseIndentation();
+
+                    for (Port port : transition.getInputRates().keySet()) {
+                        String index = backend().variables().generateTemp();
+                        emitter().emit("for (size_t %1$s = 0; %1$s < (%2$s); %1$s++) {", index, transition.getInputRates().get(port));
+                        emitter().emit("\tfprintf(file_%1$s, \"%%%3$s\\n\" ,tokens_%1$s[(index_%1$s + (%2$s)) %% SIZE_%1$s]);", port.getName(), index, typesEval().printFormat(backend().channelUtils().inputPortType(port)));
+                        emitter().emit("}");
+                    }
+
+                    emitter().decreaseIndentation();
+                    emitter().emit("}");
+                }
+            }
+
+            backend().memoryStack().enterScope();
+            transition.getBody().forEach(backend().statements()::execute);
+            backend().memoryStack().exitScope();
+
+
+            // -- Traces OUT
+            if (enableTraces() && !transition.getOutputRates().isEmpty()) {
+
+                emitter().emit("{");
+                {
+                    emitter().increaseIndentation();
+
+                    for (Port port : transition.getOutputRates().keySet()) {
+                        String index = backend().variables().generateTemp();
+                        emitter().emit("for (size_t %1$s = 0; %1$s < (%2$s); %1$s++) {", index, transition.getOutputRates().get(port));
+                        emitter().emit("\tfprintf(file_%1$s, \"%%%3$s\\n\" ,tokens_%1$s[(index_%1$s + (%2$s)) %% SIZE_%1$s]);", port.getName(), index, typesEval().printFormat(backend().channelUtils().outputPortType(port)));
+                        emitter().emit("}");
+                    }
+
+                    emitter().decreaseIndentation();
+                    emitter().emit("}");
+                }
+            }
+
+            // -- I/O Update
+            for (Port port : transition.getInputRates().keySet()) {
+                emitter().emit("index_%s += %d;", port.getName(), transition.getInputRates().get(port));
+                if (transition.getInputRates().get(port) > 2) {
+                    emitter().emit("read_end_%s();", port.getName());
+                }
+            }
+            for (Port port : transition.getOutputRates().keySet()) {
+                emitter().emit("index_%s += %d;", port.getName(), transition.getOutputRates().get(port));
+                if (transition.getOutputRates().get(port) > 2) {
+                    emitter().emit("write_end_%s();", port.getName());
+                }
+            }
+            for (Port port : transition.getInputRates().keySet()) {
+                emitter().emit("rate_%s += %d;", port.getName(), transition.getInputRates().get(port));
+            }
+
+            emitter().decreaseIndentation();
+        }
+
+        emitter().emit("}");
+        emitter().emitNewLine();
+        backend().alignedBox().clear();
+    }
+
 
     /**
      * Initialize

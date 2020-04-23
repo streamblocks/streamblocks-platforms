@@ -37,19 +37,23 @@ public interface OrccBackend {
         return Box.empty();
     }
 
-    @Binding(LAZY)
-    default Box<Boolean> alignedbox() {
-        return Box.empty();
-    }
-
-    @Binding(LAZY)
-    default Box<Boolean> writebox() {
-        return Box.empty();
-    }
-
     // -- Entity Box
     @Binding(LAZY)
     default Box<Entity> entitybox() {
+        return Box.empty();
+    }
+
+    @Binding(LAZY)
+    default Box<Boolean> alignedBox() {
+        return Box.empty();
+    }
+    @Binding(LAZY)
+    default Box<Boolean> alwaysAlignedBox() {
+        return Box.empty();
+    }
+
+    @Binding(LAZY)
+    default Box<Boolean> writeBox() {
         return Box.empty();
     }
 
