@@ -147,10 +147,7 @@ public interface OutputStage {
         emitter().emit("wire   %s_output_stage_ap_done;", port.getName());
         emitter().emit("wire   %s_output_stage_ap_idle;", port.getName());
         emitter().emit("wire   %s_output_stage_ap_ready;", port.getName());
-        emitter().emit("wire    %s_sleep;", port.getSafeName());
-        emitter().emit("wire    %s_sync_wait;", port.getSafeName());
-        emitter().emit("wire    %s_sync_exec;", port.getSafeName());
-        emitter().emit("wire    %s_all_sleep;", port.getSafeName());
+
 
         emitter().emit("wire   [31 : 0] %s_output_stage_ap_return;", port.getName());
 

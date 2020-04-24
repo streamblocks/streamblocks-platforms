@@ -113,7 +113,7 @@ public class AddFanoutPhase implements Phase {
             GlobalEntityDecl fanoutEntity = GlobalEntityDecl.global(Availability.PUBLIC, originalEntityName, fanout, false);
 
             // -- Create instance
-            Instance instance = new Instance(fanoutInstanceName, QID.of(fanoutInstanceName), ImmutableList.empty(), ImmutableList.empty());
+            Instance instance = new Instance(fanoutInstanceName, QID.of(originalEntityName), ImmutableList.empty(), ImmutableList.empty());
             networkInstances.add(instance);
 
             // -- Create Connection from Port to Fanout
@@ -169,7 +169,7 @@ public class AddFanoutPhase implements Phase {
                 fanoutEntities.add(fanoutEntity);
 
                 // -- Create instance
-                Instance fanoutInstance = new Instance(fanoutInstanceName, QID.of(fanoutInstanceName), ImmutableList.empty(), ImmutableList.empty());
+                Instance fanoutInstance = new Instance(fanoutInstanceName, QID.of(originalEntityName), ImmutableList.empty(), ImmutableList.empty());
                 networkInstances.add(fanoutInstance);
 
                 // -- Create Connection from Port to Fanout

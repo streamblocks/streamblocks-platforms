@@ -1,8 +1,11 @@
 package ch.epfl.vlsc.settings;
 
+import ch.epfl.vlsc.compiler.PartitionedCompilationTask.PartitionKind;
 import se.lth.cs.tycho.settings.Configuration;
 import se.lth.cs.tycho.settings.IntegerSetting;
 import se.lth.cs.tycho.settings.OnOffSetting;
+import se.lth.cs.tycho.settings.EnumSetting;
+
 
 public class PlatformSettings {
 
@@ -61,6 +64,42 @@ public class PlatformSettings {
             return false;
         }
     };
+    // -- Partition phase setting
+    static public OnOffSetting PartitionNetwork =  new OnOffSetting() {
+        @Override
+        public String getKey() {
+            return "partitioning";
+        }
+
+        @Override
+        public String getDescription() {
+            return "Partitions the network into SW and HW, if an instance has no tag it will be placed in SW.";
+        }
+
+        @Override
+        public Boolean defaultValue(Configuration configuration) {
+            return false;
+        }
+    };
+
+    // -- Default partition setting
+    static public EnumSetting<PartitionKind> defaultPartition = new EnumSetting<PartitionKind>(PartitionKind.class) {
+        @Override
+        public String getKey() {
+            return "default-partition";
+        }
+
+        @Override
+        public String getDescription() {
+            return "default partition of instances";
+        }
+
+        @Override
+        public PartitionKind defaultValue(Configuration configuration) {
+            return PartitionKind.SW;
+        }
+    };
+
 
     static public OnOffSetting arbitraryPrecisionIntegers = new OnOffSetting() {
         @Override
@@ -112,5 +151,6 @@ public class PlatformSettings {
             return 4096;
         }
     };
+
 
 }

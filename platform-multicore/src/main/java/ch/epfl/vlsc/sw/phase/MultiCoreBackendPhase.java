@@ -4,11 +4,13 @@ import ch.epfl.vlsc.platformutils.ControllerToGraphviz;
 import ch.epfl.vlsc.platformutils.PathUtils;
 import ch.epfl.vlsc.settings.PlatformSettings;
 import ch.epfl.vlsc.sw.backend.MulticoreBackend;
+import ch.epfl.vlsc.sw.ir.PartitionLink;
 import org.multij.MultiJ;
 import se.lth.cs.tycho.compiler.CompilationTask;
 import se.lth.cs.tycho.compiler.Compiler;
 import se.lth.cs.tycho.compiler.Context;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
+import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.phase.Phase;
@@ -72,7 +74,10 @@ public class MultiCoreBackendPhase implements Phase {
 
     @Override
     public List<Setting<?>> getPhaseSettings() {
-        return ImmutableList.of(PlatformSettings.scopeLivenessAnalysis, PlatformSettings.runOnNode);
+        return ImmutableList.of(
+                PlatformSettings.scopeLivenessAnalysis,
+                PlatformSettings.runOnNode,
+                PlatformSettings.defaultBufferDepth);
     }
 
     /**
@@ -162,8 +167,22 @@ public class MultiCoreBackendPhase implements Phase {
     public static void generateInstrances(MulticoreBackend multicoreBackend) {
         for (Instance instance : multicoreBackend.task().getNetwork().getInstances()) {
             GlobalEntityDecl entityDecl = multicoreBackend.globalnames().entityDecl(instance.getEntityName(), true);
-            if (!entityDecl.getExternal())
-                multicoreBackend.instance().generateInstance(instance);
+            Entity entity = entityDecl.getEntity();
+            if (!entityDecl.getExternal()) {
+                if (entity instanceof PartitionLink) {
+                    multicoreBackend.context()
+                            .getReporter()
+                            .report(new Diagnostic(Diagnostic.Kind.INFO, "Emitting PartitionLink instance"));
+
+                    multicoreBackend.plink().generatePLink(instance);
+                    multicoreBackend.devicehandle().generateDeviceHandle(instance);
+                }
+
+                else
+                    multicoreBackend.instance().generateInstance(instance);
+
+            }
+
         }
     }
 
@@ -233,6 +252,9 @@ public class MultiCoreBackendPhase implements Phase {
      */
     private void copyBackendResources(MulticoreBackend multicoreBackend) {
 
+        boolean hasPlink = multicoreBackend.context().getConfiguration().isDefined(PlatformSettings.PartitionNetwork)
+                && multicoreBackend.context().getConfiguration().get(PlatformSettings.PartitionNetwork);
+
         try {
             // -- Copy Runtime
             URL url = getClass().getResource("/lib/");
@@ -248,6 +270,12 @@ public class MultiCoreBackendPhase implements Phase {
 
             // -- Copy streamblcoks.py
             Files.copy(getClass().getResourceAsStream("/python/streamblocks.py"), PathUtils.getTargetBin(multicoreBackend.context()).resolve("streamblocks.py"), StandardCopyOption.REPLACE_EXISTING);
+
+            // -- replace some files if plink is available
+            if (hasPlink) {
+                Files.copy(libPath.resolve("CMakeLists.plink.txt"), libPath.resolve("CMakeLists.txt"),
+                        StandardCopyOption.REPLACE_EXISTING);
+            }
         } catch (IOException e) {
             throw new CompilationException(new Diagnostic(Diagnostic.Kind.ERROR, "Could not copy multicoreBackend resources"));
         } catch (URISyntaxException e) {
@@ -255,6 +283,9 @@ public class MultiCoreBackendPhase implements Phase {
         } catch (FileSystemNotFoundException e) {
             throw new CompilationException(new Diagnostic(Diagnostic.Kind.ERROR, String.format("Could not copy multicoreBackend resources")));
         }
+
+
     }
+
 
 }

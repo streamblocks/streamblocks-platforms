@@ -364,13 +364,20 @@ public interface KernelWrapper {
 
         emitter().emitNewLine();
         emitter().emit("// -- input stage idle signal");
-        emitter().emit("assign input_stage_idle = %s;", String.join(" & ", network.getInputPorts().stream()
-                .map(i -> i.getName() + "_input_stage_ap_idle").collect(Collectors.toList())));
+        String inputStageIdle = (network.getInputPorts().size() > 0) ?
+            String.join(" & ", network.getInputPorts().stream()
+                    .map(i -> i.getName() + "_input_stage_ap_idle")
+                    .collect(Collectors.toList())) : "1'b1";
+        String outputStageIdle = (network.getOutputPorts().size() > 0) ?
+                String.join(" & ", network.getOutputPorts().stream()
+                    .map(o -> o.getName() + "_output_stage_ap_idle")
+                    .collect(Collectors.toList())) : "1'b1";
+
+        emitter().emit("assign input_stage_idle = %s;", inputStageIdle);
         emitter().emitNewLine();
 
         emitter().emit("// -- output stage idle signal");
-        emitter().emit("assign output_stage_idle = %s;", String.join(" & ", network.getOutputPorts().stream()
-                .map(i -> i.getName() + "_output_stage_ap_idle").collect(Collectors.toList())));
+        emitter().emit("assign output_stage_idle = %s;", outputStageIdle);
         emitter().emitNewLine();
 
     }

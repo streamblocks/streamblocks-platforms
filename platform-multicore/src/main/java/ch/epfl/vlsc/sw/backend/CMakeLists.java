@@ -2,6 +2,7 @@ package ch.epfl.vlsc.sw.backend;
 
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.PathUtils;
+import ch.epfl.vlsc.settings.PlatformSettings;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
@@ -69,6 +70,8 @@ public interface CMakeLists {
 
             emitter().decreaseIndentation();
         }
+        boolean hasPlink = backend().context().getConfiguration().isDefined(PlatformSettings.PartitionNetwork)
+                && backend().context().getConfiguration().get(PlatformSettings.PartitionNetwork);
         emitter().emit("else()");
         {
             emitter().increaseIndentation();
@@ -77,6 +80,8 @@ public interface CMakeLists {
             emitter().increaseIndentation();
             emitter().emit("lib/art-runtime/include");
             emitter().emit("lib/art-native/include");
+            if(hasPlink)
+                emitter().emit("lib/art-plink");
             emitter().decreaseIndentation();
             emitter().emit(")");
 
@@ -187,9 +192,12 @@ public interface CMakeLists {
             emitter().emit("target_include_directories(%s PRIVATE ./include)", backend().task().getIdentifier().getLast().toString());
             emitter().emitNewLine();
 
+            boolean hasPlink = backend().context().getConfiguration().isDefined(PlatformSettings.PartitionNetwork)
+                    && backend().context().getConfiguration().get(PlatformSettings.PartitionNetwork);
             // -- Target link libraries
             emitter().emit("# -- Target link libraries");
-            emitter().emit("target_link_libraries(%s art-genomic art-native art-runtime ${extra_libraries})", backend().task().getIdentifier().getLast().toString());
+            emitter().emit("target_link_libraries(%s art-genomic art-native art-runtime %s ${extra_libraries})",
+                    backend().task().getIdentifier().getLast().toString(), hasPlink ? "art-plink" : "");
             emitter().decreaseIndentation();
         }
         emitter().emit("endif()");
@@ -215,6 +223,7 @@ public interface CMakeLists {
 
         emitter().emitSharpBlockComment("Shared Module for each actor");
         emitter().emitNewLine();
+
         for (Instance instance : backend().task().getNetwork().getInstances()) {
             GlobalEntityDecl entityDecl = backend().globalnames().entityDecl(instance.getEntityName(), true);
             if (!entityDecl.getExternal()) {
@@ -243,6 +252,7 @@ public interface CMakeLists {
                     emitter().decreaseIndentation();
                 }
                 emitter().emit("endif()");
+
                 emitter().emit("target_link_libraries(%s art-node art-native ${extra_libraries})", name);
 
                 emitter().emitNewLine();

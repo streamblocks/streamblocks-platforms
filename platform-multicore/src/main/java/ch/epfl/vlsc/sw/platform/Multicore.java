@@ -1,5 +1,8 @@
 package ch.epfl.vlsc.sw.platform;
 
+import ch.epfl.vlsc.phases.ExtractSoftwarePartition;
+import ch.epfl.vlsc.phases.NetworkPartitioningPhase;
+import ch.epfl.vlsc.sw.phase.CreatePartitionLinkPhase;
 import ch.epfl.vlsc.sw.phase.MultiCoreBackendPhase;
 import se.lth.cs.tycho.compiler.Compiler;
 import se.lth.cs.tycho.ir.util.ImmutableList;
@@ -37,9 +40,17 @@ public class Multicore implements Platform {
         );
     }
 
+    public static List<Phase> partitioningPhases() {
+        return ImmutableList.of(
+                new NetworkPartitioningPhase(),
+                new ExtractSoftwarePartition(),
+                new CreatePartitionLinkPhase()
+        );
+    }
     private static final List<Phase> phases = ImmutableList.<Phase>builder()
             .addAll(Compiler.frontendPhases())
             .addAll(Compiler.networkElaborationPhases())
+            .addAll(partitioningPhases())
             .addAll(Compiler.nameAndTypeAnalysis())
             .addAll(Compiler.actorMachinePhases())
             .add(new RemoveUnusedEntityDeclsPhase())
