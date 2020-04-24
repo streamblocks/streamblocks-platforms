@@ -238,8 +238,8 @@ void DeviceHandleTerminate(DeviceHandle_t *dev) {
   OCL_CHECK(clReleaseKernel(dev->kernel));
   OCL_CHECK(clReleaseProgram(dev->program));
   DeviceHandleReleaseMemObjects(dev);
-  OCL_CHECK(clReleaseContext(dev->world.context));
   OCL_CHECK(clReleaseCommandQueue(dev->world.command_queue));
+  OCL_CHECK(clReleaseContext(dev->world.context));
   DeviceHandleFreeEvents(dev);
 }
 

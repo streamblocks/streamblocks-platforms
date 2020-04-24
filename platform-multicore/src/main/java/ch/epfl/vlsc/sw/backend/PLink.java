@@ -519,7 +519,15 @@ public interface PLink {
 
 
                 // -- execute the kernel
-                emitter().emit("%s(&thisActor->dev);", getMethod(handle, "run"));
+                emitter().emit("// -- copy the host buffers to device");
+                emitter().emit("%s(&thisActor->dev);", getMethod(handle, "enqueueWriteBuffers"));
+                emitter().emit("// -- set the kernel args");
+                emitter().emit("%s(&thisActor->dev);", getMethod(handle, "setArgs"));
+                emitter().emit("// -- enqueue the execution of the kernel");
+                emitter().emit("%s(&thisActor->dev);", getMethod(handle, "enqueueExecution"));
+                emitter().emit("// -- enqueue reading of consumed and produced sizes");
+                emitter().emit("%s(&thisActor->dev);", getMethod(handle, "enqueueReadSize"));
+
                 emitter().emitNewLine();
 
                 emitter().emit("thisActor->program_counter = 2;");
@@ -535,8 +543,10 @@ public interface PLink {
                 emitter().increaseIndentation();
                 emitter().emit("ART_ACTION_ENTER(RX, 1);");
                 //-- wait on device
-                emitter().emit("%s(&thisActor->dev);", getMethod(handle, "waitForDevice"));
-
+                emitter().emit("// -- read the produced and consumed size");
+                emitter().emit("%s(&thisActor->dev);", getMethod(handle, "waitForReadSize"));
+                emitter().emit("// -- read the device outputs buffers");
+                emitter().emit("%s(&thisActor->dev);", getMethod(handle, "enqueueReadBuffers"));
                 emitter().emitNewLine();
 
                 // -- consume tokens
@@ -562,6 +572,8 @@ public interface PLink {
             {
                 emitter().increaseIndentation();
                 emitter().emit("ART_ACTION_ENTER(WRITE, 2);");
+                emitter().emit("// -- wait for read transfer to complete");
+                emitter().emit("%s(&thisActor->dev);", getMethod(handle, "waitForReadBuffers"));
                 emitter().emit("uint32_t done_reading = 0;");
                 for (PortDecl port: entity.getOutputPorts()) {
                     String type = typeseval().type(types().declaredPortType(port));

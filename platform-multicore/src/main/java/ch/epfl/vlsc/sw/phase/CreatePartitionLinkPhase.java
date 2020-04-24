@@ -269,12 +269,15 @@ public class CreatePartitionLinkPhase implements Phase {
                 Method.of("void", "setArgs"),
                 Method.of("void", "enqueueExecution"),
                 Method.of("void", "enqueueWriteBuffers"),
+                Method.of("void", "enqueueReadSize"),
                 Method.of("void", "enqueueReadBuffers"),
-                Method.of("void", "waitForDevice"),
+                Method.of("void", "waitForReadSize"),
+                Method.of("void", "waitForReadBuffers"),
                 Method.of("void", "run"),
                 Method.of("void", "initEvents"),
                 Method.of("void", "releaseMemObjects"),
-                Method.of("void", "releaseReadEvents"),
+                Method.of("void", "releaseReadSizeEvents"),
+                Method.of("void", "releaseReadBufferEvents"),
                 Method.of("void", "releaseKernelEvent"),
                 Method.of("void", "releaseWriteEvents"),
                 Method.of("void", "freeEvents")
@@ -336,8 +339,8 @@ public class CreatePartitionLinkPhase implements Phase {
         if (inputPorts.size() > 0) {
             fields.addAll(
                     Field.of(
-                            "cl_event",
-                            "write_buffer_event[" + inputPorts.size() + "]",
+                            Type.of("cl_event", true),
+                            "write_buffer_event",
                             "an array containing write buffer events"),
                     Field.of(
                             Type.of("EventInfo", true),
@@ -348,8 +351,8 @@ public class CreatePartitionLinkPhase implements Phase {
         if (inputPorts.size() + outputPorts.size() > 0) {
             fields.addAll(
                     Field.of(
-                            "cl_event",
-                            "read_size_event[" + (inputPorts.size() + outputPorts.size()) + "]",
+                            Type.of("cl_event", true),
+                            "read_size_event",
                             "an array containing read size events"),
                     Field.of(
                             Type.of("EventInfo", true),
@@ -360,8 +363,8 @@ public class CreatePartitionLinkPhase implements Phase {
         if (outputPorts.size() > 0) {
             fields.addAll(
                     Field.of(
-                            "cl_event",
-                            "read_buffer_event[" + outputPorts.size() + "]",
+                            Type.of("cl_event", true),
+                            "read_buffer_event",
                             "an array containing read buffer events"),
                     Field.of(Type.of("EventInfo", true),
                             "read_buffer_event_info", "read buffer event info")

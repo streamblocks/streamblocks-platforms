@@ -1,6 +1,6 @@
 package ch.epfl.vlsc.sw.backend;
 
-import ch.epfl.vlsc.compiler.PartitionedCompilationTask;
+
 import ch.epfl.vlsc.platformutils.PathUtils;
 import ch.epfl.vlsc.settings.PlatformSettings;
 import ch.epfl.vlsc.sw.ir.PartitionHandle;
@@ -186,6 +186,8 @@ public interface DeviceHandle {
 
         getEnqueueExecution(entity);
 
+        getEnqueueReadSize(entity);
+
         getEnqueueReadBuffers(entity);
 
         getReleaseMemObjects(entity);
@@ -194,9 +196,13 @@ public interface DeviceHandle {
 
         getReleaseWriteEvents(entity);
 
-        getReleaseReadEvents(entity);
+        getReleaseReadSizeEvents(entity);
 
-        getWaitForDevice(entity);
+        getReleaseReadBufferEvents(entity);
+
+        getWaitForReadSize(entity);
+
+        getWaitForReadBuffers(entity);
 
         getFreeEvents(entity);
 
@@ -270,20 +276,31 @@ public interface DeviceHandle {
     }
 
     default void getInitEvents(PartitionLink entity) {
-        Method method = getMethod(entity.getHandle(), "initEvents");
-        emitter().emit("%s {", methodSignature(entity.getHandle(), method));
+        PartitionHandle handle = entity.getHandle();
+        Method method = getMethod(handle, "initEvents");
+        String numInputs = "dev->" + handle.findField("num_inputs").get().getName();
+        String numOutputs = "dev->" + handle.findField("num_outputs").get().getName();
+        emitter().emit("%s {", methodSignature(handle, method));
         {
             emitter().increaseIndentation();
             if (entity.getInputPorts().size() > 0) {
-                emitter().emit("dev->write_buffer_event_info = ");
-                emitter().emit("\t(EventInfo *)malloc(dev->num_inputs * sizeof(EventInfo));");
+                String writeBufferEvents = "dev->" + handle.findField("write_buffer_event").get().getName();
+
+
+                String writeBufferEventsInfo = "dev->" + handle.findField("write_buffer_event_info")
+                        .get().getName();
+
+
+                allocateEvent(writeBufferEvents, "cl_event", numInputs);
+                allocateEvent(writeBufferEventsInfo, "EventInfo", numInputs);
                 emitter().emitNewLine();
-                emitter().emit("for(int i = 0; i < dev->num_inputs; i++) {");
+                emitter().emit("for(int i = 0; i < %s; i++) {", numInputs);
                 {
                     emitter().increaseIndentation();
-                    emitter().emit("dev->write_buffer_event_info[i].counter = 0;");
-                    emitter().emit("dev->write_buffer_event_info[i].active = false;");
-                    emitter().emit("sprintf(dev->write_buffer_event_info[i].msg, \"write buffer event %%d\", i);");
+                    emitter().emit("%s[i].counter = 0;", writeBufferEventsInfo);
+                    emitter().emit("%s[i].active = false;", writeBufferEventsInfo);
+                    emitter().emit("sprintf(%s[i].msg, \"write buffer event %%d\", i);",
+                            writeBufferEventsInfo);
                     emitter().decreaseIndentation();
                 }
                 emitter().emit("}");
@@ -291,15 +308,20 @@ public interface DeviceHandle {
             }
 
             if (entity.getOutputPorts().size() > 0) {
-                emitter().emit("dev->read_buffer_event_info =");
-                emitter().emit("\t(EventInfo *)malloc(dev->num_outputs * sizeof(EventInfo));");
+                String readBufferEvents = "dev->" + handle.findField("read_buffer_event").get().getName();
+                String readBufferEventInfo = "dev->" + handle.findField("read_buffer_event_info")
+                        .get().getName();
+
+                allocateEvent(readBufferEvents, "cl_event", numOutputs);
+                allocateEvent(readBufferEventInfo, "EventInfo", numOutputs);
                 emitter().emitNewLine();
-                emitter().emit("for(int i = 0; i < dev->num_outputs; i++) {");
+                emitter().emit("for(int i = 0; i < %s; i++) {", numOutputs);
                 {
                     emitter().increaseIndentation();
-                    emitter().emit("dev->read_buffer_event_info[i].counter = 0;");
-                    emitter().emit("dev->read_buffer_event_info[i].active = false;");
-                    emitter().emit("sprintf(dev->read_buffer_event_info[i].msg, \"read buffer event %%d\", i);");
+                    emitter().emit("%s[i].counter = 0;", readBufferEventInfo);
+                    emitter().emit("%s[i].active = false;", readBufferEventInfo);
+                    emitter().emit("sprintf(%s[i].msg, \"read buffer event %%d\", i);",
+                            readBufferEventInfo);
                     emitter().decreaseIndentation();
 
                 }
@@ -307,28 +329,38 @@ public interface DeviceHandle {
 
             }
 
+            String readSizeEvents = "dev->" + handle.findField("read_size_event").get().getName();
+            String readSizeEventsInfo = "dev->" + handle.findField("read_size_event_info")
+                    .get().getName();
             emitter().emitNewLine();
-            emitter().emit("dev->read_size_event_info = ");
-            emitter().emit("\t(EventInfo*)malloc((dev->num_inputs + dev->num_outputs) * sizeof(EventInfo));");
-            emitter().emit("for (int i = 0; i < dev->num_inputs + dev->num_outputs; i++) {");
+            allocateEvent(readSizeEvents, "cl_event", "(" + numInputs + " + " + numOutputs + ")");
+            allocateEvent(readSizeEventsInfo, "EventInfo", "(" + numInputs + " + " + numOutputs + ")");
+
+
+            emitter().emit("for (int i = 0; i < %s + %s; i++) {", numInputs, numOutputs);
             {
                 emitter().increaseIndentation();
-                emitter().emit("dev->read_size_event_info[i].counter = 0;");
-                emitter().emit("dev->read_size_event_info[i].active = false;");
-                emitter().emit("sprintf(dev->read_size_event_info[i].msg, \"read size event %%d\", i);");
+                emitter().emit("%s[i].counter = 0;", readSizeEventsInfo);
+                emitter().emit("%s[i].active = false;", readSizeEventsInfo);
+                emitter().emit("sprintf(%s[i].msg, \"read size event %%d\", i);", readSizeEventsInfo);
                 emitter().decreaseIndentation();
             }
             emitter().emit("}");
 
             emitter().emitNewLine();
-            emitter().emit("dev->kernel_event_info.counter = 0;");
-            emitter().emit("dev->kernel_event_info.active = false;");
-            emitter().emit("sprintf(dev->kernel_event_info.msg, \"kernel event\");");
+            String kernelEvent = "dev->" + handle.findField("kernel_event").get().getName();
+            String kernelEventInfo = "dev->" + handle.findField("kernel_event_info").get().getName();
+            emitter().emit("%s.counter = 0;", kernelEventInfo);
+            emitter().emit("%s.active = false;", kernelEventInfo);
+            emitter().emit("sprintf(%s.msg, \"kernel event\");", kernelEventInfo);
             emitter().decreaseIndentation();
         }
         emitter().emitNewLine();
         emitter().emit("}");
 
+    }
+    default void allocateEvent(String name, String type, String size) {
+        emitter().emit("%s = (%s*) malloc (sizeof(%s) * %s);", name, type, type, size);
     }
     default void getSetArgs(PartitionLink entity) {
         Method method = getMethod(entity.getHandle(), "setArgs");
@@ -401,7 +433,7 @@ public interface DeviceHandle {
                             emitter().increaseIndentation();
                             emitter().emit("dev->world.command_queue, // -- the command queue");
                             emitter().emit("dev->%s_cl_buffer, // -- the cl device buffer", port.getName());
-                            emitter().emit("CL_TRUE, // -- blocking write operation"); // TODO: should become CL_FALSE
+                            emitter().emit("CL_FALSE, // -- blocking write operation");
                             emitter().emit("0, // -- buffer offset, not use");
                             emitter().emit("dev->%s_request_size * sizeof(%s), // -- size of data transfer in byte",
                                     port.getName(), portType(port));
@@ -483,12 +515,11 @@ public interface DeviceHandle {
 
     }
 
-    default void getEnqueueReadBuffers(PartitionLink entity) {
-        Method method = getMethod(entity.getHandle(), "enqueueReadBuffers");
+    default void getEnqueueReadSize(PartitionLink entity) {
+        Method method = getMethod(entity.getHandle(), "enqueueReadSize");
         emitter().emit("%s {", methodSignature(entity.getHandle(), method));
         {
             emitter().increaseIndentation();
-
             emitter().emitNewLine();
             ImmutableList<PortDecl> ports =
                     ImmutableList.from(
@@ -508,7 +539,7 @@ public interface DeviceHandle {
                         emitter().increaseIndentation();
                         emitter().emit("dev->world.command_queue, // -- command queue");
                         emitter().emit("dev->%s_cl_size, // -- device buffer", port.getName());
-                        emitter().emit("CL_TRUE, //-- blocking read"); // this should remain blocking
+                        emitter().emit("CL_FALSE, //-- blocking read");
                         emitter().emit("0, // -- offset");
                         emitter().emit("sizeof(%s), // -- size of the read transfer in bytes", defaultIntType());
                         emitter().emit("dev->%s_size, // -- host buffer for the stream size", port.getName());
@@ -528,6 +559,18 @@ public interface DeviceHandle {
 
             }
             emitter().emitNewLine();
+
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("}");
+    }
+    default void getEnqueueReadBuffers(PartitionLink entity) {
+        Method method = getMethod(entity.getHandle(), "enqueueReadBuffers");
+        emitter().emit("%s {", methodSignature(entity.getHandle(), method));
+        {
+            emitter().increaseIndentation();
+
+
             // -- output buffers
             emitter().emit("// -- Enqueue read for output buffers");
             for(PortDecl port: entity.getOutputPorts()) {
@@ -545,7 +588,7 @@ public interface DeviceHandle {
                             emitter().increaseIndentation();
                             emitter().emit("dev->world.command_queue, // -- command queue");
                             emitter().emit("dev->%s_cl_buffer, // -- device buffer", port.getName());
-                            emitter().emit("CL_TRUE, //-- blocking read"); // TODO: Should become CL_FALSE
+                            emitter().emit("CL_FALSE, //-- blocking read"); // TODO: Should become CL_FALSE
                             emitter().emit("0, // -- offset");
                             emitter().emit("dev->%s_size[0] * sizeof(%s), // -- size of the read transfer in bytes",
                                     port.getName(), portType(port));
@@ -657,20 +700,35 @@ public interface DeviceHandle {
 
 
     default void getFreeEvents(PartitionLink entity) {
-        Method method = getMethod(entity.getHandle(), "freeEvents");
-        emitter().emit("%s {", methodSignature(entity.getHandle(), method));
+        PartitionHandle handle = entity.getHandle();
+        Method method = getMethod(handle, "freeEvents");
+        emitter().emit("%s {", methodSignature(handle, method));
         {
             emitter().increaseIndentation();
             if (entity.getInputPorts().size() > 0) {
-                OclMsg("Freeing write buffer event info...\\n");
-                emitter().emit("free(dev->write_buffer_event_info);");
+                String writeEvents = "dev->" + handle.findField("write_buffer_event").get().getName();
+                String writeEventsInfo = "dev->" + handle.findField("write_buffer_event_info").get().getName();
+                OclMsg("Freeing write buffer events...\\n");
+                emitter().emit("free (%s);", writeEvents);
+                emitter().emit("free (%s);", writeEventsInfo);
+                emitter().emitNewLine();
+
             }
             if(entity.getOutputPorts().size() > 0) {
-                OclMsg("Freeing read buffer event info...\\n");
-                emitter().emit("free(dev->read_buffer_event_info);");
+                String readEvents = "dev->" + handle.findField("read_buffer_event").get().getName();
+                String readEventsInfo = "dev->" + handle.findField("read_buffer_event_info").get().getName();
+
+                OclMsg("Freeing read buffer events...\\n");
+                emitter().emit("free (%s);", readEvents);
+                emitter().emit("free (%s);", readEventsInfo);
+                emitter().emitNewLine();
             }
-            OclMsg("Freeing read size event info.. \\n");
-            emitter().emit("free(dev->read_size_event_info);");
+            OclMsg("Freeing read size events... \\n");
+            String readSizeEvents = "dev->" + handle.findField("read_size_event").get().getName();
+            String readSizeEventInfo = "dev->" + handle.findField("read_size_event_info").get().getName();
+            emitter().emit("free (%s);", readSizeEvents);
+            emitter().emit("free (%s);", readSizeEventInfo);
+            emitter().emitNewLine();
             emitter().decreaseIndentation();
         }
         emitter().emit("}");
@@ -708,41 +766,52 @@ public interface DeviceHandle {
         emitter().emit("}");
     }
 
-
-    default void getReleaseReadEvents(PartitionLink entity) {
-        Method method = getMethod(entity.getHandle(), "releaseReadEvents");
-        emitter().emit("%s {", methodSignature(entity.getHandle(), method));
+    default void getReleaseReadSizeEvents(PartitionLink entity) {
+        PartitionHandle handle = entity.getHandle();
+        Method method = getMethod(handle, "releaseReadSizeEvents");
+        emitter().emit("%s {", methodSignature(handle, method));
         {
             emitter().increaseIndentation();
+            String numInputs = "dev->" + handle.findField("num_inputs").get().getName();
+            String numOutputs = "dev->" + handle.findField("num_outputs").get().getName();
+            String events = "dev->" + handle.findField("read_size_event").get().getName();
 
-            OclMsg("Releasing read size events..\\n");
-            emitter().emit("for (int i = 0; i < dev->num_inputs + dev->num_outputs; i++) {");
+            emitter().emit("for (int i = 0; i < %s + %s; i++) {", numInputs, numOutputs);
             {
                 emitter().increaseIndentation();
-                OclCheck("clReleaseEvent(dev->read_size_event[i])");
+                OclCheck("clReleaseEvent(%s[i]);", events);
                 emitter().decreaseIndentation();
             }
             emitter().emit("}");
-            emitter().emitNewLine();
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("}");
+    }
 
+    default void getReleaseReadBufferEvents(PartitionLink entity) {
+        PartitionHandle handle = entity.getHandle();
+        Method method = getMethod(handle, "releaseReadBufferEvents");
+        emitter().emit("%s {", methodSignature(handle, method));
+        {
+            emitter().increaseIndentation();
             if (entity.getOutputPorts().size() > 0) {
-
-                OclMsg("Releasing read buffer events..\\n");
-                emitter().emit("for (int i = 0; i < dev->num_outputs; i++)");
+                String numOutputs = "dev->" + handle.findField("num_outputs").get().getName();
+                String events = "dev->" + handle.findField("read_buffer_event").get().getName();
+                emitter().emit("for (int i = 0; i < %s; i++) {", numOutputs);
                 {
                     emitter().increaseIndentation();
-                    emitter().emit("if (dev->%s[i].active == true)",
-                            entity.getHandle().findField("read_buffer_event_info").get().getName());
+                    String eventsInfo = "dev->" + handle.findField("read_buffer_event_info").get().getName();
+                    emitter().emit("if (%s[i].active == true)", eventsInfo);
                     {
                         emitter().increaseIndentation();
-                        OclCheck("clReleaseEvent(dev->read_buffer_event[i])");
+                        OclCheck("clReleaseEvent(%s[i])", events);
                         emitter().decreaseIndentation();
                     }
                     emitter().decreaseIndentation();
                 }
-                OclMsg("All read buffer events released.\\n");
+                emitter().emit("}");
             } else {
-                OclMsg("No read events present.");
+                OclMsg("No read buffer event present to release.\\n");
             }
             emitter().decreaseIndentation();
         }
@@ -750,30 +819,57 @@ public interface DeviceHandle {
     }
 
 
-    default void getWaitForDevice(PartitionLink entity) {
-
-        Method method = getMethod(entity.getHandle(), "waitForDevice");
-        emitter().emit("%s {", methodSignature(entity.getHandle(), method));
+    default void getWaitForReadSize(PartitionLink entity) {
+        PartitionHandle handle = entity.getHandle();
+        Method method = getMethod(handle, "waitForReadSize");
+        emitter().emit("%s {", methodSignature(handle, method));
         {
             emitter().increaseIndentation();
-            if (entity.getOutputPorts().size() > 0)
-                emitter().emit("clWaitForEvents(dev->num_outputs, dev->read_buffer_event);");
-            if (entity.getInputPorts().size() > 0){
-                Method releaseWrites = getMethod(entity.getHandle(), "releaseWriteEvents");
-                emitter().emit("%s(dev);", methodName(entity.getHandle(), releaseWrites));
-            }
-
-
-            Method releaseReads = getMethod(entity.getHandle(), "releaseReadEvents");
-            emitter().emit("%s(dev);", methodName(entity.getHandle(), releaseReads));
-
-            Method releaseKernel = getMethod(entity.getHandle(), "releaseKernelEvent");
-            emitter().emit("%s(dev);", methodName(entity.getHandle(), releaseKernel));
+            String numInputs = "dev->" + handle.findField("num_inputs").get().getName();
+            String numOutputs = "dev->" + handle.findField("num_outputs").get().getName();
+            String readSizeEvents = "dev->" + handle.findField("read_size_event").get().getName();
+            OclMsg("Waiting on read size events\\n");
+            OclCheck("clWaitForEvents(%s  + %s, %s)", numInputs, numOutputs, readSizeEvents);
+            OclMsg("Releasing read size events\\n");
+            Method releaseEvents = getMethod(handle, "releaseReadSizeEvents");
+            emitter().emit("%s(dev);", methodName(handle, releaseEvents));
             emitter().decreaseIndentation();
         }
-
+        emitter().emitNewLine();
+        emitter().emit("}");
+        emitter().emitNewLine();
+    }
+    default void getWaitForReadBuffers(PartitionLink entity) {
+        PartitionHandle handle = entity.getHandle();
+        Method method = getMethod(handle, "waitForReadBuffers");
+        emitter().emit("%s {", methodSignature(handle, method));
+        {
+            emitter().increaseIndentation();
+//            if (entity.getOutputPorts().size() > 0)
+//            {
+//                emitter().increaseIndentation();
+//                String numOutputs = "dev->" + handle.findField("num_outputs").get().getName();
+//                String readBuffersEvents = "dev->" + handle.findField("read_buffer_event").get().getName();
+//                OclMsg("Waiting on read buffer events\\n");
+//                OclCheck("clWaitForEvents(%s, %s)", numOutputs, readBuffersEvents);
+//                OclMsg("Releasing read buffer events\\n");
+//                Method releaseEvents = getMethod(handle, "releaseReadBufferEvents");
+//                emitter().emit("%s(dev);", methodName(handle, releaseEvents));
+//                emitter().decreaseIndentation();
+//            } else {
+//
+//                OclMsg("No read buffer event to wait on\\n");
+//            }
+            String cmdQ = "dev->" + handle.findField("world").get().getName() + ".command_queue";
+            emitter().emit("clFinish(%s);", cmdQ);
+            emitter().decreaseIndentation();
+        }
+        emitter().emitNewLine();
         emitter().emit("}");
     }
+
+
+
     /**
      * Generates the header file device-handle.h
      * @param entity the PartitionLink entity for which the header file is generated
