@@ -640,10 +640,6 @@ public interface VerilogTestbench {
             // -- Outputs
             network.getOutputPorts().forEach(p -> getDutIO("", p, false));
 
-            if (!network.getInputPorts().isEmpty()) {
-                emitter().emit(".input_idle(input_idle),");
-            }
-
             emitter().emit(".ap_clk(clock),");
             emitter().emit(".ap_rst_n(reset_n),");
             emitter().emit(".ap_start(ap_start),");
@@ -663,11 +659,21 @@ public interface VerilogTestbench {
             emitter().emit(".%s_din(%s_din),", portName, wireName);
             emitter().emit(".%s_full_n(%s_full_n),", portName, wireName);
             emitter().emit(".%s_write(%s_write),", portName, wireName);
+
         } else {
             emitter().emit(".%s_dout(%s_dout),", portName, wireName);
             emitter().emit(".%s_empty_n(%s_empty_n),", portName, wireName);
             emitter().emit(".%s_read(%s_read),", portName, wireName);
         }
+        emitter().emit(".%s_fifo_count(), // unused", portName);
+        emitter().emit(".%s_fifo_size(), // unused", portName);
+
+        emitter().emit("// -- trigger constants");
+        emitter().emit(".%s_sleep(1'b1),", portName);
+        emitter().emit(".%s_sync_wait(1'b1),", portName);
+        emitter().emit(".%s_sync_exec(1'b0),", portName);
+        emitter().emit(".%s_waited(1'b1),", portName);
+        emitter().emit(".%s_all_waited(), // unused", portName);
         emitter().emitNewLine();
     }
 
