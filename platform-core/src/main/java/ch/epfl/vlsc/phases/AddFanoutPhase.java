@@ -8,12 +8,17 @@ import se.lth.cs.tycho.ir.Variable;
 import se.lth.cs.tycho.ir.decl.*;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.entity.cal.*;
+import se.lth.cs.tycho.ir.expr.ExprCase;
+import se.lth.cs.tycho.ir.expr.ExprLiteral;
 import se.lth.cs.tycho.ir.expr.ExprVariable;
 import se.lth.cs.tycho.ir.expr.Expression;
+import se.lth.cs.tycho.ir.expr.pattern.PatternBinding;
+import se.lth.cs.tycho.ir.expr.pattern.PatternWildcard;
 import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.network.Network;
 import se.lth.cs.tycho.ir.stmt.Statement;
+import se.lth.cs.tycho.ir.stmt.StmtAssignment;
 import se.lth.cs.tycho.ir.stmt.StmtRead;
 import se.lth.cs.tycho.ir.stmt.StmtWrite;
 import se.lth.cs.tycho.ir.stmt.lvalue.LValue;
@@ -319,13 +324,22 @@ public class AddFanoutPhase implements Phase {
         // -- Input Port
         Port inPort = new Port("F_IN");
 
-        // -- Input Var Declarations
-        ImmutableList.Builder<InputVarDecl> inputVarDecls = ImmutableList.builder();
-        inputVarDecls.add(VarDecl.input("token"));
-
-        // -- Matchs
+        // -- Matches
         ImmutableList.Builder<Match> matches = ImmutableList.builder();
-        Match match = new Match(VarDecl.input("token"), null);
+
+        ImmutableList.Builder<ExprCase.Alternative> alternativeBuilder = ImmutableList.builder();
+        ExprCase.Alternative aTrue = new ExprCase.Alternative(
+                new PatternBinding(new PatternVarDecl("token")), ImmutableList.empty(), new ExprLiteral(ExprLiteral.Kind.True)
+        );
+        ExprCase.Alternative aFalse = new ExprCase.Alternative(
+                new PatternWildcard(), ImmutableList.empty(), new ExprLiteral(ExprLiteral.Kind.False)
+        );
+
+        alternativeBuilder.add(aTrue);
+        alternativeBuilder.add(aFalse);
+        ExprCase exprCase = new ExprCase(new ExprVariable(Variable.variable("$token")), alternativeBuilder.build());
+
+        Match match = new Match(VarDecl.input("$token"), exprCase);
         matches.add(match);
 
         // -- Input pattern

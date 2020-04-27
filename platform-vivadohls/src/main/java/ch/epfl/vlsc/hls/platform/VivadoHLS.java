@@ -67,6 +67,7 @@ public class VivadoHLS implements Platform {
             .addAll(Compiler.frontendPhases())
             .add(new RecursiveTypeDetectionPhase())
             .addAll(networkElaborationPhases())
+            .addAll(Compiler.nameAndTypeAnalysis())
             .addAll(actorMachinePhases())
             .add(new RemoveUnusedEntityDeclsPhase())
             .add(new VivadoHLSBackendPhase())

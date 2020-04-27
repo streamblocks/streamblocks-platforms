@@ -5,6 +5,7 @@ import ch.epfl.vlsc.hls.backend.kernel.AxiConstants;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.PathUtils;
 import ch.epfl.vlsc.platformutils.utils.MathUtils;
+import ch.epfl.vlsc.settings.PlatformSettings;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
@@ -280,9 +281,9 @@ public interface VerilogNetwork {
         // Local IO sync signals
         emitter().emitNewLine();
         emitter().emit("// -- Local IO sync signals");
-        for (PortDecl port: backend().task().getNetwork().getInputPorts())
+        for (PortDecl port : backend().task().getNetwork().getInputPorts())
             emitter().emit("wire    %s;", getPortTriggerSignalByName(port, "sync"));
-        for (PortDecl port: backend().task().getNetwork().getOutputPorts())
+        for (PortDecl port : backend().task().getNetwork().getOutputPorts())
             emitter().emit("wire    %s;", getPortTriggerSignalByName(port, "sync"));
         emitter().emitNewLine();
     }
@@ -374,7 +375,7 @@ public interface VerilogNetwork {
             emitter().emit("wire    %s;", getTriggerSignalByName(instance, "sync_exec"));
             emitter().emit("wire    %s;", getTriggerSignalByName(instance, "sync"));
 
-            
+
             emitter().emit("// -- Signals for the module");
             emitter().emit("wire    %s_ap_start;", qidName);
             emitter().emit("wire    %s_ap_idle;", qidName);
@@ -591,7 +592,11 @@ public interface VerilogNetwork {
                     Connection connection = backend().task().getNetwork().getConnections().stream()
                             .filter(c -> c.getTarget().equals(target)).findAny().orElse(null);
                     String queueName = queueNames().get(connection);
-                    emitter().emit(".io_%s_peek(%s),", portName, String.format("%s_peek", queueName));
+                    if (!backend().context().getConfiguration().get(PlatformSettings.arbitraryPrecisionIntegers)) {
+                        emitter().emit(".io_%s_peek(%s),", portName, String.format("%s_peek", queueName));
+                    }else{
+                        emitter().emit(".io_%s_peek_V(%s),", portName, String.format("%s_peek", queueName));
+                    }
                     emitter().emit(".io_%s_count(%s),", portName, String.format("%s_count", queueName));
 
                     emitter().emitNewLine();
@@ -1013,7 +1018,11 @@ public interface VerilogNetwork {
 
     default String getPortExtension() {
         // -- TODO : Add _V_V for type accuracy
-        return "_V";
+        if (backend().context().getConfiguration().get(PlatformSettings.arbitraryPrecisionIntegers)) {
+            return "_V_V";
+        } else {
+            return "_V";
+        }
     }
 
     @Binding(BindingKind.LAZY)

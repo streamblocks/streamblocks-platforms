@@ -40,11 +40,14 @@ public interface PatternMatching {
             emitter().decreaseIndentation();
             emitter().emit("}");
         });
-        emitter().emit("if (!%s) {", match);
-        emitter().increaseIndentation();
-        backend().statements().copy(backend().types().type(caseExpr), result, backend().types().type(caseExpr.getDefault()), backend().expressioneval().evaluate(caseExpr.getDefault()));
-        emitter().decreaseIndentation();
-        emitter().emit("}");
+        emitter().emit("%s = %s;", backend().declarations().declaration(type, result), backend().defaultValues().defaultValue(type));
+        caseExpr.getAlternatives().forEach(alternative -> {
+            emitter().emit("if (!%s) {", match);
+            emitter().increaseIndentation();
+            evaluateAlternative(alternative, expr, result, match);
+            emitter().decreaseIndentation();
+            emitter().emit("}");
+        });
         return result;
     }
 
@@ -58,13 +61,6 @@ public interface PatternMatching {
             emitter().emit("if (!%s) {", match);
             emitter().increaseIndentation();
             executeAlternative(alternative, expr, match);
-            emitter().decreaseIndentation();
-            emitter().emit("}");
-        });
-        caseStmt.getDefault().ifPresent(default_ -> {
-            emitter().emit("if (!%s) {", match);
-            emitter().increaseIndentation();
-            backend().statements().execute(default_);
             emitter().decreaseIndentation();
             emitter().emit("}");
         });
