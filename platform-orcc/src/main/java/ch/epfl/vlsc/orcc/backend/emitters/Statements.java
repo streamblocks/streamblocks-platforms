@@ -77,77 +77,79 @@ public interface Statements {
      */
 
     default void execute(StmtWrite write) {
-        if (write.getRepeatExpression() == null) {
-            Type type = types().portType(write.getPort());
-            String portType;
-            if (type instanceof AlgebraicType) {
-                portType = "ref";
+        if (!backend().instance().portVars().containsKey(write.getPort())) {
+            if (write.getRepeatExpression() == null) {
+                Type type = types().portType(write.getPort());
+                String portType;
+                if (type instanceof AlgebraicType) {
+                    portType = "ref";
 
-            } else {
-                portType = typeseval().type(type);
+                } else {
+                    portType = typeseval().type(type);
 
-            }
-            String tmp = variables().generateTemp();
-            emitter().emit("%s = %s;", declarartions().declaration(types().portType(write.getPort()), tmp), backend().defaultValues().defaultValue(type));
-
-            for (Expression expr : write.getValues()) {
-                if (expr instanceof ExprVariable) {
-                    backend().memoryStack().untrackPointer(expressioneval().evaluate(expr));
                 }
-                emitter().emit("%s = %s;", tmp, expressioneval().evaluate(expr));
-                emitter().emit("tokens_%1$s[(index_%1$s + (%2$d)) %% SIZE_%1$s] = %3$s;", write.getPort().getName(), write.getValues().indexOf(expr), tmp);
-            }
-        } else if (write.getValues().size() == 1) {
-            Type valueType = types().type(write.getValues().get(0));
-            Type portType = channelsutils().outputPortType(write.getPort());
-            String value = expressioneval().evaluate(write.getValues().get(0));
+                String tmp = variables().generateTemp();
+                emitter().emit("%s = %s;", declarartions().declaration(types().portType(write.getPort()), tmp), backend().defaultValues().defaultValue(type));
 
-            boolean isInput = false;
-            Port port = null;
-            if (write.getValues().get(0) instanceof ExprVariable) {
-                ExprVariable var = (ExprVariable) write.getValues().get(0);
-                VarDecl decl = backend().varDecls().declaration(var);
+                for (Expression expr : write.getValues()) {
+                    if (expr instanceof ExprVariable) {
+                        backend().memoryStack().untrackPointer(expressioneval().evaluate(expr));
+                    }
+                    emitter().emit("%s = %s;", tmp, expressioneval().evaluate(expr));
+                    emitter().emit("tokens_%1$s[(index_%1$s + (%2$d)) %% SIZE_%1$s] = %3$s;", write.getPort().getName(), write.getValues().indexOf(expr), tmp);
+                }
+            } else if (write.getValues().size() == 1) {
+                Type valueType = types().type(write.getValues().get(0));
+                Type portType = channelsutils().outputPortType(write.getPort());
+                String value = expressioneval().evaluate(write.getValues().get(0));
 
-                if (decl.getValue() != null) {
-                    if (decl.getValue() instanceof ExprInput) {
-                        ExprInput e = (ExprInput) decl.getValue();
-                        if (e.hasRepeat()) {
-                            isInput = true;
-                            port = e.getPort();
+                boolean isInput = false;
+                Port port = null;
+                if (write.getValues().get(0) instanceof ExprVariable) {
+                    ExprVariable var = (ExprVariable) write.getValues().get(0);
+                    VarDecl decl = backend().varDecls().declaration(var);
+
+                    if (decl.getValue() != null) {
+                        if (decl.getValue() instanceof ExprInput) {
+                            ExprInput e = (ExprInput) decl.getValue();
+                            if (e.hasRepeat()) {
+                                isInput = true;
+                                port = e.getPort();
+                            }
                         }
                     }
                 }
-            }
 
 
-            String repeat = expressioneval().evaluate(write.getRepeatExpression());
+                String repeat = expressioneval().evaluate(write.getRepeatExpression());
 
-            // -- Hack type conversion : to be fixed
-            if (valueType instanceof ListType) {
-                if (!(write.getValues().get(0) instanceof ExprComprehension)) {
-                    String index = variables().generateTemp();
-                    emitter().emit("for (size_t %1$s = 0; %1$s < (%2$s); %1$s++) {", index, repeat);
-                    boolean aligned = backend().alignedBox().isEmpty() ? false : backend().alignedBox().get();
-                    if (!isInput) {
-                        if (aligned) {
-                            emitter().emit("\ttokens_%1$s[(index_%1$s %% SIZE_%1$s) + %2$s] = %3$s[%4$s];", write.getPort().getName(), index, value, index);
+                // -- Hack type conversion : to be fixed
+                if (valueType instanceof ListType) {
+                    if (!(write.getValues().get(0) instanceof ExprComprehension)) {
+                        String index = variables().generateTemp();
+                        emitter().emit("for (size_t %1$s = 0; %1$s < (%2$s); %1$s++) {", index, repeat);
+                        boolean aligned = backend().alignedBox().isEmpty() ? false : backend().alignedBox().get();
+                        if (!isInput) {
+                            if (aligned) {
+                                emitter().emit("\ttokens_%1$s[(index_%1$s %% SIZE_%1$s) + %2$s] = %3$s[%4$s];", write.getPort().getName(), index, value, index);
+                            } else {
+                                emitter().emit("\ttokens_%1$s[(index_%1$s + (%2$s)) %% SIZE_%1$s] = %3$s[%4$s];", write.getPort().getName(), index, value, index);
+                            }
                         } else {
-                            emitter().emit("\ttokens_%1$s[(index_%1$s + (%2$s)) %% SIZE_%1$s] = %3$s[%4$s];", write.getPort().getName(), index, value, index);
+                            if (aligned) {
+                                emitter().emit("\ttokens_%1$s[(index_%1$s  %% SIZE_%1$s) + %2$s] = tokens_%3$s[(index_%3$s %% SIZE_%3$s ) + %4$s];", write.getPort().getName(), index, port.getName(), index);
+                            } else {
+                                emitter().emit("\ttokens_%1$s[(index_%1$s + (%2$s)) %% SIZE_%1$s] = tokens_%3$s[(index_%3$s + (%4$s)) %% SIZE_%3$s];", write.getPort().getName(), index, port.getName(), index);
+                            }
                         }
-                    } else {
-                        if (aligned) {
-                            emitter().emit("\ttokens_%1$s[(index_%1$s  %% SIZE_%1$s) + %2$s] = tokens_%3$s[(index_%3$s %% SIZE_%3$s ) + %4$s];", write.getPort().getName(), index, port.getName(), index);
-                        } else {
-                            emitter().emit("\ttokens_%1$s[(index_%1$s + (%2$s)) %% SIZE_%1$s] = tokens_%3$s[(index_%3$s + (%4$s)) %% SIZE_%3$s];", write.getPort().getName(), index, port.getName(), index);
-                        }
+                        emitter().emit("}");
                     }
-                    emitter().emit("}");
+                } else {
+                    emitter().emit("pinWriteRepeat_%s(%s, %s, %s);", channelsutils().outputPortTypeSize(write.getPort()), channelsutils().definedOutputPort(write.getPort()), value, repeat);
                 }
             } else {
-                emitter().emit("pinWriteRepeat_%s(%s, %s, %s);", channelsutils().outputPortTypeSize(write.getPort()), channelsutils().definedOutputPort(write.getPort()), value, repeat);
+                throw new Error("not implemented");
             }
-        } else {
-            throw new Error("not implemented");
         }
     }
 

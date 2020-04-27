@@ -18,7 +18,8 @@ import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.network.Network;
 import se.lth.cs.tycho.ir.util.ImmutableList;
-import se.lth.cs.tycho.type.*;
+import se.lth.cs.tycho.type.ListType;
+import se.lth.cs.tycho.type.Type;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -52,7 +53,24 @@ public interface VerilogNetwork {
         return "all_waited";
     }
 
+    default Boolean useTrigger() {
+        if (backend().triggerBox().isEmpty()) {
+            return false;
+        } else {
+            return backend().triggerBox().get();
+        }
+    }
+
     default void generateNetwork() {
+        backend().triggerBox().set(true);
+        networkContent();
+        backend().triggerBox().set(false);
+        networkContent();
+        backend().triggerBox().clear();
+    }
+
+
+    default void networkContent() {
         // -- Identifier
         String identifier = backend().task().getIdentifier().getLast().toString();
 
@@ -60,12 +78,18 @@ public interface VerilogNetwork {
         Network network = backend().task().getNetwork();
 
         // -- Network file
+        if (!useTrigger()) {
+            identifier = identifier + "_pure";
+        }
+
         emitter().open(PathUtils.getTargetCodeGenRtl(backend().context()).resolve(identifier + ".sv"));
 
-        emitter().emit("`include \"TriggerTypes.sv\"");
-        emitter().emit("import TriggerTypes::*;");
+        if (useTrigger()) {
+            emitter().emit("`include \"TriggerTypes.sv\"");
+            emitter().emit("import TriggerTypes::*;");
 
-        emitter().emitNewLine();
+            emitter().emitNewLine();
+        }
 
         // -- Network module
         if (backend().externalMemory().externalMemories().isEmpty()) {
@@ -135,7 +159,8 @@ public interface VerilogNetwork {
             // getILA(network.getInstances());
 
             // -- Assignments
-            getAssignments(network);
+            if (useTrigger())
+                getAssignments(network);
 
             emitter().decreaseIndentation();
         }
@@ -173,8 +198,12 @@ public interface VerilogNetwork {
             String memName = backend().externalMemory().externalMemories().get(decl);
             emitter().emit("input  wire    [64 - 1 : 0]    %s_offset,", memName);
         }
-        // -- Trigger signals
-        getTriggerSignals(network);
+
+        if (useTrigger()) {
+            // -- Trigger signals
+            getTriggerSignals(network);
+        }
+
         // -- System IO
         getSystemSignals();
     }
@@ -200,9 +229,13 @@ public interface VerilogNetwork {
     default void getSystemSignals() {
         emitter().emit("input  wire ap_clk,");
         emitter().emit("input  wire ap_rst_n,");
-        emitter().emit("input  wire ap_start,");
-        emitter().emit("output wire ap_idle,");
-        emitter().emit("output wire  ap_done");
+        if (useTrigger()) {
+            emitter().emit("input  wire ap_start,");
+            emitter().emit("output wire ap_idle,");
+            emitter().emit("output wire ap_done");
+        } else {
+            emitter().emit("input  wire ap_start");
+        }
         // emitter().emit("input wire input_idle");
     }
 
@@ -240,10 +273,15 @@ public interface VerilogNetwork {
         // -- Queue depth parameters
         emitter().emit("// ------------------------------------------------------------------------");
         emitter().emit("// -- Parameters");
-        emitter().emit("localparam mode_t trigger_mode = ACTOR_TRIGGER;");
         emitter().emitNewLine();
-        getQueueDepthParameters(network.getConnections());
 
+        if (useTrigger()) {
+            emitter().emit("// -- Trigger Mode");
+            emitter().emit("localparam mode_t trigger_mode = ACTOR_TRIGGER;");
+            emitter().emitNewLine();
+        }
+
+        getQueueDepthParameters(network.getConnections());
     }
 
     default void getQueueDepthParameters(List<Connection> connections) {
@@ -264,28 +302,35 @@ public interface VerilogNetwork {
         emitter().emit("// ------------------------------------------------------------------------");
         emitter().emit("// -- Wires & Regs");
         emitter().emitNewLine();
-        emitter().emit("reg am_idle_r = 1'b1;");
-        emitter().emit("wire am_idle;");
+
+        // -- Network trigger idle result
+        if (useTrigger()) {
+            // -- Network trigger idle
+            emitter().emit("reg am_idle_r = 1'b1;");
+            emitter().emit("wire am_idle;");
+            emitter().emitNewLine();
+        }
+
         // -- Queue wires
         getFifoQueueWires(network.getConnections());
-        emitter().emitNewLine();
 
-        emitter().emitNewLine();
         // -- Instance AP control wires
         getInstanceApControlWires(network.getInstances());
 
-        // -- Trigger wires
-        getGlobalTriggerWires();
-        getLocalTriggerWires(network.getInstances());
+        if (useTrigger()) {
+            // -- Trigger wires
+            getGlobalTriggerWires();
+            getLocalTriggerWires(network.getInstances());
 
-        // Local IO sync signals
-        emitter().emitNewLine();
-        emitter().emit("// -- Local IO sync signals");
-        for (PortDecl port : backend().task().getNetwork().getInputPorts())
-            emitter().emit("wire    %s;", getPortTriggerSignalByName(port, "sync"));
-        for (PortDecl port : backend().task().getNetwork().getOutputPorts())
-            emitter().emit("wire    %s;", getPortTriggerSignalByName(port, "sync"));
-        emitter().emitNewLine();
+            // Local IO sync signals
+            emitter().emitNewLine();
+            emitter().emit("// -- Local IO sync signals");
+            for (PortDecl port : backend().task().getNetwork().getInputPorts())
+                emitter().emit("wire    %s;", getPortTriggerSignalByName(port, "sync"));
+            for (PortDecl port : backend().task().getNetwork().getOutputPorts())
+                emitter().emit("wire    %s;", getPortTriggerSignalByName(port, "sync"));
+            emitter().emitNewLine();
+        }
     }
 
     default void getFifoQueueWires(List<Connection> connections) {
@@ -338,12 +383,13 @@ public interface VerilogNetwork {
 
     default void getInstanceApControlWires(List<Instance> instances) {
         for (Instance instance : instances) {
-            String name = instance.getInstanceName();
-            emitter().emit("// -- Instance AP Control Wires : %s", name);
-            emitter().emit("wire %s_ap_done;", name);
-            emitter().emit("wire %s_ap_idle;", name);
-            emitter().emit("wire %s_ap_ready;", name);
-            emitter().emit("wire [31:0] %s_ap_return;", name);
+            String qidName = backend().instaceQID(instance.getInstanceName(), "_");
+            emitter().emit("// -- Instance AP Control Wires : %s", qidName);
+            emitter().emit("wire %s_ap_start;", qidName);
+            emitter().emit("wire %s_ap_done;", qidName);
+            emitter().emit("wire %s_ap_idle;", qidName);
+            emitter().emit("wire %s_ap_ready;", qidName);
+            emitter().emit("wire [31:0] %s_ap_return;", qidName);
             emitter().emitNewLine();
         }
     }
@@ -375,14 +421,14 @@ public interface VerilogNetwork {
             emitter().emit("wire    %s;", getTriggerSignalByName(instance, "sync_exec"));
             emitter().emit("wire    %s;", getTriggerSignalByName(instance, "sync"));
 
-
+/*
             emitter().emit("// -- Signals for the module");
             emitter().emit("wire    %s_ap_start;", qidName);
             emitter().emit("wire    %s_ap_idle;", qidName);
             emitter().emit("wire    %s_ap_done;", qidName);
             emitter().emit("wire    %s_ap_ready;", qidName);
             emitter().emit("wire    [31 : 0] %s_ap_return;", qidName);
-
+*/
             emitter().emit("// -- Signal for wake up and sleep");
             emitter().emit("wire    %s_waited;", qidName);
             emitter().emit("wire    %s_all_waited;", qidName);
@@ -483,41 +529,44 @@ public interface VerilogNetwork {
         Entity entity = entityDecl.getEntity();
 
         emitter().emit("// -- Instance : %s", qidName);
-        if (entity instanceof ActorMachine) {
+        if (useTrigger()) {
+            if (entity instanceof ActorMachine) {
 
-            emitter().emit("trigger #(.mode(trigger_mode)) i_%s_trigger (", qidName);
-            {
-                emitter().increaseIndentation();
+                emitter().emit("trigger #(.mode(trigger_mode)) i_%s_trigger (", qidName);
+                {
+                    emitter().increaseIndentation();
 
-                emitter().emit(".ap_clk(ap_clk),");
-                emitter().emit(".ap_rst_n(ap_rst_n),");
-                emitter().emit(".ap_start(ap_start),");
-                emitter().emit(".ap_done(%s_trigger_ap_done),", qidName);
-                emitter().emit(".ap_idle(%s_trigger_ap_idle),", qidName);
-                emitter().emit(".ap_ready(%s_trigger_ap_ready),", qidName);
-                emitter().emit(".external_enqueue(%s),", getExternalEnqueueSignal());
-                emitter().emit(".all_sync(%s),", getAllSyncSignal());
-                emitter().emit(".all_sync_wait(%s),", getAllSyncWaitSignal());
-                emitter().emit(".all_sleep(%s),", getAllSleepSignal());
-                emitter().emit(".sleep(%s),", getTriggerSignalByName(instance, "sleep"));
-                emitter().emit(".sync_exec(%s),", getTriggerSignalByName(instance, "sync_exec"));
-                emitter().emit(".sync_wait(%s),", getTriggerSignalByName(instance, "sync_wait"));
-                emitter().emit(".waited(%s),", getTriggerSignalByName(instance, "waited"));
-                emitter().emit(".all_waited(%s),", getTriggerSignalByName(instance, "all_waited"));
-                emitter().emit(".actor_return(%s_ap_return),", qidName);
-                emitter().emit(".actor_done(%s_ap_done),", qidName);
-                emitter().emit(".actor_ready(%s_ap_ready),", qidName);
-                emitter().emit(".actor_idle(%s_ap_idle),", qidName);
-                emitter().emit(".actor_start(%s_ap_start)", qidName);
+                    emitter().emit(".ap_clk(ap_clk),");
+                    emitter().emit(".ap_rst_n(ap_rst_n),");
+                    emitter().emit(".ap_start(ap_start),");
+                    emitter().emit(".ap_done(%s_trigger_ap_done),", qidName);
+                    emitter().emit(".ap_idle(%s_trigger_ap_idle),", qidName);
+                    emitter().emit(".ap_ready(%s_trigger_ap_ready),", qidName);
+                    emitter().emit(".external_enqueue(%s),", getExternalEnqueueSignal());
+                    emitter().emit(".all_sync(%s),", getAllSyncSignal());
+                    emitter().emit(".all_sync_wait(%s),", getAllSyncWaitSignal());
+                    emitter().emit(".all_sleep(%s),", getAllSleepSignal());
+                    emitter().emit(".sleep(%s),", getTriggerSignalByName(instance, "sleep"));
+                    emitter().emit(".sync_exec(%s),", getTriggerSignalByName(instance, "sync_exec"));
+                    emitter().emit(".sync_wait(%s),", getTriggerSignalByName(instance, "sync_wait"));
+                    emitter().emit(".waited(%s),", getTriggerSignalByName(instance, "waited"));
+                    emitter().emit(".all_waited(%s),", getTriggerSignalByName(instance, "all_waited"));
+                    emitter().emit(".actor_return(%s_ap_return),", qidName);
+                    emitter().emit(".actor_done(%s_ap_done),", qidName);
+                    emitter().emit(".actor_ready(%s_ap_ready),", qidName);
+                    emitter().emit(".actor_idle(%s_ap_idle),", qidName);
+                    emitter().emit(".actor_start(%s_ap_start)", qidName);
 
-                emitter().decreaseIndentation();
+                    emitter().decreaseIndentation();
+                }
+                emitter().emit(");");
+            } else {
+                emitter().emit("assign %s_ap_start = %s;", qidName, String.join(" || ", entity.getInputPorts().stream()
+                        .map(p -> String.format("q_%s_%s_empty_n", name, p.getName())).collect(Collectors.toList())));
             }
-            emitter().emit(");");
             emitter().emitNewLine();
-
         } else {
-            emitter().emit("assign %s_ap_start = %s;", qidName, String.join(" || ", entity.getInputPorts().stream()
-                    .map(p -> String.format("q_%s_%s_empty_n", name, p.getName())).collect(Collectors.toList())));
+            emitter().emit("assign %s_ap_start = ap_start;", qidName);
             emitter().emitNewLine();
         }
 
@@ -594,7 +643,7 @@ public interface VerilogNetwork {
                     String queueName = queueNames().get(connection);
                     if (!backend().context().getConfiguration().get(PlatformSettings.arbitraryPrecisionIntegers)) {
                         emitter().emit(".io_%s_peek(%s),", portName, String.format("%s_peek", queueName));
-                    }else{
+                    } else {
                         emitter().emit(".io_%s_peek_V(%s),", portName, String.format("%s_peek", queueName));
                     }
                     emitter().emit(".io_%s_count(%s),", portName, String.format("%s_count", queueName));
@@ -630,6 +679,7 @@ public interface VerilogNetwork {
             emitter().decreaseIndentation();
         }
         emitter().emit(");");
+        emitter().emitNewLine();
         return qidName;
     }
 
@@ -686,13 +736,15 @@ public interface VerilogNetwork {
         emitter().emit("// ------------------------------------------------------------------------");
         emitter().emit("// -- Assignments");
         emitter().emitNewLine();
+
         // -- Trigger assignments
         getTriggerAssignments(network.getInstances());
+
         // -- AP Control
         getApControlAssignments(network);
+
         // -- Count and Size
         getExternalAssignments(network);
-
     }
 
     default void getNetworkIsBeingExecutingAssignment(Network network) {
@@ -1017,7 +1069,6 @@ public interface VerilogNetwork {
     // -- Helper methods
 
     default String getPortExtension() {
-        // -- TODO : Add _V_V for type accuracy
         if (backend().context().getConfiguration().get(PlatformSettings.arbitraryPrecisionIntegers)) {
             return "_V_V";
         } else {

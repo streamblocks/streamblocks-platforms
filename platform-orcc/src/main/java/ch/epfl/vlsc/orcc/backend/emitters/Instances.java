@@ -8,8 +8,10 @@ import ch.epfl.vlsc.settings.PlatformSettings;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
+import org.multij.MultiJ;
 import se.lth.cs.tycho.attribute.GlobalNames;
 import se.lth.cs.tycho.attribute.Types;
+import se.lth.cs.tycho.ir.IRNode;
 import se.lth.cs.tycho.ir.Parameter;
 import se.lth.cs.tycho.ir.Port;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
@@ -22,11 +24,14 @@ import se.lth.cs.tycho.ir.expr.*;
 import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.network.Network;
+import se.lth.cs.tycho.ir.stmt.StmtBlock;
+import se.lth.cs.tycho.ir.stmt.StmtWrite;
 import se.lth.cs.tycho.type.CallableType;
 import se.lth.cs.tycho.type.Type;
 
 import java.nio.file.Path;
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 @Module
@@ -80,6 +85,11 @@ public interface Instances {
 
     @Binding(BindingKind.LAZY)
     default Map<Port, Boolean> portAlwaysAligned() {
+        return new HashMap<>();
+    }
+
+    @Binding(BindingKind.LAZY)
+    default Map<Port, List<VarDecl>> portVars() {
         return new HashMap<>();
     }
 
@@ -686,6 +696,13 @@ public interface Instances {
     }
 
     default void transition(ActorMachine am, Transition transition, boolean isAligned) {
+        StmtWriteCollector collector = MultiJ.from(StmtWriteCollector.class).
+                bind("backend").
+                to(backend()).instance();
+
+        transition.getBody().forEach(s -> collector.accept(s));
+        //portVars().putAll(collector.portVars());
+
         backend().alignedBox().set(isAligned);
         if (isAligned) {
             emitter().emit("static void %s_transition_%d_aligned(){", instanceQidName(), am.getTransitions().indexOf(transition));
@@ -761,6 +778,7 @@ public interface Instances {
         emitter().emit("}");
         emitter().emitNewLine();
         backend().alignedBox().clear();
+        portVars().clear();
     }
 
 
@@ -828,5 +846,49 @@ public interface Instances {
         ActorMachine am = (ActorMachine) entity;
         backend().controller().emitController(instanceQidName(), am);
     }
+
+
+    @Module
+    interface StmtWriteCollector extends Consumer<IRNode> {
+        @Binding(BindingKind.LAZY)
+        default Map<Port, List<VarDecl>> portVars() {
+            return new HashMap<>();
+        }
+
+        @Binding(BindingKind.INJECTED)
+        OrccBackend backend();
+
+        @Override
+        default void accept(IRNode node) {
+            node.forEachChild(this);
+        }
+
+        default void accept(StmtWrite write) {
+            if (write.getRepeatExpression() != null) {
+                List<VarDecl> l = new ArrayList<>();
+                for (Expression e : write.getValues()) {
+                    if (e instanceof ExprVariable) {
+                        ExprVariable exprVariable = (ExprVariable) e;
+                        VarDecl decl = backend().varDecls().declaration(exprVariable);
+                        IRNode parent = backend().tree().parent(decl);
+                        if (parent instanceof StmtBlock) {
+                            if (!(decl.getValue() instanceof ExprInput)) {
+                                l.add(decl);
+                                portVars().put(write.getPort(), l);
+                            }
+                        } else if (parent instanceof Scope) {
+                            if (!((Scope) parent).isPersistent()) {
+                                if (!(decl.getValue() instanceof ExprInput)) {
+                                    l.add(decl);
+                                    portVars().put(write.getPort(), l);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
 
 }

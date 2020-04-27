@@ -55,14 +55,34 @@ public interface LValues {
         Variable var = evalLValueIndexerVar(indexer);
 
         VarDecl decl = backend().varDecls().declaration(var);
-        boolean isInput = false;
+        boolean isIO = false;
         Port port = null;
         if (decl.getValue() != null) {
             if (decl.getValue() instanceof ExprInput) {
                 ExprInput e = (ExprInput) decl.getValue();
                 if (e.hasRepeat()) {
-                    isInput = true;
+                    isIO = true;
                     port = e.getPort();
+                }
+            } else {
+                for (Port p : backend().instance().portVars().keySet()) {
+                    for (VarDecl d : backend().instance().portVars().get(p)) {
+                        if (d == decl) {
+                            port = p;
+                            isIO = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        } else {
+            for (Port p : backend().instance().portVars().keySet()) {
+                for (VarDecl d : backend().instance().portVars().get(p)) {
+                    if (d == decl) {
+                        port = p;
+                        isIO = true;
+                        break;
+                    }
                 }
             }
         }
@@ -96,23 +116,23 @@ public interface LValues {
 
         boolean aligned = backend().alignedBox().isEmpty() ? false : backend().alignedBox().get();
         if (str.isPresent()) {
-            if (isInput) {
-                if(aligned){
+            if (isIO) {
+                if (aligned) {
                     return String.format("tokens_%s[(index_%1$s %% SIZE_%1$s) + (%s + %s))]", port.getName(), str.get(), ind);
-                }else{
+                } else {
                     return String.format("tokens_%s[(index_%1$s + (%s + %s)) %% SIZE_%1$s]", port.getName(), str.get(), ind);
                 }
             } else {
                 return String.format("%s[%s + %s]", variables().name(var), str.get(), ind);
             }
         } else {
-            if(isInput){
-                if(aligned){
+            if (isIO) {
+                if (aligned) {
                     return String.format("tokens_%s[(index_%1$s %% SIZE_%1$s) + %s]", port.getName(), ind);
-                }else{
+                } else {
                     return String.format("tokens_%s[(index_%1$s + (%s)) %% SIZE_%1$s]", port.getName(), ind);
                 }
-            }else{
+            } else {
                 return String.format("%s[%s]", variables().name(var), ind);
             }
         }

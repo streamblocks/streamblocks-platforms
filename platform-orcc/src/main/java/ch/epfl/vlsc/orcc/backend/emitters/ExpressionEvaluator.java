@@ -321,13 +321,26 @@ public interface ExpressionEvaluator {
     default String evaluateComprehension(ExprComprehension comprehension, ListType t) {
         Type typeForTmp = t;
         IRNode parent = backend().tree().parent(comprehension);
-        String name;
+        String name = null;
         Boolean isStmtWrite = false;
         if (parent instanceof StmtAssignment) {
             StmtAssignment stmt = (StmtAssignment) parent;
             if (stmt.getLValue() instanceof LValueVariable) {
+                boolean isIO = false;
                 LValueVariable lvalue = (LValueVariable) stmt.getLValue();
-                name = backend().variables().name(lvalue.getVariable());
+                VarDecl decl = backend().varDecls().declaration(lvalue);
+                for (Port port : backend().instance().portVars().keySet()) {
+                    for (VarDecl d : backend().instance().portVars().get(port)) {
+                        if (d == decl) {
+                            isIO = true;
+                            isStmtWrite = true;
+                            name = port.getName();
+                            break;
+                        }
+                    }
+                }
+                if (!isIO)
+                    name = backend().variables().name(lvalue.getVariable());
             } else {
                 name = variables().generateTemp();
                 String decl = declarations().declarationTemp(t, name);
@@ -367,9 +380,9 @@ public interface ExpressionEvaluator {
     default void evaluateListComprehension(ExprList list, String result, String index) {
         list.getElements().forEach(element -> {
                     boolean isStmtWrite = backend().writeBox().get();
-                    if(isStmtWrite){
+                    if (isStmtWrite) {
                         emitter().emit("tokens_%1$s[(index_%1$s + (%2$s++)) %% SIZE_%1$s] = %3$s;", result, index, evaluate(element));
-                    }else{
+                    } else {
                         emitter().emit("%s[%s++] = %s;", result, index, evaluate(element));
                     }
                 }
@@ -457,6 +470,26 @@ public interface ExpressionEvaluator {
                     isInput = true;
                     port = e.getPort();
                 }
+            }else{
+                for (Port p : backend().instance().portVars().keySet()) {
+                    for (VarDecl d : backend().instance().portVars().get(p)) {
+                        if (d == varDecl) {
+                            port = p;
+                            isInput = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        } else {
+            for (Port p : backend().instance().portVars().keySet()) {
+                for (VarDecl d : backend().instance().portVars().get(p)) {
+                    if (d == varDecl) {
+                        port = p;
+                        isInput = true;
+                        break;
+                    }
+                }
             }
         }
 
@@ -489,22 +522,22 @@ public interface ExpressionEvaluator {
         boolean aligned = backend().alignedBox().isEmpty() ? false : backend().alignedBox().get();
         if (str.isPresent()) {
             if (isInput) {
-                if(aligned){
+                if (aligned) {
                     return String.format("tokens_%s[(index_%1$s %% SIZE_%1$s) + (%s + %s))]", port.getName(), str.get(), ind);
-                }else{
+                } else {
                     return String.format("tokens_%s[(index_%1$s + (%s + %s)) %% SIZE_%1$s]", port.getName(), str.get(), ind);
                 }
             } else {
                 return String.format("%s[%s + %s]", variables().name(varDecl), str.get(), ind);
             }
         } else {
-            if(isInput){
-                if(aligned){
+            if (isInput) {
+                if (aligned) {
                     return String.format("tokens_%s[(index_%1$s %% SIZE_%1$s) + %s]", port.getName(), ind);
-                }else{
+                } else {
                     return String.format("tokens_%s[(index_%1$s + (%s)) %% SIZE_%1$s]", port.getName(), ind);
                 }
-            }else{
+            } else {
                 return String.format("%s[%s]", variables().name(varDecl), ind);
             }
         }

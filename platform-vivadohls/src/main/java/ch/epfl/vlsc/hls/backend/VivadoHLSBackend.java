@@ -50,6 +50,12 @@ public interface VivadoHLSBackend {
         return Box.empty();
     }
 
+    // -- Use trigger box
+    @Binding(LAZY)
+    default Box<Boolean> triggerBox() {
+        return Box.empty();
+    }
+
     // -- Globals names
     @Binding(LAZY)
     default GlobalNames globalnames() {
