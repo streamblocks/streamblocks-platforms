@@ -67,7 +67,6 @@ public interface VivadoTCL {
         emitter().emit("import_files -norecurse {@CMAKE_SOURCE_DIR@/code-gen/rtl/trigger.sv}");
         emitter().emit("import_files -norecurse {@CMAKE_SOURCE_DIR@/code-gen/rtl/fifo.v}");
         emitter().emit("import_files -norecurse {@CMAKE_SOURCE_DIR@/code-gen/rtl/%s.sv}", identifier);
-        emitter().emit("import_files -norecurse {@CMAKE_SOURCE_DIR@/code-gen/rtl/%s_pure.sv}", identifier);
         emitter().emitNewLine();
     }
 
