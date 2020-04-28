@@ -642,10 +642,15 @@ public interface VerilogNetwork {
                     Connection connection = backend().task().getNetwork().getConnections().stream()
                             .filter(c -> c.getTarget().equals(target)).findAny().orElse(null);
                     String queueName = queueNames().get(connection);
-                    if (!backend().context().getConfiguration().get(PlatformSettings.arbitraryPrecisionIntegers)) {
-                        emitter().emit(".io_%s_peek(%s),", portName, String.format("%s_peek", queueName));
+                    if (backend().context().getConfiguration().get(PlatformSettings.arbitraryPrecisionIntegers)) {
+                        Type type = backend().types().declaredPortType(port);
+                        if(type instanceof IntType){
+                            emitter().emit(".io_%s_peek_V(%s),", portName, String.format("%s_peek", queueName));
+                        }else{
+                            emitter().emit(".io_%s_peek(%s),", portName, String.format("%s_peek", queueName));
+                        }
                     } else {
-                        emitter().emit(".io_%s_peek_V(%s),", portName, String.format("%s_peek", queueName));
+                        emitter().emit(".io_%s_peek(%s),", portName, String.format("%s_peek", queueName));
                     }
                     emitter().emit(".io_%s_count(%s),", portName, String.format("%s_count", queueName));
 
@@ -686,7 +691,6 @@ public interface VerilogNetwork {
 
 
     default void getInstancePortDeclaration(PortDecl port, String name, Boolean isInput) {
-        String portName = port.getName();
         getInstanceIOPortDeclaration(port, name, "", isInput);
         emitter().emitNewLine();
     }
