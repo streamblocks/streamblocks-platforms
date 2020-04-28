@@ -18,6 +18,7 @@ import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.network.Network;
 import se.lth.cs.tycho.ir.util.ImmutableList;
+import se.lth.cs.tycho.type.IntType;
 import se.lth.cs.tycho.type.ListType;
 import se.lth.cs.tycho.type.Type;
 
@@ -686,24 +687,27 @@ public interface VerilogNetwork {
 
     default void getInstancePortDeclaration(PortDecl port, String name, Boolean isInput) {
         String portName = port.getName();
-        getInstanceIOPortDeclaration(portName, name, "", isInput);
+        getInstanceIOPortDeclaration(port, name, "", isInput);
         emitter().emitNewLine();
     }
 
-    default void getInstanceIOPortDeclaration(String portName, String name, String portNameExtension, Boolean isInput) {
+    default void getInstanceIOPortDeclaration(PortDecl port, String name, String portNameExtension, Boolean isInput) {
+        String portName = port.getSafeName();
+        Type type = backend().types().declaredPortType(port);
+        String getPortExtension = getPortExtension(type);
         if (isInput) {
-            emitter().emit(".%s%s%s_empty_n(%s),", portName, getPortExtension(), portNameExtension,
+            emitter().emit(".%s%s%s_empty_n(%s),", portName, getPortExtension, portNameExtension,
                     String.format("q_%s_%s%s_empty_n", name, portName, portNameExtension));
-            emitter().emit(".%s%s%s_read(%s),", portName, getPortExtension(), portNameExtension,
+            emitter().emit(".%s%s%s_read(%s),", portName, getPortExtension, portNameExtension,
                     String.format("q_%s_%s%s_read", name, portName, portNameExtension));
-            emitter().emit(".%s%s%s_dout(%s),", portName, getPortExtension(), portNameExtension,
+            emitter().emit(".%s%s%s_dout(%s),", portName, getPortExtension, portNameExtension,
                     String.format("q_%s_%s%s_dout", name, portName, portNameExtension));
         } else {
-            emitter().emit(".%s%s%s_full_n(%s),", portName, getPortExtension(), portNameExtension,
+            emitter().emit(".%s%s%s_full_n(%s),", portName, getPortExtension, portNameExtension,
                     String.format("q_%s_%s%s_full_n", name, portName, portNameExtension));
-            emitter().emit(".%s%s%s_write(%s),", portName, getPortExtension(), portNameExtension,
+            emitter().emit(".%s%s%s_write(%s),", portName, getPortExtension, portNameExtension,
                     String.format("q_%s_%s%s_write", name, portName, portNameExtension));
-            emitter().emit(".%s%s%s_din(%s),", portName, getPortExtension(), portNameExtension,
+            emitter().emit(".%s%s%s_din(%s),", portName, getPortExtension, portNameExtension,
                     String.format("q_%s_%s%s_din", name, portName, portNameExtension));
         }
     }
@@ -1068,12 +1072,17 @@ public interface VerilogNetwork {
     // ------------------------------------------------------------------------
     // -- Helper methods
 
-    default String getPortExtension() {
-        if (backend().context().getConfiguration().get(PlatformSettings.arbitraryPrecisionIntegers)) {
-            return "_V_V";
+    default String getPortExtension(Type type) {
+        if (type instanceof IntType) {
+            if (backend().context().getConfiguration().get(PlatformSettings.arbitraryPrecisionIntegers)) {
+                return "_V_V";
+            } else {
+                return "_V";
+            }
         } else {
             return "_V";
         }
+
     }
 
     @Binding(BindingKind.LAZY)

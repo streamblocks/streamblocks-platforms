@@ -61,6 +61,9 @@ public interface PackageKernel {
         }
 */
 
+        // -- Set Top
+        setTop(identifier);
+
         // -- Package project
         emitter().emitSharpComment("Package kernel");
         emitter().emit("ipx::package_project -root_dir $path_to_packaged -vendor epfl.ch -library RTLKernel -taxonomy /KernelIP -import_files -set_current false");
@@ -149,6 +152,12 @@ public interface PackageKernel {
         emitter().emit("# -- Import files for %s", ioStageId);
         emitter().emit("set %s_files [glob -directory @CMAKE_CURRENT_BINARY_DIR@/%1$s/solution/syn/verilog *{v,dat}]", ioStageId);
         emitter().emit("import_files -norecurse $%s_files", ioStageId);
+        emitter().emitNewLine();
+    }
+
+    default void setTop(String name){
+        emitter().emit("# -- Set top");
+        emitter().emit("set_property top %s_kernel [current_fileset]", name);
         emitter().emitNewLine();
     }
 
