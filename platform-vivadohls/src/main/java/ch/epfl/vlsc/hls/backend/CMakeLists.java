@@ -52,6 +52,25 @@ public interface CMakeLists {
         emitter().emit("option(OPENCL_HOST \"Build an example OpenCL Host executable for Vitis orSDAccel\" OFF)");
         emitter().emitNewLine();
 
+
+        // -- hardware debug and profile options
+        emitter().emitSharpBlockComment("Profile and Debug Options");
+        emitter().emit("option(HW_PROFILE \"Profile the DDR traffic\" OFF)");
+        emitter().emit("option(HW_DEBUG \"Add protocol checker debug cores\" OFF)");
+
+        // -- set the values for profile and debug conditionally
+        emitter().emit("if (HW_PROFILE)");
+        emitter().emit("\tset(XOCC_PROFILE \"--profile_kernel\\tdata:all:all:all\")");
+        emitter().emit("else()");
+        emitter().emit("\tset(XOCC_PROFILE \"\")");
+        emitter().emit("endif()");
+
+        emitter().emit("if (HW_DEBUG)");
+        emitter().emit("\tset(XOCC_DEBUG \"--dk\\tprotocol:${CMAKE_PROJECT_NAME}_kernel_1:all\")");
+        emitter().emit("else()");
+        emitter().emit("\tset(XOCC_DEBUG \"\")");
+        emitter().emit("endif()");
+
         // -- Vivado HLS Clock and FPGA CMake Variables
         emitter().emitSharpComment("CMake Variables");
         emitter().emit("set(FPGA_NAME \"xczu3eg-sbva484-1-e\" CACHE STRING \"Name of Xilinx FPGA, e.g \\\"xcku115-flvb2104-2-e\\\", \\\"xczu3eg-sbva484-1-e\\\",..\")");
@@ -320,7 +339,7 @@ public interface CMakeLists {
                     emitter().emit(
                             "OUTPUT  ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xclbin");
                     emitter().emit(
-                            "COMMAND ${VITIS_VPP} -g -t ${TARGET} --platform ${PLATFORM} --kernel_frequency ${KERNEL_FREQ}  --save-temps  -lo ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xclbin ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xo  > ${CMAKE_PROJECT_NAME}_kernel_xclbin.log");
+                            "COMMAND ${VITIS_VPP} -g -t ${TARGET} --platform ${PLATFORM} --kernel_frequency ${KERNEL_FREQ}  --save-temps  ${XOCC_DEBUG} ${XOCC_PROFILE} -lo ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xclbin ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xo  > ${CMAKE_PROJECT_NAME}_kernel_xclbin.log");
                     emitter().emit("DEPENDS ${CMAKE_PROJECT_NAME}_kernel_xo");
 
                     emitter().decreaseIndentation();
@@ -340,7 +359,7 @@ public interface CMakeLists {
                     emitter().emit(
                             "OUTPUT  ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xclbin");
                     emitter().emit(
-                            "COMMAND ${SDACCEL_XOCC} -g -t ${TARGET} --platform ${PLATFORM} --kernel_frequency ${KERNEL_FREQ} --save-temps  -lo ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xclbin ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xo  > ${CMAKE_PROJECT_NAME}_kernel_xclbin.log");
+                            "COMMAND ${SDACCEL_XOCC} -g -t ${TARGET} --platform ${PLATFORM} --kernel_frequency ${KERNEL_FREQ} --save-temps ${XOCC_DEBUG} ${XOCC_PROFILE} -lo ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xclbin ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xo  > ${CMAKE_PROJECT_NAME}_kernel_xclbin.log");
                     emitter().emit("DEPENDS ${CMAKE_PROJECT_NAME}_kernel_xo");
 
                     emitter().decreaseIndentation();
