@@ -692,7 +692,7 @@ public interface VerilogNetwork {
     }
 
     default void getInstanceIOPortDeclaration(PortDecl port, String name, String portNameExtension, Boolean isInput) {
-        String portName = port.getSafeName();
+        String portName = port.getName();
         Type type = backend().types().declaredPortType(port);
         String getPortExtension = getPortExtension(type);
         if (isInput) {
