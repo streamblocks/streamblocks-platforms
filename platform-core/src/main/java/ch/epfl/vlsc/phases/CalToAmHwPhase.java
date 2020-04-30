@@ -9,6 +9,7 @@ import se.lth.cs.tycho.compiler.Transformations;
 import se.lth.cs.tycho.ir.entity.cal.CalActor;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.phase.Phase;
+import se.lth.cs.tycho.phase.TreeShadow;
 import se.lth.cs.tycho.settings.Setting;
 import se.lth.cs.tycho.transformation.cal2am.CalToAm;
 import se.lth.cs.tycho.transformation.cal2am.KnowledgeRemoval;
@@ -27,7 +28,7 @@ public class CalToAmHwPhase implements Phase {
             if (decl.getEntity() instanceof CalActor) {
                 CalActor actor = (CalActor) decl.getEntity();
                 if (actor.getProcessDescription() == null) {
-                    CalToAmHw translator = new CalToAmHw(actor, context.getConfiguration(), task.getModule(ConstantEvaluator.key), task.getModule(Types.key));
+                    CalToAmHw translator = new CalToAmHw(actor, context.getConfiguration(), task.getModule(ConstantEvaluator.key), task.getModule(Types.key), task.getModule(TreeShadow.key));
                     return decl.withEntity(translator.buildActorMachine());
                 } else {
                     return decl;

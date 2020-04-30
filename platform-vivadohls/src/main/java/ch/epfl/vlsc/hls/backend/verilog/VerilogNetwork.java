@@ -618,7 +618,21 @@ public interface VerilogNetwork {
             for (VarDecl decl : mems.keySet()) {
                 String memName = mems.get(decl);
                 getAxiMasterByPort(memName, memName);
-                emitter().emit(".%s_offset(%1$s_offset),", memName);
+                Type type = backend().types().declaredType(decl);
+                String suffix = "";
+                if (backend().context().getConfiguration().get(PlatformSettings.arbitraryPrecisionIntegers)) {
+                    assert type instanceof ListType;
+                    Type innerType = backend().typeseval().innerType(type);
+                    if (innerType instanceof IntType) {
+                        suffix = "V";
+                    } else {
+                        suffix = "offset";
+                    }
+                } else {
+                    suffix = "offset";
+                }
+
+                emitter().emit(".%s_%s(%1$s_offset),", memName, suffix);
                 emitter().emitNewLine();
             }
 
@@ -644,9 +658,9 @@ public interface VerilogNetwork {
                     String queueName = queueNames().get(connection);
                     if (backend().context().getConfiguration().get(PlatformSettings.arbitraryPrecisionIntegers)) {
                         Type type = backend().types().declaredPortType(port);
-                        if(type instanceof IntType){
+                        if (type instanceof IntType) {
                             emitter().emit(".io_%s_peek_V(%s),", portName, String.format("%s_peek", queueName));
-                        }else{
+                        } else {
                             emitter().emit(".io_%s_peek(%s),", portName, String.format("%s_peek", queueName));
                         }
                     } else {
