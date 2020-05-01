@@ -79,8 +79,8 @@ INL void FIFO_NAME(pinWrite)(LocalOutputPort *p, FIFO_TYPE token) {
 }
 
 INL void FIFO_NAME(pinWriteRepeat)(LocalOutputPort *p,
-                                             FIFO_TYPE *buf,
-                                             int n) {
+                                   FIFO_TYPE *buf,
+                                   unsigned int n) {
     char *startPtr = (char *) p->writePtr;
     char *endPtr = (char *) ((FIFO_TYPE *) startPtr + n);
     char *bufferEnd = (char *) p->bufferEnd;
@@ -119,11 +119,9 @@ INL FIFO_TYPE FIFO_NAME(pinRead)(LocalInputPort *p) {
 
 INL void FIFO_NAME(pinConsume)(LocalInputPort *p) {
     const FIFO_TYPE *readPtr = (const FIFO_TYPE *) p->readPtr;
-    FIFO_TYPE result;
 
     assert(p->available > 0);
 
-    result = (FIFO_TYPE) *readPtr++;
     if (readPtr >= (const FIFO_TYPE *) p->bufferEnd)
         readPtr = (const FIFO_TYPE *) p->bufferStart;
     p->readPtr = readPtr;
@@ -132,7 +130,7 @@ INL void FIFO_NAME(pinConsume)(LocalInputPort *p) {
 }
 
 INL void FIFO_NAME(pinConsumeRepeat)(LocalInputPort *p,
-                                               int n) {
+                                     unsigned int n) {
     const char *startPtr = (char *) p->readPtr;
     const char *endPtr = (char *) ((FIFO_TYPE *) startPtr + n);
     const char *bufferEnd = (char *) p->bufferEnd;
@@ -151,8 +149,8 @@ INL void FIFO_NAME(pinConsumeRepeat)(LocalInputPort *p,
 }
 
 INL void FIFO_NAME(pinReadRepeat)(LocalInputPort *p,
-                                            FIFO_TYPE *buf,
-                                            int n) {
+                                  FIFO_TYPE *buf,
+                                  unsigned int n) {
     const char *startPtr = (char *) p->readPtr;
     const char *endPtr = (char *) ((FIFO_TYPE *) startPtr + n);
     const char *bufferEnd = (char *) p->bufferEnd;
@@ -177,7 +175,7 @@ INL FIFO_TYPE FIFO_NAME(pinPeekFront)(const LocalInputPort *p) {
 }
 
 INL FIFO_TYPE FIFO_NAME(pinPeek)(const LocalInputPort *p,
-                                           int offset) {
+                                 int offset) {
     FIFO_TYPE *readPtr = ((FIFO_TYPE *) p->readPtr + offset);
     assert(offset >= 0);
 
@@ -190,8 +188,8 @@ INL FIFO_TYPE FIFO_NAME(pinPeek)(const LocalInputPort *p,
 }
 
 INL void FIFO_NAME(pinPeekRepeat)(LocalInputPort *p,
-                                            FIFO_TYPE *buf,
-                                            int n) {
+                                  FIFO_TYPE *buf,
+                                  unsigned int n) {
 
     const char *startPtr = (char *) p->readPtr;
     const char *endPtr = (char *) ((FIFO_TYPE *) startPtr + n);

@@ -114,7 +114,26 @@ typedef struct {
     const char *name;          // action tag
     const int *consumption;   // token rates of input 0,...,numInputs-1
     const int *production;    // token rates of output 0,...,numOutputs-1
+    const int *uses;
+    const int *defines;
 } ActionDescription;
+
+enum ConditionKind {
+    INPUT_KIND, OUTPUT_KIND, PREDICATE_KIND
+};
+
+/*!\struct ConditionDescription
+ * \brief actor machine condition
+ *
+ * Describes an actor mahcine condition.
+ */
+typedef struct {
+    const char *name;
+    const enum ConditionKind kind;
+    const int port;
+    const int count;
+    const int *stateVariables;
+} ConditionDescription;
 
 typedef struct {
     char *(*serialize)(void *, char *);
@@ -133,6 +152,12 @@ typedef struct {
     tokenFn *functions;
 } PortDescription;
 
+typedef struct {
+    const char *name;
+    const char *originalName;
+    int variableSize;
+} StateVariableDescription;
+
 struct ActorClass {
     unsigned int majorVersion;               // runtime version
     unsigned int minorVersion;
@@ -140,13 +165,13 @@ struct ActorClass {
     char *name;                              // name of actor class
     int sizeActorInstance;                   // size to be allocated for instance
 
-    int numInputPorts;
+    unsigned int numInputPorts;
     const PortDescription *inputPortDescriptions;
 
-    int numOutputPorts;
+    unsigned int numOutputPorts;
     const PortDescription *outputPortDescriptions;
 
-    int numActions;
+    unsigned int numActions;
     const ActionDescription *actionDescriptions;
 
     const int *(*action_scheduler)(AbstractActorInstance *);
@@ -156,6 +181,14 @@ struct ActorClass {
     void (*destructor)(AbstractActorInstance *);
 
     void (*set_param)(AbstractActorInstance *, const char *, const char *);
+
+    unsigned int numConditions; //! the number of conditions
+
+    const ConditionDescription *conditionDescription; //! conditions description array
+
+    unsigned int numStateVariables; //! the number of the state variables
+
+    const StateVariableDescription *stateVariableDescription; //! state variable description array
 };
 
 // Creates an ActorClass initializer
@@ -168,7 +201,9 @@ sched, \
 dtor, \
 nInputs, inputDescr, \
 nOutputs, outputDescr, \
-nActions, actionDescr) { \
+nActions, actionDescr, \
+nConditions, conditionDescr, \
+nStateVariables, stateVariableDescr) { \
 .majorVersion=ACTORS_RTS_MAJOR,              \
 .minorVersion=ACTORS_RTS_MINOR,              \
 .name=aClassName,                            \
@@ -182,7 +217,11 @@ nActions, actionDescr) { \
 .action_scheduler=sched,                     \
 .constructor=ctor,                           \
 .destructor=dtor,                            \
-.set_param=setParam                          \
+.set_param=setParam,                          \
+.numConditions=nConditions,                   \
+.conditionDescription=conditionDescr,         \
+.numStateVariables=nStateVariables,           \
+.stateVariableDescription= stateVariableDescr \
 }
 
 
@@ -343,6 +382,23 @@ const int exit_code_yield[] = {-2};
 
 #define ART_ACTION_EXIT(name, index)
 
+#ifdef TRACE
+#define ART_CONDITION_ENTER(name, index)   \
+ unsigned int __timestamp = timestamp(); \
+
+#else
+#define ART_CONDITION_ENTER(name, index)        \
+
+#endif
+
+#ifdef TRACE
+#define ART_CONDITION_EXIT(name, index) \
+conditionTrace((AbstractActorInstance*)thisActor,__timestamp, index,#name);
+#else
+#define ART_CONDITION_EXIT(name, index) \
+
+#endif
+
 //#define dprint1(x,y)
 //#define dprint2(x,y,z)
 
@@ -484,7 +540,7 @@ static inline void pinRead_dyn(LocalInputPort *p,
 static INL void pinRead_dynRepeat(LocalInputPort *p,
                                   void *token,       /* output */
                                   size_t tokenSize,
-                                  int n) {
+                                  unsigned int n) {
     const char *startPtr = (char *) p->readPtr;
     const char *endPtr = (char *) ((char *) startPtr + n * tokenSize);
     const char *bufferEnd = (char *) p->bufferEnd;

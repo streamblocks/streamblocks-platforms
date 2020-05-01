@@ -319,7 +319,7 @@ ART_ACTION_SCHEDULER(receiver_action_scheduler) {
   ART_ACTION_SCHEDULER_ENTER(0, 1);
 
   LocalOutputPort *output = &pBase->outputPort[0].localOutputPort;
-  int avail = pinAvailOut_dyn(output);
+  unsigned int avail = pinAvailOut_dyn(output);
   bool canFire = true;
   if (avail > 0) {
     TokenizedBuffer<byte_t> stagingBuffer;
@@ -550,7 +550,7 @@ ART_ACTION_SCHEDULER(sender_action_scheduler) {
 
   LocalInputPort *input = &pBase->inputPort[0].localInputPort;
 
-  int avail = pinAvailIn_dyn(input);
+  unsigned int avail = pinAvailIn_dyn(input);
   if (avail > 0) {
     /* We have data to send keep the scheduler loop locked busy, keep track
      * locally of toggling */

@@ -36,7 +36,6 @@
  */
 
 #include <stdlib.h>
-#include <stdio.h>
 #include <time.h>
 #include <sys/timeb.h>
 
@@ -174,11 +173,28 @@ static const int portRate_0[] = {0};
 // TBD: Only used in RM-version (remove?)
 static const int portRate_1[] = {1};
 
+// -- State Variables Description
+static const StateVariableDescription stateVariableDescription[] = {};
+
+// -- Uses by Transition
+static const int uses_in_read[] = {};
+static const int uses_in_done_comp[] = {};
+static const int uses_in_done_mb[] = {};
+
+
+// -- Defines by Transition
+static const int defines_in_read[] = {};
+static const int defines_in_done_comp[] = {};
+static const int defines_in_done_mb[] = {};
+
+
 static const ActionDescription actionDescriptions[] = {
-        {"read",      portRate_64, 0},
-        {"done.comp", portRate_0,  0},
-        {"done.mb",
-                      portRate_0,  0},};
+        {"read", portRate_64, 0, uses_in_read, defines_in_read},
+        {"done.comp", portRate_0, 0, uses_in_done_comp, defines_in_done_comp},
+        {"done.mb", portRate_0, 0, uses_in_done_mb, defines_in_done_mb}};
+
+// -- Condition Description
+static const ConditionDescription conditionDescription[] = {};
 
 ActorClass ActorClass_art_Display_yuv = INIT_ActorClass(
         "art_Display_yuv",
@@ -189,5 +205,7 @@ ActorClass ActorClass_art_Display_yuv = INIT_ActorClass(
         art_Display_yuv_destructor,
         1, inputPortDescriptions,
         0, 0,
-        3, actionDescriptions
+        3, actionDescriptions,
+        0, conditionDescription,
+        0, stateVariableDescription
 );
