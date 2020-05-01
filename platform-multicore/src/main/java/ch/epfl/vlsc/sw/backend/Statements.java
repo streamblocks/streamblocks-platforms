@@ -7,10 +7,7 @@ import org.multij.Module;
 import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
-import se.lth.cs.tycho.ir.expr.ExprBinaryOp;
-import se.lth.cs.tycho.ir.expr.ExprInput;
-import se.lth.cs.tycho.ir.expr.ExprVariable;
-import se.lth.cs.tycho.ir.expr.Expression;
+import se.lth.cs.tycho.ir.expr.*;
 import se.lth.cs.tycho.ir.stmt.*;
 import se.lth.cs.tycho.ir.stmt.lvalue.LValueVariable;
 import se.lth.cs.tycho.type.AlgebraicType;
@@ -133,7 +130,8 @@ public interface Statements {
         memoryStack().enterScope();
         Type type = types().lvalueType(assign.getLValue());
         String lvalue = lvalues().lvalue(assign.getLValue());
-        if (type instanceof ListType && assign.getLValue() instanceof LValueVariable) {
+        //if ((type instanceof ListType && assign.getLValue() instanceof LValueVariable) && !(assign.getExpression() instanceof ExprList)) {
+        if (assign.getExpression() instanceof ExprComprehension) {
             expressioneval().evaluate(assign.getExpression());
         } else {
             copy(type, lvalue, types().type(assign.getExpression()), expressioneval().evaluate(assign.getExpression()));

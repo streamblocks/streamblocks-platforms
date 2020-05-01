@@ -22,7 +22,7 @@ public class PlatformSettings {
 
         @Override
         public Boolean defaultValue(Configuration configuration) {
-            return false;
+            return true;
         }
     };
 

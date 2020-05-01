@@ -89,7 +89,7 @@ public interface ChannelsUtils {
 
 
     default int connectionBufferSize(Connection connection) {
-        Optional<ToolValueAttribute> attribute = connection.getValueAttribute("bufferSize");
+        Optional<ToolValueAttribute> attribute = connection.getValueAttribute("buffersize");
         if (!attribute.isPresent()) {
             attribute = connection.getValueAttribute("bufferSize");
         }

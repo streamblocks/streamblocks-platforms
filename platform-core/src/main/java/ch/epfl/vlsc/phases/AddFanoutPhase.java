@@ -232,7 +232,7 @@ public class AddFanoutPhase implements Phase {
             Connection.End source = new Connection.End(sourceInstance, c.getSource().getPort());
             Connection.End target = new Connection.End(targetInstance, c.getTarget().getPort());
             Connection connection = new Connection(source, target);
-            networkConnections.add(connection);
+            networkConnections.add(connection.withAttributes(c.getAttributes().map(ToolAttribute::deepClone)));
         }
 
 
