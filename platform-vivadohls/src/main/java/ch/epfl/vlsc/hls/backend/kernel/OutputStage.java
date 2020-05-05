@@ -233,8 +233,8 @@ public interface OutputStage {
             backend().kernelwrapper().getAxiMasterConnections(port, true);
             // -- Direct address
             emitter().emit(".%s_available_size(%1$s_available_size),", port.getName());
-            emitter().emit(".%s_size_r(%1$s_size_r),", port.getName());
-            emitter().emit(".%s_buffer(%1$s_buffer),", port.getName());
+            emitter().emit(".%s_size_V(%1$s_size_r),", port.getName());
+            emitter().emit(".%s_buffer_V(%1$s_buffer),", port.getName());
             // -- FIFO I/O
             emitter().emit(".fifo_count(%s_fifo_count_reg),", port.getName());
             emitter().emit(".%s_V_dout(%1$s_dout),", port.getName());

@@ -27,12 +27,15 @@ public interface InputStageMem {
         emitter().open(PathUtils.getTargetCodeGenSource(backend().context()).resolve(identifier + "_input_stage_mem.cpp"));
         backend().includeSystem("stdint.h");
         backend().includeSystem("hls_stream.h");
-        backend().includeUser("input_stage_mem.h");
+        backend().includeUser("iostage.h");
         emitter().emitNewLine();
-
+        emitter().emit("using namespace iostage;");
+        emitter().emitNewLine();
         emitter().emit("uint32_t %s_input_stage_mem(%s) {", port.getName(), entityPorts(port));
-        emitter().emit("#pragma HLS INTERFACE m_axi port=%s_size offset=direct bundle=%1$s", port.getName());
-        emitter().emit("#pragma HLS INTERFACE m_axi port=%s_buffer offset=direct bundle=%1$s", port.getName());
+        emitter().emit("#pragma HLS INTERFACE m_axi port=%s_size offset=direct bundle=%1$s max_read_burst_length=256 max_write_burst_length=256", port.getName());
+        emitter().emit("#pragma HLS INTERFACE m_axi port=%s_buffer offset=direct bundle=%1$s max_read_burst_length=256 max_write_burst_length=256", port.getName());
+        emitter().emit("#pragma HLS INTERFACE ap_fifo port=%s", port.getName());
+        emitter().emit("#pragma HLS INTERFACE ap_fifo port=%s_offset", port.getName());
         emitter().emit("#pragma HLS INTERFACE ap_ctrl_hs register port=return");
         {
             emitter().increaseIndentation();
@@ -52,8 +55,8 @@ public interface InputStageMem {
         Type type = backend().types().declaredPortType(port);
         List<String> ports = new ArrayList<>();
         ports.add(String.format("uint32_t %s_requested_size", port.getName()));
-        ports.add(String.format("uint32_t *%s_size", port.getName()));
-        ports.add(String.format("%s *%s_buffer", backend().declarations().declaration(backend().types().declaredPortType(port), ""), port.getName()));
+        ports.add(String.format("bus_t *%s_size", port.getName()));
+        ports.add(String.format("bus_t *%s_buffer", port.getName()));
         ports.add("uint32_t fifo_count");
         ports.add("uint32_t fifo_size");
         

@@ -51,21 +51,21 @@ public interface KernelXml {
                         String memName = mems.get(decl);
                         ListType listType = (ListType) backend().types().declaredType(decl);
                         int bitSize = backend().typeseval().sizeOfBits(listType.getElementType());
-                        xmlPort("m_axi_" + memName, "master", "0xFFFFFFFF", Math.max(bitSize, 32));
+                        xmlPort("m_axi_" + memName, "master", "0xFFFFFFFF", Math.max(bitSize, AxiConstants.C_M_AXI_DATA_WIDTH));
                     }
 
                     // -- Input ports
                     for (PortDecl port : network.getInputPorts()) {
                         Type type = backend().types().declaredPortType(port);
                         int bitSize = backend().typeseval().sizeOfBits(type);
-                        xmlPort("m_axi_" + port.getName(), "master", "0xFFFFFFFF", Math.max(bitSize, 32));
+                        xmlPort("m_axi_" + port.getName(), "master", "0xFFFFFFFF", Math.max(bitSize, AxiConstants.C_M_AXI_DATA_WIDTH));
                     }
 
                     // -- Output ports
                     for (PortDecl port : network.getOutputPorts()) {
                         Type type = backend().types().declaredPortType(port);
                         int bitSize = backend().typeseval().sizeOfBits(type);
-                        xmlPort("m_axi_" + port.getName(), "master", "0xFFFFFFFF", Math.max(bitSize, 32));
+                        xmlPort("m_axi_" + port.getName(), "master", "0xFFFFFFFF", Math.max(bitSize, AxiConstants.C_M_AXI_DATA_WIDTH));
                     }
 
                     // -- AXI4-Lite Control

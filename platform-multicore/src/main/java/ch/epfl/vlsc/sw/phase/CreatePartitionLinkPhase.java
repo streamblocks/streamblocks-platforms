@@ -6,6 +6,8 @@ import ch.epfl.vlsc.settings.PlatformSettings;
 import ch.epfl.vlsc.sw.ir.PartitionHandle;
 import ch.epfl.vlsc.sw.ir.PartitionLink;
 import se.lth.cs.tycho.attribute.GlobalNames;
+import se.lth.cs.tycho.attribute.Types;
+import se.lth.cs.tycho.attribute.VariableScopes;
 import se.lth.cs.tycho.compiler.CompilationTask;
 import se.lth.cs.tycho.compiler.Context;
 import se.lth.cs.tycho.compiler.SourceUnit;
@@ -15,8 +17,12 @@ import se.lth.cs.tycho.ir.QID;
 import se.lth.cs.tycho.ir.ToolAttribute;
 import se.lth.cs.tycho.ir.decl.Availability;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
+import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
+import se.lth.cs.tycho.ir.entity.am.ActorMachine;
+import se.lth.cs.tycho.ir.entity.cal.CalActor;
+import se.lth.cs.tycho.ir.entity.nl.EntityInstanceExpr;
 import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.network.Network;
@@ -33,6 +39,7 @@ import java.util.stream.Stream;
 import ch.epfl.vlsc.sw.ir.PartitionHandle.Field;
 import ch.epfl.vlsc.sw.ir.PartitionHandle.Method;
 import ch.epfl.vlsc.sw.ir.PartitionHandle.Type;
+import se.lth.cs.tycho.type.ListType;
 
 /**
  * @author Mahyar Emami (mahyar.emami@epfl.ch)
@@ -435,6 +442,36 @@ public class CreatePartitionLinkPhase implements Phase {
      */
     private PartitionHandle.Method createDestructor() {
         return Method.of("void", "terminate");
+    }
+
+    private ImmutableList<Field> networkMemories(CompilationTask task, Network network) {
+        return ImmutableList.from(
+                network.getInstances().stream().flatMap(i -> instanceMemories(task, i)).collect(Collectors.toList()));
+    }
+
+    private Stream<Field> instanceMemories(CompilationTask task, Instance instance) {
+
+
+        return Stream.empty();
+    }
+
+
+    private Stream<Field> entityMemories(CompilationTask task, ActorMachine entity) {
+
+        VariableScopes varScopes = task.getModule(VariableScopes.key);
+        Types types = task.getModule(Types.key);
+        for (VarDecl decl: varScopes.declarations(entity)) {
+            if (types.declaredType(decl) instanceof ListType) {
+                ListType listType = (ListType) (types.declaredType(decl));
+
+            }
+        }
+        return Stream.empty();
+    }
+
+    private Stream<Field> entityMemories(CalActor entity) {
+
+        return Stream.empty();
     }
 
 }

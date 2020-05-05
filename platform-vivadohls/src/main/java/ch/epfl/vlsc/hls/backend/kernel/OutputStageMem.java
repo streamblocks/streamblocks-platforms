@@ -27,12 +27,15 @@ public interface OutputStageMem {
         emitter().open(PathUtils.getTargetCodeGenSource(backend().context()).resolve(identifier + "_output_stage_mem.cpp"));
         backend().includeSystem("stdint.h");
         backend().includeSystem("hls_stream.h");
-        backend().includeUser("output_stage_mem.h");
+        backend().includeUser("iostage.h");
         emitter().emitNewLine();
-
+        emitter().emit("using namespace iostage;");
+        emitter().emitNewLine();
         emitter().emit("uint32_t %s_output_stage_mem(%s) {", port.getName(), entityPorts(port));
         emitter().emit("#pragma HLS INTERFACE m_axi port=%s_size offset=direct bundle=%1$s", port.getName());
         emitter().emit("#pragma HLS INTERFACE m_axi port=%s_buffer offset=direct bundle=%1$s", port.getName());
+        emitter().emit("#pragma HLS INTERFACE ap_fifo port=%s", port.getName());
+        emitter().emit("#pragma HLS INTERFACE ap_fifo port=%s_offset", port.getName());
         emitter().emit("#pragma HLS INTERFACE ap_ctrl_hs register port=return");
         {
             emitter().increaseIndentation();
@@ -53,8 +56,8 @@ public interface OutputStageMem {
     default String entityPorts(PortDecl port) {
         List<String> ports = new ArrayList<>();
         ports.add(String.format("uint32_t %s_available_size", port.getName()));
-        ports.add(String.format("uint32_t *%s_size", port.getName()));
-        ports.add(String.format("%s *%s_buffer", backend().declarations().declaration(backend().types().declaredPortType(port), ""), port.getName()));
+        ports.add(String.format("bus_t *%s_size", port.getName()));
+        ports.add(String.format("bus_t *%s_buffer", port.getName()));
         
         ports.add("uint32_t fifo_count");
         ports.add(backend().declarations().portDeclaration(port));

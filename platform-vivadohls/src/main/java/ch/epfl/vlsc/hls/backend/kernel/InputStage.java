@@ -303,8 +303,8 @@ public interface InputStage {
             backend().kernelwrapper().getAxiMasterConnections(port, true);
             // -- Direct address
             emitter().emit(".%s_requested_size(%1$s_requested_size),", port.getName());
-            emitter().emit(".%s_size_r(%1$s_size_r),", port.getName());
-            emitter().emit(".%s_buffer(%1$s_buffer),", port.getName());
+            emitter().emit(".%s_size_V(%1$s_size_r),", port.getName());
+            emitter().emit(".%s_buffer_V(%1$s_buffer),", port.getName());
             // -- FIFO I/O
             emitter().emit(".fifo_count(%1$s_fifo_count_reg),", port.getName());
             emitter().emit(".fifo_size(%1$s_fifo_size),", port.getName());
