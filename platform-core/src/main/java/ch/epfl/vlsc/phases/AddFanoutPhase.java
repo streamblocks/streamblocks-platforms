@@ -301,6 +301,7 @@ public class AddFanoutPhase implements Phase {
                 fanoutOutputPorts.build(),
                 ImmutableList.empty(),
                 ImmutableList.empty(),
+                ImmutableList.empty(),
                 null,
                 process,
                 ImmutableList.empty(),
@@ -384,6 +385,7 @@ public class AddFanoutPhase implements Phase {
                 fanoutOutputPorts.build(),
                 ImmutableList.empty(),
                 actions.build(),
+                ImmutableList.empty(), // TODO: is this correct?
                 null,
                 null,
                 ImmutableList.empty(),
