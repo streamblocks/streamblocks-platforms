@@ -396,14 +396,9 @@ public class VivadoHLSBackendPhase implements Phase {
                     PathUtils.getTargetCmake(backend.context()).resolve("FindVitis.cmake"),
                     StandardCopyOption.REPLACE_EXISTING);
 
-            // -- Input Stage mem Header
-            Files.copy(getClass().getResourceAsStream("/lib/hls/input_stage_mem.h"),
-                    PathUtils.getTargetCodeGenInclude(backend.context()).resolve("input_stage_mem.h"),
-                    StandardCopyOption.REPLACE_EXISTING);
-
-            // -- Output Stage mem Header
-            Files.copy(getClass().getResourceAsStream("/lib/hls/output_stage_mem.h"),
-                    PathUtils.getTargetCodeGenInclude(backend.context()).resolve("output_stage_mem.h"),
+            // -- Input and Output Stage mem Header
+            Files.copy(getClass().getResourceAsStream("/lib/hls/iostage.h"),
+                    PathUtils.getTargetCodeGenInclude(backend.context()).resolve("iostage.h"),
                     StandardCopyOption.REPLACE_EXISTING);
 
             // -- Synthesis script for Vivado HLS as an input to CMake

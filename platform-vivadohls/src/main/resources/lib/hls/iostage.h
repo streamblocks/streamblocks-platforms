@@ -37,7 +37,6 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
 #ifndef __IOSTAGE_H__
 #define __IOSTAGE_H__
 
@@ -58,9 +57,11 @@ using const_t = unsigned int;
 const const_t BUS_BYTE_WIDTH = 64;
 /* Width of the AXI bus in bits */
 const const_t BUS_WIDTH = (BUS_BYTE_WIDTH << 3);
-/* The maximum number of bytes that can be transferred in a single burst, this is 4KiB according to AXI4 spec*/
+/* The maximum number of bytes that can be transferred in a single burst, this
+ * is 4KiB according to AXI4 spec*/
 const const_t MAX_BURST_TX = 4096;
-/* Maximum number of bus lines that can be transferred in a burst), the maximum number of beats/lines
+/* Maximum number of bus lines that can be transferred in a burst), the maximum
+   number of beats/lines
    in a burst is 256
 */
 const const_t MAX_BURST_LINES = MIN(256, MAX_BURST_TX / BUS_BYTE_WIDTH);
@@ -190,6 +191,7 @@ public:
               this->partial_bus_line.bus_line.range(high_range, low_range);
           STREAM.write(tmp_val);
         }
+        this->partial_bus_line.bus_line = 0;
         this->partial_bus_line.len = 0;
       }
 
@@ -200,6 +202,9 @@ public:
       for (uint32_t i = 0; i < full_bus_lines_to_read; i += MAX_BURST_LINES) {
 
         uint32_t chunk_size = MAX_BURST_LINES;
+        if ((i + MAX_BURST_LINES) >=
+            full_bus_lines_to_read) // last chunk may not be a full burst
+          chunk_size = full_bus_lines_to_read - i;
         uint64_t chunk_base_address = i + base_address;
       // Burst read from gmem to local burst buffer
       burst_rd:
@@ -390,7 +395,6 @@ public:
           }
           burst_buffer[burst_buffer_index] = tmp_bus_line;
         }
-
 
         burst_buffer_index = 0;
 
