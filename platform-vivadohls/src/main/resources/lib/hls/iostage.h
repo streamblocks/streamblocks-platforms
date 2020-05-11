@@ -113,7 +113,9 @@ public:
                    uint32_t fifo_count, uint32_t fifo_size,
                    hls::stream<T> &STREAM, hls::stream<uint64_t> &OFFSET) {
 #pragma HLS INLINE
-    uint32_t fifo_space = fifo_size - fifo_count;
+    // Our FIFO IPs can overflow by one token and they still work. So we need
+    // to make sure the fifo_space variable does not underflow
+    uint32_t fifo_space = fifo_count > fifo_size ? 0 : fifo_size - fifo_count;
     uint32_t tokens_left = requested_size - this->tokens_read;
     uint32_t tokens_to_read = MIN(tokens_left, fifo_space);
 
@@ -146,18 +148,21 @@ public:
       uint64_t base_address = this->bus_lines_read;
       // Prologue of the stream, the bus line may be present on the device
       // already
-      uint32_t stream_prologue_size = 0;
+      uint32_t tokens_on_device = 0;
       if (this->partial_bus_line.len != 0)
-        stream_prologue_size =
+        tokens_on_device =
             this->tokens_per_bus_line - this->partial_bus_line.len;
 
       uint32_t tokens_in_memory = tokens_to_read;
+      uint32_t stream_prologue_size = tokens_on_device;
       if (this->partial_bus_line.len != 0) {
-        uint32_t tokens_on_device = stream_prologue_size;
-        if (tokens_to_read < tokens_on_device)
+        if (tokens_to_read < tokens_on_device) {
+          stream_prologue_size = tokens_to_read;
           tokens_in_memory = 0;
-        else
+        } else {
+          stream_prologue_size = tokens_on_device;
           tokens_in_memory = tokens_to_read - tokens_on_device;
+        }
       }
 
       // Epilogue of the stream, the last bus line may only be partially
@@ -178,11 +183,13 @@ public:
 
       /**
        * Prologue, we already have the bus line on the device
+       * Note that we may not be able to stream all the tokens that are
+       * already on the device
        **/
       if (this->partial_bus_line.len != 0) {
       stream_prologue:
         for (uint16_t k = this->partial_bus_line.len;
-             k < this->tokens_per_bus_line; k++) {
+             k < this->partial_bus_line.len + stream_prologue_size; k++) {
 #pragma HLS pipeline
           uint16_t token_bits = this->token_size * 8;
           uint16_t high_range = (k + 1) * token_bits - 1;
@@ -191,8 +198,10 @@ public:
               this->partial_bus_line.bus_line.range(high_range, low_range);
           STREAM.write(tmp_val);
         }
-        this->partial_bus_line.bus_line = 0;
-        this->partial_bus_line.len = 0;
+
+        this->partial_bus_line.len =
+            (this->partial_bus_line.len + stream_prologue_size) %
+            this->tokens_per_bus_line;
       }
 
     /**

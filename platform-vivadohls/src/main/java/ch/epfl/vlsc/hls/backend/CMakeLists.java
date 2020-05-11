@@ -295,13 +295,13 @@ public interface CMakeLists {
             for (PortDecl port : network.getInputPorts()) {
                 String topName = port.getName() + "_input_stage_mem";
                 String filename = topName + ".cpp";
-                entityCustomCommand(topName, "input_stage_mem", filename);
+                entityCustomCommand(topName, "iostage", filename);
             }
 
             for (PortDecl port : network.getOutputPorts()) {
                 String topName = port.getName() + "_output_stage_mem";
                 String filename = topName + ".cpp";
-                entityCustomCommand(topName, "output_stage_mem", filename);
+                entityCustomCommand(topName, "iostage", filename);
             }
 
             emitter().emit("add_custom_command(");
@@ -492,5 +492,6 @@ public interface CMakeLists {
         emitter().emit(")");
         emitter().emitNewLine();
     }
+
 
 }
