@@ -603,6 +603,7 @@ conditionTrace((AbstractActorInstance*)thisActor,__timestamp, index,#name);
 #define pinConsume_uint8_t(port)   pinConsume_int8_t(port)
 #define pinConsumeRepeat_uint8_t(port, n)   pinConsumeRepeat_int8_t(port, n)
 
+#ifndef __cplusplus
 // Define bool to _Bool
 #define pinAvailIn_bool(port)   pinAvailIn__Bool(port)
 #define pinAvailOut_bool(port)  pinAvailOut__Bool(port)
@@ -621,6 +622,7 @@ conditionTrace((AbstractActorInstance*)thisActor,__timestamp, index,#name);
 
 #define pinConsume_bool(port)   pinConsume__Bool(port)
 #define pinConsumeRepeat_bool(port, n)   pinConsumeRepeat__Bool(port, n)
+#endif
 
 #ifdef __cplusplus
 }

@@ -92,7 +92,7 @@ public interface Instances {
         if (backend().context().getConfiguration().get(PlatformSettings.runOnNode)) {
             instanceTarget = PathUtils.getTargetCodeGenSourceCC(backend().context()).resolve(backend().instaceQID(instance.getInstanceName(), "_") + ".cc");
         } else {
-            instanceTarget = PathUtils.getTargetCodeGenSource(backend().context()).resolve(backend().instaceQID(instance.getInstanceName(), "_") + ".c");
+            instanceTarget = PathUtils.getTargetCodeGenSource(backend().context()).resolve(backend().instaceQID(instance.getInstanceName(), "_") + ".cc");
         }
 
         emitter().open(instanceTarget);
@@ -483,10 +483,15 @@ public interface Instances {
             for (VarDecl var : scope.getDeclarations()) {
                 String variableName = backend().variables().declarationName(var);
                 Type type = types().declaredType(var);
-                if (var.isExternal() && type instanceof CallableType) {
+                if (var.isExternal() || type instanceof CallableType) {
                     // -- Do nothing
                 } else {
-                    emitter().emit("{\"%s\", \"%s\", sizeof(%s)},", variableName, var.getOriginalName(), typeseval().type(type));
+                    if (type instanceof ListType) {
+                        String maxIndex = typeseval().sizeByDimension((ListType) type).stream().map(Object::toString).collect(Collectors.joining("*"));
+                        emitter().emit("{\"%s\", \"%s\", sizeof(%s)*%s},", variableName, var.getOriginalName(), typeseval().type(type), maxIndex);
+                    } else {
+                        emitter().emit("{\"%s\", \"%s\", sizeof(%s)},", variableName, var.getOriginalName(), typeseval().type(type));
+                    }
                     stateVariables().add(var);
                 }
             }

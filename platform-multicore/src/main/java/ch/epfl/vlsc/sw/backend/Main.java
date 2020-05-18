@@ -35,7 +35,7 @@ public interface Main {
     }
 
     default void main() {
-        Path mainTarget = PathUtils.getTargetCodeGenSource(backend().context()).resolve("main.c");
+        Path mainTarget = PathUtils.getTargetCodeGenSource(backend().context()).resolve("main.cc");
         emitter().open(mainTarget);
         backend().includeUser("actors-rts.h");
         backend().includeUser("natives.h");

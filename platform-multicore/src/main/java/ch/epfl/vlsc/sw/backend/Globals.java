@@ -33,7 +33,7 @@ public interface Globals {
         if(backend().context().getConfiguration().get(PlatformSettings.runOnNode)){
             globalSourcePath = PathUtils.getTargetCodeGenSourceCC(backend().context()).resolve("globals.cc");
         }else{
-            globalSourcePath = PathUtils.getTargetCodeGenSource(backend().context()).resolve("globals.c");
+            globalSourcePath = PathUtils.getTargetCodeGenSource(backend().context()).resolve("globals.cc");
         }
 
         emitter().open(globalSourcePath);

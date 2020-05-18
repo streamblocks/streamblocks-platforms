@@ -113,14 +113,14 @@ public interface CMakeLists {
         for (Instance instance : backend().task().getNetwork().getInstances()) {
             GlobalEntityDecl entityDecl = backend().globalnames().entityDecl(instance.getEntityName(), true);
             if (!entityDecl.getExternal()) {
-                String filename = backend().instaceQID(instance.getInstanceName(), "_") + ".c";
+                String filename = backend().instaceQID(instance.getInstanceName(), "_") + ".cc";
                 emitter().emit("src/%s", filename);
             }
         }
 
         // -- Add main
-        emitter().emit("src/globals.c");
-        emitter().emit("src/main.c");
+        emitter().emit("src/globals.cc");
+        emitter().emit("src/main.cc");
 
         emitter().decreaseIndentation();
         emitter().emit(")");
