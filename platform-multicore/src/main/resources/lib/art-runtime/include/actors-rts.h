@@ -44,7 +44,11 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <pthread.h>
+#ifdef __cplusplus
+#include <atomic>
+#else
 #include <stdatomic.h>
+#endif
 #include "cycle.h"
 
 
@@ -118,12 +122,21 @@ typedef struct LocalContext {
     int available;
 } LocalContext;
 
+
+#ifdef __cplusplus
+typedef struct {
+    std::atomic<int> value;
+} atomic_value_t;
+#define atomic_get(a) ((a)->value.load(std::memory_order_relaxed))
+#define atomic_set(a, v) ((a)->value.store(v,std::memory_order_relaxed))
+#else
 typedef struct {
     atomic_int value;
 } atomic_value_t;
+
 #define atomic_get(a) ((a)->value)
 #define atomic_set(a, v) (((a)->value) = (v))
-
+#endif
 typedef struct SharedContext {
     atomic_value_t count;
 } SharedContext;
