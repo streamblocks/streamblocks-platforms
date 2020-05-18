@@ -689,7 +689,7 @@ public interface Instances {
         emitter().increaseIndentation();
         emitter().emit("= INIT_ActorClass(");
         emitter().increaseIndentation();
-        emitter().emit("\"%s\",", instanceQID);
+        emitter().emit("(char*) \"%s\",", instanceQID);
         emitter().emit("ActorInstance_%s,", instanceQID);
         emitter().emit("ActorInstance_%s_constructor,", instanceQID);
         emitter().emit("0, // -- setParam not needed anymore (we instantiate with params)");
