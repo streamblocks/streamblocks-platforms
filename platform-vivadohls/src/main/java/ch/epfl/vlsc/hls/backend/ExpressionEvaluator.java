@@ -595,5 +595,14 @@ public interface ExpressionEvaluator {
         return evaluate(let.getBody());
     }
 
+    /**
+     * Evaluate a type assertion (casting)
+     * @param assertion
+     * @return
+     */
+    default String evaluate(ExprTypeAssertion assertion) {
+        String type = backend().typeseval().type(backend().types().type(assertion.getType()));
+        return String.format("( (%s) (%s) )", type, evaluate(assertion.getExpression()));
+    }
 
 }
