@@ -65,7 +65,7 @@ module trigger
     output wire sync_wait,	//actor returned ~EXECUTED in a synced step
     output wire waited,     //actor returned WAIT or IDLE on last step
 
-    input wire[31:0] actor_return,
+    input wire[1:0] actor_return,
     input wire actor_done,
     input wire actor_ready,
     input wire actor_idle,

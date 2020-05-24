@@ -10,6 +10,7 @@ import se.lth.cs.tycho.attribute.ScopeLiveness;
 import se.lth.cs.tycho.ir.entity.am.ActorMachine;
 import se.lth.cs.tycho.ir.entity.am.PortCondition;
 import se.lth.cs.tycho.ir.entity.am.ctrl.*;
+import se.lth.cs.tycho.reporting.Diagnostic;
 
 import java.util.*;
 import java.util.function.Function;
@@ -89,7 +90,28 @@ public interface QuickJumpController {
     default void emitInstruction(ActorMachine am, String name, Exec exec, Map<State, Integer> stateNumbers) {
         emitter().emit("transition_%d(%s);", exec.transition(), backend().instance().transitionIoArguments(am.getTransitions().get(exec.transition())));
         emitter().emit("this->program_counter = %d;", stateNumbers.get(exec.target()));
-        emitter().emit("return RETURN_EXECUTED;");
+
+        boolean traceEnabled = backend().context().getConfiguration().isDefined(PlatformSettings.enableTraces) &&
+                backend().context().getConfiguration().get(PlatformSettings.enableTraces);
+
+        if (traceEnabled) {
+            if (am.getTransitions().size() >= (1 << 15)) {
+
+                backend().context()
+                        .getReporter()
+                        .report(
+                                new Diagnostic(Diagnostic.Kind.ERROR, String.format(
+                                        "The maximum number of supported actions" +
+                                                "while traces are enabled is %d", (1 << 15) - 1)));
+
+            }
+            emitter().emit("action_id = %d << 17;", exec.transition());
+            emitter().emit("action_size = %d << 2;", am.getTransitions().size());
+            emitter().emit("return (action_id | action_size | RETURN_EXECUTED);");
+        } else {
+
+            emitter().emit("return RETURN_EXECUTED;");
+        }
         emitter().emit("");
     }
 

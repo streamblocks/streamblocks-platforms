@@ -37,7 +37,7 @@
 `ifndef __TRIGGER_TYPES__
 `define __TRIGGER_TYPES__
 package TriggerTypes;
-	typedef enum logic[31:0] {
+	typedef enum logic[1:0] {
 	    IDLE,
 		WAIT,
 		TEST,

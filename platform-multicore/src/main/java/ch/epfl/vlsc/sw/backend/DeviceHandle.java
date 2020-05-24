@@ -55,7 +55,8 @@ public interface DeviceHandle {
     }
 
     default String evalType(Type type) {
-        return type.isEvaluated() ? type.getType().get() : portType(type.getPort().get());
+        return (type.isEvaluated() ? type.getType().get() : portType(type.getPort().get()))
+                + (type.isReference() ? "*" : "");
     }
 
     default String handleClassName(PartitionHandle handle) {
@@ -63,7 +64,7 @@ public interface DeviceHandle {
     }
     default String evalArg(Pair<Type, String> arg) {
         String type = evalType(arg._1);
-        String name = arg._1.isReference() ? "*" + arg._2 : arg._2;
+        String name = arg._2;
         return type + "\t" + name;
     }
 
@@ -155,7 +156,7 @@ public interface DeviceHandle {
     default void generateDeviceHandleSource(PartitionLink entity) {
         // -- open output file
         Path artPlinkPath = PathUtils.createDirectory(PathUtils.getTargetLib(backend().context()), "art-plink");
-        emitter().open(artPlinkPath.resolve("device-handle.c"));
+        emitter().open(artPlinkPath.resolve("device-handle.cc"));
 
         BufferedReader reader;
         // -- read the common methods from plink/device-handle.c in resources
@@ -226,7 +227,7 @@ public interface DeviceHandle {
         emitter().emit("%s {", methodSignature(entity.getHandle(), method));
         {
             emitter().increaseIndentation();
-            emitter().emit("cl_uint err;");
+            emitter().emit("cl_int err;");
             OclMsg("Creating input CL buffers\\n");
             emitter().emitNewLine();
             emitter().emit("// -- input buffers");
@@ -1088,7 +1089,7 @@ public interface DeviceHandle {
         if (!field.getDescription().isEmpty()) {
             emitter().emit("// -- %s", field.getDescription());
         }
-        String name = field.getType().isReference() ? "*" + field.getName() : field.getName();
+        String name = field.getName();
         String type = evalType(field.getType());
         emitter().emit("%s %s;", type, name);
         emitter().emitNewLine();

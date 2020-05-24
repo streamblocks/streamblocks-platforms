@@ -225,7 +225,7 @@ public interface InputStage {
             emitter().emit(".sync_wait(%s_sync_wait),", port.getSafeName());
             emitter().emit(".all_waited(all_waited),");
             emitter().emit(".waited(%s_waited),", port.getSafeName());
-            emitter().emit(".actor_return(%s_input_stage_ap_return),", port.getName());
+            emitter().emit(".actor_return(%s_input_stage_ap_return[1:0]),", port.getName());
             emitter().emit(".actor_done(%s_input_stage_ap_done),", port.getName());
             emitter().emit(".actor_ready(%s_input_stage_ap_ready),", port.getName());
             emitter().emit(".actor_idle(%s_input_stage_ap_idle),", port.getName());

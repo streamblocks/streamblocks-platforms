@@ -2,6 +2,7 @@ package ch.epfl.vlsc.hls.backend;
 
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.PathUtils;
+import ch.epfl.vlsc.settings.PlatformSettings;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
@@ -208,7 +209,6 @@ public interface Instances {
             emitter().emit("return i_%s(%s, io);", name, String.join(", ", ports));
         }
 
-
         emitter().decreaseIndentation();
         emitter().emit("}");
         emitter().emitNewLine();
@@ -383,7 +383,7 @@ public interface Instances {
             emitter().emit("// -- Actor machine state");
             emitter().emit("int program_counter;");
             emitter().emit("// -- Actor return value");
-            emitter().emit("int __ret;");
+            emitter().emit("unsigned int __ret;");
             emitter().emitNewLine();
 
             if (!actor.getValueParameters().isEmpty()) {
@@ -566,7 +566,12 @@ public interface Instances {
         emitter().emit("#pragma HLS INLINE");
         {
             emitter().increaseIndentation();
-
+            boolean traceEnabled = backend().context().getConfiguration().isDefined(PlatformSettings.enableTraces) &&
+                    backend().context().getConfiguration().get(PlatformSettings.enableTraces);
+            if (traceEnabled) {
+                emitter().emit("unsigned int action_id = 0;");
+                emitter().emit("unsigned int action_size = 0;");
+            }
             // -- External Memories
             if (!externalMemories().isEmpty()) {
                 emitter().emit("// -- Initialize large memory pointers");
@@ -584,7 +589,7 @@ public interface Instances {
                 backend().quickJumpController().emitController(instanceName, actor);
 
             }
-
+            emitter().emit("return this->__ret;");
             emitter().decreaseIndentation();
         }
         emitter().emit("}");

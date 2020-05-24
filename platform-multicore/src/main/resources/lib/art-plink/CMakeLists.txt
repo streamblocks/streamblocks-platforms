@@ -1,6 +1,6 @@
 # ART PLink sources
 set(art_plink_source
-        device-handle.c
+        device-handle.cc
         )
 
 # ART PLink includes

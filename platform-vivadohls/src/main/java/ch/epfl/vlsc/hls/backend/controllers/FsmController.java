@@ -2,6 +2,7 @@ package ch.epfl.vlsc.hls.backend.controllers;
 
 import ch.epfl.vlsc.hls.backend.VivadoHLSBackend;
 import ch.epfl.vlsc.platformutils.Emitter;
+import ch.epfl.vlsc.settings.PlatformSettings;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
@@ -9,6 +10,7 @@ import se.lth.cs.tycho.attribute.ScopeLiveness;
 import se.lth.cs.tycho.ir.entity.am.ActorMachine;
 import se.lth.cs.tycho.ir.entity.am.PortCondition;
 import se.lth.cs.tycho.ir.entity.am.ctrl.*;
+import se.lth.cs.tycho.reporting.Diagnostic;
 
 import java.util.*;
 import java.util.function.Function;
@@ -62,10 +64,10 @@ public interface FsmController {
                     // -- Treat false
                     State falseState = test.targetFalse();
                     Instruction falseStateInstruction = falseState.getInstructions().get(0);
-                    if(falseStateInstruction.getKind() == InstructionKind.EXEC){
+                    if (falseStateInstruction.getKind() == InstructionKind.EXEC) {
                         Exec exec = (Exec) falseStateInstruction;
                         keepStates.add(exec.target());
-                    }else {
+                    } else {
                         keepStates.add(falseState);
                     }
                 }
@@ -237,14 +239,46 @@ public interface FsmController {
     default void emitInstruction(ActorMachine am, String name, Exec exec, Map<State, Integer> stateNumbers) {
         emitter().emit("transition_%d(%s);", exec.transition(), backend().instance().transitionIoArguments(am.getTransitions().get(exec.transition())));
         State target = exec.target();
+        boolean traceEnabled = backend().context().getConfiguration().isDefined(PlatformSettings.enableTraces) &&
+                backend().context().getConfiguration().get(PlatformSettings.enableTraces);
         if (target.getInstructions().get(0) instanceof Exec) {
             Exec secondCall = (Exec) target.getInstructions().get(0);
             emitter().emit("transition_%d(%s);", secondCall.transition(), backend().instance().transitionIoArguments(am.getTransitions().get(secondCall.transition())));
             emitter().emit("this->program_counter = %d;", stateNumbers.get(secondCall.target()));
+            if (traceEnabled) {
+                backend().context()
+                        .getReporter()
+                        .report(
+                                new Diagnostic(Diagnostic.Kind.ERROR,
+                                        String.format("Error while emitting the QuickJumpController: " +
+                                                "Back to back transitions %d and %d lead to invalid " +
+                                                "profiling/trace information.", exec.transition(),
+                                                secondCall.transition())));
+            }
+
         } else {
             emitter().emit("this->program_counter = %d;", stateNumbers.get(exec.target()));
+
         }
-        emitter().emit("this->__ret = RETURN_EXECUTED;");
+        if (traceEnabled) {
+            if (am.getTransitions().size() >= (1 << 15)) {
+
+                backend().context()
+                    .getReporter()
+                    .report(
+                            new Diagnostic(Diagnostic.Kind.ERROR, String.format(
+                                    "The maximum number of supported actions" +
+                                            "while traces are enabled is %d", (1 << 15) - 1)));
+
+            }
+
+            emitter().emit("action_id = %d << 17;", exec.transition());
+            emitter().emit("action_size = %d << 2;", am.getTransitions().size());
+            emitter().emit("this->__ret = action_id | action_size | RETURN_EXECUTED;");
+        } else {
+
+            emitter().emit("this->__ret = RETURN_EXECUTED;");
+        }
     }
 
     default void jumpInto(BitSet waitTargets) {

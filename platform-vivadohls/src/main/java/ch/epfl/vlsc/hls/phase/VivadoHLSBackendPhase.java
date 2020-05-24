@@ -67,7 +67,11 @@ public class VivadoHLSBackendPhase implements Phase {
     @Override
     public List<Setting<?>> getPhaseSettings() {
 
-        return ImmutableList.of(PlatformSettings.scopeLivenessAnalysis, PlatformSettings.C99Host, PlatformSettings.arbitraryPrecisionIntegers);
+        return ImmutableList.of(
+                PlatformSettings.scopeLivenessAnalysis,
+                PlatformSettings.C99Host,
+                PlatformSettings.arbitraryPrecisionIntegers,
+                PlatformSettings.enableTraces);
     }
 
     /**

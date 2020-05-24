@@ -552,7 +552,7 @@ public interface VerilogNetwork {
                     emitter().emit(".sync_wait(%s),", getTriggerSignalByName(instance, "sync_wait"));
                     emitter().emit(".waited(%s),", getTriggerSignalByName(instance, "waited"));
                     emitter().emit(".all_waited(%s),", getTriggerSignalByName(instance, "all_waited"));
-                    emitter().emit(".actor_return(%s_ap_return),", qidName);
+                    emitter().emit(".actor_return(%s_ap_return[1:0]),", qidName);
                     emitter().emit(".actor_done(%s_ap_done),", qidName);
                     emitter().emit(".actor_ready(%s_ap_ready),", qidName);
                     emitter().emit(".actor_idle(%s_ap_idle),", qidName);

@@ -97,7 +97,7 @@ public interface PLink {
                             "supported yet"));
         } else {
             instanceTarget = PathUtils.getTargetCodeGenSource(backend().context())
-                    .resolve(backend().instaceQID(instance.getInstanceName(), "_") + ".c");
+                    .resolve(backend().instaceQID(instance.getInstanceName(), "_") + ".cc");
         }
 
         emitter().open(instanceTarget);
