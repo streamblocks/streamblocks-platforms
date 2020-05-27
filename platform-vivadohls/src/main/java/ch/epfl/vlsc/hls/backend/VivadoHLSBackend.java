@@ -8,6 +8,7 @@ import ch.epfl.vlsc.hls.backend.host.DeviceHandle;
 import ch.epfl.vlsc.hls.backend.kernel.*;
 import ch.epfl.vlsc.hls.backend.scripts.VivadoTCL;
 import ch.epfl.vlsc.hls.backend.simulators.WcfgWaveform;
+import ch.epfl.vlsc.hls.backend.systemc.SystemCNetwork;
 import ch.epfl.vlsc.hls.backend.verilog.VerilogNetwork;
 import ch.epfl.vlsc.hls.backend.verilog.VerilogTestbench;
 import ch.epfl.vlsc.platformutils.DefaultValues;
@@ -235,6 +236,11 @@ public interface VivadoHLSBackend {
         return MultiJ.from(VerilogNetwork.class).bind("backend").to(this).instance();
     }
 
+    // -- SystemC network generator
+    @Binding(LAZY)
+    default SystemCNetwork scnetwork() {
+        return MultiJ.from(SystemCNetwork.class).bind("backend").to(this).instance();
+    }
     // -- Globals
     @Binding(LAZY)
     default Globals globals() {

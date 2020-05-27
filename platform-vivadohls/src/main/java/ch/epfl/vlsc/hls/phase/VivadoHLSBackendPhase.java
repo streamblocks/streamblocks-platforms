@@ -71,7 +71,8 @@ public class VivadoHLSBackendPhase implements Phase {
                 PlatformSettings.scopeLivenessAnalysis,
                 PlatformSettings.C99Host,
                 PlatformSettings.arbitraryPrecisionIntegers,
-                PlatformSettings.enableTraces);
+                PlatformSettings.enableTraces,
+                PlatformSettings.enableSystemC);
     }
 
     /**
@@ -251,6 +252,12 @@ public class VivadoHLSBackendPhase implements Phase {
 
         backend.vnetwork().generateNetwork();
         int nbrConnections = backend.task().getNetwork().getConnections().size();
+
+        boolean systemCNetwork = backend.context().getConfiguration().isDefined(PlatformSettings.enableSystemC) &&
+                backend.context().getConfiguration().get(PlatformSettings.enableSystemC);
+        if (systemCNetwork) {
+            backend.scnetwork().generateNetwork();
+        }
     }
 
     /**

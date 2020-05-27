@@ -152,5 +152,22 @@ public class PlatformSettings {
         }
     };
 
+    static public OnOffSetting enableSystemC =  new OnOffSetting() {
+        @Override
+        public String getKey() {
+            return "enable-systemc";
+        }
+
+        @Override
+        public String getDescription() {
+            return "Enables the SystemC network generator";
+        }
+
+        @Override
+        public Boolean defaultValue(Configuration configuration) {
+            return false;
+        }
+    };
+
 
 }
