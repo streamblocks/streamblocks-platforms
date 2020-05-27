@@ -66,15 +66,25 @@ class SCInstance implements SCIF {
     @Override
     public Stream<PortIF> stream() {
         return Stream.concat(
-                readers.stream().flatMap(InputIF::stream),
-                Stream.concat(
-                        writers.stream().flatMap(OutputIF::stream),
-                        Stream.concat (
-                                apControl.stream(),
-                                Stream.of(ret))));
+                Stream.of(
+                        apControl.getClock(),
+                        apControl.getReady()),
+                streamUnique());
 
     }
 
+    public Stream<PortIF> streamUnique() {
+        return Stream.concat(
+                readers.stream().flatMap(InputIF::stream),
+                Stream.concat(
+                        writers.stream().flatMap(OutputIF::stream),
+                        Stream.of(
+                                apControl.getDone(),
+                                apControl.getReady(),
+                                apControl.getIdle(),
+                                apControl.getStart(),
+                                ret)));
+    }
     public String getInstanceName() {
         return instanceName;
     }

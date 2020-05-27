@@ -1,9 +1,9 @@
 package ch.epfl.vlsc.hls.backend.systemc;
-
 import se.lth.cs.tycho.ir.network.Connection;
+import se.lth.cs.tycho.reporting.CompilationException;
+import se.lth.cs.tycho.reporting.Diagnostic;
 
 import java.util.Optional;
-import java.util.function.Function;
 import java.util.stream.Stream;
 
 public class Queue implements SCIF{
@@ -70,9 +70,7 @@ public class Queue implements SCIF{
         public final PortIF capacity;
         public final PortIF peek;
         public AuxiliaryIF(Signal count, Signal capacity, Signal peek) {
-            this.count = PortIF.of("count", count);
-            this.capacity = PortIF.of("size", capacity);
-            this.peek = PortIF.of("peek", peek);
+            this("", count, capacity, peek);
         }
 
         public AuxiliaryIF(String prefix_, Signal count, Signal capacity, Signal peek) {
@@ -100,10 +98,26 @@ public class Queue implements SCIF{
 
         Connection.End source = connection.getSource();
         Connection.End target = connection.getTarget();
+        Optional<PortIF.Kind> writerKind = Optional.empty();
+        Optional<PortIF.Kind> readerKind = Optional.empty();
+        if (source.getInstance().isPresent() && target.getInstance().isPresent()) {
+            name = "q_" + source.getInstance().get() + "_" + source.getPort() + "_" +
+                    target.getInstance().get() + "_" + target.getPort();
+        } else if (source.getInstance().isPresent() && !target.getInstance().isPresent()) {
+            name = source.getInstance().get() + "_" + source.getPort() + "_" + target.getPort();
+        } else if (!source.getInstance().isPresent() && target.getInstance().isPresent()) {
+            name = source.getPort() + "_" + target.getInstance().get() + "_" + target.getPort();
+        } else {
+            throw new CompilationException(
+                    new Diagnostic(Diagnostic.Kind.ERROR,
+                            String.format("Can not create SystemC queue, " +
+                                    "invalid connection ?.%s -> ?.%s", source.getPort(), target.getPort())));
+        }
+
         String src = source.getInstance().orElse("") + "_" + source.getPort();
         String tgt = target.getInstance().orElse("") + "_" + target.getPort();
         this.depth = depth;
-        name = "q_" + src + "_" + tgt;
+
         type = new LogicVector(width);
         writer = new WriterIF(
                 Signal.of(name + "_din", type),

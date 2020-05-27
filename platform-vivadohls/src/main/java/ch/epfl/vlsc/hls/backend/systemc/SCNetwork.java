@@ -18,6 +18,10 @@ public class SCNetwork implements SCIF{
             this.writer = queue.getWriter().withPrefix(prefix);
             this.aux = queue.getAuxiliary().withPrefix(prefix);
         }
+        public InputIF(Queue queue) {
+            this.writer = queue.getWriter();
+            this.aux = queue.getAuxiliary();
+        }
         public static InputIF of(Queue queue, String prefix) {
             return new InputIF(queue, prefix);
         }
@@ -33,6 +37,10 @@ public class SCNetwork implements SCIF{
         public OutputIF(Queue queue, String prefix) {
             this.reader = queue.getReader().withPrefix(prefix);
             this.aux = queue.getAuxiliary().withPrefix(prefix);
+        }
+        public OutputIF(Queue queue) {
+            this.reader = queue.getReader();
+            this.aux = queue.getAuxiliary();
         }
         public static OutputIF of(Queue queue, String prefix) {
             return new OutputIF(queue, prefix);

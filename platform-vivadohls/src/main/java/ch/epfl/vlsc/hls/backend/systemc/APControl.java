@@ -28,23 +28,23 @@ public class APControl implements SCIF {
 
         rstN = PortIF.of(
                 "ap_rst_n",
-                Signal.of("rst_n", new LogicValue()),
+                Signal.of("ap_rst_n", new LogicValue()),
                 Optional.of(PortIF.Kind.INPUT));
         start = PortIF.of(
                 "ap_start",
-                Signal.of(prefix_ + "start", new LogicValue()),
+                Signal.of(prefix_ + "ap_start", new LogicValue()),
                 Optional.of(PortIF.Kind.INPUT));
         done = PortIF.of(
                 "ap_done",
-                Signal.of(prefix_ + "done", new LogicValue()),
+                Signal.of(prefix_ + "ap_done", new LogicValue()),
                 Optional.of(PortIF.Kind.OUTPUT));
         idle = PortIF.of(
                 "ap_idle",
-                Signal.of(prefix_ + "idle", new LogicValue()),
+                Signal.of(prefix_ + "ap_idle", new LogicValue()),
                 Optional.of(PortIF.Kind.OUTPUT));
         ready = PortIF.of(
                 "ap_ready",
-                Signal.of(prefix_ + "ready", new LogicValue()),
+                Signal.of(prefix_ + "ap_ready", new LogicValue()),
                 Optional.of(PortIF.Kind.OUTPUT));
 //        ret = PortIF.of(
 //                "ap_return",
