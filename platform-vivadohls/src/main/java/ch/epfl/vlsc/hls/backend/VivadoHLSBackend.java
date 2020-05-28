@@ -9,6 +9,7 @@ import ch.epfl.vlsc.hls.backend.kernel.*;
 import ch.epfl.vlsc.hls.backend.scripts.VivadoTCL;
 import ch.epfl.vlsc.hls.backend.simulators.WcfgWaveform;
 import ch.epfl.vlsc.hls.backend.systemc.SystemCNetwork;
+import ch.epfl.vlsc.hls.backend.systemc.SystemCTestBench;
 import ch.epfl.vlsc.hls.backend.verilog.VerilogNetwork;
 import ch.epfl.vlsc.hls.backend.verilog.VerilogTestbench;
 import ch.epfl.vlsc.platformutils.DefaultValues;
@@ -263,6 +264,12 @@ public interface VivadoHLSBackend {
     @Binding(LAZY)
     default VerilogTestbench testbench() {
         return MultiJ.from(VerilogTestbench.class).bind("backend").to(this).instance();
+    }
+
+    // -- SystemC Tester
+    @Binding(LAZY)
+    default SystemCTestBench sctester() {
+        return MultiJ.from(SystemCTestBench.class).bind("backend").to(this).instance();
     }
 
     // -- Verilog Testbenches

@@ -328,6 +328,9 @@ public class VivadoHLSBackendPhase implements Phase {
         // -- Network Verilog Testbench
         backend.testbench().generateTestbench(network);
 
+        // -- SystemC network testbench
+        backend.sctester().generateTester();
+
         // -- Instance Verilog Testbench
         network.getInstances().forEach(backend.testbench()::generateTestbench);
     }

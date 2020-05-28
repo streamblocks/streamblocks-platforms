@@ -73,7 +73,7 @@ public interface SystemCNetwork {
 
             Queue queue = findQueue(connection);
 
-            inputs.add(new SCNetwork.InputIF(queue));
+            inputs.add(new SCNetwork.InputIF(queue, inPort));
 
         }
         ImmutableList.Builder<SCNetwork.OutputIF> outputs = ImmutableList.builder();
@@ -91,7 +91,7 @@ public interface SystemCNetwork {
             Queue queue = findQueue(connection);
 
 
-            outputs.add(new SCNetwork.OutputIF(queue));
+            outputs.add(new SCNetwork.OutputIF(queue, outPort));
 
         }
         ImmutableList<SCInstance> instances = network.getInstances().map(this::findSCInstance);
@@ -141,16 +141,18 @@ public interface SystemCNetwork {
             for (PortDecl inPort : entity.getInputPorts()) {
                 Connection connection = findInputPortConnection(instance, inPort);
                 String prefix = inPort.getName() + "_V_";
+                String prefix2 = "io_" + inPort.getName() + "_";
                 Queue queue = findQueue(connection);
-                readers.add(SCInstance.InputIF.of(queue, prefix));
+                readers.add(new SCInstance.InputIF(queue, prefix, prefix2));
             }
 
             ImmutableList.Builder<SCInstance.OutputIF> writers = ImmutableList.builder();
             for (PortDecl outPort : entity.getOutputPorts()) {
                 Connection connection = findOutputPortConnection(instance, outPort);
                 String prefix = outPort.getName() + "_V_";
+                String prefix2 = "io_" + outPort.getName() + "_";
                 Queue queue = findQueue(connection);
-                writers.add(SCInstance.OutputIF.of(queue, prefix));
+                writers.add(new SCInstance.OutputIF(queue, prefix, prefix2));
             }
 
             String name = backend().instaceQID(instance.getInstanceName(), "_");
@@ -247,7 +249,7 @@ public interface SystemCNetwork {
 
         network().set(scNetwork);
 
-        emitter().open(PathUtils.getTargetCodeGenSource(backend().context()).resolve(identifier + ".cpp"));
+        emitter().open(PathUtils.getTargetCodeGenInclude(backend().context()).resolve(identifier + ".h"));
 
         if (!backend().externalMemory().externalMemories().isEmpty()) {
             backend().context().getReporter().report(
@@ -256,10 +258,14 @@ public interface SystemCNetwork {
             );
         }
 
-
+        emitter().emit("#ifndef __%s_H__", identifier);
+        emitter().emit("#define __%s_H__", identifier);
+        emitter().emitNewLine();
         // -- Include headers
         getIncludes(scNetwork);
 
+        emitter().emitNewLine();
+        emitter().emit("namespace ap_rtl {");
         emitter().emitNewLine();
 
         emitter().emit("class %s: public sc_module {", identifier);
@@ -285,7 +291,7 @@ public interface SystemCNetwork {
             // -- get process methods
 
             getSyncSignals(scNetwork);
-            getWaitedSignals(scNetwork);
+            getAllWaitedSignals(scNetwork);
             getGlobalSyncSignals(scNetwork);
             getAmIdle(scNetwork);
             getApIdle(scNetwork);
@@ -297,7 +303,9 @@ public interface SystemCNetwork {
         }
         emitter().emit("}; // class %s", identifier);
         emitter().emitNewLine();
-
+        emitter().emit("} // namespace ap_rtl");
+        emitter().emitNewLine();
+        emitter().emit("#endif // __%s_H__", identifier);
         network().clear();
         emitter().close();
     }
@@ -337,9 +345,11 @@ public interface SystemCNetwork {
 
         emitter().emit("// -- internal signals");
         network.getInternalSignals().forEach(this::declareSignal);
-
+        emitter().emit("// -- instance signals");
         network.getInstances().stream().forEach(this::getInstanceSignals);
-
+        emitter().emit("// -- queue signals");
+        network.getQueues().stream().forEach(this::getQueueSignals);
+        emitter().emit("// -- trigger signals");
         network.getTriggers().stream().forEach(this::getTriggerSignals);
 
     }
@@ -352,6 +362,12 @@ public interface SystemCNetwork {
 
     }
 
+    default void getQueueSignals(Queue queue) {
+
+        emitter().emit("// -- signals for queue %s", queue.getName());
+        queue.streamUnique().map(PortIF::getSignal).forEach(this::declareSignal);
+
+    }
     default void getTriggerSignals(SCTrigger trigger) {
 
         emitter().emit("// -- Signals for trigger %s", trigger.getName());
@@ -368,7 +384,7 @@ public interface SystemCNetwork {
         network.getInstances()
                 .stream()
                 .forEach(inst ->
-                        emitter().emit("%s *%s;", inst.getName(), inst.getInstanceName()));
+                        emitter().emit("%s %s;", inst.getName(), inst.getInstanceName()));
         emitter().emitNewLine();
     }
 
@@ -380,7 +396,7 @@ public interface SystemCNetwork {
 
             int addressWidth = MathUtils.log2Ceil(queue.getDepth());
             int width = queue.getType().getWidth();
-            emitter().emit("Queue<%d, %d> *%s;", width, addressWidth, queue.getName());
+            emitter().emit("Queue<%d, %d> %s;", width, addressWidth, queue.getName());
         }
         emitter().emitNewLine();
 
@@ -389,7 +405,7 @@ public interface SystemCNetwork {
     default void getTriggers(SCNetwork network) {
         emitter().emit("// -- Triggers");
         for (SCTrigger trigger : network.getTriggers()) {
-            emitter().emit("Trigger *%s;", trigger.getName());
+            emitter().emit("Trigger %s;", trigger.getName());
         }
     }
 
@@ -397,6 +413,7 @@ public interface SystemCNetwork {
 
 
         // -- The constructor
+        emitter().emit("SC_HAS_PROCESS(%s);", network.getIdentifier());
         emitter().emit("// -- constructor");
 
         emitter().emit("%s(sc_module_name name):", network.getIdentifier());
@@ -405,9 +422,24 @@ public interface SystemCNetwork {
             {
                 // -- construct sub modules
                 emitter().increaseIndentation();
+                //-- construct instances
+                emitter().emit("// -- instance constructors");
                 network.getInstances().stream().forEach(inst ->
                         emitter().emit("%s (\"%1$s\"),", inst.getInstanceName())
                 );
+                emitter().emit("// -- trigger constructors");
+                network.getTriggers().stream().forEach(trigger-> {
+                    emitter().emit("%s (\"%1$s\"),", trigger.getName());
+                });
+                emitter().emit("// -- queue constructors");
+                network.getQueues().stream().forEach(queue -> {
+                    emitter().emit("%s (\"%1$s\"),", queue.getName());
+                });
+                emitter().emit("// -- set names for the ports (useful for debug)");
+                network.stream().forEach(port -> {
+                    emitter().emit("%s(\"%1$s\"),", port.getSignal().getName());
+                });
+
                 emitter().emit("sc_module(name) {");
                 emitter().decreaseIndentation();
             }
@@ -417,7 +449,7 @@ public interface SystemCNetwork {
                     inst -> {
                         emitter().emit("// --port bindings for %s", inst.getName());
                         inst.stream().forEach(port ->
-                                emitter().emit("%s.%s(%s);", inst.getInstanceName(),
+                                emitter().emit("%s.%s.bind(%s);", inst.getInstanceName(),
                                         port.getName(), port.getSignal().getName()));
                         emitter().emitNewLine();
 
@@ -429,8 +461,10 @@ public interface SystemCNetwork {
             network.getQueues().stream().forEach(
                     queue -> {
                         emitter().emit("// -- port bindings for queue %s", queue.getName());
+                        emitter().emit("%s.%s.bind(%s);", queue.getName(), network.getApControl().getClock().getName(), network.getApControl().getClockSignal().getName());
+                        emitter().emit("%s.%s.bind(%s);", queue.getName(), network.getApControl().getReset().getName(), network.getApControl().getResetSignal().getName());
                         queue.stream().forEach(port ->
-                                emitter().emit("%s.%s(%s);", queue.getName(), port.getName(),
+                                emitter().emit("%s.%s.bind(%s);", queue.getName(), port.getName(),
                                         port.getSignal().getName()));
                         emitter().emitNewLine();
                     });
@@ -440,8 +474,8 @@ public interface SystemCNetwork {
                     trigger -> {
                         emitter().emit("// -- port binding for trigger %s", trigger.getName());
                         trigger.stream().forEach(port ->
-                                emitter().emit("%s.%s(%s);", trigger.getName(), port.getName(),
-                                        port.getSignal().getNameRanged()));
+                                emitter().emit("%s.%s.bind(%s);", trigger.getName(), port.getName(),
+                                        port.getSignal().getName()));
                     }
             );
             emitter().emitNewLine();
@@ -452,12 +486,12 @@ public interface SystemCNetwork {
             List<Signal> waited = network.getTriggers().stream().map(SCTrigger::getWaited).map(PortIF::getSignal).collect(Collectors.toList());
             List<Signal> sleeps = network.getTriggers().stream().map(SCTrigger::getSleep).map(PortIF::getSignal).collect(Collectors.toList());
             // -- Method to set the sync signals for each instance
-            emitter().emit("SC_METHOD(setSyncSignals)");
+            emitter().emit("SC_METHOD(setSyncSignals);");
             emitter().emit("sensitive << %s;", String.join(" << ",
                     Stream.concat(syncExecs.stream(), syncWaits.stream()).map(Signal::getName).collect(Collectors.toList())));
             emitter().emitNewLine();
             // -- Method to set the waited signals for each instance trigger
-            emitter().emit("SC_METHOD(setWaitedSignals)");
+            emitter().emit("SC_METHOD(setAllWaitedSignals);");
             emitter().emit("sensitive << %s;", String.join(" << ",
                     waited.stream().map(Signal::getName).collect(Collectors.toList())));
             emitter().emitNewLine();
@@ -491,6 +525,9 @@ public interface SystemCNetwork {
         }
         emitter().emit("}");
 
+        emitter().emitNewLine();
+        emitter().emit("~%s(){};", network.getIdentifier());
+
 
     }
 
@@ -515,20 +552,23 @@ public interface SystemCNetwork {
         emitter().emitNewLine();
     }
 
-    default void getWaitedSignals(SCNetwork network) {
+    default void getAllWaitedSignals(SCNetwork network) {
 
-        emitter().emit("void setWaitedSignals() {");
+        emitter().emit("void setAllWaitedSignals() {");
         {
             emitter().increaseIndentation();
             network.getTriggers().stream().forEach(trigger -> {
-                Signal waited = trigger.getWaited().getSignal();
-                Stream<Signal> othersWaited = network.getTriggers().stream()
+                Signal allWaited = trigger.getAllWaited().getSignal();
+                List<String> othersWaited = network.getTriggers().stream()
                         .filter(t -> !t.equals(trigger))
                         .map(SCTrigger::getWaited)
-                        .map(PortIF::getSignal);
-                emitter().emit("%s = %s;", waited.getName(),
-                        String.join("& ", othersWaited.map(Signal::getName).collect(Collectors.toList())));
-
+                        .map(PortIF::getSignal)
+                        .map(Signal::getName)
+                        .collect(Collectors.toList());
+                if (othersWaited.size() > 0)
+                    emitter().emit("%s = %s;", allWaited.getName(), String.join("& ", othersWaited));
+                else
+                    emitter().emit("%s = SC_LOGIC_1;", allWaited.getName());
             });
 
             emitter().decreaseIndentation();
@@ -606,7 +646,7 @@ public interface SystemCNetwork {
     }
 
     default void getApIdle(SCNetwork network) {
-        emitter().emit("void setApIdle()");
+        emitter().emit("void setApIdle() {");
         emitter().emitNewLine();
         {
             emitter().increaseIndentation();
@@ -618,7 +658,7 @@ public interface SystemCNetwork {
                                     .map(Signal::getName)));
             emitter().emitNewLine();
             emitter().emit("%s = is_idle;", network.getAmIdle().getName());
-            emitter().emit("%s = is_idle & (~%s);",
+            emitter().emit("%s = is_idle & (~%s.read());",
                     network.getApControl().getDoneSignal().getName(),
                     network.getAmIdleReg().getName());
             emitter().emit("%s = is_idle;", network.getApControl().getIdleSignal().getName());

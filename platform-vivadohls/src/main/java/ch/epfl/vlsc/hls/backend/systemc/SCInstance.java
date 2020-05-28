@@ -8,41 +8,49 @@ import java.util.stream.Stream;
 class SCInstance implements SCIF {
 
     public static class OutputIF implements SCIF {
-        public final Queue.WriterIF writer;
-        public final PortIF capacity;
+        private final Queue.WriterIF writer;
+        private final PortIF capacity;
         public final PortIF count;
-        public OutputIF(Queue queue, String prefix) {
-            this.writer = queue.getWriter().withPrefix(prefix);
-            this.capacity = queue.getAuxiliary().withPrefix(prefix).capacity;
-            this.count = queue.getAuxiliary().withPrefix(prefix).count;
+
+        public OutputIF(Queue queue, String prefix1, String prefix2) {
+            this.writer = queue.getWriter().withPrefix(prefix1);
+            this.capacity = queue.getAuxiliary().withPrefix(prefix2).getCapacity();
+            this.count = queue.getAuxiliary().withPrefix(prefix2).getCount();
         }
 
-        public static OutputIF of(Queue queue, String prefix) {
-            return new OutputIF(queue, prefix);
-        }
+
         @Override
         public Stream<PortIF> stream() {
             return Stream.concat(writer.stream(), Stream.of(capacity, count));
         }
-    }
-    public static class InputIF implements SCIF {
-        public final Queue.ReaderIF reader;
-        public final PortIF peek;
-        public final PortIF count;
 
-        public InputIF(Queue queue, String prefix) {
-            this.reader = queue.getReader().withPrefix(prefix);
-            this.peek = queue.getAuxiliary().withPrefix(prefix).peek;
-            this.count = queue.getAuxiliary().withPrefix(prefix).count;
+        public Queue.WriterIF getWriter() {
+            return writer;
         }
-        public static InputIF of(Queue queue, String prefix) {
-            return new InputIF(queue, prefix);
+    }
+
+    public static class InputIF implements SCIF {
+        private final Queue.ReaderIF reader;
+        private final PortIF peek;
+        private final PortIF count;
+
+        public InputIF(Queue queue, String prefix1, String prefix2) {
+            this.reader = queue.getReader().withPrefix(prefix1);
+            this.peek = queue.getAuxiliary().withPrefix(prefix2).getPeek();
+            this.count = queue.getAuxiliary().withPrefix(prefix2).getCount();
         }
+
         @Override
         public Stream<PortIF> stream() {
             return Stream.concat(reader.stream(), Stream.of(peek, count));
         }
+
+        public Queue.ReaderIF getReader() {
+            return reader;
+        }
+
     }
+
     private final APControl apControl;
     private final ImmutableList<InputIF> readers;
     private final ImmutableList<OutputIF> writers;
@@ -50,7 +58,7 @@ class SCInstance implements SCIF {
     private final String name;
     private final PortIF ret;
 
-    public SCInstance (String name, ImmutableList<InputIF> readers, ImmutableList<OutputIF> writers) {
+    public SCInstance(String name, ImmutableList<InputIF> readers, ImmutableList<OutputIF> writers) {
         this.name = name;
         this.instanceName = "inst_" + name;
         this.apControl = new APControl(name + "_");
@@ -66,28 +74,33 @@ class SCInstance implements SCIF {
     @Override
     public Stream<PortIF> stream() {
         return Stream.concat(
-                Stream.of(
-                        apControl.getClock(),
-                        apControl.getReady()),
-                streamUnique());
+                Stream.concat(
+                        readers.stream().flatMap(InputIF::stream),
+                        writers.stream().flatMap(OutputIF::stream)),
+                Stream.concat(
+                        Stream.of(
+                                apControl.getClock(),
+                                apControl.getReset()
+                        ),
+                        streamUnique()));
+
 
     }
 
     public Stream<PortIF> streamUnique() {
-        return Stream.concat(
-                readers.stream().flatMap(InputIF::stream),
-                Stream.concat(
-                        writers.stream().flatMap(OutputIF::stream),
-                        Stream.of(
-                                apControl.getDone(),
-                                apControl.getReady(),
-                                apControl.getIdle(),
-                                apControl.getStart(),
-                                ret)));
+        return
+                Stream.of(
+                        apControl.getDone(),
+                        apControl.getReady(),
+                        apControl.getIdle(),
+                        apControl.getStart(),
+                        ret);
     }
+
     public String getInstanceName() {
         return instanceName;
     }
+
     public String getName() {
         return name;
     }
@@ -95,6 +108,7 @@ class SCInstance implements SCIF {
     public APControl getApControl() {
         return this.apControl;
     }
+
     public PortIF getReturn() {
         return this.ret;
     }

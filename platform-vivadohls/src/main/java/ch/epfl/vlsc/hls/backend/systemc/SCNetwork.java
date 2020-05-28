@@ -1,5 +1,6 @@
 package ch.epfl.vlsc.hls.backend.systemc;
 
+import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 
 
@@ -7,49 +8,67 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class SCNetwork implements SCIF{
+public class SCNetwork implements SCIF {
 
 
     public static class InputIF implements SCIF {
-        public final Queue.WriterIF writer;
-        public final Queue.AuxiliaryIF aux;
+        private final Queue.WriterIF writer;
+        private final Queue.AuxiliaryIF aux;
+        private final PortDecl port;
 
-        public InputIF (Queue queue, String prefix) {
-            this.writer = queue.getWriter().withPrefix(prefix);
-            this.aux = queue.getAuxiliary().withPrefix(prefix);
-        }
-        public InputIF(Queue queue) {
+        public InputIF(Queue queue, PortDecl port) {
             this.writer = queue.getWriter();
             this.aux = queue.getAuxiliary();
+            this.port = port;
         }
-        public static InputIF of(Queue queue, String prefix) {
-            return new InputIF(queue, prefix);
-        }
+
+
         @Override
         public Stream<PortIF> stream() {
-            return Stream.concat(this.writer.stream(), this.aux.stream());
+            return Stream.concat(this.writer.stream(), Stream.of(aux.getCount(), aux.getCapacity()));
+        }
+
+        public PortDecl getPort() {
+            return port;
+        }
+
+        public Queue.WriterIF getWriter() {
+            return writer;
+        }
+
+        public Queue.AuxiliaryIF getAuxiliary() {
+            return aux;
         }
     }
 
     public static class OutputIF implements SCIF {
-        public final Queue.ReaderIF reader;
-        public final Queue.AuxiliaryIF aux;
-        public OutputIF(Queue queue, String prefix) {
-            this.reader = queue.getReader().withPrefix(prefix);
-            this.aux = queue.getAuxiliary().withPrefix(prefix);
-        }
-        public OutputIF(Queue queue) {
+        private final Queue.ReaderIF reader;
+        private final Queue.AuxiliaryIF aux;
+        private final PortDecl port;
+
+        public OutputIF(Queue queue, PortDecl port) {
             this.reader = queue.getReader();
             this.aux = queue.getAuxiliary();
-        }
-        public static OutputIF of(Queue queue, String prefix) {
-            return new OutputIF(queue, prefix);
-        }
-        @Override
-        public Stream<PortIF> stream() {
-            return Stream.concat(this.reader.stream(), this.aux.stream());
+            this.port = port;
         }
 
+
+        @Override
+        public Stream<PortIF> stream() {
+            return Stream.concat(this.reader.stream(), Stream.of(aux.getCount(), aux.getPeek()));
+        }
+
+        public PortDecl getPort() {
+            return port;
+        }
+
+        public Queue.ReaderIF getReader() {
+            return reader;
+        }
+
+        public Queue.AuxiliaryIF getAuxiliary() {
+            return aux;
+        }
     }
 
 
@@ -83,9 +102,10 @@ public class SCNetwork implements SCIF{
                             Signal.of("all_sleep", new LogicValue()),
                             Optional.of(PortIF.Kind.INPUT));
         }
+
         @Override
         public Stream<PortIF> stream() {
-            return Stream.of(externalEnqueue, allSync, allSyncWait, allSync, allSleep);
+            return Stream.of(externalEnqueue, allSync, allSyncWait, allSleep);
         }
 
         public PortIF getExternalEnqueue() {
@@ -143,12 +163,15 @@ public class SCNetwork implements SCIF{
     public ImmutableList<InputIF> getInputs() {
         return writers;
     }
+
     public ImmutableList<OutputIF> getOutputs() {
         return readers;
     }
+
     public ImmutableList<SCInstance> getInstances() {
         return instances;
     }
+
     public ImmutableList<Queue> getQueues() {
         return queues;
     }
@@ -187,12 +210,13 @@ public class SCNetwork implements SCIF{
     }
 
     public APControl getApControl() {
-        return  apControl;
+        return apControl;
     }
 
     public Signal getAmIdle() {
         return amIdle;
     }
+
     public Signal getAmIdleReg() {
         return amIdleReg;
     }

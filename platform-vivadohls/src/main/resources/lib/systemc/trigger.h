@@ -2,10 +2,12 @@
 #define __TRIGGET_H__
 #include "systemc.h"
 
+namespace ap_rtl {
+
 class Trigger : public sc_module {
 public:
   // Module interface
-  sc_in<sc_logic> ap_clk;
+  sc_in_clk ap_clk;
   sc_in<sc_logic> ap_rst_n;
   sc_in<sc_logic> ap_start;
   sc_out<sc_logic> ap_done;
@@ -13,7 +15,8 @@ public:
   sc_out<sc_logic> ap_ready;
 
   sc_in<sc_logic> external_enqueue;
-  sc_in<sc_logic> all_sync, sc_in<sc_logic> all_sync_wait;
+  sc_in<sc_logic> all_sync;
+  sc_in<sc_logic> all_sync_wait;
   sc_in<sc_logic> all_sleep;
   sc_in<sc_logic> all_waited;
 
@@ -22,31 +25,33 @@ public:
   sc_out<sc_logic> sync_exec;
   sc_out<sc_logic> waited;
 
-  sc_in<sc_lv<2>> actor_return;
+  sc_in<sc_lv<32>> actor_return;
   sc_in<sc_logic> actor_done;
   sc_in<sc_logic> actor_ready;
-  sc_ln<sc_logic> actor_idle;
+  sc_in<sc_logic> actor_idle;
   sc_out<sc_logic> actor_start;
 
-
-  enum class State: sc_lv<3> {
-    IDLE_STATE,
-    LAUNCH,
-    CHECK,
-    SLEEP,
-    SYNC_LAUNCH,
-    SYNC_CHECK,
-    SYNC_WAIT,
-    SYNC_EXEC
+  struct State {
+    static const unsigned int IDLE_STATE = 0;
+    static const unsigned int LAUNCH = 1;
+    static const unsigned int CHECK = 2;
+    static const unsigned int SLEEP = 3;
+    static const unsigned int SYNC_LAUNCH = 4;
+    static const unsigned int SYNC_CHECK = 5;
+    static const unsigned int SYNC_WAIT = 6;
+    static const unsigned int SYNC_EXEC = 7;
   };
 
-  enum class ReturnStatus: sc_lv<2> { IDLE, WAIT, TEST, EXECUTED };
-
+  struct ReturnStatus {
+    static const unsigned int IDLE = 0;
+    static const unsigned int WAIT = 1;
+    static const unsigned int TEST = 2;
+    static const unsigned int EXECUTED = 3;
+  };
 
   // Trigget state variable
   sc_signal<sc_lv<3>> state;
   sc_signal<sc_lv<3>> next_state;
-
 
   SC_HAS_PROCESS(Trigger);
 
@@ -73,7 +78,7 @@ public:
    * Process to reset the state
    */
   void setState() {
-    while(true) {
+    while (true) {
       wait();
       if (ap_rst_n.read() == SC_LOGIC_0) {
         state.write(State::IDLE_STATE);
@@ -81,7 +86,6 @@ public:
         state.write(next_state);
       }
     }
-
   }
 
   /**
@@ -99,71 +103,70 @@ public:
    */
   void setNextState() {
 
-    State next_state = State::IDLE_STATE;
+    next_state = State::IDLE_STATE;
 
-    switch(state) {
-      case State::IDLE_STATE  :
-        if (ap_start.read() == SC_LOGIC_1)
-          next_state = State::LAUNCH;
-        else
-          next_state = State::IDLE_STATE;
+    switch (state.read().to_uint()) {
+    case State::IDLE_STATE:
+      if (ap_start.read() == SC_LOGIC_1)
+        next_state = State::LAUNCH;
+      else
+        next_state = State::IDLE_STATE;
       break;
 
-      case State::LAUNCH      :
-      case State::CHECK       :
-        if (actor_done.read() == SC_LOGIC_1)
-          if (actor_return.read() == ReturnStatus::EXECUTED ||
-              actor_return.read() == ReturnStatus::Test     ||
-              external_enqueue.read() == SC_LOGIC_1)
-            next_state = State::LAUNCH;
-          else
-            next_state = State::SLEEP;
-        else
-          next_state = State::CHECK;
-      break;
-      case State::SLEEP       :
-        if (all_sleep.read() == SC_LOGIC_1)
-          next_state = State::SYNC_LAUNCH;
-        else if (all_waited.read() == SC_LOGIC_0)
+    case State::LAUNCH:
+    case State::CHECK:
+      if (actor_done.read() == SC_LOGIC_1)
+        if (actor_return.read() == ReturnStatus::EXECUTED ||
+            actor_return.read() == ReturnStatus::TEST ||
+            external_enqueue.read() == SC_LOGIC_1)
           next_state = State::LAUNCH;
         else
           next_state = State::SLEEP;
+      else
+        next_state = State::CHECK;
+      break;
+    case State::SLEEP:
+      if (all_sleep.read() == SC_LOGIC_1)
+        next_state = State::SYNC_LAUNCH;
+      else if (all_waited.read() == SC_LOGIC_0)
+        next_state = State::LAUNCH;
+      else
+        next_state = State::SLEEP;
       break;
 
-      case State::SYNC_LAUNCH :
-      case State::SYNC_CHECK  :
-        if (actor_done.read() == SC_LOGIC_1)
-          if (actor_return.read() == ReturnStatus::EXECUTED)
-            next_state = State::SYNC_EXEC;
-          else if (actor_return.read() == ReturnStatus::TEST)
-            next_state = State::SYNC_LAUNCH;
-          else
-            next_state = State::SYNC_WAIT;
-        else
-          next_state = State::SYNC_CHECK;
-      break;
-
-      case State::SYNC_WAIT   :
-        if (all_sync.read() == SC_LOGIC_1)
-          if (all_sync_wait.read() == SC_LOGIC_1)
-            next_state = State::IDLE_STATE;
-          else
-            next_state = State::LAUNCH;
+    case State::SYNC_LAUNCH:
+    case State::SYNC_CHECK:
+      if (actor_done.read() == SC_LOGIC_1)
+        if (actor_return.read() == ReturnStatus::EXECUTED)
+          next_state = State::SYNC_EXEC;
+        else if (actor_return.read() == ReturnStatus::TEST)
+          next_state = State::SYNC_LAUNCH;
         else
           next_state = State::SYNC_WAIT;
+      else
+        next_state = State::SYNC_CHECK;
       break;
 
-      case State::SYNC_EXEC   :
-        if (all_sync.read() == SC_LOGIC_1)
-          next_state = State::LAUNCH;
+    case State::SYNC_WAIT:
+      if (all_sync.read() == SC_LOGIC_1)
+        if (all_sync_wait.read() == SC_LOGIC_1)
+          next_state = State::IDLE_STATE;
         else
-          next_state = State::SYNC_EXEC;
+          next_state = State::LAUNCH;
+      else
+        next_state = State::SYNC_WAIT;
       break;
-      default                 :
-        next_state = State::IDLE_STATE;
+
+    case State::SYNC_EXEC:
+      if (all_sync.read() == SC_LOGIC_1)
+        next_state = State::LAUNCH;
+      else
+        next_state = State::SYNC_EXEC;
+      break;
+    default:
+      next_state = State::IDLE_STATE;
       break;
     }
-
   }
 
   void setWires() {
@@ -203,22 +206,18 @@ public:
     if (next_state.read() == State::IDLE_STATE) {
       ap_done.write(SC_LOGIC_1);
       ap_ready.write(SC_LOGIC_1);
-    }
-    else {
+    } else {
       ap_done.write(SC_LOGIC_0);
       ap_ready.write(SC_LOGIC_0);
     }
-
-
-
   }
-  Trigger(sc_module_name name): sc_module(name) {
+
+  Trigger(sc_module_name name) : sc_module(name) {
 
     SC_METHOD(setNextState);
-    sensitive << state << ap_start <<
-                external_enqueue << actor_done <<
-                actor_return << all_sync << all_sync_wait <<
-                all_sleep << all_waited;
+    sensitive << state << ap_start << external_enqueue << actor_done
+              << actor_return << all_sync << all_sync_wait << all_sleep
+              << all_waited;
     SC_METHOD(setWires);
     sensitive << state << next_state;
 
@@ -230,7 +229,6 @@ public:
   }
 
   ~Trigger(){};
-
 };
-
+} // namespace ap_rtl
 #endif // __TRIGGER_H__

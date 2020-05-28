@@ -23,7 +23,7 @@ public class APControl implements SCIF {
 
         clk = PortIF.of(
                 "ap_clk",
-                Signal.of("ap_clk", new LogicValue()),
+                Signal.of("ap_clk", new ClockType()),
                 Optional.of(PortIF.Kind.INPUT));
 
         rstN = PortIF.of(

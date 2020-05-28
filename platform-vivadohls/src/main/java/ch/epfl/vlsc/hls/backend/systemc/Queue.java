@@ -1,4 +1,5 @@
 package ch.epfl.vlsc.hls.backend.systemc;
+import se.lth.cs.tycho.ir.Port;
 import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.reporting.CompilationException;
 import se.lth.cs.tycho.reporting.Diagnostic;
@@ -12,9 +13,9 @@ public class Queue implements SCIF{
 
 
     public static class WriterIF implements SCIF{
-        public final PortIF din;
-        public final PortIF write;
-        public final PortIF fullN;
+        private final PortIF din;
+        private final PortIF write;
+        private final PortIF fullN;
         public  WriterIF(Signal din, String write, String fullN) {
             this("", din, Signal.of(write, new LogicValue()), Signal.of(fullN, new LogicValue()));
         }
@@ -42,11 +43,20 @@ public class Queue implements SCIF{
                     this.din, this.write, this.fullN
             );
         }
+        public PortIF getDin() {
+            return  din;
+        }
+        public PortIF getWrite () {
+            return write;
+        }
+        public PortIF getFullN() {
+            return fullN;
+        }
     }
     public static class ReaderIF implements SCIF {
-        public final PortIF dout;
-        public final PortIF read;
-        public final PortIF emptyN;
+        private final PortIF dout;
+        private final PortIF read;
+        private final PortIF emptyN;
         public ReaderIF(Signal dout, String read, String emptyN) {
             this ("", dout, Signal.of(read, new LogicValue()), Signal.of(emptyN, new LogicValue()));
         }
@@ -64,11 +74,23 @@ public class Queue implements SCIF{
                     this.dout, this.read, this.emptyN
             );
         }
+
+        public PortIF getDout() {
+            return dout;
+        }
+
+        public PortIF getEmptyN() {
+            return emptyN;
+        }
+
+        public PortIF getRead() {
+            return read;
+        }
     }
     public static class AuxiliaryIF implements SCIF{
-        public final PortIF count;
-        public final PortIF capacity;
-        public final PortIF peek;
+        private final PortIF count;
+        private final PortIF capacity;
+        private final PortIF peek;
         public AuxiliaryIF(Signal count, Signal capacity, Signal peek) {
             this("", count, capacity, peek);
         }
@@ -87,6 +109,17 @@ public class Queue implements SCIF{
                     this.count, this.capacity, this.peek
             );
         }
+        public PortIF getCount() {
+            return count;
+        }
+
+        public PortIF getCapacity() {
+            return capacity;
+        }
+
+        public PortIF getPeek() {
+            return peek;
+        }
     }
     private final String name;
     private final LogicVector type;
@@ -94,19 +127,31 @@ public class Queue implements SCIF{
     private final ReaderIF reader;
     private final AuxiliaryIF auxiliary;
     private final int depth;
+    private final boolean isInput;
+    private final boolean isOutput;
     public Queue(Connection connection, int width, int depth) {
 
         Connection.End source = connection.getSource();
         Connection.End target = connection.getTarget();
         Optional<PortIF.Kind> writerKind = Optional.empty();
         Optional<PortIF.Kind> readerKind = Optional.empty();
+        String prefix = "";
         if (source.getInstance().isPresent() && target.getInstance().isPresent()) {
-            name = "q_" + source.getInstance().get() + "_" + source.getPort() + "_" +
+            prefix = "q_" + source.getInstance().get() + "_" + source.getPort() + "_" +
                     target.getInstance().get() + "_" + target.getPort();
+            name = prefix;
+            isOutput = false;
+            isInput = false;
         } else if (source.getInstance().isPresent() && !target.getInstance().isPresent()) {
-            name = source.getInstance().get() + "_" + source.getPort() + "_" + target.getPort();
+            prefix = source.getInstance().get() + "_" + source.getPort() + "_" + target.getPort();
+            name = "q_" + prefix;
+            isOutput = true;
+            isInput = false;
         } else if (!source.getInstance().isPresent() && target.getInstance().isPresent()) {
-            name = source.getPort() + "_" + target.getInstance().get() + "_" + target.getPort();
+            prefix = source.getPort() + "_" + target.getInstance().get() + "_" + target.getPort();
+            name = "q_" + prefix;
+            isOutput = false;
+            isInput = true;
         } else {
             throw new CompilationException(
                     new Diagnostic(Diagnostic.Kind.ERROR,
@@ -120,18 +165,19 @@ public class Queue implements SCIF{
 
         type = new LogicVector(width);
         writer = new WriterIF(
-                Signal.of(name + "_din", type),
-                name + "_write",
-                name + "_full_n");
+                Signal.of(prefix + "_din", type),
+                prefix + "_write",
+                prefix + "_full_n");
         reader = new ReaderIF(
-                Signal.of(name + "_dout", type),
-                name + "_read",
-                name + "_empty_n");
+                Signal.of(prefix + "_dout", type),
+                prefix + "_read",
+                prefix + "_empty_n");
 
         auxiliary = new AuxiliaryIF(
-                Signal.of(name + "_count", new LogicVector(32)),
-                Signal.of(name + "_size", new LogicVector(32)),
-                Signal.of(name + "_peek", type));
+                Signal.of(prefix + "_count", new LogicVector(32)),
+                Signal.of(prefix + "_size", new LogicVector(32)),
+                Signal.of(prefix + "_peek", type));
+
 
     }
 
@@ -160,6 +206,24 @@ public class Queue implements SCIF{
         return Stream.of(
                 writer.stream(), reader.stream(), auxiliary.stream()
         ).flatMap(s -> s);
+
+    }
+
+    public Stream<PortIF> streamUnique() {
+        if (isInput) {
+            return Stream.of(
+                    reader.stream(), Stream.of(auxiliary.getPeek())
+            ).flatMap(i -> i);
+
+        } else if (isOutput){
+            return Stream.of(
+                    writer.stream(), Stream.of(auxiliary.capacity)
+            ).flatMap(i -> i);
+        } else {
+            return Stream.of(
+                    writer.stream(), reader.stream(), auxiliary.stream()
+            ).flatMap(s -> s);
+        }
 
     }
 }
