@@ -20,6 +20,7 @@ else()
 
   set(VIVADO_FOUND TRUE)
   set(VIVADO_BINARY ${VIVADO_ROOT_DIR}/bin/vivado)
+  set(VIVADO_SYSTEMC_INCLUDE_DIR ${VIVADO_ROOT_DIR}/common/technology/generic/SystemC)
 
   message(STATUS "Found Vivado at ${VIVADO_ROOT_DIR}.")
 

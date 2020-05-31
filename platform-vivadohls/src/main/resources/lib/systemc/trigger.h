@@ -3,7 +3,7 @@
 #include "systemc.h"
 
 namespace ap_rtl {
-template <int NUM_ACTIONS> class Trigger : public sc_module {
+template <int SZ> class Trigger : public sc_module {
 public:
   // Module interface
   sc_in_clk ap_clk;
@@ -65,7 +65,7 @@ public:
     }
   };
 
-  std::array<ProfileStat, NUM_ACTIONS> stats;
+  std::array<ProfileStat, SZ> stats;
   sc_signal<unsigned long int> clock_counter;
 
   // Trigget state variable
@@ -244,8 +244,8 @@ public:
     if (actor_done.read() == SC_LOGIC_1 &&
         return_code == ReturnStatus::EXECUTED) {
 
-      std::cout << "@ " << sc_time_stamp() << " action " << action_id.to_uint()
-                << " took " << clock_counter.read() + 1 << " cycles" << std::endl;
+      std::cout << "@ " << sc_time_stamp() << " "<< this->name() << "::action[" << action_id.to_uint()
+                << "] took " << clock_counter.read() + 1 << " cycles" << std::endl;
       stats[action_id.to_uint()].register_stat(clock_counter.read() + 1);
       return true;
     }
@@ -271,7 +271,7 @@ public:
       : sc_module(name), state("state", State::IDLE_STATE),
         next_state("next_state", State::IDLE_STATE) {
 
-    for (int i = 0; i < NUM_ACTIONS; i++)
+    for (int i = 0; i < SZ; i++)
       stats[i].setId(i);
 
     SC_METHOD(setNextState);

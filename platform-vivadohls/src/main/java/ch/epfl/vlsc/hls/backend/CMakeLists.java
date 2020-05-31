@@ -50,6 +50,7 @@ public interface CMakeLists {
         emitter().emit("option(USE_VITIS \"Build an RTL OpenCL Kernel for Vitis\" OFF)");
         emitter().emit("option(USE_SDACCEL \"Build an RTL OpenCL Kernel for SDAccel\" OFF)");
         emitter().emit("option(OPENCL_HOST \"Build an example OpenCL Host executable for Vitis orSDAccel\" OFF)");
+        emitter().emit("option(USE_SYSTEMC \"Use systemc for simulation of the network\" OFF)");
         emitter().emitNewLine();
 
 
@@ -104,6 +105,23 @@ public interface CMakeLists {
         emitter().emit("endif()");
         emitter().emitNewLine();
 
+
+        // -- find SystemC
+        emitter().emit("if (USE_SYSTEMC)");
+        {
+            emitter().increaseIndentation();
+
+            emitter().emit("find_package(SystemCLanguage REQUIRED)");
+            emitter().emit("if (NOT SYSTEMC_FOUND)");
+            {
+                emitter().increaseIndentation();
+                emitter().emit("message(FATAL_ERROR \"Could not locate SystemC library, make sure SYSTEMC_HOME environment variable is set correctly, e.g. /usr/local/systemc-2.3.3\")");
+                emitter().decreaseIndentation();
+            }
+            emitter().emit("endif()");
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("endif()");
         // -- Find Vitis or SDAccel
         emitter().emitSharpBlockComment("Find and use Vitis or SDAccel");
         emitter().emitNewLine();
@@ -192,7 +210,7 @@ public interface CMakeLists {
         {
             emitter().increaseIndentation();
 
-            emitter().emit("\tset(FPGA_NAME \"xczu3eg-sbva484-1-e\" CACHE STRING \"Name of Xilinx FPGA, e.g \\\"xcku115-flvb2104-2-e\\\", \\\"xczu3eg-sbva484-1-e\\\",..\")");
+            emitter().emit("\tset(FPGA_NAME \"xcku115-flvb2104-2-e\" CACHE STRING \"Name of Xilinx FPGA, e.g \\\"xcku115-flvb2104-2-e\\\", \\\"xczu3eg-sbva484-1-e\\\",..\")");
             emitter().emit("\tset(HLS_CLOCK_PERIOD \"10\" CACHE STRING \"Clock period in ns\")");
 
             emitter().decreaseIndentation();
@@ -473,6 +491,71 @@ public interface CMakeLists {
 
         }
         emitter().emit("endif()");
+
+
+        // -- systemc simulator
+        emitter().emitSharpComment("SystemC simulator binary");
+        emitter().emit("if (USE_SYSTEMC)");
+        {
+            emitter().increaseIndentation();
+
+            emitter().emit("set(EXECUTABLE_OUTPUT_PATH ${CMAKE_SOURCE_DIR}/bin)");
+            emitter().emitNewLine();
+            // -- includes
+            emitter().emitSharpComment("SystemC includes");
+            emitter().emit("set(systemc_inc");
+            {
+                emitter().increaseIndentation();
+                emitter().emit("${SYSTEMC_INCLUDE_DIR}");
+                emitter().emit("${VIVADO_SYSTEMC_INCLUDE_DIR}");
+                network.getInstances().forEach(instance -> {
+                    emitter().emit("${CMAKE_CURRENT_BINARY_DIR}/%s/solution/syn/",
+                            backend().instaceQID(instance.getInstanceName(), "_"));
+                });
+                emitter().decreaseIndentation();
+            }
+            emitter().emit(")");
+            emitter().emitNewLine();
+            // -- sources
+            emitter().emitSharpComment("SystemC sources");
+            emitter().emit("set(systemc_src");
+            {
+                emitter().increaseIndentation();
+                emitter().emit("code-gen/src/simulate.cpp");
+                network.getInstances().forEach(instance -> {
+                    emitter().emit("${CMAKE_CURRENT_BINARY_DIR}/%s/solution/syn/systemc/%1$s.cpp",
+                            backend().instaceQID(instance.getInstanceName(), "_"));
+                });
+                emitter().decreaseIndentation();
+            }
+            emitter().emit(")");
+            emitter().emitNewLine();
+
+            emitter().emit("add_executable(simulate ${systemc_src})");
+            emitter().emitNewLine();
+            emitter().emitSharpComment("Force include sstream (used by Vivado HLS generated sources)");
+            emitter().emit("set(CMAKE_CXX_FLAGS \"${CMAKE_CXX_FLAGS} -include sstream\")");
+            emitter().emitNewLine();
+
+            emitter().emitSharpComment("Create the simulate binary");
+            emitter().emitNewLine();
+            emitter().emit("target_include_directories(simulate PRIVATE ${systemc_inc})");
+            emitter().emit("set_target_properties(simulate PROPERTIES");
+            {
+                emitter().increaseIndentation();
+                emitter().emit("CXX_STANDARD 11");
+                emitter().emit("CXX_STANDARD_REQUIRED YES");
+                emitter().emit("CXX_EXTENSIONS NO");
+                emitter().decreaseIndentation();
+            }
+            emitter().emit(")");
+
+            emitter().emitNewLine();
+            emitter().emit("target_link_libraries(simulate ${SYSTEMC_LIBRARY})");
+
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("endif()");
         emitter().close();
 
     }
@@ -482,7 +565,8 @@ public interface CMakeLists {
         {
             emitter().increaseIndentation();
 
-            emitter().emit("OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/%s/solution/syn/verilog/%1$s.v", topName);
+            emitter().emit("OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/%s/solution/syn/verilog/%1$s.v " +
+                    "${CMAKE_CURRENT_BINARY_DIR}/%1$s/solution/syn/systemc/%1$s.cpp", topName);
             emitter().emit("COMMAND ${VIVADO_HLS_BINARY} -f Synthesis.tcl -tclargs \\\"%s\\\" \\\"%s\\\"  > %1$s.log",
                     topName, filename);
             emitter().emit("DEPENDS ${_incpath}/%s.h ${_srcpath}/%s.cpp", headerName, topName);

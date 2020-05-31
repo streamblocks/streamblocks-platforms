@@ -410,6 +410,10 @@ public class VivadoHLSBackendPhase implements Phase {
                     PathUtils.getTargetCmake(backend.context()).resolve("FindVitis.cmake"),
                     StandardCopyOption.REPLACE_EXISTING);
 
+            Files.copy(getClass().getResourceAsStream("/lib/cmake/FindSystemCLanguage.cmake"),
+                    PathUtils.getTargetCmake(backend.context()).resolve("FindSystemCLanguage.cmake"),
+                    StandardCopyOption.REPLACE_EXISTING);
+
             // -- Input and Output Stage mem Header
             Files.copy(getClass().getResourceAsStream("/lib/hls/iostage.h"),
                     PathUtils.getTargetCodeGenInclude(backend.context()).resolve("iostage.h"),
@@ -428,6 +432,17 @@ public class VivadoHLSBackendPhase implements Phase {
             // -- sdaccel ini
             Files.copy(getClass().getResourceAsStream("/lib/cmake/sdaccel.ini.in"),
                     PathUtils.getTargetScripts(backend.context()).resolve("sdaccel.ini.in"),
+                    StandardCopyOption.REPLACE_EXISTING);
+
+            // -- systemc material
+            Files.copy(getClass().getResourceAsStream("/lib/systemc/queue.h"),
+                    PathUtils.getTargetCodeGenInclude(backend.context()).resolve("queue.h"),
+                    StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(getClass().getResourceAsStream("/lib/systemc/trigger.h"),
+                    PathUtils.getTargetCodeGenInclude(backend.context()).resolve("trigger.h"),
+                    StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(getClass().getResourceAsStream("/lib/systemc/sim_queue.h"),
+                    PathUtils.getTargetCodeGenInclude(backend.context()).resolve("sim_queue.h"),
                     StandardCopyOption.REPLACE_EXISTING);
 
 

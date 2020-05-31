@@ -323,7 +323,7 @@ public interface SystemCNetwork {
     }
 
     default void getIncludeInstance(SCInstance instance) {
-        emitter().emit("#include \"%s.h\"", instance.getName());
+        emitter().emit("#include \"systemc/%s.h\"", instance.getName());
     }
 
     default void getModulePorts(SCNetwork network) {
