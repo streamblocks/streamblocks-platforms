@@ -48,25 +48,6 @@ public:
         write("write"), din("din"), count("count"), size("size"), peek("peek"),
         mTrace(0) {
 
-    // const char *dump_vcd = std::getenv("AP_WRITE_VCD");
-    // if (dump_vcd && string(dump_vcd) == "1") {
-    //   std::string tracefn = "sc_trace_" + std::string(name);
-    //   mTrace = sc_core::sc_create_vcd_trace_file(tracefn.c_str());
-    //   sc_trace(mTrace, ap_clk, "(port)clk");
-    //   sc_trace(mTrace, ap_rst_n, "(port)ap_rst_n");
-    //   sc_trace(mTrace, full_n, "(port)full_n");
-
-    //   sc_trace(mTrace, write, "(port)write");
-    //   sc_trace(mTrace, din, "(port)din");
-    //   sc_trace(mTrace, empty_n, "(port)empty_n");
-
-    //   sc_trace(mTrace, read, "(port)read");
-    //   sc_trace(mTrace, dout, "(port)dout");
-    //   sc_trace(mTrace, mInPtr, "mInPtr");
-    //   sc_trace(mTrace, mOutPtr, "mOutPtr");
-    //   sc_trace(mTrace, mFlag_nEF_hint, "mFlag_nEF_hint");
-    // }
-
     mInPtr = 0;
     mOutPtr = 0;
     mFlag_nEF_hint = 0;
@@ -174,4 +155,4 @@ public:
 };
 
 } // namespace ap_rtl
-#endif
+#endif // __QUEUE_H__

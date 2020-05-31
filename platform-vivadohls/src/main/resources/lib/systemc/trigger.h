@@ -3,8 +3,7 @@
 #include "systemc.h"
 
 namespace ap_rtl {
-
-class Trigger : public sc_module {
+template <int NUM_ACTIONS> class Trigger : public sc_module {
 public:
   // Module interface
   sc_in_clk ap_clk;
@@ -49,9 +48,31 @@ public:
     static const unsigned int EXECUTED = 3;
   };
 
+  class ProfileStat {
+  private:
+    unsigned int action_id;
+    std::vector<unsigned int> clock_count;
+
+  public:
+    ProfileStat(){
+
+    };
+
+    void setId(unsigned int id) { action_id = id; };
+
+    void register_stat(unsigned long int count) {
+      clock_count.push_back(count);
+    }
+  };
+
+  std::array<ProfileStat, NUM_ACTIONS> stats;
+  sc_signal<unsigned long int> clock_counter;
+
   // Trigget state variable
   sc_signal<sc_lv<3>> state;
   sc_signal<sc_lv<3>> next_state;
+
+  sc_trace_file *vcd_dump;
 
   SC_HAS_PROCESS(Trigger);
 
@@ -105,6 +126,8 @@ public:
 
     next_state = State::IDLE_STATE;
 
+    sc_lv<32> return_code = actor_return.read().range(1, 0);
+
     switch (state.read().to_uint()) {
     case State::IDLE_STATE:
       if (ap_start.read() == SC_LOGIC_1)
@@ -116,8 +139,8 @@ public:
     case State::LAUNCH:
     case State::CHECK:
       if (actor_done.read() == SC_LOGIC_1)
-        if (actor_return.read() == ReturnStatus::EXECUTED ||
-            actor_return.read() == ReturnStatus::TEST ||
+        if (return_code == ReturnStatus::EXECUTED ||
+            return_code == ReturnStatus::TEST ||
             external_enqueue.read() == SC_LOGIC_1)
           next_state = State::LAUNCH;
         else
@@ -137,9 +160,9 @@ public:
     case State::SYNC_LAUNCH:
     case State::SYNC_CHECK:
       if (actor_done.read() == SC_LOGIC_1)
-        if (actor_return.read() == ReturnStatus::EXECUTED)
+        if (return_code == ReturnStatus::EXECUTED)
           next_state = State::SYNC_EXEC;
-        else if (actor_return.read() == ReturnStatus::TEST)
+        else if (return_code == ReturnStatus::TEST)
           next_state = State::SYNC_LAUNCH;
         else
           next_state = State::SYNC_WAIT;
@@ -212,7 +235,44 @@ public:
     }
   }
 
-  Trigger(sc_module_name name) : sc_module(name) {
+  bool profileAction() {
+
+    sc_lv<15> action_id = actor_return.read().range(31, 17);
+    sc_lv<2> return_code = actor_return.read().range(1, 0);
+    sc_lv<15> action_count = actor_return.read().range(16, 2);
+
+    if (actor_done.read() == SC_LOGIC_1 &&
+        return_code == ReturnStatus::EXECUTED) {
+
+      std::cout << "@ " << sc_time_stamp() << " action " << action_id.to_uint()
+                << " took " << clock_counter.read() + 1 << " cycles" << std::endl;
+      stats[action_id.to_uint()].register_stat(clock_counter.read() + 1);
+      return true;
+    }
+    return false;
+  }
+
+  void countClocks() {
+    while (true) {
+      wait();
+      if (state.read() == State::CHECK || state.read() == State::SYNC_CHECK ||
+          state.read() == State::LAUNCH || state.read() == State::SYNC_LAUNCH) {
+
+        if (profileAction())
+          clock_counter = 0;
+        else
+          clock_counter = clock_counter + 1;
+      }
+      else
+        clock_counter = 0;
+    }
+  }
+  Trigger(sc_module_name name)
+      : sc_module(name), state("state", State::IDLE_STATE),
+        next_state("next_state", State::IDLE_STATE) {
+
+    for (int i = 0; i < NUM_ACTIONS; i++)
+      stats[i].setId(i);
 
     SC_METHOD(setNextState);
     sensitive << state << ap_start << external_enqueue << actor_done
@@ -222,10 +282,15 @@ public:
     sensitive << state << next_state;
 
     SC_THREAD(lastWait);
-    sensitive_pos << ap_clk;
+    sensitive << ap_clk.pos();
 
     SC_THREAD(setState);
-    sensitive_pos << ap_clk;
+    sensitive << ap_clk.pos();
+
+    SC_THREAD(countClocks);
+    sensitive << ap_clk.pos();
+
+    ;
   }
 
   ~Trigger(){};

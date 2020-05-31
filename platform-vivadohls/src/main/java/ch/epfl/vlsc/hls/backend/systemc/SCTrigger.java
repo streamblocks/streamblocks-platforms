@@ -25,6 +25,8 @@ public class SCTrigger implements SCIF {
     private final PortIF actorIdle;
     private final PortIF actorStart;
 
+    private final int numActions;
+
     public SCTrigger(SCInstance instance, SCNetwork.SyncIF globalSync, PortIF start) {
 
         this.apControl = new APControl(instance.getName() + "_trigger_").withStart(start);
@@ -81,6 +83,7 @@ public class SCTrigger implements SCIF {
                         "actor_return",
                         instance.getReturn().getSignal().withRange(1, 0),
                         Optional.of(PortIF.Kind.INPUT));
+        this.numActions = instance.getNumActions();
 
     }
 
@@ -126,6 +129,10 @@ public class SCTrigger implements SCIF {
 
     public APControl getApControl() {
         return apControl;
+    }
+
+    public int getNumActions() {
+        return numActions;
     }
 
     @Override

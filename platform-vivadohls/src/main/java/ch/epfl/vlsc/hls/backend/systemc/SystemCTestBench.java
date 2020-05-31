@@ -22,6 +22,7 @@ public interface SystemCTestBench {
     default String getPostfix() {
         return "_tester";
     }
+
     default void generateTester() {
 
         SCNetwork network = backend().scnetwork().createSCNetwork(backend().task().getNetwork());
@@ -91,6 +92,9 @@ public interface SystemCTestBench {
         emitter().emit("#include <fstream>");
         emitter().emit("#include <string>");
         emitter().emitNewLine();
+
+        emitter().emit("#define TRACE_SIG(FILE, SIG) sc_core::sc_trace(FILE, SIG, std::string(this->name()) + \".\" #SIG)");
+        emitter().emitNewLine();
     }
 
 
@@ -136,6 +140,8 @@ public interface SystemCTestBench {
             String type = backend().typeseval().type(backend().types().declaredPortType(output));
             emitter().emit("SimQueue::OutputQueue<%s> sim_buffer_%s;", type, output.getName());
         });
+        // -- vcd trace file
+        emitter().emit("sc_trace_file *vcd_dump;");
         emitter().emitNewLine();
     }
 
@@ -155,7 +161,7 @@ public interface SystemCTestBench {
             emitter().increaseIndentation();
             String type = backend().typeseval().type(backend().types().declaredPortType(input.getPort()));
             // -- set din and peek
-            emitter().emit("%s token = %s.peek();", type , simBufferName);
+            emitter().emit("%s token = %s.peek();", type, simBufferName);
             emitter().emit("%s.write(token);", input.getWriter().getDin().getSignal().getName());
 
             emitter().emitNewLine();
@@ -192,13 +198,14 @@ public interface SystemCTestBench {
         {
             emitter().increaseIndentation();
             String type = backend().typeseval().type(backend().types().declaredPortType(output.getPort()));
-            emitter().emit("%s token = %s.read().to_ulong();", type, output.getReader().getDout().getSignal().getName());
+
 
             emitter().emit("if (%s.full_n() == true && %s.read() == SC_LOGIC_1) {",
                     simBufferName, output.getReader().getEmptyN().getSignal().getName());
             {
                 emitter().increaseIndentation();
                 emitter().emit("%s.write(SC_LOGIC_1);", output.getReader().getRead().getSignal().getName());
+                emitter().emit("%s token = %s.read().to_ulong();", type, output.getReader().getDout().getSignal().getName());
                 emitter().emit("%s.enqueue(token);", simBufferName);
                 emitter().decreaseIndentation();
             }
@@ -229,6 +236,7 @@ public interface SystemCTestBench {
         emitter().emit("}");
         emitter().emitNewLine();
     }
+
     default void getSimulator(SCNetwork network) {
 
         emitter().emit("// -- simulator method");
@@ -237,7 +245,7 @@ public interface SystemCTestBench {
             emitter().increaseIndentation();
             emitter().emit("bool started = false;");
             emitter().emit("uint64_t clock_counter = 0;");
-            emitter().emit("std::cout << \"@\" << sc_time_stamp() << \"Starting sim\" << std::endl;");
+            emitter().emit("std::cout << \"@\" << sc_time_stamp() << \" Starting sim\" << std::endl;");
             emitter().emit("while (%s.read() != SC_LOGIC_1) {", network.getApControl().getDoneSignal().getName());
             {
 
@@ -272,7 +280,7 @@ public interface SystemCTestBench {
     default void getConstructor(SCNetwork network, String identifier) {
         emitter().emit("// -- constructor");
 
-        emitter().emit("%s(sc_module_name name, const sc_time clock_period): ", identifier);
+        emitter().emit("%s(sc_module_name name, const sc_time clock_period, unsigned int trace_level = 0): ", identifier);
 
         {
             emitter().increaseIndentation();
@@ -292,7 +300,8 @@ public interface SystemCTestBench {
                             output.getPort().getName());
                 });
                 emitter().emit("clock_period(clock_period),");
-                emitter().emit("%s(\"%1$s\", clock_period) {", network.getApControl().getClockSignal().getName());
+                emitter().emit("%s(\"%1$s\", clock_period), ", network.getApControl().getClockSignal().getName());
+                emitter().emit("%s(\"%1$s\", SC_LOGIC_1) {", network.getApControl().getStartSignal().getName());
 
                 emitter().decreaseIndentation();
             }
@@ -307,22 +316,73 @@ public interface SystemCTestBench {
             emitter().emit("// -- input feeders");
             network.getInputs().stream().map(SCNetwork.InputIF::getPort).map(PortDecl::getName).forEach(port -> {
                 emitter().emit("SC_METHOD(input_feeder_%s);", port);
-                emitter().emit("sensitive_pos << %s;", network.getApControl().getClockSignal().getName());
+                emitter().emit("sensitive << %s.posedge_event();", network.getApControl().getClockSignal().getName());
                 emitter().emitNewLine();
             });
             emitter().emitNewLine();
             emitter().emit("// -- output eaters");
             network.getOutputs().stream().map(SCNetwork.OutputIF::getPort).map(PortDecl::getName).forEach(port -> {
                 emitter().emit("SC_METHOD(output_eater_%s);", port);
-                emitter().emit("sensitive_pos << %s;", network.getApControl().getClockSignal().getName());
+                emitter().emit("sensitive << %s.posedge_event();", network.getApControl().getClockSignal().getName());
                 emitter().emitNewLine();
             });
             emitter().emitNewLine();
 
+            // -- register traces
+            emitter().emit("if (trace_level > 0) {");
+            {
+                emitter().increaseIndentation();
+                emitter().emit("vcd_dump = sc_create_vcd_trace_file(\"%s\");", identifier);
+                emitter().emit("vcd_dump->set_time_unit(1, SC_PS);");
 
+                network.stream().forEach(port -> {
+                    emitter().emit("TRACE_SIG(vcd_dump, %s);", port.getSignal().getName());
+                });
+                emitter().decreaseIndentation();
+            }
+            emitter().emit("}");
+            emitter().emitNewLine();
+            emitter().emit("if (trace_level > 1) {");
+            {
+                emitter().increaseIndentation();
+
+                network.getQueues().stream().forEach(queue -> {
+                    String queueName = queue.getName();
+                    queue.stream().forEach(port -> {
+                        emitter().emit("TRACE_SIG(vcd_dump, inst_%s.%s.%s);", network.getIdentifier(),
+                                queueName, port.getName());
+                    });
+                });
+                network.getInternalSignals().forEach(signal -> {
+                    emitter().emit("TRACE_SIG(vcd_dump, inst_%s.%s);", network.getIdentifier(), signal.getName());
+                });
+
+                emitter().decreaseIndentation();
+            }
+            emitter().emit("}");
+            emitter().emitNewLine();
+            emitter().emit("if (trace_level > 2) {");
+            {
+                emitter().increaseIndentation();
+                network.getTriggers().stream().forEach(trigger -> {
+                    String triggerName = trigger.getName();
+                    trigger.stream().forEach(port -> {
+                        emitter().emit("TRACE_SIG(vcd_dump, inst_%s.%s.%s);", network.getIdentifier(),
+                                triggerName, port.getName());
+                    });
+                    emitter().emit("TRACE_SIG(vcd_dump, inst_%s.%s.state);", network.getIdentifier(), triggerName);
+                    emitter().emit("TRACE_SIG(vcd_dump, inst_%s.%s.next_state);", network.getIdentifier(),
+                            triggerName);
+                });
+                emitter().decreaseIndentation();
+            }
+            emitter().emit("}");
+            emitter().emitNewLine();
             emitter().decreaseIndentation();
         }
         emitter().emit("}");
+
+        emitter().emit("~%s() { sc_close_vcd_trace_file(vcd_dump); };", identifier);
     }
 
 }

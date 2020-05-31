@@ -13,6 +13,7 @@ import org.multij.Module;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
+import se.lth.cs.tycho.ir.entity.am.ActorMachine;
 import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.network.Network;
@@ -154,9 +155,10 @@ public interface SystemCNetwork {
                 Queue queue = findQueue(connection);
                 writers.add(new SCInstance.OutputIF(queue, prefix, prefix2));
             }
+            ActorMachine am = (ActorMachine) entity;
 
             String name = backend().instaceQID(instance.getInstanceName(), "_");
-            SCInstance newInst = new SCInstance(name, readers.build(), writers.build());
+            SCInstance newInst = new SCInstance(name, readers.build(), writers.build(), am.getTransitions().size());
             instances().put(instance, newInst);
             return newInst;
         } else {
@@ -405,7 +407,7 @@ public interface SystemCNetwork {
     default void getTriggers(SCNetwork network) {
         emitter().emit("// -- Triggers");
         for (SCTrigger trigger : network.getTriggers()) {
-            emitter().emit("Trigger %s;", trigger.getName());
+            emitter().emit("Trigger<%d> %s;", trigger.getNumActions(), trigger.getName());
         }
     }
 
@@ -508,7 +510,7 @@ public interface SystemCNetwork {
 
             // -- Method to set the internal idle reg
             emitter().emit("SC_METHOD(setAmIdle);");
-            emitter().emit("sensitive_pos << %s;", network.getApControl().getClockSignal().getName());
+            emitter().emit("sensitive << %s.pos();", network.getApControl().getClockSignal().getName());
             emitter().emitNewLine();
 
             // -- Method to set the ap idle signal
@@ -629,7 +631,7 @@ public interface SystemCNetwork {
             emitter().emit("if (%s == SC_LOGIC_0)", network.getApControl().getResetSignal().getName());
             {
                 emitter().increaseIndentation();
-                emitter().emit("%s = SC_LOGIC_0;", network.getAmIdleReg().getName());
+                emitter().emit("%s = SC_LOGIC_1;", network.getAmIdleReg().getName());
                 emitter().decreaseIndentation();
             }
             emitter().emit("else");

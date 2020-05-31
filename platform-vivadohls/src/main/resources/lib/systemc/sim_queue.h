@@ -38,6 +38,13 @@ template <typename T> class InputQueue : public BaseQueue<T> {
 public:
   InputQueue(const std::string &queue_name, const std::string &path_prefix)
       : BaseQueue<T>(queue_name, path_prefix){};
+  ~InputQueue() {
+    if (this->ix < this->buffer.size())
+      std::cerr << "Only " << this->ix << " tokens out of "
+                << this->buffer.size()
+                << " were consumed in the input sim queue " << this->queue_name
+                << std::endl;
+  }
   T dequeue() {
 
     T token = peek();
@@ -45,10 +52,12 @@ public:
     return token;
   }
 
-  bool empty_n() { return (this->buffer.size() > 0 && this->ix < this->buffer.size()); }
+  bool empty_n() {
+    return (this->buffer.size() > 0 && this->ix < this->buffer.size());
+  }
 
   T peek() {
-    assert(this->ix < this->buffer.size());
+    assert(this->ix <= this->buffer.size());
     T token = this->buffer[this->ix];
     return token;
   };
@@ -59,6 +68,13 @@ template <typename T> class OutputQueue : public BaseQueue<T> {
 public:
   OutputQueue(const std::string &queue_name, const std::string &path_prefix)
       : BaseQueue<T>(queue_name, path_prefix) {}
+  ~OutputQueue() {
+    if (this->ix != this->buffer.size()) {
+      std::cerr << "Error! expected " << this->buffer.size()
+                << " tokens but received " << this->ix
+                << " tokens in the output sim queue " << this->queue_name << std::endl;
+    }
+  }
   bool enqueue(T token) {
 
     bool match = true;
