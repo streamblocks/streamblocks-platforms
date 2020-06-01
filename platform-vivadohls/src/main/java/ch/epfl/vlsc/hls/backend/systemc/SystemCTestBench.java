@@ -27,7 +27,7 @@ public interface SystemCTestBench {
 
         SCNetwork network = backend().scnetwork().createSCNetwork(backend().task().getNetwork());
 
-        String identifier = network.getIdentifier() + getPostfix();
+        String identifier = "network_tester";
 
         emitter().open(PathUtils.getTargetCodeGenInclude(backend().context()).resolve(identifier + ".h"));
         emitter().emit("#ifndef __%s_H__", identifier);

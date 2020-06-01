@@ -244,8 +244,9 @@ public:
     if (actor_done.read() == SC_LOGIC_1 &&
         return_code == ReturnStatus::EXECUTED) {
 
-      std::cout << "@ " << sc_time_stamp() << " "<< this->name() << "::action[" << action_id.to_uint()
-                << "] took " << clock_counter.read() + 1 << " cycles" << std::endl;
+      std::cout << "@ " << sc_time_stamp() << ": " << this->name()
+                << "::action[" << action_id.to_uint() << "] took "
+                << clock_counter.read() + 1 << " cycles" << std::endl;
       stats[action_id.to_uint()].register_stat(clock_counter.read() + 1);
       return true;
     }
@@ -262,8 +263,7 @@ public:
           clock_counter = 0;
         else
           clock_counter = clock_counter + 1;
-      }
-      else
+      } else
         clock_counter = 0;
     }
   }

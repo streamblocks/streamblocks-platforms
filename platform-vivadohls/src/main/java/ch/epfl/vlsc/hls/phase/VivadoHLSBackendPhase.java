@@ -444,7 +444,9 @@ public class VivadoHLSBackendPhase implements Phase {
             Files.copy(getClass().getResourceAsStream("/lib/systemc/sim_queue.h"),
                     PathUtils.getTargetCodeGenInclude(backend.context()).resolve("sim_queue.h"),
                     StandardCopyOption.REPLACE_EXISTING);
-
+            Files.copy(getClass().getResourceAsStream("/lib/systemc/simulate.cpp"),
+                    PathUtils.getTargetCodeGenSource(backend.context()).resolve("simulate.cpp"),
+                    StandardCopyOption.REPLACE_EXISTING);
 
         } catch (IOException e) {
             throw new CompilationException(new Diagnostic(Diagnostic.Kind.ERROR, "Could not copy backend resources"));
