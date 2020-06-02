@@ -7,28 +7,28 @@ template <int SZ> class Trigger : public sc_module {
 public:
   // Module interface
   sc_in_clk ap_clk;
-  sc_in<sc_logic> ap_rst_n;
-  sc_in<sc_logic> ap_start;
-  sc_out<sc_logic> ap_done;
-  sc_out<sc_logic> ap_idle;
-  sc_out<sc_logic> ap_ready;
+  sc_in<bool> ap_rst_n;
+  sc_in<bool> ap_start;
+  sc_out<bool> ap_done;
+  sc_out<bool> ap_idle;
+  sc_out<bool> ap_ready;
 
-  sc_in<sc_logic> external_enqueue;
-  sc_in<sc_logic> all_sync;
-  sc_in<sc_logic> all_sync_wait;
-  sc_in<sc_logic> all_sleep;
-  sc_in<sc_logic> all_waited;
+  sc_in<bool> external_enqueue;
+  sc_in<bool> all_sync;
+  sc_in<bool> all_sync_wait;
+  sc_in<bool> all_sleep;
+  sc_in<bool> all_waited;
 
-  sc_out<sc_logic> sleep;
-  sc_out<sc_logic> sync_wait;
-  sc_out<sc_logic> sync_exec;
-  sc_out<sc_logic> waited;
+  sc_out<bool> sleep;
+  sc_out<bool> sync_wait;
+  sc_out<bool> sync_exec;
+  sc_out<bool> waited;
 
-  sc_in<sc_lv<32>> actor_return;
-  sc_in<sc_logic> actor_done;
-  sc_in<sc_logic> actor_ready;
-  sc_in<sc_logic> actor_idle;
-  sc_out<sc_logic> actor_start;
+  sc_in<uint32_t> actor_return;
+  sc_in<bool> actor_done;
+  sc_in<bool> actor_ready;
+  sc_in<bool> actor_idle;
+  sc_out<bool> actor_start;
 
   struct State {
     static const unsigned int IDLE_STATE = 0;
@@ -69,8 +69,8 @@ public:
   sc_signal<unsigned long int> clock_counter;
 
   // Trigget state variable
-  sc_signal<sc_lv<3>> state;
-  sc_signal<sc_lv<3>> next_state;
+  sc_signal<uint8_t> state;
+  sc_signal<uint8_t> next_state;
 
   sc_trace_file *vcd_dump;
 
@@ -82,14 +82,14 @@ public:
   void lastWait() {
     while (true) {
       wait(); // wait for a positvie edge of the clock
-      if (ap_rst_n.read() == SC_LOGIC_0) {
-        waited.write(SC_LOGIC_0);
-      } else if (actor_done.read() == SC_LOGIC_1) {
+      if (ap_rst_n.read() == false) {
+        waited.write(false);
+      } else if (actor_done.read() == true) {
         if (actor_return.read() == ReturnStatus::WAIT ||
             actor_return.read() == ReturnStatus::IDLE) {
-          waited.write(SC_LOGIC_1);
+          waited.write(true);
         } else {
-          waited.write(SC_LOGIC_0);
+          waited.write(false);
         }
       }
     }
@@ -101,7 +101,7 @@ public:
   void setState() {
     while (true) {
       wait();
-      if (ap_rst_n.read() == SC_LOGIC_0) {
+      if (ap_rst_n.read() == false) {
         state.write(State::IDLE_STATE);
       } else {
         state.write(next_state);
@@ -126,11 +126,11 @@ public:
 
     next_state = State::IDLE_STATE;
 
-    sc_lv<32> return_code = actor_return.read().range(1, 0);
+    uint8_t return_code = actor_return.read() & 0x00000003;
 
-    switch (state.read().to_uint()) {
+    switch (state.read()) {
     case State::IDLE_STATE:
-      if (ap_start.read() == SC_LOGIC_1)
+      if (ap_start.read() == true)
         next_state = State::LAUNCH;
       else
         next_state = State::IDLE_STATE;
@@ -138,10 +138,10 @@ public:
 
     case State::LAUNCH:
     case State::CHECK:
-      if (actor_done.read() == SC_LOGIC_1)
+      if (actor_done.read() == true)
         if (return_code == ReturnStatus::EXECUTED ||
             return_code == ReturnStatus::TEST ||
-            external_enqueue.read() == SC_LOGIC_1)
+            external_enqueue.read() == true)
           next_state = State::LAUNCH;
         else
           next_state = State::SLEEP;
@@ -149,9 +149,9 @@ public:
         next_state = State::CHECK;
       break;
     case State::SLEEP:
-      if (all_sleep.read() == SC_LOGIC_1)
+      if (all_sleep.read() == true)
         next_state = State::SYNC_LAUNCH;
-      else if (all_waited.read() == SC_LOGIC_0)
+      else if (all_waited.read() == false)
         next_state = State::LAUNCH;
       else
         next_state = State::SLEEP;
@@ -159,7 +159,7 @@ public:
 
     case State::SYNC_LAUNCH:
     case State::SYNC_CHECK:
-      if (actor_done.read() == SC_LOGIC_1)
+      if (actor_done.read() == true)
         if (return_code == ReturnStatus::EXECUTED)
           next_state = State::SYNC_EXEC;
         else if (return_code == ReturnStatus::TEST)
@@ -171,8 +171,8 @@ public:
       break;
 
     case State::SYNC_WAIT:
-      if (all_sync.read() == SC_LOGIC_1)
-        if (all_sync_wait.read() == SC_LOGIC_1)
+      if (all_sync.read() == true)
+        if (all_sync_wait.read() == true)
           next_state = State::IDLE_STATE;
         else
           next_state = State::LAUNCH;
@@ -181,7 +181,7 @@ public:
       break;
 
     case State::SYNC_EXEC:
-      if (all_sync.read() == SC_LOGIC_1)
+      if (all_sync.read() == true)
         next_state = State::LAUNCH;
       else
         next_state = State::SYNC_EXEC;
@@ -196,58 +196,61 @@ public:
 
     // actor_start
     if (state.read() == State::LAUNCH || state.read() == State::SYNC_LAUNCH)
-      actor_start.write(SC_LOGIC_1);
+      actor_start.write(true);
     else
-      actor_start.write(SC_LOGIC_0);
+      actor_start.write(false);
 
     // ap_idle
     if (state.read() == State::IDLE_STATE)
-      ap_idle.write(SC_LOGIC_1);
+      ap_idle.write(true);
     else
-      ap_idle.write(SC_LOGIC_0);
+      ap_idle.write(false);
 
     // sleep
     if (state.read() == State::SLEEP || state.read() == State::IDLE_STATE)
-      sleep.write(SC_LOGIC_1);
+      sleep.write(true);
     else
-      sleep.write(SC_LOGIC_0);
+      sleep.write(false);
 
     // sync_wait
     if (state.read() == State::SYNC_WAIT || state.read() == State::IDLE_STATE)
-      sync_wait.write(SC_LOGIC_1);
+      sync_wait.write(true);
     else
-      sync_wait.write(SC_LOGIC_0);
+      sync_wait.write(false);
 
     // sync_exec
     if (state.read() == State::SYNC_EXEC)
-      sync_exec.write(SC_LOGIC_1);
+      sync_exec.write(true);
     else
-      sync_exec.write(SC_LOGIC_0);
+      sync_exec.write(false);
 
     // ap_done
     // ap_ready
     if (next_state.read() == State::IDLE_STATE) {
-      ap_done.write(SC_LOGIC_1);
-      ap_ready.write(SC_LOGIC_1);
+      ap_done.write(true);
+      ap_ready.write(true);
     } else {
-      ap_done.write(SC_LOGIC_0);
-      ap_ready.write(SC_LOGIC_0);
+      ap_done.write(false);
+      ap_ready.write(false);
     }
   }
 
   bool profileAction() {
 
-    sc_lv<15> action_id = actor_return.read().range(31, 17);
-    sc_lv<2> return_code = actor_return.read().range(1, 0);
-    sc_lv<15> action_count = actor_return.read().range(16, 2);
+    uint32_t ret_val = actor_return.read();
 
-    if (actor_done.read() == SC_LOGIC_1 &&
+    uint32_t mask = (1 << 15) - 1;
+    uint16_t action_id = (ret_val >> 17) & mask;
+    uint8_t return_code = ret_val & 0x00000003;
+    uint16_t action_count = (ret_val >> 2) & mask;
+
+    if (actor_done.read() == true &&
         return_code == ReturnStatus::EXECUTED) {
 
       std::cout << "@ " << sc_time_stamp() << ": " << this->name()
-                << "::action[" << action_id.to_uint() << "] took "
+                << "::action[" << action_id << "] took "
                 << clock_counter.read() + 1 << " cycles" << std::endl;
-      stats[action_id.to_uint()].register_stat(clock_counter.read() + 1);
+      stats[action_id].register_stat(clock_counter.read() + 1);
       return true;
     }
     return false;

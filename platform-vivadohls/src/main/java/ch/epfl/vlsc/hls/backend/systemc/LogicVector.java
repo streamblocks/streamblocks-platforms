@@ -1,5 +1,8 @@
 package ch.epfl.vlsc.hls.backend.systemc;
 
+import se.lth.cs.tycho.reporting.CompilationException;
+import se.lth.cs.tycho.reporting.Diagnostic;
+
 public class LogicVector implements SCType{
 
     private final int width;
@@ -14,6 +17,13 @@ public class LogicVector implements SCType{
 
     @Override
     public String getType() {
-        return "sc_lv<" + this.width + ">";
+        if (width <= 32) {
+            return "uint32_t";
+        } else if (width <= 64) {
+            return "vluint64_t";
+        } else {
+            return "sc_bv<" + width + ">";
+        }
+
     }
 }

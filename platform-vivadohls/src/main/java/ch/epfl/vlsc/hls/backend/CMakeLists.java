@@ -74,7 +74,7 @@ public interface CMakeLists {
 
         // -- Vivado HLS Clock and FPGA CMake Variables
         emitter().emitSharpComment("CMake Variables");
-        emitter().emit("set(FPGA_NAME \"xczu3eg-sbva484-1-e\" CACHE STRING \"Name of Xilinx FPGA, e.g \\\"xcku115-flvb2104-2-e\\\", \\\"xczu3eg-sbva484-1-e\\\",..\")");
+        emitter().emit("set(FPGA_NAME \"xcku115-flvb2104-2-e\" CACHE STRING \"Name of Xilinx FPGA, e.g \\\"xcku115-flvb2104-2-e\\\", \\\"xczu3eg-sbva484-1-e\\\",..\")");
         emitter().emit("set(HLS_CLOCK_PERIOD \"10\" CACHE STRING \"Clock period in ns\")");
         emitter().emit("set(KERNEL FALSE)");
         emitter().emitNewLine();
@@ -112,6 +112,7 @@ public interface CMakeLists {
             emitter().increaseIndentation();
 
             emitter().emit("find_package(SystemCLanguage REQUIRED)");
+            emitter().emit("find_package(Verilator REQUIRED)");
             emitter().emit("if (NOT SYSTEMC_FOUND)");
             {
                 emitter().increaseIndentation();
@@ -267,6 +268,10 @@ public interface CMakeLists {
                 entityCustomCommand(instanceName, instanceName, filename);
             }
         }
+
+        emitter().emitSharpBlockComment("Verilator custom commands");
+        verilatorCustomCommands(network);
+        emitter().emitNewLine();
 
         // -- Input/Output Stages
         emitter().emit("if(KERNEL)");
@@ -424,6 +429,9 @@ public interface CMakeLists {
             }
         }
         emitter().emitNewLine();
+        emitter().emitSharpBlockComment("SystemC Instances custom target(s)");
+        verilatorTargets(network);
+        emitter().emitNewLine();
 
         // -- Input/Output Stage targets
         emitter().emitSharpComment("Kernel custom target(s)");
@@ -494,56 +502,169 @@ public interface CMakeLists {
 
 
         // -- systemc simulator
+        getSimulator(network);
+
+        emitter().emitNewLine();
+        emitter().close();
+
+    }
+
+    default void entityCustomCommand(String topName, String headerName, String filename) {
+        emitter().emit("add_custom_command(");
+        {
+            emitter().increaseIndentation();
+
+            emitter().emit("OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/%s/solution/syn/verilog/%1$s.v ", topName);
+            emitter().emit("COMMAND ${VIVADO_HLS_BINARY} -f Synthesis.tcl -tclargs \\\"%s\\\" \\\"%s\\\"  > %1$s.log",
+                    topName, filename);
+            emitter().emit("DEPENDS ${_incpath}/%s.h ${_srcpath}/%s.cpp", headerName, topName);
+
+            emitter().decreaseIndentation();
+        }
+        emitter().emit(")");
+        emitter().emitNewLine();
+    }
+
+    default void verilatorCustomCommands(Network network) {
+
+        emitter().emit("if (USE_SYSTEMC)");
+        {
+
+            emitter().increaseIndentation();
+            emitter().emit("file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/verilated)");
+            emitter().emitNewLine();
+            network.getInstances().forEach(this::verilateInstance);
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("endif()");
+        emitter().emitNewLine();
+    }
+
+    default void verilateInstance(Instance instance) {
+        emitter().emit("add_custom_command(");
+        {
+            emitter().increaseIndentation();
+            String instanceQid = backend().instaceQID(instance.getInstanceName(), "_");
+            emitter().emit("OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/verilated/systemc/%s.cpp " +
+                    "${CMAKE_CURRENT_BINARY_DIR}/verilated/systemc/%1$s__Syms.cpp", instanceQid);
+            emitter().emit("COMMAND verilator --sc --clk ap_clk -Wno-fatal " +
+                    "--Mdir ${CMAKE_CURRENT_BINARY_DIR}/verilated/systemc " +
+                    "--prefix %s " +
+                    "-y ${CMAKE_CURRENT_BINARY_DIR}/%1$s/solution/syn/verilog " +
+                    "${CMAKE_CURRENT_BINARY_DIR}/%1$s/solution/syn/verilog/%1$s.v 2> " +
+                    "%1$s_sc.log", instanceQid);
+            emitter().emit("DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/%s/solution/syn/verilog/%1$s.v", instanceQid);
+            emitter().decreaseIndentation();
+        }
+        emitter().emit(")");
+        emitter().emitNewLine();
+    }
+
+    default void verilatorTargets(Network network) {
+        emitter().emit("if (USE_SYSTEMC)");
+        {
+            emitter().increaseIndentation();
+
+            network.getInstances().forEach(this::verilateTarget);
+
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("endif()");
+    }
+
+    default void verilateTarget(Instance instance) {
+        String instanceQid = backend().instaceQID(instance.getInstanceName(), "_");
+        emitter().emit("add_custom_target(%s_sc ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/verilated/systemc/%1$s.cpp " +
+                "${CMAKE_CURRENT_BINARY_DIR}/verilated/systemc/%1$s__Syms.cpp)", instanceQid);
+
+    }
+
+    default void getSimulator(Network network) {
+        // -- systemc simulator
         emitter().emitSharpComment("SystemC simulator binary");
         emitter().emit("if (USE_SYSTEMC)");
         {
             emitter().increaseIndentation();
 
+            emitter().emit("find_package(Verilator)");
             emitter().emit("set(EXECUTABLE_OUTPUT_PATH ${CMAKE_SOURCE_DIR}/bin)");
             emitter().emitNewLine();
             // -- includes
             emitter().emitSharpComment("SystemC includes");
-            emitter().emit("set(systemc_inc");
+            emitter().emit("set(simulate_inc");
             {
                 emitter().increaseIndentation();
                 emitter().emit("${SYSTEMC_INCLUDE_DIR}");
                 emitter().emit("${VIVADO_SYSTEMC_INCLUDE_DIR}");
-                network.getInstances().forEach(instance -> {
-                    emitter().emit("${CMAKE_CURRENT_BINARY_DIR}/%s/solution/syn/",
-                            backend().instaceQID(instance.getInstanceName(), "_"));
-                });
+                emitter().emit("${CMAKE_CURRENT_BINARY_DIR}/verilated/");
+                emitter().emit("${VERILATOR_STD_INCLUDE_DIR}");
+                emitter().emit("${VERILATOR_INCLUDE_DIR}");
                 emitter().decreaseIndentation();
             }
             emitter().emit(")");
             emitter().emitNewLine();
             // -- sources
             emitter().emitSharpComment("SystemC sources");
-            emitter().emit("set(systemc_src");
+            emitter().emit("set(simulate_src");
             {
                 emitter().increaseIndentation();
                 emitter().emit("code-gen/src/simulate.cpp");
+                emitter().emit("${VERILATOR_INCLUDE_DIR}/verilated.cpp");
                 network.getInstances().forEach(instance -> {
-                    emitter().emit("${CMAKE_CURRENT_BINARY_DIR}/%s/solution/syn/systemc/%1$s.cpp",
-                            backend().instaceQID(instance.getInstanceName(), "_"));
+                    String instQid = backend().instaceQID(instance.getInstanceName(), "_");
+                    emitter().emit("${CMAKE_CURRENT_BINARY_DIR}/verilated/systemc/%s.cpp", instQid);
+                    emitter().emit("${CMAKE_CURRENT_BINARY_DIR}/verilated/systemc/%s__Syms.cpp", instQid);
                 });
                 emitter().decreaseIndentation();
             }
             emitter().emit(")");
             emitter().emitNewLine();
 
-            emitter().emit("add_executable(simulate ${systemc_src})");
+            emitter().emit("add_executable(simulate ${simulate_src})");
             emitter().emitNewLine();
-            emitter().emitSharpComment("Force include sstream (used by Vivado HLS generated sources)");
-            emitter().emit("set(CMAKE_CXX_FLAGS \"${CMAKE_CXX_FLAGS} -include sstream\")");
+
+            // -- Verilator flags
+            emitter().emitSharpComment("Verilator no used flags");
+            emitter().emit("set(CXXFLAGS_NO_USED");
+            {
+                emitter().increaseIndentation();
+                emitter().emit("-faligned-new ");
+                emitter().emit("-Wno-sign-compare ");
+                emitter().emit("-Wno-uninitialized ");
+                emitter().emit("-Wno-unused-but-set-variable ");
+                emitter().emit("-Wno-unused-parameter ");
+                emitter().emit("-Wno-unused-variable ");
+                emitter().emit("-Wno-shadow");
+                emitter().decreaseIndentation();
+            }
+            emitter().emit(")");
             emitter().emitNewLine();
+
+            // -- Verilator definitions
+            emitter().emitSharpComment("Verilator definitions");
+            emitter().emit("set(VERILATOR_DEFINITIONS");
+            {
+                emitter().increaseIndentation();
+
+                emitter().emit("-DVL_PRINTF=printf");
+                emitter().emit("-DVM_COVERAGE=0");
+                emitter().emit("-DVM_SC=1");
+                emitter().emit("-DVM_TRACE=0");
+
+                emitter().decreaseIndentation();
+            }
+            emitter().emit(")");
 
             emitter().emitSharpComment("Create the simulate binary");
             emitter().emitNewLine();
-            emitter().emit("target_include_directories(simulate PRIVATE ${systemc_inc})");
+
+            emitter().emit("target_compile_options(simulate PRIVATE ${CXXFLAGS_NO_UNUSED})");
+            emitter().emit("target_compile_definitions(simulate PRIVATE ${VERILATOR_DEFINITIONS})");
+            emitter().emit("target_include_directories(simulate PRIVATE ${simulate_inc})");
             emitter().emit("set_target_properties(simulate PROPERTIES");
             {
                 emitter().increaseIndentation();
-                emitter().emit("CXX_STANDARD 11");
+                emitter().emit("CXX_STANDARD 14");
                 emitter().emit("CXX_STANDARD_REQUIRED YES");
                 emitter().emit("CXX_EXTENSIONS NO");
                 emitter().decreaseIndentation();
@@ -556,26 +677,6 @@ public interface CMakeLists {
             emitter().decreaseIndentation();
         }
         emitter().emit("endif()");
-        emitter().close();
-
-    }
-
-    default void entityCustomCommand(String topName, String headerName, String filename) {
-        emitter().emit("add_custom_command(");
-        {
-            emitter().increaseIndentation();
-
-            emitter().emit("OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/%s/solution/syn/verilog/%1$s.v " +
-                    "${CMAKE_CURRENT_BINARY_DIR}/%1$s/solution/syn/systemc/%1$s.cpp", topName);
-            emitter().emit("COMMAND ${VIVADO_HLS_BINARY} -f Synthesis.tcl -tclargs \\\"%s\\\" \\\"%s\\\"  > %1$s.log",
-                    topName, filename);
-            emitter().emit("DEPENDS ${_incpath}/%s.h ${_srcpath}/%s.cpp", headerName, topName);
-
-            emitter().decreaseIndentation();
-        }
-        emitter().emit(")");
         emitter().emitNewLine();
     }
-
-
 }

@@ -414,6 +414,10 @@ public class VivadoHLSBackendPhase implements Phase {
                     PathUtils.getTargetCmake(backend.context()).resolve("FindSystemCLanguage.cmake"),
                     StandardCopyOption.REPLACE_EXISTING);
 
+            Files.copy(getClass().getResourceAsStream("/lib/cmake/FindVerilator.cmake"),
+                    PathUtils.getTargetCmake(backend.context()).resolve("FindVerilator.cmake"),
+                    StandardCopyOption.REPLACE_EXISTING);
+
             // -- Input and Output Stage mem Header
             Files.copy(getClass().getResourceAsStream("/lib/hls/iostage.h"),
                     PathUtils.getTargetCodeGenInclude(backend.context()).resolve("iostage.h"),

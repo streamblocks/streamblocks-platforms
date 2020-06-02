@@ -3,6 +3,7 @@
 
 #include <assert.h>
 #include <fstream>
+#include <sstream>
 #include <iostream>
 #include <vector>
 
@@ -23,14 +24,21 @@ public:
       std::exit(EXIT_FAILURE);
 
     } else {
-      T token;
-      while (ifs >> token) {
+      uint32_t token;
+      std::string line;
+      while (std::getline(ifs, line)) {
+        // std::cout << line << std::endl;
+        std::stringstream convert;
+        convert << line;
+        convert >> token;
+        // std::cout << token << std::endl;
         buffer.push_back(token);
       }
     }
     std::cout << "reference queue \"" << queue_name << "\" contains "
               << buffer.size() << " tokens." << std::endl;
     ifs.close();
+    ix = 0;
   }
 };
 template <typename T> class InputQueue : public BaseQueue<T> {
@@ -80,7 +88,7 @@ public:
     bool match = true;
     assert(this->ix < this->buffer.size());
     if (this->buffer[this->ix] != token) {
-      std::cerr << "@index = " << this->buffer.size() << ": Expected "
+      std::cerr << "@ index = " << this->ix << ": Expected "
                 << this->buffer[this->ix] << " but got " << token << std::endl;
       match = false;
     }

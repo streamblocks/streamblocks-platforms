@@ -1,4 +1,5 @@
 #include "network_tester.h"
+#include <memory>
 #include <sstream>
 #include <string>
 
@@ -8,7 +9,7 @@ struct Options {
 };
 static void display_usage(char *binary_name) {
 
-  std::cout << "Usage: " << binary_name << "[<options>]" << std::endl;
+  std::cout << "Usage: " << binary_name << "  [<options>]" << std::endl;
   std::cout << "The program expects a set of files with .txt extension\n"
                "that contain the tokens values as input, e.g. if there\n"
                "is an input with name actor1_actor2 then token values \n"
@@ -57,7 +58,7 @@ static Options parse_args(int argc, char *argv[]) {
       std::stringstream string_convert;
       if (arg_ix >= argc) {
         display_usage(argv[0]);
-        std::cerr << "Missing option value for "  << opt << std::endl;
+        std::cerr << "Missing option value for " << opt << std::endl;
         std::exit(EXIT_FAILURE);
       }
       const std::string val = argv[arg_ix++];
@@ -83,7 +84,8 @@ int sc_main(int argc, char *argv[]) {
 
   Options opts = parse_args(argc, argv);
   const sc_time period(opts.period, SC_NS);
-  ap_rtl::network_tester mut("network", period, opts.trace_level);
-  mut.reset();
-  mut.simulate();
+  std::unique_ptr<ap_rtl::network_tester> mut(
+      new ap_rtl::network_tester("network", period, opts.trace_level));
+  mut->reset();
+  mut->simulate();
 }
