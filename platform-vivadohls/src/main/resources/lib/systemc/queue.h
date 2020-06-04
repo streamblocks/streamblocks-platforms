@@ -1,6 +1,7 @@
 #ifndef __QUEUE_H__
 #define __QUEUE_H__
 
+#include "debug_macros.h"
 #include "systemc.h"
 #include <assert.h>
 #include <fstream>
@@ -38,7 +39,6 @@ public:
   sc_core::sc_signal<sc_dt::sc_uint<ADDR_WIDTH>> mOutPtr;
   sc_core::sc_signal<sc_dt::sc_uint<1>> mFlag_nEF_hint;
 
-
   SC_HAS_PROCESS(Queue);
   Queue(sc_module_name name)
       : sc_module(name), ap_clk("ap_clk"), ap_rst_n("rst_n"),
@@ -65,7 +65,6 @@ public:
     sensitive << internal_empty_n << internal_full_n;
   }
 
-
   void proc_status() {
 
     empty_n.write(internal_empty_n.read());
@@ -81,6 +80,11 @@ public:
       count.write(0);
     } else {
       uint32_t new_count = count.read();
+
+      DEBUG_ASSERT(!(read.read() == true && internal_empty_n.read() == false),
+                   "@ %s trying to read from an empty fifo %s\n",
+                   sc_time_stamp().to_string().c_str(), this->name());
+
       if (read.read() == true && internal_empty_n.read() == true) {
         sc_dt::sc_uint<ADDR_WIDTH> ptr;
         if (mOutPtr.read().to_uint() == (FIFO_DEPTH - 1)) {
@@ -91,11 +95,19 @@ public:
           ptr++;
         }
 
-        new_count --;
+        new_count--;
 
-        assert(ptr.to_uint() < FIFO_DEPTH);
+        DEBUG_ASSERT(ptr.to_uint() < FIFO_DEPTH,
+                     "@ %s fifo pointer overflow in %s\n",
+                     sc_time_stamp().to_string().c_str(), this->name());
+
         mOutPtr.write(ptr);
       }
+
+      DEBUG_ASSERT(!(write.read() == true && internal_full_n.read() == false),
+                   "@ %s trying to write to a full fifo %s\n",
+                   sc_time_stamp().to_string().c_str(), this->name());
+
       if (write.read() == true && internal_full_n.read() == true) {
         sc_dt::sc_uint<ADDR_WIDTH> ptr;
         ptr = mInPtr.read();
@@ -105,10 +117,12 @@ public:
           mFlag_nEF_hint.write(~mFlag_nEF_hint.read());
         } else {
           ptr++;
-          assert(ptr.to_uint() < FIFO_DEPTH);
+          DEBUG_ASSERT(ptr.to_uint() < FIFO_DEPTH,
+                       "@ %s fifo pointer overflow in %s\n",
+                       sc_time_stamp().to_string().c_str(), this->name());
         }
 
-        new_count ++;
+        new_count++;
 
         mInPtr.write(ptr);
       }

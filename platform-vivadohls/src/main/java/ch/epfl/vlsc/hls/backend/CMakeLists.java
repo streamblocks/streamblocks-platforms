@@ -560,6 +560,20 @@ public interface CMakeLists {
         emitter().emitNewLine();
     }
 
+    default void copyDatRamFiles(Instance instance) {
+        emitter().emit("add_custom_command(");
+        {
+            emitter().increaseIndentation();
+            String instanceQid = backend().instaceQID(instance.getInstanceName(), "_");
+            emitter().emit("TARGET simulate PRE_BUILD");
+            emitter().emit("COMMAND cp ${CMAKE_CURRENT_BINARY_DIR}/%s/solution/syn/verilog/*.dat " +
+                    "${EXECUTABLE_OUTPUT_PATH}  2> /dev/null || true", instanceQid);
+            emitter().emit("DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/%s/solution/syn/verilog/%1$s.v", instanceQid);
+            emitter().decreaseIndentation();
+        }
+        emitter().emit(")");
+        emitter().emitNewLine();
+    }
     default void verilatorTargets(Network network) {
         emitter().emit("if (USE_SYSTEMC)");
         {
@@ -673,6 +687,9 @@ public interface CMakeLists {
 
             emitter().emitNewLine();
             emitter().emit("target_link_libraries(simulate ${SYSTEMC_LIBRARY})");
+
+            emitter().emitSharpComment("Copy dat ram files");
+            network.getInstances().forEach(this::copyDatRamFiles);
 
             emitter().decreaseIndentation();
         }

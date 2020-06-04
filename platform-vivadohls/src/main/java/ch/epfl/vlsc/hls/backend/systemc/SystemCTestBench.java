@@ -87,15 +87,15 @@ public interface SystemCTestBench {
 
     default void getIncludes(SCNetwork network) {
 
-        emitter().emit("#include \"%s.h\"", network.getIdentifier());
-        emitter().emit("#include \"sim_queue.h\"");
         emitter().emit("#include <iostream>");
         emitter().emit("#include <fstream>");
         emitter().emit("#include <string>");
         emitter().emit("#include <memory>");
+        emitter().emit("#include <chrono>");
+        emitter().emit("#include \"debug_macros.h\"");
+        emitter().emit("#include \"%s.h\"", network.getIdentifier());
+        emitter().emit("#include \"sim_queue.h\"");
         emitter().emitNewLine();
-
-        emitter().emit("#define TRACE_SIG(FILE, SIG) sc_core::sc_trace(FILE, SIG, std::string(this->name()) + \".\" #SIG)");
         emitter().emitNewLine();
     }
 
@@ -136,11 +136,21 @@ public interface SystemCTestBench {
         network.getInputs().map(SCNetwork.InputIF::getPort).forEach(input -> {
             String type = backend().typeseval().type(backend().types().declaredPortType(input));
             emitter().emit("std::unique_ptr<SimQueue::InputQueue<%s>> sim_buffer_%s;", type, input.getName());
+            emitter().emitNewLine();
+            emitter().emit("// -- helper signals");
+            emitter().emit("sc_signal<bool> sim_buffer_%s_read;", input.getName());
+            emitter().emit("sc_signal<%s>   sim_buffer_%s_dout;", type, input.getName());
+            emitter().emitNewLine();
         });
         emitter().emit("// -- software eater queues");
         network.getOutputs().map(SCNetwork.OutputIF::getPort).forEach(output -> {
             String type = backend().typeseval().type(backend().types().declaredPortType(output));
             emitter().emit("std::unique_ptr<SimQueue::OutputQueue<%s>> sim_buffer_%s;", type, output.getName());
+            emitter().emitNewLine();
+            emitter().emit("// -- helper signals");
+            emitter().emit("sc_signal<bool> sim_buffer_%s_write;", output.getName());
+            emitter().emit("sc_signal<%s>   sim_buffer_%s_din;", type, output.getName());
+            emitter().emitNewLine();
         });
         // -- vcd trace file
         emitter().emit("sc_trace_file *vcd_dump;");
@@ -150,7 +160,9 @@ public interface SystemCTestBench {
     default void getQueueEmulators(SCNetwork network) {
 
         network.getInputs().forEach(this::getInputFeeder);
+        network.getInputs().forEach((this::getInputReadSetter));
         network.getOutputs().forEach(this::getOutputEater);
+        network.getOutputs().forEach(this::getOutputWriteSetter);
 
     }
 
@@ -161,28 +173,50 @@ public interface SystemCTestBench {
         emitter().emit("void input_feeder_%s () {", input.getPort().getName());
         {
             emitter().increaseIndentation();
-            String type = backend().typeseval().type(backend().types().declaredPortType(input.getPort()));
-            // -- set din and peek
-            emitter().emit("%s token = %s->peek();", type, simBufferName);
-            emitter().emit("%s.write(token);", input.getWriter().getDin().getSignal().getName());
-
-            emitter().emitNewLine();
-
-            // -- write to the systemc input queue
-            emitter().emit("// -- write to the systemc input queue from the sim buffer");
-            emitter().emit("if (%s->empty_n() == true && %s.read() == %s) {",
-                    simBufferName, input.getWriter().getFullN().getSignal().getName(), LogicValue.Value.SC_LOGIC_1);
+            emitter().emit("while(true) {");
             {
                 emitter().increaseIndentation();
+                emitter().emit("wait();");
+                emitter().emit("if (%s_read.read() == %s) {", simBufferName, LogicValue.Value.SC_LOGIC_1);
+                {
+                    emitter().increaseIndentation();
+                    String type = backend().typeseval().type(backend().types().declaredPortType(input.getPort()));
+                    emitter().emit("%s token = %s->peek();", type, simBufferName);
+                    emitter().emit("%s_dout.write(token);", simBufferName);
+                    emitter().emit("%s->dequeue();", simBufferName);
+                    emitter().decreaseIndentation();
+                }
+                emitter().emit("}");
+                emitter().decreaseIndentation();
+            }
+            emitter().emit("}");
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("}");
+        emitter().emitNewLine();
+    }
+
+    default void getInputReadSetter(SCNetwork.InputIF input) {
+        String simBufferName = "sim_buffer_" + input.getPort().getName();
+        emitter().emit("// -- input queue emulator read setter for %s", input.getPort().getName());
+        emitter().emit("void input_read_setter_%s () {", input.getPort().getName());
+        {
+            emitter().increaseIndentation();
+            emitter().emit("%s.write(%s_dout);", input.getWriter().getDin().getSignal().getName(), simBufferName);
+            emitter().emitNewLine();
+            emitter().emit("if (%s->empty_n() == true && %s.read() == %s) {", simBufferName,
+                    input.getWriter().getFullN().getSignal().getName(), LogicValue.Value.SC_LOGIC_1);
+            {
+                emitter().increaseIndentation();
+                emitter().emit("%s_read.write(%s);", simBufferName, LogicValue.Value.SC_LOGIC_1);
                 emitter().emit("%s.write(%s);", input.getWriter().getWrite().getSignal().getName(),
                         LogicValue.Value.SC_LOGIC_1);
-                // -- consume from the sim buffer;
-                emitter().emit("%s->dequeue();", simBufferName);
                 emitter().decreaseIndentation();
             }
             emitter().emit("} else {");
             {
                 emitter().increaseIndentation();
+                emitter().emit("%s_read.write(%s);", simBufferName, LogicValue.Value.SC_LOGIC_0);
                 emitter().emit("%s.write(%s);", input.getWriter().getWrite().getSignal().getName(),
                         LogicValue.Value.SC_LOGIC_0);
                 emitter().decreaseIndentation();
@@ -193,7 +227,6 @@ public interface SystemCTestBench {
         emitter().emit("}");
         emitter().emitNewLine();
     }
-
     default void getOutputEater(SCNetwork.OutputIF output) {
         String simBufferName = "sim_buffer_" + output.getPort().getName();
 
@@ -201,22 +234,52 @@ public interface SystemCTestBench {
         emitter().emit("void output_eater_%s () {", output.getPort().getName());
         {
             emitter().increaseIndentation();
-            String type = backend().typeseval().type(backend().types().declaredPortType(output.getPort()));
 
+            emitter().emit("while(true) {");
+            {
+                emitter().increaseIndentation();
+                emitter().emit("wait();");
+                emitter().emit("if (%s_write.read() == %s) {", simBufferName, LogicValue.Value.SC_LOGIC_1);
+                {
+                    emitter().increaseIndentation();
+                    String type = backend().typeseval().type(backend().types().declaredPortType(output.getPort()));
+                    emitter().emit("%s token = %s_din.read();", type, simBufferName);
+                    emitter().emit("%s->enqueue(token);", simBufferName);
+                    emitter().decreaseIndentation();
+                }
+                emitter().emit("}");
+                emitter().decreaseIndentation();
+            }
+            emitter().emit("}");
 
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("}");
+    }
+
+    default void getOutputWriteSetter(SCNetwork.OutputIF output) {
+
+        String simBufferName = "sim_buffer_" + output.getPort().getName();
+
+        emitter().emit("// -- output queue emulator write setter for %s", output.getPort().getName());
+        emitter().emit("void output_write_setter_%s() {", output.getPort().getName());
+        {
+            emitter().increaseIndentation();
+            emitter().emit("%s_din.write(%s.read());", simBufferName,
+                    output.getReader().getDout().getSignal().getName());
             emitter().emit("if (%s->full_n() == true && %s.read() == %s) {",
                     simBufferName, output.getReader().getEmptyN().getSignal().getName(), LogicValue.Value.SC_LOGIC_1);
             {
                 emitter().increaseIndentation();
+                emitter().emit("%s_write.write(%s);", simBufferName, LogicValue.Value.SC_LOGIC_1);
                 emitter().emit("%s.write(%s);", output.getReader().getRead().getSignal().getName(),
                         LogicValue.Value.SC_LOGIC_1);
-                emitter().emit("%s token = %s.read();", type, output.getReader().getDout().getSignal().getName());
-                emitter().emit("%s->enqueue(token);", simBufferName);
                 emitter().decreaseIndentation();
             }
             emitter().emit("} else {");
             {
                 emitter().increaseIndentation();
+                emitter().emit("%s_write.write(%s);", simBufferName, LogicValue.Value.SC_LOGIC_0);
                 emitter().emit("%s.write(%s);", output.getReader().getRead().getSignal().getName(),
                         LogicValue.Value.SC_LOGIC_0);
                 emitter().decreaseIndentation();
@@ -226,8 +289,6 @@ public interface SystemCTestBench {
         }
         emitter().emit("}");
     }
-
-
     default void getReseter(SCNetwork network) {
         emitter().emit("// -- reset method");
         emitter().emit("void reset() {");
@@ -253,12 +314,33 @@ public interface SystemCTestBench {
             emitter().increaseIndentation();
             emitter().emit("bool started = false;");
             emitter().emit("uint64_t clock_counter = 0;");
+            emitter().emit("uint64_t break_point = 1000000;");
+            emitter().emit("auto start_time = std::chrono::high_resolution_clock::now();");
+            emitter().emit("STATUS_REPORT(\"@ %%s starting simulation\\n\",\n" +
+                    "                  sc_time_stamp().to_string().c_str());");
             emitter().emit("std::cout << \"@\" << sc_time_stamp() << \" Starting sim\" << std::endl;");
             emitter().emit("while (%s.read() != %s) {", network.getApControl().getDoneSignal().getName(),
                     LogicValue.Value.SC_LOGIC_1);
             {
 
                 emitter().increaseIndentation();
+                emitter().emit("if (clock_counter == break_point) {");
+                {
+                    emitter().increaseIndentation();
+                    emitter().emit("auto current_time = std::chrono::high_resolution_clock::now();");
+                    emitter().emit(" auto diff_time = " +
+                            "std::chrono::duration_cast<std::chrono::milliseconds>(current_time - start_time);");
+                    emitter().emit("auto sim_time = sc_time_stamp();");
+                    emitter().emit("auto slow_down = diff_time.count() / sim_time.to_seconds() / 1e3;");
+                    emitter().emit("STATUS_REPORT(\n" +
+                            "            \"\\nSimulated for %%5lu million cycles \\n\\tsystemc time: \"\n" +
+                            "            \"%%.9f s (%%s) \\n\\treal time   : %%3.6f s\\n\\tslow down   : %%6.3f\\n\\n\\n\",\n" +
+                            "            clock_counter / 1000000, sim_time.to_seconds(), sim_time.to_string().c_str(),\n" +
+                            "            diff_time.count() / 1e3, slow_down);");
+                    emitter().emit("break_point += 1000000;");
+                    emitter().decreaseIndentation();
+                }
+                emitter().emit("}");
                 emitter().emit("sc_start(clock_period);");
                 emitter().emit("clock_counter ++;");
                 emitter().emit("if (started) {");
@@ -280,7 +362,6 @@ public interface SystemCTestBench {
                 emitter().decreaseIndentation();
             }
             emitter().emit("}");
-            emitter().emit("std::cout << \"clock count: \" << clock_counter << std::endl;");
             emitter().decreaseIndentation();
         }
         emitter().emit("}");
@@ -341,16 +422,33 @@ public interface SystemCTestBench {
             emitter().emit("// -- registers queue emulator methods");
             emitter().emit("// -- input feeders");
             network.getInputs().stream().map(SCNetwork.InputIF::getPort).map(PortDecl::getName).forEach(port -> {
-                emitter().emit("SC_METHOD(input_feeder_%s);", port);
+                emitter().emit("SC_THREAD(input_feeder_%s);", port);
                 emitter().emit("sensitive << %s.posedge_event();", network.getApControl().getClockSignal().getName());
                 emitter().emitNewLine();
             });
             emitter().emitNewLine();
+            emitter().emit("// -- input read setters");
+            network.getInputs().forEach(port -> {
+               emitter().emit("SC_METHOD(input_read_setter_%s);", port.getPort().getName());
+               emitter().emit("sensitive << %s << sim_buffer_%s_dout;",
+                       port.getWriter().getFullN().getSignal().getName(),
+                       port.getPort().getName());
+            });
+            emitter().emitNewLine();
             emitter().emit("// -- output eaters");
             network.getOutputs().stream().map(SCNetwork.OutputIF::getPort).map(PortDecl::getName).forEach(port -> {
-                emitter().emit("SC_METHOD(output_eater_%s);", port);
+                emitter().emit("SC_THREAD(output_eater_%s);", port);
                 emitter().emit("sensitive << %s.posedge_event();", network.getApControl().getClockSignal().getName());
                 emitter().emitNewLine();
+            });
+            emitter().emitNewLine();
+            emitter().emit("// -- output write setters");
+            network.getOutputs().stream().forEach(port -> {
+                emitter().emit("SC_METHOD(output_write_setter_%s);", port.getPort().getName());
+                emitter().emit("sensitive << %s << %s << %s;",
+                        port.getReader().getEmptyN().getSignal().getName(),
+                        port.getReader().getDout().getSignal().getName(),
+                        port.getAuxiliary().getPeek().getSignal().getName());
             });
             emitter().emitNewLine();
 

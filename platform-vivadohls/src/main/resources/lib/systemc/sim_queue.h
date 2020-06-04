@@ -1,10 +1,11 @@
 #ifndef __SIM_QUEUE_H__
 #define __SIM_QUEUE_H__
 
+#include "debug_macros.h"
 #include <assert.h>
 #include <fstream>
-#include <sstream>
 #include <iostream>
+#include <sstream>
 #include <vector>
 
 namespace SimQueue {
@@ -16,13 +17,14 @@ protected:
   std::string queue_name;
 
 public:
-  BaseQueue(const std::string &queue_name, const std::string &path_prefix) {
+  BaseQueue(const std::string &queue_name, const std::string &path_prefix)
+      : queue_name(queue_name) {
     std::string file_name = path_prefix + queue_name + std::string(".txt");
     std::fstream ifs(file_name, std::ios::in);
     if (!ifs.is_open()) {
-      std::cerr << "Failed to open " << file_name << std::endl;
-      std::exit(EXIT_FAILURE);
-
+      PANIC("Could not open %s. Make sure the files is placed in the "
+            "work directory.",
+            file_name.c_str());
     } else {
       uint32_t token;
       std::string line;
@@ -35,8 +37,9 @@ public:
         buffer.push_back(token);
       }
     }
-    std::cout << "reference queue \"" << queue_name << "\" contains "
-              << buffer.size() << " tokens." << std::endl;
+    STATUS_REPORT("\nReference queue %s contains %lu tokens.\n\n",
+                  queue_name.c_str(), buffer.size());
+
     ifs.close();
     ix = 0;
   }
@@ -48,10 +51,8 @@ public:
       : BaseQueue<T>(queue_name, path_prefix){};
   ~InputQueue() {
     if (this->ix < this->buffer.size())
-      std::cerr << "Only " << this->ix << " tokens out of "
-                << this->buffer.size()
-                << " were consumed in the input sim queue " << this->queue_name
-                << std::endl;
+      WARNING("\nOnly %lu tokens out %lu of were consumed in %s\n\n", this->ix,
+              this->buffer.size(), this->queue_name.c_str());
   }
   T dequeue() {
 
@@ -65,9 +66,15 @@ public:
   }
 
   T peek() {
-    assert(this->ix <= this->buffer.size());
-    T token = this->buffer[this->ix];
-    return token;
+    DEBUG_ASSERT(this->ix <= this->buffer.size(),
+                 "Buffer read overflow in %s\n", this->queue_name.c_str());
+    if (this->ix == this->buffer.size()) {
+      std::cout << "warning, bad peek" << std::endl;
+      return this->buffer[this->ix - 1];
+    } else {
+
+      return this->buffer[this->ix];
+    }
   };
 };
 
@@ -78,18 +85,19 @@ public:
       : BaseQueue<T>(queue_name, path_prefix) {}
   ~OutputQueue() {
     if (this->ix != this->buffer.size()) {
-      std::cerr << "Error! expected " << this->buffer.size()
-                << " tokens but received " << this->ix
-                << " tokens in the output sim queue " << this->queue_name << std::endl;
+      WARNING("\nExpected %lu tokens but received %lu in %s\n\n",
+              this->buffer.size(), this->ix, this->queue_name.c_str());
     }
   }
   bool enqueue(T token) {
 
     bool match = true;
-    assert(this->ix < this->buffer.size());
+    DEBUG_ASSERT(this->ix < this->buffer.size(),
+                 "Buffer write overflow in %s\n", this->queue_name.c_str());
     if (this->buffer[this->ix] != token) {
-      std::cerr << "@ index = " << this->ix << ": Expected "
-                << this->buffer[this->ix] << " but got " << token << std::endl;
+      WARNING("\n@ index = %lu expected %lu but received %lu\n", this->ix,
+              this->buffer[this->ix], token);
+
       match = false;
     }
     this->ix++;

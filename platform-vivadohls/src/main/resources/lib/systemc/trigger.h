@@ -1,7 +1,8 @@
 #ifndef __TRIGGER_H__
 #define __TRIGGET_H__
+#include "debug_macros.h"
 #include "systemc.h"
-
+#include <string>
 namespace ap_rtl {
 template <int SZ> class Trigger : public sc_module {
 public:
@@ -68,6 +69,7 @@ public:
   std::array<ProfileStat, SZ> stats;
   sc_signal<unsigned long int> clock_counter;
 
+  sc_signal<uint16_t> action_sig;
   // Trigget state variable
   sc_signal<uint8_t> state;
   sc_signal<uint8_t> next_state;
@@ -244,12 +246,12 @@ public:
     uint8_t return_code = ret_val & 0x00000003;
     uint16_t action_count = (ret_val >> 2) & mask;
 
-    if (actor_done.read() == true &&
-        return_code == ReturnStatus::EXECUTED) {
+    if (actor_done.read() == true && return_code == ReturnStatus::EXECUTED) {
 
-      std::cout << "@ " << sc_time_stamp() << ": " << this->name()
-                << "::action[" << action_id << "] took "
-                << clock_counter.read() + 1 << " cycles" << std::endl;
+      DEBUG_MESSAGE("@ %s Action %5d took \t %10lu cycles in %s\n",
+                    sc_time_stamp().to_string().c_str(), action_id,
+                    clock_counter.read(), this->name());
+
       stats[action_id].register_stat(clock_counter.read() + 1);
       return true;
     }
@@ -270,6 +272,9 @@ public:
         clock_counter = 0;
     }
   }
+
+  void action_set() { action_sig.write(actor_return.read() >> 17); }
+
   Trigger(sc_module_name name)
       : sc_module(name), state("state", State::IDLE_STATE),
         next_state("next_state", State::IDLE_STATE) {
@@ -293,7 +298,8 @@ public:
     SC_THREAD(countClocks);
     sensitive << ap_clk.pos();
 
-    ;
+    SC_METHOD(action_set);
+    sensitive << actor_return;
   }
 
   ~Trigger(){};
