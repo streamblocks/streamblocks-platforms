@@ -307,7 +307,7 @@ public class NetworkPartitioningPhase implements Phase {
 
         Map<PartitionKind, Network> nets = new HashMap();
         for (PartitionKind p: partToInst.keySet()) {
-            nets.put(p, new Network(
+            nets.put(p, new Network(ImmutableList.from(network.getAnnotations()),
                     partToInputs.get(p),
                     partToOutputs.get(p),
                     partToInst.get(p),

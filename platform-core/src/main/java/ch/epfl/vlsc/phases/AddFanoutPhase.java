@@ -238,7 +238,7 @@ public class AddFanoutPhase implements Phase {
 
         // --------------------------------------------------------------------
         // -- Create new Network
-        Network result = new Network(networkInputPorts, networkOutputPorts, networkInstances.build(), networkConnections.build());
+        Network result = new Network(ImmutableList.from(network.getAnnotations()), networkInputPorts, networkOutputPorts, networkInstances.build(), networkConnections.build());
 
         task = task.withNetwork(result);
 
@@ -262,7 +262,7 @@ public class AddFanoutPhase implements Phase {
 
         // -- Local variables
         ImmutableList.Builder<LocalVarDecl> varDecls = ImmutableList.builder();
-        LocalVarDecl token = new LocalVarDecl((TypeExpr) port.getType().deepClone(), "token", null, false);
+        LocalVarDecl token = new LocalVarDecl(ImmutableList.empty(), (TypeExpr) port.getType().deepClone(), "token", null, false);
         varDecls.add(token);
 
 
@@ -294,6 +294,7 @@ public class AddFanoutPhase implements Phase {
         ProcessDescription process = new ProcessDescription(statements.build(), true);
 
         CalActor fanout = new CalActor(ImmutableList.empty(),
+                ImmutableList.empty(),
                 ImmutableList.empty(),
                 ImmutableList.empty(),
                 varDecls.build(),
@@ -363,6 +364,7 @@ public class AddFanoutPhase implements Phase {
         // -- Action
         ImmutableList.Builder<Action> actions = ImmutableList.builder();
         Action action = new Action(QID.of("untagged"),
+                ImmutableList.empty(),
                 inputPatters.build(),
                 outputExpressions.build(),
                 ImmutableList.empty(),
@@ -377,6 +379,7 @@ public class AddFanoutPhase implements Phase {
 
         // -- Cal Actor
         CalActor fanout = new CalActor(
+                ImmutableList.empty(),
                 ImmutableList.empty(),
                 ImmutableList.empty(),
                 ImmutableList.empty(),

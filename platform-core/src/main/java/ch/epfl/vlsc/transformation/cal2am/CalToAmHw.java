@@ -13,6 +13,7 @@ import se.lth.cs.tycho.ir.entity.cal.CalActor;
 import se.lth.cs.tycho.ir.entity.cal.InputPattern;
 import se.lth.cs.tycho.ir.entity.cal.OutputExpression;
 import se.lth.cs.tycho.ir.expr.Expression;
+import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.phase.TreeShadow;
 import se.lth.cs.tycho.settings.Configuration;
 import se.lth.cs.tycho.transformation.cal2am.*;
@@ -48,7 +49,7 @@ public class CalToAmHw {
     }
 
     public ActorMachine buildActorMachine() {
-        return new ActorMachine(actor.getInputPorts(), actor.getOutputPorts(), actor.getTypeParameters(), actor.getValueParameters(), scopes.getScopes(), new CalController(), transitions.getAllTransitions(), conditions.getAllConditions());
+        return new ActorMachine(ImmutableList.from(actor.getAnnotations()), actor.getInputPorts(), actor.getOutputPorts(), actor.getTypeParameters(), actor.getValueParameters(), scopes.getScopes(), new CalController(), transitions.getAllTransitions(), conditions.getAllConditions());
     }
 
     private class CalController implements Controller {

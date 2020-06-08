@@ -1,7 +1,6 @@
 package ch.epfl.vlsc.sw.ir;
 
 
-
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
@@ -17,7 +16,7 @@ public class PartitionLink extends Entity {
 
 
     public PartitionLink(List<PortDecl> inputPorts, List<PortDecl> outputPorts, PartitionHandle handle) {
-        super(null, inputPorts, outputPorts, null, null);
+        super(null, ImmutableList.empty(), inputPorts, outputPorts, null, null);
         this.handle = handle;
     }
 

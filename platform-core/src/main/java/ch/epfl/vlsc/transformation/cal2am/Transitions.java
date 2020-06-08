@@ -59,7 +59,7 @@ public class Transitions {
         addInputStmts(action, builder);
         builder.addAll(action.getBody());
         addOutputStmts(action.getOutputExpressions(), builder);
-        return new Transition(getInputRates(action.getInputPatterns()), getOutputRates(action.getOutputExpressions()), transientScopes, builder.build());
+        return new Transition(ImmutableList.from(action.getAnnotations()), getInputRates(action.getInputPatterns()), getOutputRates(action.getOutputExpressions()), transientScopes, builder.build());
     }
 
     private Map<Port, Integer> getOutputRates(ImmutableList<OutputExpression> outputExpressions) {
@@ -80,15 +80,15 @@ public class Transitions {
         for (InputPattern inputPattern : action.getInputPatterns()) {
             List<VarDecl> foundDecl = new ArrayList<>();
             ImmutableList.Builder<LValue> lvalues = ImmutableList.builder();
-            for(Match match : inputPattern.getMatches()){
+            for (Match match : inputPattern.getMatches()) {
                 InputVarDecl var = match.getDeclaration();
                 LValueVariable lvalue = new LValueVariable(Variable.variable(var.getName()));
                 lvalues.add(lvalue);
 
-                for(VarDecl decl : action.getVarDecls()){
-                    if(decl.getValue() instanceof ExprVariable){
+                for (VarDecl decl : action.getVarDecls()) {
+                    if (decl.getValue() instanceof ExprVariable) {
                         ExprVariable exprVariable = (ExprVariable) decl.getValue();
-                        if(exprVariable.getVariable().getName().equals(var.getName())){
+                        if (exprVariable.getVariable().getName().equals(var.getName())) {
                             foundDecl.add(decl);
                         }
                     }
@@ -100,9 +100,9 @@ public class Transitions {
             builder.accept(read);
 
             // -- Check for variable declaration
-            if(!foundDecl.isEmpty()){
+            if (!foundDecl.isEmpty()) {
                 // -- Add assignments
-                for(VarDecl d : foundDecl){
+                for (VarDecl d : foundDecl) {
                     LValueVariable lValueVariable = new LValueVariable(Variable.variable(d.getName()));
                     Statement assign = new StmtAssignment(lValueVariable, d.getValue().deepClone());
                     builder.accept(assign);
