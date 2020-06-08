@@ -327,6 +327,7 @@ public interface PLink {
         emitter().emit("int trace_level = 0;");
         emitter().emit("thisActor->dev = " +
                 "std::make_unique<ap_rtl::network_tester>(\"plink\", period, trace_level);");
+        emitter().emit("mut->reset();");
 
     }
 
@@ -364,8 +365,9 @@ public interface PLink {
         // -- Constructor
         emitter().emit("// -- Construct the FPGA device handle");
         String consName = backend().devicehandle().methodName(handle, handle.getConstructor());
-        emitter().emit("%s(&thisActor->dev, \"%s\", \"xilinx_kcu1500_dynamic_5_0\", \"xclbin\", false);",
-                consName, kernelID);
+        String xclBinPath = "../../vivado-hls/bin/xclbin";
+        emitter().emit("%s(&thisActor->dev, \"%s\", \"xilinx_kcu1500_dynamic_5_0\", \"%s\", false);",
+                consName, kernelID, xclBinPath);
         emitter().emitNewLine();
 
 
@@ -535,8 +537,8 @@ public interface PLink {
             // -- free up the output sim buffers
             emitter().emit("// -- init output sim buffers");
             for (PortDecl port: entity.getOutputPorts()) {
-                emitter().emit("thisActor->dev->sim_buffer_%s->set_begin(0);");
-                emitter().emit("thisActor->dev->sim_buffer_%s->set_end(0);");
+                emitter().emit("thisActor->dev->sim_buffer_%s->set_begin(0);", port.getName());
+                emitter().emit("thisActor->dev->sim_buffer_%s->set_end(0);", port.getName());
             }
             emitter().emit("thisActor->program_counter = 1;");
             emitter().emit("goto SIMULATE;");
@@ -597,11 +599,11 @@ public interface PLink {
                 emitter().emitNewLine();
                 String type = typeseval().type(types().declaredPortType(port));
                 int portId = entity.getOutputPorts().indexOf(port);
-                String end = "thisActor->dev->sim_buffer_" + port.getName() + "->get_end();";
-                String begin = "thisActor->dev->sim_buffer_" + port.getName() + "->get_begin();";
-                String simBuffer = "thisActor->dev->sim_buffer_" + port.getName() + "->data();";
+                String end = "thisActor->dev->sim_buffer_" + port.getName() + "->get_end()";
+                String begin = "thisActor->dev->sim_buffer_" + port.getName() + "->get_begin()";
+                String simBuffer = "thisActor->dev->sim_buffer_" + port.getName() + "->data()";
                 String outputPort = String.format("OUT%d_%s", portId, port.getName());
-                String remain = "reamin_" + port.getName();
+                String remain = "remain_" + port.getName();
                 String pinAvailOut = "pinAvailOut_" + type + "(" + outputPort + ")";
                 String toWrite = "to_write_" + port.getName();
                 emitter().emit("uint32_t %s = %s - %s;", remain, end, begin);
@@ -614,8 +616,9 @@ public interface PLink {
                 {
                     emitter().increaseIndentation();
                     emitter().emitNewLine();
-                    emitter().emit("pinWriteRepeat_%s_t(%s, &%s[begin_%s], %s);", type, outputPort,
-                            port.getName(), simBuffer);
+                    emitter().emit("pinWriteRepeat_%s_t(%s, &sim_buffer_%s->buffer->data()[begin_%3$s], %s);",
+                            type, outputPort,
+                            port.getName(), toWrite);
                     // --se the new buffer begin
                     emitter().emit("thisActor->dev->sim_buffer_%s->set_begin(begin_%1$s + %s);",
                             port.getName(), toWrite);

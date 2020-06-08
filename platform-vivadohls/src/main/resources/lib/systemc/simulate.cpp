@@ -79,13 +79,3 @@ static Options parse_args(int argc, char *argv[]) {
   std::cout << "clock-period: " << opts.period << " ns" << std::endl;
   return opts;
 }
-
-int sc_main(int argc, char *argv[]) {
-
-  Options opts = parse_args(argc, argv);
-  const sc_time period(opts.period, SC_NS);
-  std::unique_ptr<ap_rtl::network_tester> mut(
-      new ap_rtl::network_tester("network", period, opts.trace_level));
-  mut->reset();
-  mut->simulate();
-}

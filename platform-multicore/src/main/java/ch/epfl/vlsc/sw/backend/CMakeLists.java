@@ -27,7 +27,7 @@ public interface CMakeLists {
         emitter().emitNewLine();
 
         // -- Project name
-        emitter().emit("project (%s)", backend().task().getIdentifier().getLast().toString());
+        emitter().emit("project (%s-multicore)", backend().task().getIdentifier().getLast().toString());
         emitter().emitNewLine();
 
         // -- C Standard
@@ -107,7 +107,7 @@ public interface CMakeLists {
 
         // -- CodeGen sources
         emitter().emit("# -- Generated code source files");
-        emitter().emit("set(filenames");
+        emitter().emit("set(multicore_sources");
         emitter().increaseIndentation();
 
         for (Instance instance : backend().task().getNetwork().getInstances()) {
@@ -128,7 +128,7 @@ public interface CMakeLists {
 
         // -- Generated code headers
         emitter().emit("# -- Generated code headers");
-        emitter().emit("set(code_gen_header");
+        emitter().emit("set(multicore_headers");
         emitter().increaseIndentation();
         emitter().emit("include/__arrayCopy.h");
         emitter().emit("include/globals.h");
@@ -184,7 +184,7 @@ public interface CMakeLists {
 
             // -- Add executable
             emitter().emit("# -- Add executable");
-            emitter().emit("add_executable(%s ${filenames})", backend().task().getIdentifier().getLast().toString());
+            emitter().emit("add_executable(%s ${multicore_sources})", backend().task().getIdentifier().getLast().toString());
             emitter().emitNewLine();
 
             // -- Target Include directories

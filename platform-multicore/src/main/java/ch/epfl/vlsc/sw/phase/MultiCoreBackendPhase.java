@@ -24,8 +24,10 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.*;
 import java.util.List;
+import java.util.Optional;
 
 public class MultiCoreBackendPhase implements Phase {
+
 
     /**
      * Code generation path
@@ -77,7 +79,8 @@ public class MultiCoreBackendPhase implements Phase {
         return ImmutableList.of(
                 PlatformSettings.scopeLivenessAnalysis,
                 PlatformSettings.runOnNode,
-                PlatformSettings.defaultBufferDepth);
+                PlatformSettings.defaultBufferDepth,
+                PlatformSettings.enableSystemC);
     }
 
     /**
@@ -86,7 +89,8 @@ public class MultiCoreBackendPhase implements Phase {
      * @param context
      */
     private void createDirectories(Context context) {
-        // -- Get target Path
+
+        // -- get the target path
         targetPath = context.getConfiguration().get(Compiler.targetPath);
 
         // -- Code Generation paths
@@ -115,6 +119,15 @@ public class MultiCoreBackendPhase implements Phase {
         reporter.report(new Diagnostic(Diagnostic.Kind.INFO, getDescription()));
         reporter.report(new Diagnostic(Diagnostic.Kind.INFO, "Identifier, " + task.getIdentifier().toString()));
         reporter.report(new Diagnostic(Diagnostic.Kind.INFO, "Target Path, " + PathUtils.getTarget(context)));
+
+
+        // -- change the target path when partitioning is enabled
+        if (context.getConfiguration().isDefined(PlatformSettings.PartitionNetwork) &&
+                context.getConfiguration().get(PlatformSettings.PartitionNetwork)) {
+            Path oldTargetPath = context.getConfiguration().get(Compiler.targetPath);
+            Path newTargetPath = PathUtils.createDirectory(oldTargetPath, "multicore");
+            context.getConfiguration().set(Compiler.targetPath, newTargetPath);
+        }
 
         // -- Create Directories
         createDirectories(context);
@@ -254,7 +267,8 @@ public class MultiCoreBackendPhase implements Phase {
 
         boolean hasPlink = multicoreBackend.context().getConfiguration().isDefined(PlatformSettings.PartitionNetwork)
                 && multicoreBackend.context().getConfiguration().get(PlatformSettings.PartitionNetwork);
-
+        boolean isSimulated = multicoreBackend.context().getConfiguration().isDefined(PlatformSettings.enableSystemC)
+                && multicoreBackend.context().getConfiguration().get(PlatformSettings.enableSystemC);
         try {
             // -- Copy Runtime
             URL url = getClass().getResource("/lib/");
@@ -271,8 +285,11 @@ public class MultiCoreBackendPhase implements Phase {
             // -- Copy streamblcoks.py
             Files.copy(getClass().getResourceAsStream("/python/streamblocks.py"), PathUtils.getTargetBin(multicoreBackend.context()).resolve("streamblocks.py"), StandardCopyOption.REPLACE_EXISTING);
 
+            if (isSimulated) {
+                Files.copy(getClass().getResourceAsStream("/simqueue/sim-queue.h"), PathUtils.getTargetCodeGenInclude(multicoreBackend.context()).resolve("sim-queue.h"), StandardCopyOption.REPLACE_EXISTING);
+            }
             // -- replace some files if plink is available
-            if (hasPlink) {
+            if (hasPlink && !isSimulated) {
                 Files.copy(libPath.resolve("CMakeLists.plink.txt"), libPath.resolve("CMakeLists.txt"),
                         StandardCopyOption.REPLACE_EXISTING);
             }

@@ -19,6 +19,7 @@ import se.lth.cs.tycho.phase.Phase;
 import se.lth.cs.tycho.reporting.CompilationException;
 import se.lth.cs.tycho.reporting.Diagnostic;
 import se.lth.cs.tycho.reporting.Reporter;
+import se.lth.cs.tycho.settings.Configuration;
 import se.lth.cs.tycho.settings.Setting;
 
 import java.io.IOException;
@@ -29,6 +30,10 @@ import java.util.List;
 
 public class VivadoHLSBackendPhase implements Phase {
 
+    /**
+     * Root path of the compilation, only meaningful if partitioning is enabled.
+     */
+    private Path rootPath;
     /**
      * Target Path
      */
@@ -44,6 +49,14 @@ public class VivadoHLSBackendPhase implements Phase {
      */
     private Path rtlPath;
 
+    /**
+     * code gen include directory
+     */
+    private Path codeGenIncludePath;
+    /**
+     * code gen source directory;
+     */
+    private Path codeGenSourcePath;
     /**
      * cmake path for finding the HLS tools
      */
@@ -81,9 +94,12 @@ public class VivadoHLSBackendPhase implements Phase {
      * @param context
      */
     private void createDirectories(Context context) {
-        // -- Get target Path
-        targetPath = context.getConfiguration().get(Compiler.targetPath);
 
+        // -- get the root path
+        rootPath = context.getConfiguration().get(Compiler.targetPath).resolve("..");
+
+        // -- get the target path
+        targetPath = context.getConfiguration().get(Compiler.targetPath);
         // -- Cmake path
         cmakePath = PathUtils.createDirectory(targetPath, "cmake");
 
@@ -144,12 +160,22 @@ public class VivadoHLSBackendPhase implements Phase {
         reporter.report(new Diagnostic(Diagnostic.Kind.INFO, "Identifier, " + task.getIdentifier().toString()));
         reporter.report(new Diagnostic(Diagnostic.Kind.INFO, "Target Path, " + PathUtils.getTarget(context)));
 
+        // -- change the target path when partitioning is enabled
+        if (context.getConfiguration().isDefined(PlatformSettings.PartitionNetwork) &&
+                context.getConfiguration().get(PlatformSettings.PartitionNetwork)) {
+            Path oldTargetPath = context.getConfiguration().get(Compiler.targetPath);
+            Path newTargetPath = PathUtils.createDirectory(oldTargetPath, "vivado-hls");
+            context.getConfiguration().set(Compiler.targetPath, newTargetPath);
+        }
 
         // -- Create Directories
         createDirectories(context);
 
+
         // -- Instantiate backend, bind current compilation task and the context
-        VivadoHLSBackend backend = MultiJ.from(VivadoHLSBackend.class).bind("task").to(task).bind("context").to(context)
+        VivadoHLSBackend backend = MultiJ.from(VivadoHLSBackend.class)
+                .bind("task").to(task)
+                .bind("context").to(context)
                 .instance();
 
 
@@ -329,7 +355,12 @@ public class VivadoHLSBackendPhase implements Phase {
         backend.testbench().generateTestbench(network);
 
         // -- SystemC network testbench
-        backend.sctester().generateTester();
+        if (backend.context().getConfiguration().isDefined(PlatformSettings.enableSystemC)
+            && backend.context().getConfiguration().get(PlatformSettings.enableSystemC)) {
+
+            backend.sctester().generateTester();
+            backend.simulator().genrateSimulator(network);
+        }
 
         // -- Instance Verilog Testbench
         network.getInstances().forEach(backend.testbench()::generateTestbench);
@@ -448,9 +479,7 @@ public class VivadoHLSBackendPhase implements Phase {
             Files.copy(getClass().getResourceAsStream("/lib/systemc/sim_queue.h"),
                     PathUtils.getTargetCodeGenInclude(backend.context()).resolve("sim_queue.h"),
                     StandardCopyOption.REPLACE_EXISTING);
-            Files.copy(getClass().getResourceAsStream("/lib/systemc/simulate.cpp"),
-                    PathUtils.getTargetCodeGenSource(backend.context()).resolve("simulate.cpp"),
-                    StandardCopyOption.REPLACE_EXISTING);
+
             Files.copy(getClass().getResourceAsStream("/lib/systemc/debug_macros.h"),
                     PathUtils.getTargetCodeGenInclude(backend.context()).resolve("debug_macros.h"),
                     StandardCopyOption.REPLACE_EXISTING);
@@ -461,4 +490,11 @@ public class VivadoHLSBackendPhase implements Phase {
         }
     }
 
+    public Path getCodeGenIncludePath() {
+        return codeGenIncludePath;
+    }
+
+    public Path getCodeGenSourcePath() {
+        return codeGenSourcePath;
+    }
 }

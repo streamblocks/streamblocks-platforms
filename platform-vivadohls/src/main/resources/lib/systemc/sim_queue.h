@@ -2,78 +2,79 @@
 #define __SIM_QUEUE_H__
 
 #include "debug_macros.h"
-#include <assert.h>
-#include <fstream>
-#include <iostream>
 #include <sstream>
 #include <vector>
+#include <memory>
 
 namespace SimQueue {
 
 template <typename T> class BaseQueue {
-protected:
-  std::vector<T> buffer;
-  unsigned long int ix;
+public:
+  std::unique_ptr<std::vector<T>> buffer;
+  uint32_t head;
+  uint32_t tail;
   std::string queue_name;
 
 public:
-  BaseQueue(const std::string &queue_name, const std::string &path_prefix)
+  BaseQueue(const std::string &queue_name)
       : queue_name(queue_name) {
-    std::string file_name = path_prefix + queue_name + std::string(".txt");
-    std::fstream ifs(file_name, std::ios::in);
-    if (!ifs.is_open()) {
-      PANIC("Could not open %s. Make sure the files is placed in the "
-            "work directory.",
-            file_name.c_str());
-    } else {
-      uint32_t token;
-      std::string line;
-      while (std::getline(ifs, line)) {
-        // std::cout << line << std::endl;
-        std::stringstream convert;
-        convert << line;
-        convert >> token;
-        // std::cout << token << std::endl;
-        buffer.push_back(token);
-      }
-    }
-    STATUS_REPORT("\nReference queue %s contains %lu tokens.\n\n",
-                  queue_name.c_str(), buffer.size());
-
-    ifs.close();
-    ix = 0;
+    buffer = std::make_unique<std::vector<T>>();
+    head = 0;
+    tail = 0;
   }
+  void allocate(uint32_t size=4096) {
+    buffer->resize(size);
+  }
+
+  T* data() {
+    return buffer->data();
+  }
+
+  std::size_t get_begin() const {
+    return head;
+  }
+  std::size_t get_end() const {
+    return tail;
+  }
+
+  void set_begin(const uint32_t new_head) {
+
+    this->head = new_head;
+  }
+
+  void set_end(const uint32_t new_tail) {
+    this->tail = new_tail;
+  }
+
+
+
 };
 template <typename T> class InputQueue : public BaseQueue<T> {
 
 public:
-  InputQueue(const std::string &queue_name, const std::string &path_prefix)
-      : BaseQueue<T>(queue_name, path_prefix){};
-  ~InputQueue() {
-    if (this->ix < this->buffer.size())
-      WARNING("\nOnly %lu tokens out %lu of were consumed in %s\n\n", this->ix,
-              this->buffer.size(), this->queue_name.c_str());
-  }
+  InputQueue(const std::string &queue_name)
+      : BaseQueue<T>(queue_name){};
+
   T dequeue() {
 
     T token = peek();
-    this->ix++;
+    this->head ++;
     return token;
   }
 
-  bool empty_n() {
-    return (this->buffer.size() > 0 && this->ix < this->buffer.size());
+  bool empty_n() const{
+    return (this->get_end() > 0 && this->get_begin() < this->get_end());
   }
 
-  T peek() {
-    DEBUG_ASSERT(this->ix <= this->buffer.size(),
+  T peek() const{
+    DEBUG_ASSERT(this->get_begin() <= this->get_end(),
                  "Buffer read overflow in %s\n", this->queue_name.c_str());
-    if (this->ix == this->buffer.size()) {
+    if (this->get_begin() == this->get_end()) {
       std::cout << "warning, bad peek" << std::endl;
-      return this->buffer[this->ix - 1];
+      return this->buffer->at(this->get_end());
     } else {
 
-      return this->buffer[this->ix];
+      return this->buffer->at(this->get_begin());
     }
   };
 };
@@ -81,29 +82,20 @@ public:
 template <typename T> class OutputQueue : public BaseQueue<T> {
 
 public:
-  OutputQueue(const std::string &queue_name, const std::string &path_prefix)
-      : BaseQueue<T>(queue_name, path_prefix) {}
-  ~OutputQueue() {
-    if (this->ix != this->buffer.size()) {
-      WARNING("\nExpected %lu tokens but received %lu in %s\n\n",
-              this->buffer.size(), this->ix, this->queue_name.c_str());
-    }
-  }
+  OutputQueue(const std::string &queue_name)
+      : BaseQueue<T>(queue_name) {}
+
   bool enqueue(T token) {
 
     bool match = true;
-    DEBUG_ASSERT(this->ix < this->buffer.size(),
+    DEBUG_ASSERT(this->full_n(),
                  "Buffer write overflow in %s\n", this->queue_name.c_str());
-    if (this->buffer[this->ix] != token) {
-      WARNING("\n@ index = %lu expected %lu but received %lu\n", this->ix,
-              this->buffer[this->ix], token);
 
-      match = false;
-    }
-    this->ix++;
+    this->buffer->at(this->tail) = token;
+    this->tail ++;
     return match;
   }
-  bool full_n() { return (this->ix < this->buffer.size()); }
+  bool full_n() { return (this->get_end() < this->buffer->size()); }
 };
 
 } // namespace SimQueue

@@ -41,7 +41,7 @@ public interface CMakeLists {
         // -- Project name
         String identifier = backend().task().getIdentifier().getLast().toString();
         emitter().emitSharpBlockComment("CMake Project");
-        emitter().emit("project (%s)", identifier);
+        emitter().emit("project (%s-vivadohls)", identifier);
         emitter().emitNewLine();
 
 
@@ -254,8 +254,8 @@ public interface CMakeLists {
 
         // -- Source and Include folders
         emitter().emitSharpBlockComment("Source and Include folders for the generated code");
-        emitter().emit("set(_srcpath ${CMAKE_CURRENT_SOURCE_DIR}/code-gen/src)");
-        emitter().emit("set(_incpath ${CMAKE_CURRENT_SOURCE_DIR}/code-gen/include)");
+        emitter().emit("set(_srcpath ${PROJECT_SOURCE_DIR}/code-gen/src)");
+        emitter().emit("set(_incpath ${PROJECT_SOURCE_DIR}/code-gen/include)");
         emitter().emitNewLine();
 
         // -- Custom commands
@@ -605,7 +605,7 @@ public interface CMakeLists {
             emitter().emitNewLine();
             // -- includes
             emitter().emitSharpComment("SystemC includes");
-            emitter().emit("set(simulate_inc");
+            emitter().emit("set(simulate_headers");
             {
                 emitter().increaseIndentation();
                 emitter().emit("${SYSTEMC_INCLUDE_DIR}");
@@ -619,10 +619,10 @@ public interface CMakeLists {
             emitter().emitNewLine();
             // -- sources
             emitter().emitSharpComment("SystemC sources");
-            emitter().emit("set(simulate_src");
+            emitter().emit("set(simulate_sources");
             {
                 emitter().increaseIndentation();
-                emitter().emit("code-gen/src/simulate.cpp");
+
                 emitter().emit("${VERILATOR_INCLUDE_DIR}/verilated.cpp");
                 network.getInstances().forEach(instance -> {
                     String instQid = backend().instaceQID(instance.getInstanceName(), "_");
@@ -634,7 +634,7 @@ public interface CMakeLists {
             emitter().emit(")");
             emitter().emitNewLine();
 
-            emitter().emit("add_executable(simulate ${simulate_src})");
+            emitter().emit("add_executable(simulate ${simulate_sources}) code-gen/src/simulate.cpp");
             emitter().emitNewLine();
 
             // -- Verilator flags
@@ -674,7 +674,7 @@ public interface CMakeLists {
 
             emitter().emit("target_compile_options(simulate PRIVATE ${CXXFLAGS_NO_UNUSED})");
             emitter().emit("target_compile_definitions(simulate PRIVATE ${VERILATOR_DEFINITIONS})");
-            emitter().emit("target_include_directories(simulate PRIVATE ${simulate_inc})");
+            emitter().emit("target_include_directories(simulate PRIVATE ${simulate_headers})");
             emitter().emit("set_target_properties(simulate PROPERTIES");
             {
                 emitter().increaseIndentation();

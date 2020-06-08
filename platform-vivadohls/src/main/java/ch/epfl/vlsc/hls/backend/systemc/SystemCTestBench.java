@@ -397,7 +397,7 @@ public interface SystemCTestBench {
                 emitter().emit("// -- simulation buffer for %s", input.getPort().getName());
                 String type = backend().typeseval().type(backend().types().declaredPortType(input.getPort()));
                 emitter().emit("sim_buffer_%s = " +
-                        "std::make_unique<SimQueue::InputQueue<%s>> (std::string(\"%1$s\"), std::string(\"\"));",
+                        "std::make_unique<SimQueue::InputQueue<%s>> (std::string(\"%1$s\"));",
                         input.getPort().getName(), type);
 
             });
@@ -407,7 +407,7 @@ public interface SystemCTestBench {
                 emitter().emit("// -- simulation buffer for %s", output.getPort().getName());
                 String type = backend().typeseval().type(backend().types().declaredPortType(output.getPort()));
                 emitter().emit("sim_buffer_%s = " +
-                                "std::make_unique<SimQueue::OutputQueue<%s>> (std::string(\"%1$s\"), std::string(\"\"));",
+                                "std::make_unique<SimQueue::OutputQueue<%s>> (std::string(\"%1$s\"));",
                         output.getPort().getName(), type);
             });
 

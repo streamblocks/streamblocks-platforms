@@ -8,6 +8,7 @@ import ch.epfl.vlsc.hls.backend.host.DeviceHandle;
 import ch.epfl.vlsc.hls.backend.kernel.*;
 import ch.epfl.vlsc.hls.backend.scripts.VivadoTCL;
 import ch.epfl.vlsc.hls.backend.simulators.WcfgWaveform;
+import ch.epfl.vlsc.hls.backend.systemc.Simulator;
 import ch.epfl.vlsc.hls.backend.systemc.SystemCNetwork;
 import ch.epfl.vlsc.hls.backend.systemc.SystemCTestBench;
 import ch.epfl.vlsc.hls.backend.verilog.VerilogNetwork;
@@ -242,6 +243,8 @@ public interface VivadoHLSBackend {
     default SystemCNetwork scnetwork() {
         return MultiJ.from(SystemCNetwork.class).bind("backend").to(this).instance();
     }
+
+
     // -- Globals
     @Binding(LAZY)
     default Globals globals() {
@@ -270,6 +273,12 @@ public interface VivadoHLSBackend {
     @Binding(LAZY)
     default SystemCTestBench sctester() {
         return MultiJ.from(SystemCTestBench.class).bind("backend").to(this).instance();
+    }
+
+    // -- SystemC network simulator
+    @Binding(LAZY)
+    default Simulator simulator() {
+        return MultiJ.from(Simulator.class).bind("backend").to(this).instance();
     }
 
     // -- Verilog Testbenches
