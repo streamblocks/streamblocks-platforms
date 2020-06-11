@@ -66,6 +66,7 @@ public interface SystemCTestBench {
             getReseter(network);
             // -- get simulator
             getSimulator(network);
+
             emitter().emitNewLine();
 
             emitter().emit("SC_HAS_PROCESS(%s);", identifier);
@@ -74,6 +75,8 @@ public interface SystemCTestBench {
             // -- get constructor
             getConstructor(network, identifier);
 
+            // -- stats dumper
+            getDumpStats(network);
             emitter().decreaseIndentation();
         }
         emitter().emit("}; // class %s", identifier);
@@ -154,6 +157,7 @@ public interface SystemCTestBench {
         });
         // -- vcd trace file
         emitter().emit("sc_trace_file *vcd_dump;");
+
         emitter().emitNewLine();
     }
 
@@ -318,7 +322,7 @@ public interface SystemCTestBench {
             emitter().emit("auto start_time = std::chrono::high_resolution_clock::now();");
             emitter().emit("STATUS_REPORT(\"@ %%s starting simulation\\n\",\n" +
                     "                  sc_time_stamp().to_string().c_str());");
-            emitter().emit("std::cout << \"@\" << sc_time_stamp() << \" Starting sim\" << std::endl;");
+
             emitter().emit("while (%s.read() != %s) {", network.getApControl().getDoneSignal().getName(),
                     LogicValue.Value.SC_LOGIC_1);
             {
@@ -337,6 +341,7 @@ public interface SystemCTestBench {
                             "            \"%%.9f s (%%s) \\n\\treal time   : %%3.6f s\\n\\tslow down   : %%6.3f\\n\\n\\n\",\n" +
                             "            clock_counter / 1000000, sim_time.to_seconds(), sim_time.to_string().c_str(),\n" +
                             "            diff_time.count() / 1e3, slow_down);");
+                    emitter().emit("this->dump_stats(break_point);");
                     emitter().emit("break_point += 1000000;");
                     emitter().decreaseIndentation();
                 }
@@ -362,6 +367,7 @@ public interface SystemCTestBench {
                 emitter().decreaseIndentation();
             }
             emitter().emit("}");
+            emitter().emit("sc_start(clock_period);");
             emitter().decreaseIndentation();
         }
         emitter().emit("}");
@@ -397,7 +403,7 @@ public interface SystemCTestBench {
                 emitter().emit("// -- simulation buffer for %s", input.getPort().getName());
                 String type = backend().typeseval().type(backend().types().declaredPortType(input.getPort()));
                 emitter().emit("sim_buffer_%s = " +
-                        "std::make_unique<SimQueue::InputQueue<%s>> (std::string(\"%1$s\"));",
+                                "std::make_unique<SimQueue::InputQueue<%s>> (std::string(\"%1$s\"));",
                         input.getPort().getName(), type);
 
             });
@@ -429,10 +435,10 @@ public interface SystemCTestBench {
             emitter().emitNewLine();
             emitter().emit("// -- input read setters");
             network.getInputs().forEach(port -> {
-               emitter().emit("SC_METHOD(input_read_setter_%s);", port.getPort().getName());
-               emitter().emit("sensitive << %s << sim_buffer_%s_dout;",
-                       port.getWriter().getFullN().getSignal().getName(),
-                       port.getPort().getName());
+                emitter().emit("SC_METHOD(input_read_setter_%s);", port.getPort().getName());
+                emitter().emit("sensitive << %s << sim_buffer_%s_dout;",
+                        port.getWriter().getFullN().getSignal().getName(),
+                        port.getPort().getName());
             });
             emitter().emitNewLine();
             emitter().emit("// -- output eaters");
@@ -511,6 +517,56 @@ public interface SystemCTestBench {
         }
         emitter().emit("}");
 
+
+    }
+
+    default void getDumpStats(SCNetwork network) {
+
+        emitter().emit("void dump_stats(uint64_t break_point=0) {");
+        {
+            emitter().emit("std::string extension;");
+            emitter().increaseIndentation();
+            emitter().emit("std::stringstream convert;");
+            emitter().emit("if (break_point != 0) {");
+            {
+                emitter().increaseIndentation();
+                emitter().emit("convert << \".\" <<break_point << \".xml\";");
+                emitter().emit("convert >> extension;");
+                emitter().decreaseIndentation();
+            }
+            emitter().emit("} else {");
+            {
+                emitter().increaseIndentation();
+                emitter().emit("extension = \".xml\";");
+                emitter().decreaseIndentation();
+            }
+            emitter().emit("}");
+            emitter().emit("std::string file_name = std::string(this->name()) + extension;");
+
+            emitter().emit("std::ofstream stats_dump (file_name, std::ios::out);");
+
+            emitter().emit("stats_dump << \"<?xml version = \\\"1.0\\\" encoding = \\\"UTF-8\\\"?>\" << std::endl;");
+            emitter().emit("stats_dump << \"\\t<Configuration>\" << std::endl;");
+            emitter().emit("stats_dump << \"\\t\\t<Partitioning id = \\\"systemc\\\">\" << std::endl;");
+            for (SCInstance instance: network.getInstances())
+                dumpInstanceStats(instance, network);
+            emitter().emit("stats_dump << \"\\t\\t</Partitioning>\" << std::endl;");
+            emitter().emit("stats_dump << \"\\t\\t<Scheduling type=\\\"trigger\\\"/>\" << std::endl;");
+            emitter().emit("stats_dump << \"\\t</Configuration>\" << std::endl;");
+            emitter().emit("stats_dump.close();");
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("}");
+    }
+    default void dumpInstanceStats(SCInstance instance, SCNetwork network) {
+
+        String actor = instance.getInstanceName();
+        String trigger = network.getTrigger(instance).getName();
+
+        emitter().emit("stats_dump << \"\\t\\t\\t<Instance actor-id = \\\"\"<<  this->inst_%s->%s->name() << " +
+                "\"\\\" ticks = \\\"\" << this->inst_%1$s->%s->getTotalTicks() << " +
+                "\"\\\" firings = \\\"\" << this->inst_%1$s->%3$s->getTotalFirings() <<  " +
+                "\"\\\" />\" << std::endl;", network.getIdentifier(), actor, trigger);
 
     }
 

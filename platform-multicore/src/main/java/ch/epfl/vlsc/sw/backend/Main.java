@@ -2,6 +2,7 @@ package ch.epfl.vlsc.sw.backend;
 
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.PathUtils;
+import ch.epfl.vlsc.settings.PlatformSettings;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
@@ -35,18 +36,32 @@ public interface Main {
     }
 
     default void main() {
+
+
+        boolean isSimulated =
+                backend().context().getConfiguration().isDefined(PlatformSettings.PartitionNetwork) &&
+                        backend().context().getConfiguration().get(PlatformSettings.PartitionNetwork) &&
+                        backend().context().getConfiguration().isDefined(PlatformSettings.enableSystemC) &&
+                        backend().context().getConfiguration().get(PlatformSettings.enableSystemC);
+
         Path mainTarget = PathUtils.getTargetCodeGenSource(backend().context()).resolve("main.cc");
         emitter().open(mainTarget);
         backend().includeUser("actors-rts.h");
         backend().includeUser("natives.h");
         backend().includeUser("globals.h");
+        if (isSimulated)
+            backend().includeUser("systemc.h");
         emitter().emitNewLine();
         // -- Init Network function
         initNetwork();
         emitter().emitNewLine();
 
         // -- Main function
-        emitter().emit("int main(int argc, char *argv[]) {");
+
+        if (isSimulated)
+            emitter().emit("int sc_main(int argc, char *argv[]) {");
+        else
+            emitter().emit("int main(int argc, char *argv[]) {");
         emitter().increaseIndentation();
 
         emitter().emit("int numberOfInstances;");

@@ -70,7 +70,7 @@ public:
     DEBUG_ASSERT(this->get_begin() <= this->get_end(),
                  "Buffer read overflow in %s\n", this->queue_name.c_str());
     if (this->get_begin() == this->get_end()) {
-      std::cout << "warning, bad peek" << std::endl;
+      WARNING("Bad peek in %s\n", this->queue_name.c_str());
       return this->buffer->at(this->get_end());
     } else {
 

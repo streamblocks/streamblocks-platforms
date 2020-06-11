@@ -220,4 +220,8 @@ public class SCNetwork implements SCIF {
     public Signal getAmIdleReg() {
         return amIdleReg;
     }
+
+    public SCTrigger getTrigger(SCInstance instance) {
+        return triggers.get(instances.indexOf(instance));
+    }
 }

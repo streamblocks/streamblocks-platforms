@@ -17,7 +17,7 @@ open_project $instance_name
 set_top $instance_name
 
 ## -- Add file
-add_files ${CMAKE_SOURCE_DIR}/code-gen/src/$file_name -cflags "-std=c++11 -I${CMAKE_SOURCE_DIR}/code-gen/include"
+add_files ${PROJECT_SOURCE_DIR}/code-gen/src/$file_name -cflags "-std=c++11 -I${PROJECT_SOURCE_DIR}/code-gen/include"
 
 ## -- Create solution
 open_solution -reset solution

@@ -81,7 +81,7 @@ public interface CMakeLists {
 
         // -- Cmake module path for finding the tools
         emitter().emitSharpComment("Set CMake module path, for finding the necessary tools");
-        emitter().emit("set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)");
+        emitter().emit("set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake)");
         emitter().emitNewLine();
 
         // -- Required tools for this code-generator
@@ -187,8 +187,8 @@ public interface CMakeLists {
         {
             emitter().increaseIndentation();
 
-            emitter().emit("file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)");
-            emitter().emit("file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/bin/xclbin)");
+            emitter().emit("file(MAKE_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)");
+            emitter().emit("file(MAKE_DIRECTORY ${PROJECT_SOURCE_DIR}/bin/xclbin)");
             emitter().emit("file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/xclbin)");
             emitter().emit("set(TARGET \"hw\" CACHE STRING \"Vitis/SDAccel TARGET : hw_emu, hw\")");
             emitter().emitNewLine();
@@ -221,8 +221,8 @@ public interface CMakeLists {
 
         // -- Configure file for Vivado HLS
         emitter().emitSharpBlockComment("Configure files for Vivado HLS");
-        emitter().emit("configure_file(${CMAKE_SOURCE_DIR}/scripts/Synthesis.tcl.in Synthesis.tcl)");
-        emitter().emit("configure_file(${CMAKE_SOURCE_DIR}/scripts/%s.tcl.in %1$s.tcl @ONLY)", identifier);
+        emitter().emit("configure_file(${PROJECT_SOURCE_DIR}/scripts/Synthesis.tcl.in Synthesis.tcl)");
+        emitter().emit("configure_file(${PROJECT_SOURCE_DIR}/scripts/%s.tcl.in %1$s.tcl @ONLY)", identifier);
         emitter().emitNewLine();
 
         // -- Configure files for Vitis or SDAccel
@@ -231,14 +231,14 @@ public interface CMakeLists {
         {
             emitter().increaseIndentation();
 
-            emitter().emit("configure_file(${CMAKE_SOURCE_DIR}/scripts/package_kernel.tcl.in package_kernel.tcl @ONLY)");
-            emitter().emit("configure_file(${CMAKE_SOURCE_DIR}/scripts/gen_xo.tcl.in gen_xo.tcl @ONLY)");
+            emitter().emit("configure_file(${PROJECT_SOURCE_DIR}/scripts/package_kernel.tcl.in package_kernel.tcl @ONLY)");
+            emitter().emit("configure_file(${PROJECT_SOURCE_DIR}/scripts/gen_xo.tcl.in gen_xo.tcl @ONLY)");
             emitter().emitNewLine();
 
             emitter().emit("if(USE_VITIS)");
-            emitter().emit("\tconfigure_file(${CMAKE_SOURCE_DIR}/scripts/sdaccel.ini.in ${CMAKE_SOURCE_DIR}/bin/xrt.ini @ONLY)");
+            emitter().emit("\tconfigure_file(${PROJECT_SOURCE_DIR}/scripts/sdaccel.ini.in ${PROJECT_SOURCE_DIR}/bin/xrt.ini @ONLY)");
             emitter().emit("else()");
-            emitter().emit("\tconfigure_file(${CMAKE_SOURCE_DIR}/scripts/sdaccel.ini.in ${CMAKE_SOURCE_DIR}/bin/sdaccel.ini @ONLY)");
+            emitter().emit("\tconfigure_file(${PROJECT_SOURCE_DIR}/scripts/sdaccel.ini.in ${PROJECT_SOURCE_DIR}/bin/sdaccel.ini @ONLY)");
             emitter().emit("endif()");
 
 
@@ -247,15 +247,16 @@ public interface CMakeLists {
         emitter().emit("endif()");
         emitter().emitNewLine();
 
-        // -- Include directories
-        emitter().emitSharpBlockComment("Include directories for Vivado HLS");
-        emitter().emit("include_directories(${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR}/code-gen/include ${VIVADO_HLS_INCLUDE_DIRS})");
-        emitter().emitNewLine();
 
         // -- Source and Include folders
         emitter().emitSharpBlockComment("Source and Include folders for the generated code");
-        emitter().emit("set(_srcpath ${PROJECT_SOURCE_DIR}/code-gen/src)");
-        emitter().emit("set(_incpath ${PROJECT_SOURCE_DIR}/code-gen/include)");
+        emitter().emit("set(hls_source_path ${PROJECT_SOURCE_DIR}/code-gen/src)");
+        emitter().emit("set(hls_header_path ${PROJECT_SOURCE_DIR}/code-gen/include)");
+        emitter().emitNewLine();
+
+        // -- Include directories
+        emitter().emitSharpBlockComment("Include directories for Vivado HLS");
+        emitter().emit("include_directories(${CMAKE_BINARY_DIR} ${hls_header_path} ${VIVADO_HLS_INCLUDE_DIRS})");
         emitter().emitNewLine();
 
         // -- Custom commands
@@ -286,9 +287,9 @@ public interface CMakeLists {
                 {
                     emitter().increaseIndentation();
 
-                    emitter().emit("OUTPUT ${CMAKE_SOURCE_DIR}/bin/emconfig.json");
+                    emitter().emit("OUTPUT ${PROJECT_SOURCE_DIR}/bin/emconfig.json");
                     emitter().emit(
-                            "COMMAND ${VITIS_EMCONFIGUTIL} --nd 1 --platform ${PLATFORM} --od ${CMAKE_SOURCE_DIR}/bin > emconfigutil.log");
+                            "COMMAND ${VITIS_EMCONFIGUTIL} --nd 1 --platform ${PLATFORM} --od ${PROJECT_SOURCE_DIR}/bin > emconfigutil.log");
                     emitter().decreaseIndentation();
                 }
                 emitter().emit(")");
@@ -303,9 +304,9 @@ public interface CMakeLists {
                 {
                     emitter().increaseIndentation();
 
-                    emitter().emit("OUTPUT ${CMAKE_SOURCE_DIR}/bin/emconfig.json");
+                    emitter().emit("OUTPUT ${PROJECT_SOURCE_DIR}/bin/emconfig.json");
                     emitter().emit(
-                            "COMMAND ${SDACCEL_EMCONFIGUTIL} --nd 1 --platform ${PLATFORM} --od ${CMAKE_SOURCE_DIR}/bin > emconfigutil.log");
+                            "COMMAND ${SDACCEL_EMCONFIGUTIL} --nd 1 --platform ${PLATFORM} --od ${PROJECT_SOURCE_DIR}/bin > emconfigutil.log");
                     emitter().decreaseIndentation();
                 }
                 emitter().emit(")");
@@ -360,9 +361,9 @@ public interface CMakeLists {
                     emitter().increaseIndentation();
 
                     emitter().emit(
-                            "OUTPUT  ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xclbin");
+                            "OUTPUT  ${PROJECT_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xclbin");
                     emitter().emit(
-                            "COMMAND ${VITIS_VPP} -g -t ${TARGET} --platform ${PLATFORM} --kernel_frequency ${KERNEL_FREQ}  --save-temps  ${XOCC_DEBUG} ${XOCC_PROFILE} -lo ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xclbin ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xo  > ${CMAKE_PROJECT_NAME}_kernel_xclbin.log");
+                            "COMMAND ${VITIS_VPP} -g -t ${TARGET} --platform ${PLATFORM} --kernel_frequency ${KERNEL_FREQ}  --save-temps  ${XOCC_DEBUG} ${XOCC_PROFILE} -lo ${PROJECT_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xclbin ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xo  > ${CMAKE_PROJECT_NAME}_kernel_xclbin.log");
                     emitter().emit("DEPENDS ${CMAKE_PROJECT_NAME}_kernel_xo");
 
                     emitter().decreaseIndentation();
@@ -380,9 +381,9 @@ public interface CMakeLists {
                     emitter().increaseIndentation();
 
                     emitter().emit(
-                            "OUTPUT  ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xclbin");
+                            "OUTPUT  ${PROJECT_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xclbin");
                     emitter().emit(
-                            "COMMAND ${SDACCEL_XOCC} -g -t ${TARGET} --platform ${PLATFORM} --kernel_frequency ${KERNEL_FREQ} --save-temps ${XOCC_DEBUG} ${XOCC_PROFILE} -lo ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xclbin ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xo  > ${CMAKE_PROJECT_NAME}_kernel_xclbin.log");
+                            "COMMAND ${SDACCEL_XOCC} -g -t ${TARGET} --platform ${PLATFORM} --kernel_frequency ${KERNEL_FREQ} --save-temps ${XOCC_DEBUG} ${XOCC_PROFILE} -lo ${PROJECT_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xclbin ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xo  > ${CMAKE_PROJECT_NAME}_kernel_xclbin.log");
                     emitter().emit("DEPENDS ${CMAKE_PROJECT_NAME}_kernel_xo");
 
                     emitter().decreaseIndentation();
@@ -403,7 +404,7 @@ public interface CMakeLists {
         {
             emitter().increaseIndentation();
 
-            emitter().emit("OUTPUT ${CMAKE_SOURCE_DIR}/output/%s/%1$s.xpr", identifier);
+            emitter().emit("OUTPUT ${PROJECT_SOURCE_DIR}/output/%s/%1$s.xpr", identifier);
             emitter().emit("COMMAND ${VIVADO_BINARY} -mode batch -source %s.tcl  > %1$s.log", identifier);
             String verilogInstances = String.join(" ", network.getInstances().stream()
                     .map(n -> backend().instaceQID(n.getInstanceName(), "_")).collect(Collectors.toList()));
@@ -439,7 +440,7 @@ public interface CMakeLists {
         {
             emitter().increaseIndentation();
 
-            emitter().emit("add_custom_target(emconfig ALL DEPENDS ${CMAKE_SOURCE_DIR}/bin/emconfig.json)");
+            emitter().emit("add_custom_target(emconfig ALL DEPENDS ${PROJECT_SOURCE_DIR}/bin/emconfig.json)");
 
             for (PortDecl port : network.getInputPorts()) {
                 emitter().emit(
@@ -458,7 +459,7 @@ public interface CMakeLists {
                     "add_custom_target(${CMAKE_PROJECT_NAME}_kernel_xo ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xo)");
             // -- Generate XCLBIN custom target
             emitter().emit(
-                    "add_custom_target(${CMAKE_PROJECT_NAME}_kernel_xclbin ALL DEPENDS ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xclbin)");
+                    "add_custom_target(${CMAKE_PROJECT_NAME}_kernel_xclbin ALL DEPENDS ${PROJECT_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xclbin)");
 
             emitter().decreaseIndentation();
         }
@@ -467,9 +468,9 @@ public interface CMakeLists {
 
         // -- Top, Vivado custom target
         emitter().emitSharpComment("Vivado custom target");
-        String xprProject = String.format("${CMAKE_SOURCE_DIR}/output/%s/%1$s.xpr", identifier);
+        String xprProject = String.format("${PROJECT_SOURCE_DIR}/output/%s/%1$s.xpr", identifier);
 
-        emitter().emit("add_custom_target(%s ALL DEPENDS %s)", identifier, xprProject);
+        emitter().emit("add_custom_target(%s_project ALL DEPENDS %s)", identifier, xprProject);
         emitter().emitNewLine();
 
         // -- Host example
@@ -477,7 +478,7 @@ public interface CMakeLists {
         emitter().emit("if (OPENCL_HOST)");
         {
             emitter().increaseIndentation();
-            emitter().emit("set(EXECUTABLE_OUTPUT_PATH ${CMAKE_SOURCE_DIR}/bin)");
+            emitter().emit("set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)");
             emitter().emit("set(host_filenames\n\tcode-gen/host/Host.%s\n\tcode-gen/host/device_handle.%1$s\n)",
                     backend().context().getConfiguration().get(PlatformSettings.C99Host) ? "c" : "cpp");
 
@@ -517,7 +518,7 @@ public interface CMakeLists {
             emitter().emit("OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/%s/solution/syn/verilog/%1$s.v ", topName);
             emitter().emit("COMMAND ${VIVADO_HLS_BINARY} -f Synthesis.tcl -tclargs \\\"%s\\\" \\\"%s\\\"  > %1$s.log",
                     topName, filename);
-            emitter().emit("DEPENDS ${_incpath}/%s.h ${_srcpath}/%s.cpp", headerName, topName);
+            emitter().emit("DEPENDS ${hls_header_path}/%s.h ${hls_source_path}/%s.cpp", headerName, topName);
 
             emitter().decreaseIndentation();
         }
@@ -609,10 +610,10 @@ public interface CMakeLists {
             {
                 emitter().increaseIndentation();
                 emitter().emit("${SYSTEMC_INCLUDE_DIR}");
-                emitter().emit("${VIVADO_SYSTEMC_INCLUDE_DIR}");
                 emitter().emit("${CMAKE_CURRENT_BINARY_DIR}/verilated/");
                 emitter().emit("${VERILATOR_STD_INCLUDE_DIR}");
                 emitter().emit("${VERILATOR_INCLUDE_DIR}");
+
                 emitter().decreaseIndentation();
             }
             emitter().emit(")");
@@ -634,9 +635,14 @@ public interface CMakeLists {
             emitter().emit(")");
             emitter().emitNewLine();
 
-            emitter().emit("add_executable(simulate ${simulate_sources}) code-gen/src/simulate.cpp");
+            // -- the standalone simulator
+            emitter().emitSharpComment("standalone simulator");
+            emitter().emit("add_executable(simulate ${simulate_sources} code-gen/src/simulate.cpp)");
             emitter().emitNewLine();
 
+            // -- the systemc wrapper to be used with multicore
+            emitter().emitSharpComment("wrapper archive to be used with multicore");
+            emitter().emit("add_library(art-systemc STATIC ${simulate_sources})");
             // -- Verilator flags
             emitter().emitSharpComment("Verilator no used flags");
             emitter().emit("set(CXXFLAGS_NO_USED");
@@ -672,10 +678,11 @@ public interface CMakeLists {
             emitter().emitSharpComment("Create the simulate binary");
             emitter().emitNewLine();
 
-            emitter().emit("target_compile_options(simulate PRIVATE ${CXXFLAGS_NO_UNUSED})");
-            emitter().emit("target_compile_definitions(simulate PRIVATE ${VERILATOR_DEFINITIONS})");
-            emitter().emit("target_include_directories(simulate PRIVATE ${simulate_headers})");
-            emitter().emit("set_target_properties(simulate PROPERTIES");
+
+            emitter().emit("target_compile_options(art-systemc PRIVATE ${CXXFLAGS_NO_UNUSED})");
+            emitter().emit("target_compile_definitions(art-systemc PRIVATE ${VERILATOR_DEFINITIONS})");
+            emitter().emit("target_include_directories(art-systemc PRIVATE ${simulate_headers})");
+            emitter().emit("set_target_properties(art-systemc PROPERTIES");
             {
                 emitter().increaseIndentation();
                 emitter().emit("CXX_STANDARD 14");
@@ -686,7 +693,10 @@ public interface CMakeLists {
             emitter().emit(")");
 
             emitter().emitNewLine();
-            emitter().emit("target_link_libraries(simulate ${SYSTEMC_LIBRARY})");
+            emitter().emit("target_link_libraries(art-systemc ${SYSTEMC_LIBRARY})");
+
+            emitter().emit("target_include_directories(simulate PRIVATE ${simulate_headers})");
+            emitter().emit("target_link_libraries(simulate art-systemc)");
 
             emitter().emitSharpComment("Copy dat ram files");
             network.getInstances().forEach(this::copyDatRamFiles);

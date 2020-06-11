@@ -190,7 +190,7 @@ public interface PLink {
     default void simulationState(String name, Entity entity) {
 
         emitter().emit("// -- simulation handle");
-        emitter().emit("unique_ptr<ap_rtl::network_tester> dev;");
+        emitter().emit("std::unique_ptr<ap_rtl::network_tester> dev;");
         emitter().emitNewLine();
 
     }
@@ -327,7 +327,23 @@ public interface PLink {
         emitter().emit("int trace_level = 0;");
         emitter().emit("thisActor->dev = " +
                 "std::make_unique<ap_rtl::network_tester>(\"plink\", period, trace_level);");
-        emitter().emit("mut->reset();");
+
+        // -- allocate buffers
+
+        // -- allocate buffers
+        emitter().emit("// -- allocate simulation buffers");
+        for(PortDecl port: entity.getInputPorts()) {
+            int bufferSize = backend().channelsutils().targetEndSize(
+                    new Connection.End(Optional.of(name),port.getName()));
+            emitter().emit("thisActor->dev->sim_buffer_%s->allocate(%d);", port.getName(), bufferSize);
+
+        }
+        for(PortDecl port: entity.getOutputPorts()) {
+            int bufferSize = backend().channelsutils().sourceEndSize(
+                    new Connection.End(Optional.of(name), port.getName()));
+            emitter().emit("thisActor->dev->sim_buffer_%s->allocate(%d);", port.getName(), bufferSize);
+        }
+        emitter().emit("thisActor->dev->reset();");
 
     }
 
@@ -365,7 +381,7 @@ public interface PLink {
         // -- Constructor
         emitter().emit("// -- Construct the FPGA device handle");
         String consName = backend().devicehandle().methodName(handle, handle.getConstructor());
-        String xclBinPath = "../../vivado-hls/bin/xclbin";
+        String xclBinPath = "xclbin";
         emitter().emit("%s(&thisActor->dev, \"%s\", \"xilinx_kcu1500_dynamic_5_0\", \"%s\", false);",
                 consName, kernelID, xclBinPath);
         emitter().emitNewLine();
@@ -413,6 +429,7 @@ public interface PLink {
             String setSizePtrName = getMethod(handle, "set_" + port.getName() + "_size_ptr");
             emitter().emit("%s(&thisActor->dev, thisActor->%s_size);",
                     setSizePtrName, port.getName());
+
         }
 
     }
@@ -499,6 +516,9 @@ public interface PLink {
         emitter().emit("size_t consumed = 0;");
         emitter().emit("size_t produced = 0;");
         emitter().emitNewLine();
+        emitter().emit("ART_ACTION_SCHEDULER_ENTER(%d, %d)", entity.getInputPorts().size(),
+                entity.getOutputPorts().size());
+        emitter().emitNewLine();
         emitter().emit("switch (thisActor->program_counter) {");
         {
             emitter().increaseIndentation();
@@ -523,7 +543,7 @@ public interface PLink {
                 emitter().emit("if (tokens_count_%s > 0) {", port.getName());
                 {
                     emitter().increaseIndentation();
-                    emitter().emit("pinkPeekRepeat_%s_t(IN%d_%s, " +
+                    emitter().emit("pinPeekRepeat_%s(IN%d_%s, " +
                                     "thisActor->dev->sim_buffer_%3$s->data(), tokens_count_%3$s);", type, portId,
                             port.getName());
                     emitter().decreaseIndentation();
@@ -562,9 +582,9 @@ public interface PLink {
                 emitter().emit("if (thisActor->dev->sim_buffer_%s->get_begin() > 0) {", port.getName());
                 {
                     emitter().increaseIndentation();
-                    emitter().emit("pinConsumeRepeat_%s_t(IN%d_%1$s, thisActor->sim_buffer_%3$s->get_begin());",
+                    emitter().emit("pinConsumeRepeat_%s(IN%d_%s, thisActor->dev->sim_buffer_%3$s->get_begin());",
                             type, portId, port.getName());
-                    emitter().emit("consumed += sim_buffer_%s->get_begin();", port.getName());
+                    emitter().emit("consumed += thisActor->dev->sim_buffer_%s->get_begin();", port.getName());
                     emitter().decreaseIndentation();
                 }
 
@@ -616,7 +636,7 @@ public interface PLink {
                 {
                     emitter().increaseIndentation();
                     emitter().emitNewLine();
-                    emitter().emit("pinWriteRepeat_%s_t(%s, &sim_buffer_%s->buffer->data()[begin_%3$s], %s);",
+                    emitter().emit("pinWriteRepeat_%s(%s, &thisActor->dev->sim_buffer_%s->data()[begin_%3$s], %s);",
                             type, outputPort,
                             port.getName(), toWrite);
                     // --se the new buffer begin

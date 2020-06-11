@@ -147,11 +147,13 @@ public interface Simulator {
             emitter().emit("mut->reset();");
             emitter().emit("// -- run to completion");
             emitter().emit("mut->simulate();");
+            emitter().emit("mut->dump_stats();");
             emitter().decreaseIndentation();
         }
         emitter().emit("}");
         emitter().close();
 
     }
+
 
 }

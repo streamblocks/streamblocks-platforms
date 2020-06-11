@@ -533,7 +533,7 @@ public interface SystemCNetwork {
 
             // -- Method to set the ap idle signal
             emitter().emit("SC_METHOD(setApIdle);");
-            emitter().emit("sensitive << %s;",
+            emitter().emit("sensitive << %s << %s;", network.getAmIdleReg().getName(),
                     String.join(" << ",
                             network.getTriggers()
                                     .map(SCTrigger::getApControl)

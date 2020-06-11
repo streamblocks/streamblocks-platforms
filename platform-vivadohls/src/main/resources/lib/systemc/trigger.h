@@ -52,18 +52,29 @@ public:
   class ProfileStat {
   private:
     unsigned int action_id;
-    std::vector<unsigned int> clock_count;
+    // std::vector<unsigned int> clock_count;
+    uint64_t total_ticks;
+    uint64_t fire_counts;
 
   public:
     ProfileStat(){
-
+      total_ticks = 0;
     };
 
     void setId(unsigned int id) { action_id = id; };
 
     void register_stat(unsigned long int count) {
-      clock_count.push_back(count);
+      // clock_count.push_back(count);
+      total_ticks ++;
+      fire_counts ++;
     }
+    uint64_t getTicks() {
+      return total_ticks;
+    }
+    uint64_t getFirings() {
+      return fire_counts;
+    }
+
   };
 
   std::array<ProfileStat, SZ> stats;
@@ -273,6 +284,21 @@ public:
     }
   }
 
+  uint64_t getTotalTicks() {
+
+    uint64_t total_ticks = 0;
+    for (uint32_t id = 0; id < SZ; id++) {
+      total_ticks += stats[id].getTicks();;
+    }
+    return total_ticks;
+  }
+  uint64_t getTotalFirings() {
+    uint64_t total_firings = 0;
+    for (uint32_t id = 0; id < SZ; id++) {
+      total_firings += stats[id].getFirings();
+    }
+    return total_firings;
+  }
   void action_set() { action_sig.write(actor_return.read() >> 17); }
 
   Trigger(sc_module_name name)
