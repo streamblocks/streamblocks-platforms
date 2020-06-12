@@ -134,7 +134,7 @@ public class OrccBackendPhase implements Phase {
             URL url = getClass().getResource("/runtime/");
             // -- Temporary hack to launch it from command line
             if (url.toString().contains("jar")) {
-                PathUtils.copyFromJar(getClass().getResource("").toURI(), "/libs", targetPath);
+                PathUtils.copyFromJar(getClass().getResource("").toURI(), "/runtime", targetPath);
             } else {
                 Path libResourcePath = Paths.get(url.toURI());
                 PathUtils.copyDirTree(libResourcePath, targetPath, StandardCopyOption.REPLACE_EXISTING);

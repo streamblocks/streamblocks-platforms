@@ -11,7 +11,7 @@ import java.util.List;
 public class Orcc implements Platform {
     @Override
     public String name() {
-        return "Orcc";
+        return "orcc";
     }
 
     @Override
