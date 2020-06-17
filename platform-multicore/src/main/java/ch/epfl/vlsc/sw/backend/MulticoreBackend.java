@@ -29,6 +29,11 @@ public interface MulticoreBackend {
     @Binding(INJECTED)
     Context context();
 
+    @Binding(LAZY)
+    default Box<Boolean> profilingbox() {
+        return Box.empty();
+    }
+
     // -- Instance Box
     @Binding(LAZY)
     default Box<Instance> instancebox() {

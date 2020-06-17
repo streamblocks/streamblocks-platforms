@@ -42,6 +42,7 @@
 #include <stdio.h>
 #include "actors-thread.h"
 #include "cycle.h"
+#include <zlib.h>
 
 /* make the header usable from C++ */
 #ifdef __cplusplus
@@ -102,6 +103,8 @@ typedef struct cpu_runtime_data {
     int *has_affected;
     statistics_t statistics;
     FILE *traceFile;
+    gzFile *traceTurnusFile;
+    FILE *infoFile;
 } cpu_runtime_data_t;
 
 

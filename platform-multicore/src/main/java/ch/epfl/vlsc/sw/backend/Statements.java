@@ -60,6 +60,12 @@ public interface Statements {
 
     void execute(Statement stmt);
 
+    @Binding(BindingKind.LAZY)
+    default List profilingOp(){
+        return new ArrayList<String>();
+    }
+
+
     /*
      * Statement Consume
      */
@@ -137,6 +143,7 @@ public interface Statements {
             copy(type, lvalue, types().type(assign.getExpression()), expressioneval().evaluate(assign.getExpression()));
         }
         memoryStack().exitScope();
+        profilingOp().add("__opCounters->prof_DATAHANDLING_ASSIGN += 1;");
     }
 
     default void copy(Type lvalueType, String lvalue, Type rvalueType, String rvalue) {
@@ -186,8 +193,13 @@ public interface Statements {
         for (Expression parameter : call.getArgs()) {
             parameters.add(expressioneval().evaluate(parameter));
         }
+
+        if(!backend().profilingbox().isEmpty()){
+            parameters.add("__opCounters");
+        }
         emitter().emit("%s(%s);", proc, String.join(", ", parameters));
         memoryStack().exitScope();
+        profilingOp().add("__opCounters->prof_DATAHANDLING_CALL += 1;");
     }
 
     /*
@@ -198,7 +210,9 @@ public interface Statements {
         emitter().increaseIndentation();
         memoryStack().enterScope();
         for (VarDecl decl : block.getVarDecls()) {
-
+            if(!backend().profilingbox().isEmpty()){
+                profilingOp().clear();
+            }
             Type t = types().declaredType(decl);
             String declarationName = variables().declarationName(decl);
             if (t instanceof AlgebraicType) {
@@ -213,10 +227,21 @@ public interface Statements {
                     copy(t, declarationName, types().type(decl.getValue()), expressioneval().evaluate(decl.getValue()));
                 }
             }
-
+            if(!backend().profilingbox().isEmpty()){
+                profilingOp().forEach(s-> emitter().emit((String) s));
+            }
         }
 
-        block.getStatements().forEach(this::execute);
+        if(backend().profilingbox().isEmpty()){
+            block.getStatements().forEach(this::execute);
+        }else{
+            for(Statement stmt : block.getStatements()){
+                profilingOp().clear();
+                execute(stmt);
+                profilingOp().forEach(s-> emitter().emit((String) s));
+            }
+        }
+
         memoryStack().exitScope();
         emitter().decreaseIndentation();
         emitter().emit("}");
@@ -245,6 +270,9 @@ public interface Statements {
             }
         }
         emitter().emit("}");
+        if(!backend().profilingbox().isEmpty()){
+            profilingOp().add("__opCounters->prof_FLOWCONTROL_IF += 1;");
+        }
         memoryStack().exitScope();
     }
 
@@ -266,6 +294,9 @@ public interface Statements {
                 emitter().emit("}");
             }
         });
+        if(!backend().profilingbox().isEmpty()){
+            profilingOp().add("__opCounters->prof_FLOWCONTROL_WHILE += 1;");
+        }
     }
 
     /*
@@ -281,6 +312,9 @@ public interface Statements {
         memoryStack().exitScope();
         emitter().decreaseIndentation();
         emitter().emit("}");
+        if(!backend().profilingbox().isEmpty()){
+            profilingOp().add("__opCounters->prof_FLOWCONTROL_WHILE += 1;");
+        }
     }
 
     void forEach(Expression collection, List<GeneratorVarDecl> varDecls, Runnable action);

@@ -189,9 +189,7 @@ static const int defines_in_done_mb[] = {};
 
 
 static const ActionDescription actionDescriptions[] = {
-        {"read",      portRate_64, 0, uses_in_read, defines_in_read},
-        {"done.comp", portRate_0,  0, uses_in_done_comp, defines_in_done_comp},
-        {"done.mb", portRate_0,  0},uses_in_done_mb, defines_in_done_mb};
+        {"read", "read", portRate_64, 0, uses_in_read, defines_in_read}};
 
 // -- Condition Description
 static const ConditionDescription conditionDescription[] = {};

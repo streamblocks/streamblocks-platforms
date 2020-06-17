@@ -5,6 +5,7 @@ project(art-lib)
 # -- Options
 option(DISPLAY "Display on the screen." ON)
 option(TRACE "Generate execution trace." OFF)
+option(TRACE_TURNUS "Generate execution trace for TURNUS." OFF)
 
 find_package(Threads QUIET)
 if(THREADS_FOUND)
@@ -25,6 +26,10 @@ endif()
 
 if(TRACE)
     list(APPEND extra_definitions "-DTRACE")
+endif()
+
+if(TRACE_TURNUS)
+    list(APPEND extra_definitions "-DTRACE_TURNUS")
 endif()
 
 

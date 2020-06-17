@@ -59,7 +59,15 @@ public interface CallablesInActors {
     default void callableDefinition(String instanceName, ExprLambda lambda) {
         backend().emitter().emit("%s {", lambdaHeader(instanceName, lambda));
         backend().emitter().increaseIndentation();
-        backend().emitter().emit("return %s;", backend().expressionEval().evaluate(lambda.getBody()));
+        LambdaType type = (LambdaType) backend().types().type(lambda);
+        if(!backend().profilingbox().isEmpty()){
+            backend().statements().profilingOp().clear();
+        }
+        backend().emitter().emit("%s __ret = %s;", backend().typesEval().type(type.getReturnType()), backend().expressionEval().evaluate(lambda.getBody()));
+        if(!backend().profilingbox().isEmpty()){
+            backend().statements().profilingOp().forEach(s-> backend().emitter().emit((String) s));
+        }
+        backend().emitter().emit("return __ret;");
         backend().emitter().decreaseIndentation();
         backend().emitter().emit("}");
     }
@@ -104,12 +112,17 @@ public interface CallablesInActors {
     default String callableHeader(String instanceName, String name, CallableType type, List<String> parameterNames, boolean withEnv) {
         List<String> parameters = new ArrayList<>();
         if (withEnv) {
-            parameters.add(String.format("%s *thisActor", "ActorInstance_" + backend().instaceQID(instanceName, "_")));
+            parameters.add(String.format("%s *thisActor", "ActorInstance_" + instanceName));
         }
         assert parameterNames.size() == type.getParameterTypes().size();
         for (int i = 0; i < parameterNames.size(); i++) {
             parameters.add(backend().declarations().declarationParameter(type.getParameterTypes().get(i), parameterNames.get(i)));
         }
+
+        if (!backend().profilingbox().isEmpty()) {
+            parameters.add("OpCounters *__opCounters");
+        }
+
         String result = backend().typesEval().type(type.getReturnType());
         result += " ";
         result += name;
@@ -118,7 +131,6 @@ public interface CallablesInActors {
         result += ")";
         return result;
     }
-
 
 
     default String externalCallableHeader(String name, CallableType type, List<String> parameterNames) {
@@ -210,12 +222,14 @@ public interface CallablesInActors {
     }
 
 
-
     @Binding(BindingKind.LAZY)
-    default Set<String> usedNames() { return new HashSet<>(); }
+    default Set<String> usedNames() {
+        return new HashSet<>();
+    }
 
 
-    default void externalCallableDeclaration(IRNode varDecl) { }
+    default void externalCallableDeclaration(IRNode varDecl) {
+    }
 
     default void externalCallableDeclaration(VarDecl varDecl) {
         if (varDecl.isExternal()) {
@@ -232,7 +246,8 @@ public interface CallablesInActors {
         }
     }
 
-    default void externalCallableDefinition(IRNode node) { }
+    default void externalCallableDefinition(IRNode node) {
+    }
 
     default void externalCallableDefinition(VarDecl varDecl) {
         if (varDecl.isExternal()) {

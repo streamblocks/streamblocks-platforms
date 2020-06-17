@@ -49,7 +49,7 @@ void Orcc_display_yuv_16bpp(int x, int y,
     yuv_sample_t *uptr = macroBlock + START_U;
     yuv_sample_t *vptr = macroBlock + START_V;
     int lineLength = format->pixelsPerLine;
-    int16bpp_t *fbp = format->framePtr;
+    int16bpp_t *fbp = (int16bpp_t *) format->framePtr;
     int Roffset = format->Roffset;
     int Rloss = 16 - format->Rwidth; // starting out with 16 bits, need Rwidth
     int Rmax = (1 << format->Rwidth) - 1;
@@ -104,7 +104,7 @@ void Orcc_display_yuv_32bpp(int x, int y,
     yuv_sample_t *uptr = macroBlock + START_U;
     yuv_sample_t *vptr = macroBlock + START_V;
     int lineLength = format->pixelsPerLine;
-    int32bpp_t *fbp = format->framePtr;
+    int32bpp_t *fbp = (int32bpp_t *) format->framePtr;
     int Roffset = format->Roffset;
     int Rloss = 16 - format->Rwidth; // starting out with 16 bits, need Rwidth
     int Rmax = (1 << format->Rwidth) - 1;
@@ -159,7 +159,7 @@ void display_yuv_16bpp(int x, int y,
     yuv_sample_t *uptr = macroBlock + START_U;
     yuv_sample_t *vptr = macroBlock + START_V;
     int lineLength = format->pixelsPerLine;
-    int16bpp_t *fbp = format->framePtr;
+    int16bpp_t *fbp = (int16bpp_t *) format->framePtr;
     int Roffset = format->Roffset;
     int Rloss = 16 - format->Rwidth; // starting out with 16 bits, need Rwidth
     int Rmax = (1 << format->Rwidth) - 1;
@@ -225,7 +225,7 @@ void display_yuv_32bpp(int x, int y,
     yuv_sample_t *uptr = macroBlock + START_U;
     yuv_sample_t *vptr = macroBlock + START_V;
     int lineLength = format->pixelsPerLine;
-    int32bpp_t *fbp = format->framePtr;
+    int32bpp_t *fbp = (int32bpp_t *)format->framePtr;
     int Roffset = format->Roffset;
     int Rloss = 16 - format->Rwidth; // starting out with 16 bits, need Rwidth
     int Rmax = (1 << format->Rwidth) - 1;

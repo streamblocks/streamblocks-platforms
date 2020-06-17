@@ -4,11 +4,16 @@ import ch.epfl.vlsc.platformutils.Emitter;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
+import se.lth.cs.tycho.ir.IRNode;
+import se.lth.cs.tycho.ir.NamespaceDecl;
 import se.lth.cs.tycho.ir.Variable;
 import se.lth.cs.tycho.ir.decl.VarDecl;
+import se.lth.cs.tycho.ir.entity.am.ActorMachine;
+import se.lth.cs.tycho.ir.entity.am.Scope;
 import se.lth.cs.tycho.ir.expr.ExprIndexer;
 import se.lth.cs.tycho.ir.stmt.lvalue.*;
 import se.lth.cs.tycho.type.ListType;
+import se.lth.cs.tycho.type.Type;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -36,6 +41,16 @@ public interface LValues {
     String lvalue(LValue lvalue);
 
     default String lvalue(LValueVariable var) {
+        VarDecl decl = backend().varDecls().declaration(var);
+        IRNode parent = backend().tree().parent(decl);
+        if((parent instanceof Scope) || (parent instanceof ActorMachine) || (parent instanceof NamespaceDecl)){
+            Type type = backend().types().type(decl.getType());
+            if(type instanceof ListType){
+                backend().statements().profilingOp().add("__opCounters->prof_DATAHANDLING_LIST_STORE += 1;");
+            }else{
+                backend().statements().profilingOp().add("__opCounters->prof_DATAHANDLING_STORE += 1;");
+            }
+        }
         return variables().name(var.getVariable());
     }
 

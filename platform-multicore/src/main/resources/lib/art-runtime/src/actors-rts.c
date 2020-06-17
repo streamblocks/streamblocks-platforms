@@ -14,6 +14,7 @@
 #include <limits.h>
 #include "xmlTrace.h"
 #include "xmlParser.h"
+#include "jsonTrace.h"
 #include "internal.h"
 #include <time.h>
 #include <sys/time.h>
@@ -108,6 +109,15 @@ void actionTrace(AbstractActorInstance *instance,
                        instance->firstActionIndex + localActionIndex);
 }
 
+void firingTrace(AbstractActorInstance *instance,
+                 int localActionIndex, OpCounters *opCounters) {
+    if (instance->traceTurnusFile) {
+        jsonTraceFiring(instance->traceTurnusFile, instance, localActionIndex,
+                        opCounters);
+    }
+}
+
+
 void conditionTrace(AbstractActorInstance *instance,
                     unsigned int timestamp,
                     int localConditionIndex,
@@ -168,6 +178,37 @@ void enable_tracing(cpu_runtime_data_t *runtime,
     xmlCloseTrace(statedepfile);
 }
 
+void enable_turnus_tracing(cpu_runtime_data_t *runtime,
+                           int numInstances,
+                           char *networkName) {
+    int i, j, k = 0;
+    int firstActionIndex = 0;
+    int firstConditionIndex = 0;
+    int firstStateVariableIndex = 0;
+    AbstractActorInstance **instances = (AbstractActorInstance **) malloc(
+            numInstances * sizeof(AbstractActorInstance *));
+
+    for (i = 0; i < runtime->cpu_count; i++) {
+        char filename[32];
+        cpu_runtime_data_t *cpu = &runtime[i];
+        sprintf(filename, "trace_%d.etracez", i);
+        char filename_info[32];
+        sprintf(filename_info, "trace_%d.info", i);
+        cpu->traceTurnusFile = jsonCreateTrace(filename);
+        cpu->infoFile = infoCreateFile(filename_info);
+        for (j = 0; j < cpu->actors; j++) {
+            AbstractActorInstance *pInstance = cpu->actor[j];
+            pInstance->firstActionIndex = firstActionIndex;
+            pInstance->firstConditionIndex = firstConditionIndex;
+            pInstance->firstStateVariableIndex = firstStateVariableIndex;
+            firstActionIndex += pInstance->actor->numActions;
+            firstConditionIndex += pInstance->actor->numConditions;
+            pInstance->traceTurnusFile = cpu->traceTurnusFile;
+            pInstance->infoFile = cpu->infoFile;
+            instances[k++] = pInstance;
+        }
+    }
+}
 
 /*
  * Create runtime instances for all needed special cases
@@ -935,6 +976,8 @@ static cpu_runtime_data_t *allocate_network(
                     actor->firstConditionIndex = 0;
                     actor->firstStateVariableIndex = 0;
                     actor->traceFile = 0;
+                    actor->traceTurnusFile = 0;
+                    actor->infoFile = 0;
 
                     actor->cpu = (int *) &result[cpu];
                     for (k = 0; k < actor->outputs; k++) {
@@ -985,6 +1028,11 @@ static void run_destructors(cpu_runtime_data_t *runtime) {
         cpu_runtime_data_t *cpu = &runtime[i];
         if (cpu->traceFile)
             xmlCloseTrace(cpu->traceFile);
+        if (cpu->traceTurnusFile){
+            jsonCloseTrace(cpu->traceTurnusFile);
+            infoCloseFile(cpu->infoFile);
+        }
+
 
         for (j = 0; j < runtime[i].actors; j++) {
             AbstractActorInstance *actor = runtime[i].actor[j];
@@ -1188,6 +1236,9 @@ static void show_usage(char *name) {
            "--trace                 Generate execution trace:\n"
            "                        Action trace generated if actors are\n"
            "                        compiled with CFLAGS=-DTRACE\n"
+           "--turnus-trace          Generate execution trace for TURNUS:\n"
+           "                        Action trace generated if actors are\n"
+           "                        compiled with CFLAGS=-DTRACE_TURNUS\n"
            "--with-complexity       Output per-actor complexity (cycles) in\n"
            "                        configuration file (see --generate)\n"
            "--with-bandwidth        Output per-connection bandwidth (#tokens)\n"
@@ -1215,6 +1266,7 @@ int executeNetwork(int argc,
     int affinity_is_set = 0;
     int show_timing = 0;
     int generate_trace = 0;
+    int generate_turnus_trace = 0;
     const char *generateFileName = 0;
     FILE *generateFile = 0;
     int with_complexity = 0;
@@ -1240,6 +1292,8 @@ int executeNetwork(int argc,
             with_bandwidth = 1;
         } else if (strcmp(argv[i], "--trace") == 0) {
             generate_trace = 1;
+        } else if (strcmp(argv[i], "--turnus-trace") == 0) {
+            generate_turnus_trace = 1;
         } else if (strcmp(argv[i], "--termination-report") == 0) {
             terminationReport = 1;
         } else if (strcmp(argv[i], "--help") == 0) {
@@ -1301,6 +1355,8 @@ int executeNetwork(int argc,
     if (result == 0) {
         if (generate_trace)
             enable_tracing(runtime_data, numInstances, argv[0]);
+        if (generate_turnus_trace)
+            enable_turnus_tracing(runtime_data, numInstances, argv[0]);
 
         if (cb_register_thread)
             cb_register_thread(0);

@@ -44,6 +44,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <pthread.h>
+#include <zlib.h>
 #ifdef __cplusplus
 #include <atomic>
 #else
@@ -196,6 +197,8 @@ struct AbstractActorInstance {
     int firstConditionIndex;
     int firstStateVariableIndex;
     FILE *traceFile;
+    gzFile *traceTurnusFile;
+    FILE *infoFile;
     int *cpu; // For active actor to wakeup the sleeping thread
 };
 
@@ -208,6 +211,7 @@ typedef struct {
 
 typedef struct {
     const char *name;
+    const char *originalName;
     const int *consumption;
     const int *production;
     const int *uses;
@@ -283,6 +287,41 @@ struct ActorClass {
     const StateVariableDescription *stateVariableDescription; //! state variable description array
 };
 
+typedef struct{
+    uint32_t prof_BINARY_BIT_AND;
+    uint32_t prof_BINARY_BIT_OR;
+    uint32_t prof_BINARY_BIT_XOR;
+    uint32_t prof_BINARY_DIV;
+    uint32_t prof_BINARY_DIV_INT;
+    uint32_t prof_BINARY_EQ;
+    uint32_t prof_BINARY_EXP;
+    uint32_t prof_BINARY_GT;
+    uint32_t prof_BINARY_GE;
+    uint32_t prof_BINARY_LT;
+    uint32_t prof_BINARY_LE;
+    uint32_t prof_BINARY_LOGIC_OR;
+    uint32_t prof_BINARY_LOGIC_AND;
+    uint32_t prof_BINARY_MINUS;
+    uint32_t prof_BINARY_PLUS;
+    uint32_t prof_BINARY_MOD;
+    uint32_t prof_BINARY_TIMES;
+    uint32_t prof_BINARY_NE;
+    uint32_t prof_BINARY_SHIFT_LEFT;
+    uint32_t prof_BINARY_SHIFT_RIGHT;
+    uint32_t prof_UNARY_BIT_NOT;
+    uint32_t prof_UNARY_LOGIC_NOT;
+    uint32_t prof_UNARY_MINUS;
+    uint32_t prof_UNARY_NUM_ELTS;
+    uint32_t prof_DATAHANDLING_STORE;
+    uint32_t prof_DATAHANDLING_ASSIGN;
+    uint32_t prof_DATAHANDLING_CALL;
+    uint32_t prof_DATAHANDLING_LOAD;
+    uint32_t prof_DATAHANDLING_LIST_LOAD;
+    uint32_t prof_DATAHANDLING_LIST_STORE;
+    uint32_t prof_FLOWCONTROL_IF;
+    uint32_t prof_FLOWCONTROL_WHILE;
+    uint32_t prof_FLOWCONTROL_CASE;
+} OpCounters;
 
 /*!
  * \brief Creates an ActorClass initializer
@@ -362,6 +401,9 @@ extern void actionTrace(AbstractActorInstance *instance,
                         unsigned int timestamp,
                         int localActionIndex,
                         char *actionName);
+
+extern void firingTrace(AbstractActorInstance *instance,
+                 int localActionIndex, OpCounters *opCounters);
 
 extern void conditionTrace(AbstractActorInstance *instance,
                            unsigned int timestamp,
@@ -494,10 +536,17 @@ extern unsigned int timestamp();
   context->fired++; \
   unsigned int __timestamp = timestamp(); \
 
+#elif defined(TRACE_TURNUS)
+#define ART_ACTION_ENTER(name, index)   \
+    context->fired++; \
+    unsigned int __timestamp = timestamp(); \
+    OpCounters *__opCounters = new OpCounters(); \
+
 #else
 #define ART_ACTION_ENTER(name, index)        \
   context->fired++
 #endif
+
 
 #ifdef TRACE
 #define ART_CONDITION_ENTER(name, index)   \
@@ -511,6 +560,12 @@ extern unsigned int timestamp();
 #ifdef TRACE
 #define ART_ACTION_EXIT(name, index) \
 actionTrace((AbstractActorInstance*)thisActor,__timestamp, index,#name);
+
+#elif defined(TRACE_TURNUS)
+#define ART_ACTION_EXIT(name, index) \
+    firingTrace((AbstractActorInstance*)thisActor, index, __opCounters); \
+    delete __opCounters;
+
 #else
 #define ART_ACTION_EXIT(name, index)
 #endif

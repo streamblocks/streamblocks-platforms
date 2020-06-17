@@ -1,6 +1,6 @@
 /*
- * Actor art_Sink_txt (ActorClass_art_Sink_real)
- * Generated on Wed Jun 03 14:16:43 CEST 2009 from sysactors/art_Sink_real.xlim
+ * Actor art_Sink_bin (ActorClass_art_Sink_bin)
+ * Generated on Wed Jun 03 11:04:36 CEST 2009 from sysactors/art_Sink_bin.xlim
  * by xlim2c version 0.6 (June 3, 2009)
  */
 
@@ -20,7 +20,7 @@ static const int exitcode_block_In_1[] = {
 
 ART_ACTION_CONTEXT(1, 0);
 
-ART_ACTION_SCHEDULER(art_Sink_real_action_scheduler) {
+ART_ACTION_SCHEDULER(art_Sink_bin_action_scheduler) {
     ActorInstance_art_Sink *thisActor = (ActorInstance_art_Sink *) pBase;
     const int *result = EXIT_CODE_YIELD;
     int numTokens;
@@ -33,8 +33,8 @@ ART_ACTION_SCHEDULER(art_Sink_real_action_scheduler) {
         if (numTokens > 0) {
             numTokens--;
             ART_ACTION_ENTER(action1, 0);
-            double token = pinRead_double(ART_INPUT(0));
-            fprintf(thisActor->file, "%f\n", token);
+            int32_t token = pinRead_int32_t(ART_INPUT(0));
+            fputc(token, thisActor->file);
             ART_ACTION_EXIT(action1, 0);
         } else {
             result = exitcode_block_In_1;
@@ -51,10 +51,9 @@ static void constructor(AbstractActorInstance *pBase) {
     ActorInstance_art_Sink *thisActor = (ActorInstance_art_Sink *) pBase;
 
     if (thisActor->filename == NULL) {
-        thisActor->file = stdout;
-        //runtimeError(pBase,"Parameter not set: fileName");
+        runtimeError(pBase, "Parameter not set: fileName");
     } else {
-        thisActor->file = fopen(thisActor->filename, "w");
+        thisActor->file = fopen(thisActor->filename, "wb");
         if (thisActor->file == NULL) {
             runtimeError(pBase, "Cannot open file for output: %s: %s",
                          thisActor->filename, strerror(errno));
@@ -81,8 +80,9 @@ static void setParam(AbstractActorInstance *pBase,
 }
 
 static const PortDescription inputPortDescriptions[] = {
-        {0, "In", sizeof(double)}
+        {0, "In", sizeof(int32_t)}
 };
+
 
 static const int portRate_1[] = {
         1
@@ -92,24 +92,24 @@ static const int portRate_1[] = {
 static const StateVariableDescription stateVariableDescription[] = {};
 
 // -- Uses by Transition
-static const int uses_in_actionAtLine_7[] = {};
+static const int uses_in_action1[] = {};
 
 // -- Defines by Transition
-static const int defines_in_actionAtLine_7[] = {};
+static const int defines_in_action1[] = {};
 
 static const ActionDescription actionDescriptions[] = {
-        {"actionAtLine_7", portRate_1, 0, uses_in_actionAtLine_7, defines_in_actionAtLine_7}
+        {"action1", "action1", portRate_1, 0, uses_in_action1, defines_in_action1}
 };
 
 // -- Condition Description
 static const ConditionDescription conditionDescription[] = {};
 
-ActorClass ActorClass_art_Sink_real = INIT_ActorClass(
-        "art_Sink_txt",
+ActorClass ActorClass_art_Sink_bin = INIT_ActorClass(
+        "art_Sink_bin",
         ActorInstance_art_Sink,
         constructor,
         setParam,
-        art_Sink_real_action_scheduler,
+        art_Sink_bin_action_scheduler,
         destructor,
         1, inputPortDescriptions,
         0, 0,

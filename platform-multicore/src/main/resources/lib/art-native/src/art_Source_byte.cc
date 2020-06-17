@@ -161,7 +161,7 @@ static const int uses_in_actionAtLine_7[] = {};
 static const int defines_in_actionAtLine_7[] = {};
 
 
-static const ActionDescription actionDescriptions[] = {{"actionAtLine_7", 0,
+static const ActionDescription actionDescriptions[] = {{"action", "action", 0,
                                                                portRate_1, uses_in_actionAtLine_7, defines_in_actionAtLine_7}};
 // -- Condition Description
 static const ConditionDescription conditionDescription[] = {};

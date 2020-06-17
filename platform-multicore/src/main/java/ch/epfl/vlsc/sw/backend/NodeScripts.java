@@ -57,7 +57,7 @@ public interface NodeScripts {
         Map<Instance, String> instanceActorClasses = new HashMap<>();
         for (Instance instance : network.getInstances()) {
             GlobalEntityDecl entityDecl = globalnames().entityDecl(instance.getEntityName(), true);
-            String joinQID = backend().instaceQID(instance.getInstanceName(), "_");
+            String joinQID = instance.getInstanceName();
             instanceQIDs.put(instance, joinQID);
 
             if (!entityDecl.getExternal()) {
@@ -103,14 +103,14 @@ public interface NodeScripts {
             Instance srcInstance = network.getInstances().stream().
                     filter(p -> p.getInstanceName().equals(srcInstanceName)).
                     findAny().orElse(null);
-            String srcJoinQID = backend().instaceQID(srcInstanceName, "_");
+            String srcJoinQID = srcInstanceName;
 
             // -- Target instance
             String tgtInstanceName = connection.getTarget().getInstance().get();
             Instance tgtInstance = network.getInstances().stream().
                     filter(p -> p.getInstanceName().equals(tgtInstanceName)).
                     findAny().orElse(null);
-            String tgtJoinQID = backend().instaceQID(tgtInstanceName, "_");
+            String tgtJoinQID = tgtInstanceName;
 
             emitter().emit("CONNECT %s.%s %s.%s", srcJoinQID, connection.getSource().getPort(), tgtJoinQID, connection.getTarget().getPort());
         }
@@ -149,7 +149,7 @@ public interface NodeScripts {
         Map<Instance, String> instanceActorClasses = new HashMap<>();
         for (Instance instance : network.getInstances()) {
             GlobalEntityDecl entityDecl = globalnames().entityDecl(instance.getEntityName(), true);
-            String joinQID = backend().instaceQID(instance.getInstanceName(), "_");
+            String joinQID = instance.getInstanceName();
             instanceQIDs.put(instance, joinQID);
 
             if (!entityDecl.getExternal()) {
@@ -212,14 +212,14 @@ public interface NodeScripts {
             Instance srcInstance = network.getInstances().stream().
                     filter(p -> p.getInstanceName().equals(srcInstanceName)).
                     findAny().orElse(null);
-            String srcJoinQID = backend().instaceQID(srcInstanceName, "_");
+            String srcJoinQID = srcInstanceName;
 
             // -- Target instance
             String tgtInstanceName = connection.getTarget().getInstance().get();
             Instance tgtInstance = network.getInstances().stream().
                     filter(p -> p.getInstanceName().equals(tgtInstanceName)).
                     findAny().orElse(null);
-            String tgtJoinQID = backend().instaceQID(tgtInstanceName, "_");
+            String tgtJoinQID = tgtInstanceName;
 
             emitter().emit("%s.%s >> %s.%s", srcJoinQID, connection.getSource().getPort(), tgtJoinQID, connection.getTarget().getPort());
         }

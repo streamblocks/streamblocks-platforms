@@ -248,7 +248,7 @@ static const int uses_in_action[] = {};
 // -- Defines by Transition
 static const int defines_in_action[] = {};
 
-static const ActionDescription actionDescriptions[] = {{"action", 0,
+static const ActionDescription actionDescriptions[] = {{"action", "action", 0,
                                                                portRate_1,uses_in_action, defines_in_action}};
 
 // -- Condition Description

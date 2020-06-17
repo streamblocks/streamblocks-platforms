@@ -4,6 +4,7 @@ set(art_runtime_sources
         src/termination-report.c
         src/xmlParser.c
         src/xmlTrace.c
+        src/jsonTrace.c
         )
 
 # ART Runtime includes
@@ -17,6 +18,7 @@ set(art_runtime_header
         include/natives.h
         include/xmlParser.h
         include/xmlTrace.h
+        include/jsonTrace.h
         )
 
 include_directories(${extra_includes})

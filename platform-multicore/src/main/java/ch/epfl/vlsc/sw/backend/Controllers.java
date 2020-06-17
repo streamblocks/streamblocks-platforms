@@ -40,14 +40,14 @@ public interface Controllers {
         emitter().emit("// -- Scheduler Definitions");
         emitter().emit("static const int exitcode_block_Any[3] = {1,0,1};");
         emitter().emitNewLine();
-        emitter().emit("ART_ACTION_SCHEDULER(%s_scheduler){", backend().instaceQID(name, "_"));
+        emitter().emit("ART_ACTION_SCHEDULER(%s_scheduler){", name);
         emitter().increaseIndentation();
 
         emitter().emit("const int *result = EXIT_CODE_YIELD;");
         emitter().emitNewLine();
 
         // -- Actor Instance
-        String actorInstanceName = "ActorInstance_" + backend().instaceQID(name, "_");
+        String actorInstanceName = "ActorInstance_" + name;
         emitter().emit("%s *thisActor = (%1$s*) pBase;", actorInstanceName);
         emitter().emit("ART_ACTION_SCHEDULER_ENTER(%d, %d)", actorMachine.getInputPorts().size(), actorMachine.getOutputPorts().size());
 

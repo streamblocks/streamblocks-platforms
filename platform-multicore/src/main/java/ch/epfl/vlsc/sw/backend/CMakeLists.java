@@ -113,7 +113,7 @@ public interface CMakeLists {
         for (Instance instance : backend().task().getNetwork().getInstances()) {
             GlobalEntityDecl entityDecl = backend().globalnames().entityDecl(instance.getEntityName(), true);
             if (!entityDecl.getExternal()) {
-                String filename = backend().instaceQID(instance.getInstanceName(), "_") + ".cc";
+                String filename = instance.getInstanceName() + ".cc";
                 emitter().emit("src/%s", filename);
             }
         }
@@ -159,7 +159,7 @@ public interface CMakeLists {
             for (Instance instance : backend().task().getNetwork().getInstances()) {
                 GlobalEntityDecl entityDecl = backend().globalnames().entityDecl(instance.getEntityName(), true);
                 if (!entityDecl.getExternal()) {
-                    String name = backend().instaceQID(instance.getInstanceName(), "_");
+                    String name = instance.getInstanceName();
 
                     emitter().emit("add_library(%s MODULE src/%1$s.c src/globals.c)", name);
                     emitter().emit("set_target_properties(%s PROPERTIES COMPILE_FLAGS \"-Wall -fPIC\")", name);
@@ -266,7 +266,7 @@ public interface CMakeLists {
         for (Instance instance : backend().task().getNetwork().getInstances()) {
             GlobalEntityDecl entityDecl = backend().globalnames().entityDecl(instance.getEntityName(), true);
             if (!entityDecl.getExternal()) {
-                String name = backend().instaceQID(instance.getInstanceName(), "_");
+                String name = instance.getInstanceName();
                 emitter().emit("# -- Actor : %s", name);
                 emitter().emit("add_library(%s MODULE src/%1$s.cc src/globals.cc)", name);
                 emitter().emit("set_target_properties(%s PROPERTIES PREFIX \"\")", name);

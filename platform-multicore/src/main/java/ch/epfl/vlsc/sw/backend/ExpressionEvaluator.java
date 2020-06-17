@@ -6,11 +6,15 @@ import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.ir.IRNode;
+import se.lth.cs.tycho.ir.NamespaceDecl;
 import se.lth.cs.tycho.ir.Variable;
 import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
+import se.lth.cs.tycho.ir.entity.am.ActorMachine;
+import se.lth.cs.tycho.ir.entity.am.Scope;
 import se.lth.cs.tycho.ir.expr.*;
 import se.lth.cs.tycho.ir.network.Instance;
+import se.lth.cs.tycho.ir.stmt.Statement;
 import se.lth.cs.tycho.ir.stmt.StmtAssignment;
 import se.lth.cs.tycho.ir.stmt.StmtCall;
 import se.lth.cs.tycho.ir.stmt.lvalue.LValueVariable;
@@ -56,6 +60,10 @@ public interface ExpressionEvaluator {
         return backend().memoryStack();
     }
 
+    default Statements statements() {
+        return backend().statements();
+    }
+
     // -- Evaluate Expressions
 
     default String evaluateCall(Expression expression) {
@@ -76,6 +84,7 @@ public interface ExpressionEvaluator {
         return variables().name(variable.getVariable());
     }
 
+
     String evaluate(Expression expr);
 
 
@@ -86,7 +95,18 @@ public interface ExpressionEvaluator {
      * @return
      */
     default String evaluate(ExprVariable variable) {
-        IRNode parent = backend().tree().parent(variable);
+        VarDecl decl = backend().varDecls().declaration(variable);
+        if (!(decl.getValue() instanceof ExprInput)) {
+            IRNode parent = backend().tree().parent(decl);
+            if ((parent instanceof Scope) || (parent instanceof ActorMachine) || (parent instanceof NamespaceDecl)) {
+                Type type = backend().types().type(decl.getType());
+                if (type instanceof ListType) {
+                    backend().statements().profilingOp().add("__opCounters->prof_DATAHANDLING_LIST_LOAD += 1;");
+                } else {
+                    backend().statements().profilingOp().add("__opCounters->prof_DATAHANDLING_LOAD += 1;");
+                }
+            }
+        }
         return variables().name(variable.getVariable());
     }
 
@@ -176,7 +196,7 @@ public interface ExpressionEvaluator {
         emitter().emit("%s = %s;", declarations().declarationTemp(types().type(input), tmp), backend().defaultValues().defaultValue(types().type(input)));
         //}
         if (type instanceof AlgebraicType) {
-           // memoryStack().trackPointer(tmp, type);
+            // memoryStack().trackPointer(tmp, type);
         }
 
 
@@ -226,6 +246,7 @@ public interface ExpressionEvaluator {
 
     default String evaluate(ExprBinaryOp binaryOp) {
         assert binaryOp.getOperations().size() == 1 && binaryOp.getOperands().size() == 2;
+        statements().profilingOp().add(getOpBinaryPlus(binaryOp));
         String operation = binaryOp.getOperations().get(0);
         Expression left = binaryOp.getOperands().get(0);
         Expression right = binaryOp.getOperands().get(1);
@@ -296,6 +317,7 @@ public interface ExpressionEvaluator {
      * @return
      */
     default String evaluate(ExprUnaryOp unaryOp) {
+        statements().profilingOp().add(getOpUnaryPlus(unaryOp));
         switch (unaryOp.getOperation()) {
             case "-":
             case "~":
@@ -307,8 +329,68 @@ public interface ExpressionEvaluator {
         }
     }
 
+    default String getOpBinaryPlus(ExprBinaryOp binaryOp) {
+        String operation = binaryOp.getOperations().get(0);
+        switch (operation) {
+            case "+":
+                return String.format("__opCounters->prof_BINARY_PLUS += 1;");
+            case "-":
+                return String.format("__opCounters->prof_BINARY_MINUS += 1;");
+            case "*":
+                return String.format("__opCounters->prof_BINARY_TIMES += 1;");
+            case "/":
+                return String.format("__opCounters->prof_BINARY_DIV += 1;");
+            case "<":
+                return String.format("__opCounters->prof_BINARY_LT += 1;");
+            case "<=":
+                return String.format("__opCounters->prof_BINARY_LE += 1;");
+            case ">":
+                return String.format("__opCounters->prof_BINARY_GT += 1;");
+            case ">=":
+                return String.format("__opCounters->prof_BINARY_GE += 1;");
+            case "==":
+            case "=":
+                return String.format("__opCounters->prof_BINARY_EQ += 1;");
+            case "!=":
+                return String.format("__opCounters->prof_BINARY_NE += 1;");
+            case "<<":
+                return String.format("__opCounters->prof_BINARY_SHIFT_LEFT += 1;");
+            case ">>":
+                return String.format("__opCounters->prof_BINARY_SHIFT_RIGHT += 1;");
+            case "&":
+                return String.format("__opCounters->prof_BINARY_BIT_AND += 1;");
+            case "|":
+                return String.format("__opCounters->prof_BINARY_BIT_OR += 1;");
+            case "^":
+                return String.format("__opCounters->prof_BINARY_EXP += 1;");
+            case "mod":
+                return String.format("__opCounters->prof_BINARY_MOD += 1;");
+            case "and":
+            case "&&":
+                return String.format("__opCounters->prof_BINARY_LOGIC_AND += 1;");
+            case "||":
+            case "or":
+                return String.format("__opCounters->prof_BINARY_LOGIC_OR += 1;");
+            default:
+                throw new UnsupportedOperationException(operation);
+        }
+    }
+
+    default String getOpUnaryPlus(ExprUnaryOp unaryOp) {
+        switch (unaryOp.getOperation()) {
+            case "-":
+                return String.format("__opCounters->prof_UNARY_MINUS += 1;");
+            case "~":
+                return String.format("__opCounters->prof_UNARY_BIT_NOT += 1;");
+            case "not":
+                return String.format("__opCounters->prof_UNARY_LOGIC_NOT += 1;");
+            default:
+                throw new UnsupportedOperationException(unaryOp.getOperation());
+        }
+    }
+
     /**
-     * Evaluate comprehensoin expression
+     * Evaluate comprehension expression
      *
      * @param comprehension
      * @return
@@ -555,6 +637,9 @@ public interface ExpressionEvaluator {
             parameters.add(evaluate(parameter));
         }
 
+        if (!backend().profilingbox().isEmpty()) {
+            parameters.add("__opCounters");
+        }
 
         fn = evaluateCall(apply.getFunction());
         Type type = types().type(apply);
@@ -564,6 +649,7 @@ public interface ExpressionEvaluator {
             memoryStack().trackPointer(result, type);
         }
         emitter().emit("%s = %s(%s);", decl, fn, String.join(", ", parameters));
+        backend().statements().profilingOp().add("__opCounters->prof_DATAHANDLING_CALL += 1;");
         return result;
     }
 
@@ -625,7 +711,7 @@ public interface ExpressionEvaluator {
             Type type = types().declaredType(decl);
             String name = variables().declarationName(decl);
             backend().memoryStack().trackPointer(name, type);
-            emitter().emit("%s = %s;", declarations().declaration(type, name),  backend().defaultValues().defaultValue(type));
+            emitter().emit("%s = %s;", declarations().declaration(type, name), backend().defaultValues().defaultValue(type));
             backend().statements().copy(type, name, types().type(decl.getValue()), evaluate(decl.getValue()));
         }
         return evaluate(let.getBody());

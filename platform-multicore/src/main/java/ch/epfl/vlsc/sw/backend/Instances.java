@@ -11,6 +11,7 @@ import org.multij.Module;
 import org.multij.MultiJ;
 import se.lth.cs.tycho.attribute.GlobalNames;
 import se.lth.cs.tycho.attribute.Types;
+import se.lth.cs.tycho.ir.Annotation;
 import se.lth.cs.tycho.ir.Parameter;
 import se.lth.cs.tycho.ir.Port;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
@@ -19,10 +20,7 @@ import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.entity.am.*;
-import se.lth.cs.tycho.ir.expr.ExprInput;
-import se.lth.cs.tycho.ir.expr.ExprLambda;
-import se.lth.cs.tycho.ir.expr.ExprProc;
-import se.lth.cs.tycho.ir.expr.Expression;
+import se.lth.cs.tycho.ir.expr.*;
 import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.type.*;
@@ -72,6 +70,7 @@ public interface Instances {
         return backend().expressionEval();
     }
 
+
     default void generateInstance(Instance instance) {
         // -- Add instance to box
         backend().instancebox().set(instance);
@@ -90,9 +89,9 @@ public interface Instances {
         // -- Target file Path
         Path instanceTarget;
         if (backend().context().getConfiguration().get(PlatformSettings.runOnNode)) {
-            instanceTarget = PathUtils.getTargetCodeGenSourceCC(backend().context()).resolve(backend().instaceQID(instance.getInstanceName(), "_") + ".cc");
+            instanceTarget = PathUtils.getTargetCodeGenSourceCC(backend().context()).resolve(instanceName + ".cc");
         } else {
-            instanceTarget = PathUtils.getTargetCodeGenSource(backend().context()).resolve(backend().instaceQID(instance.getInstanceName(), "_") + ".cc");
+            instanceTarget = PathUtils.getTargetCodeGenSource(backend().context()).resolve(instanceName + ".cc");
         }
 
         emitter().open(instanceTarget);
@@ -227,7 +226,13 @@ public interface Instances {
                     if (decl.getValue() != null) {
                         Expression expr = decl.getValue();
                         if (expr instanceof ExprLambda || expr instanceof ExprProc) {
+                            emitter().emit("#ifndef TRACE_TURNUS");
                             backend().callablesInActor().callableDefinition(instanceName, expr);
+                            emitter().emit("#else");
+                            backend().profilingbox().set(true);
+                            backend().callablesInActor().callableDefinition(instanceName, expr);
+                            backend().profilingbox().clear();
+                            emitter().emit("#endif");
                             emitter().emitNewLine();
                         }
                     }
@@ -262,7 +267,6 @@ public interface Instances {
                     String decl = declarations().declaration(types().declaredType(var), backend().variables().declarationName(var));
                     emitter().emit("%s;", decl);
                 }
-
             }
         }
 
@@ -277,7 +281,7 @@ public interface Instances {
         }
 
         emitter().decreaseIndentation();
-        emitter().emit("} ActorInstance_%s;", backend().instaceQID(instanceName, "_"));
+        emitter().emit("} ActorInstance_%s;", instanceName);
         emitter().emitNewLine();
     }
 
@@ -289,7 +293,7 @@ public interface Instances {
 
     default void prototypes(String instanceName, ActorMachine am) {
         // -- Actor Instance Name
-        String actorInstanceName = "ActorInstance_" + backend().instaceQID(instanceName, "_");
+        String actorInstanceName = "ActorInstance_" + instanceName;
 
         // -- Callables Prototypes
         emitter().emit("// -- Callables Prototypes");
@@ -299,7 +303,13 @@ public interface Instances {
                     if (decl.getValue() != null) {
                         Expression expr = decl.getValue();
                         if (expr instanceof ExprLambda || expr instanceof ExprProc) {
+                            emitter().emit("#ifndef TRACE_TURNUS");
                             backend().callablesInActor().callablePrototypes(instanceName, expr);
+                            emitter().emit("#else");
+                            backend().profilingbox().set(true);
+                            backend().callablesInActor().callablePrototypes(instanceName, expr);
+                            backend().profilingbox().clear();
+                            emitter().emit("#endif");
                             emitter().emitNewLine();
                         }
                     }
@@ -313,7 +323,7 @@ public interface Instances {
             String transitionName = instanceName + "_transition_" + am.getTransitions().indexOf(transition);
             emitter().emit("ART_ACTION(%s, %s);", transitionName, actorInstanceName);
         }
-        emitter().emit("ART_ACTION_SCHEDULER(%s_scheduler);", backend().instaceQID(instanceName, "_"));
+        emitter().emit("ART_ACTION_SCHEDULER(%s_scheduler);", instanceName);
         emitter().emit("static void %s_constructor(AbstractActorInstance *);", actorInstanceName);
         emitter().emit("static void %s_destructor(AbstractActorInstance *);", actorInstanceName);
         emitter().emitNewLine();
@@ -443,13 +453,13 @@ public interface Instances {
 
             for (VarDecl varDecl : stateVariables()) {
                 if (usedVar.contains(varDecl)) {
-                    usedVarsInTransition.add("1");
+                    usedVarsInTransition.add(String.valueOf(usedVar.size()));
                 } else {
                     usedVarsInTransition.add("0");
                 }
 
                 if (definesVar.contains(varDecl)) {
-                    definesVarsInTransition.add("1");
+                    definesVarsInTransition.add(String.valueOf(definesVar.size()));
                 } else {
                     definesVarsInTransition.add("0");
                 }
@@ -483,7 +493,7 @@ public interface Instances {
             for (VarDecl var : scope.getDeclarations()) {
                 String variableName = backend().variables().declarationName(var);
                 Type type = types().declaredType(var);
-                if (var.isExternal() || type instanceof CallableType) {
+                if (var.isExternal() || type instanceof CallableType || var.getValue() instanceof ExprInput) {
                     // -- Do nothing
                 } else {
                     if (type instanceof ListType) {
@@ -516,7 +526,12 @@ public interface Instances {
 
         for (Transition transition : am.getTransitions()) {
             String transitionName = instanceName + "_transition_" + am.getTransitions().indexOf(transition);
-            emitter().emit("{\"%s\", portRate_in_%1$s, portRate_out_%1$s, uses_in_%1$s, defines_in_%1$s},", transitionName);
+            Optional<Annotation> annotation = Annotation.getAnnotationWithName("ActionId", transition.getAnnotations());
+            String actionTag = "";
+            if (annotation.isPresent()) {
+                actionTag = ((ExprLiteral) annotation.get().getParameters().get(0).getExpression()).getText();
+            }
+            emitter().emit("{\"%s\", \"%s\", portRate_in_%1$s, portRate_out_%1$s, uses_in_%1$s, defines_in_%1$s},", transitionName, actionTag);
         }
 
         emitter().decreaseIndentation();
@@ -592,7 +607,7 @@ public interface Instances {
 
     default void scopes(String instanceName, ActorMachine am) {
         // -- Actor Instance Name
-        String actorInstanceName = "ActorInstance_" + backend().instaceQID(instanceName, "_");
+        String actorInstanceName = "ActorInstance_" + instanceName;
 
         emitter().emit("// -- Scopes");
         for (Scope scope : am.getScopes()) {
@@ -636,7 +651,7 @@ public interface Instances {
 
     default void conditions(String instanceName, ActorMachine am) {
         // -- Actor Instance Name
-        String actorInstanceName = "ActorInstance_" + backend().instaceQID(instanceName, "_");
+        String actorInstanceName = "ActorInstance_" + instanceName;
 
         emitter().emit("// -- Conditions");
         for (Condition condition : am.getConditions()) {
@@ -678,7 +693,7 @@ public interface Instances {
     void actorClass(String instanceName, Entity entity);
 
     default void actorClass(String instanceName, ActorMachine am) {
-        String instanceQID = backend().instaceQID(instanceName, "_");
+        String instanceQID = instanceName;
         emitter().emit("// -- Actor Class");
 
         emitter().emit("#ifdef CAL_RT_CALVIN");
@@ -717,22 +732,33 @@ public interface Instances {
     default void acttransDefinitions(String instanceName, ActorMachine am) {
         emitter().emit("// -- Transitions Definitions");
         for (Transition transition : am.getTransitions()) {
-            String instanceQID = backend().instaceQID(instanceName, "_");
-            emitter().emit("ART_ACTION(%s_transition_%d, ActorInstance_%s){", instanceName, am.getTransitions().indexOf(transition), instanceQID);
-            emitter().increaseIndentation();
+            emitter().emit("#ifndef TRACE_TURNUS");
+            acttransDefinition(instanceName, am, transition);
+            emitter().emit("#else");
+            backend().profilingbox().set(true);
+            acttransDefinition(instanceName, am, transition);
+            backend().profilingbox().clear();
+            emitter().emit("#endif");
 
-            emitter().emit("ART_ACTION_ENTER(%s_transition_%d, %2$d);", instanceName, am.getTransitions().indexOf(transition));
-
-            backend().memoryStack().enterScope();
-            transition.getBody().forEach(statements()::execute);
-            backend().memoryStack().exitScope();
-
-            emitter().emit("ART_ACTION_EXIT(%s_transition_%d, %2$d);", instanceName, am.getTransitions().indexOf(transition));
-
-            emitter().decreaseIndentation();
-            emitter().emit("}");
             emitter().emitNewLine();
         }
+    }
+
+    default void acttransDefinition(String instanceName, ActorMachine am, Transition transition) {
+        String instanceQID = instanceName;
+        emitter().emit("ART_ACTION(%s_transition_%d, ActorInstance_%s){", instanceName, am.getTransitions().indexOf(transition), instanceQID);
+        emitter().increaseIndentation();
+
+        emitter().emit("ART_ACTION_ENTER(%s_transition_%d, %2$d);", instanceName, am.getTransitions().indexOf(transition));
+
+        backend().memoryStack().enterScope();
+        transition.getBody().forEach(statements()::execute);
+        backend().memoryStack().exitScope();
+
+        emitter().emit("ART_ACTION_EXIT(%s_transition_%d, %2$d);", instanceName, am.getTransitions().indexOf(transition));
+
+        emitter().decreaseIndentation();
+        emitter().emit("}");
     }
 
     /*
@@ -744,7 +770,7 @@ public interface Instances {
     default void constructorDefinition(String instanceName, ActorMachine am) {
         emitter().emit("// -- Constructor Definitions");
 
-        String actorInstanceName = "ActorInstance_" + backend().instaceQID(instanceName, "_");
+        String actorInstanceName = "ActorInstance_" + instanceName;
         emitter().emit("static void %s_constructor(AbstractActorInstance *pBase){", actorInstanceName);
         emitter().increaseIndentation();
 
@@ -844,7 +870,7 @@ public interface Instances {
     default void destructorDefinition(String instanceName, ActorMachine am) {
         emitter().emit("// -- Constructor Definitions");
 
-        String actorInstanceName = "ActorInstance_" + backend().instaceQID(instanceName, "_");
+        String actorInstanceName = "ActorInstance_" + instanceName;
         emitter().emit("static void %s_destructor(AbstractActorInstance *pBase){", actorInstanceName);
         emitter().increaseIndentation();
 

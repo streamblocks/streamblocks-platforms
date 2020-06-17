@@ -1,5 +1,5 @@
 set(art_genomic_source
-        src/art_Fasta.c
+        src/art_Fasta.cc
         )
 
 set(art_genomic_header

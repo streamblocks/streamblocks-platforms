@@ -242,7 +242,7 @@ public class MultiCoreBackendPhase implements Phase {
 
         // -- Actor Machine Controllers to DOT
         for (Instance instance : multicoreBackend.task().getNetwork().getInstances()) {
-            String instanceWithQID = multicoreBackend.instaceQID(instance.getInstanceName(), "_");
+            String instanceWithQID = instance.getInstanceName();
             GlobalEntityDecl entityDecl = multicoreBackend.globalnames().entityDecl(instance.getEntityName(), true);
             ControllerToGraphviz dot = new ControllerToGraphviz(entityDecl, instanceWithQID, PathUtils.getAuxiliary(multicoreBackend.context()).resolve(instanceWithQID + ".dot"));
             dot.print();

@@ -109,7 +109,7 @@ public interface PLink {
                             "supported yet"));
         } else {
             instanceTarget = PathUtils.getTargetCodeGenSource(backend().context())
-                    .resolve(backend().instaceQID(instance.getInstanceName(), "_") + ".cc");
+                    .resolve(instance.getInstanceName() + ".cc");
         }
 
         emitter().open(instanceTarget);
@@ -241,7 +241,7 @@ public interface PLink {
 
             emitter().decreaseIndentation();
         }
-        emitter().emit("} ActorInstance_%s;", backend().instaceQID(name, "_"));
+        emitter().emit("} ActorInstance_%s;", name);
         emitter().emitNewLine();
     }
 
@@ -251,7 +251,7 @@ public interface PLink {
 //        emitter().emit("ART_ACTION(%s, %s);", TxName(), name);
 //        emitter().emit("// -- RX prototype");
 //        emitter().emit("ART_ACTION(%s, %s);", RxName(), name);
-        String instanceQID = backend().instaceQID(name, "_");
+        String instanceQID = name;
         emitter().emitNewLine();
         emitter().emit("// -- scheduler prototype");
         emitter().emit("ART_ACTION_SCHEDULER(ActorInstance_%s_scheduler);", instanceQID);
@@ -283,7 +283,7 @@ public interface PLink {
 
     default void actorClass(String name, Entity entity) {
 
-        String instanceQID = backend().instaceQID(name, "_");
+        String instanceQID = name;
         emitter().emit("// -- Actor Class");
         emitter().emit("#ifdef CAL_RT_CALVIN");
         emitter().emit("ActorClass klass");
@@ -438,7 +438,7 @@ public interface PLink {
 
         emitter().emit("// -- Constructor definition");
 
-        String actorInstanceName = "ActorInstance_" + backend().instaceQID(name, "_");
+        String actorInstanceName = "ActorInstance_" + name;
 
 
         emitter().emit("static void %s_constructor(AbstractActorInstance *pBase) {", actorInstanceName);
@@ -487,7 +487,7 @@ public interface PLink {
 
     default void destructorDefinition(String name, Entity entity) {
         emitter().emit("// -- destructor definition");
-        String actorInstanceName = "ActorInstance_" + backend().instaceQID(name, "_");
+        String actorInstanceName = "ActorInstance_" + name;
 
 
         emitter().emit("static void %s_destructor(AbstractActorInstance *pBase) {", actorInstanceName);
@@ -917,7 +917,7 @@ public interface PLink {
         emitter().emit("// -- scheduler definitions");
         emitter().emit("static const int exitcode_block_any[3] = {1, 0, 1};");
         emitter().emitNewLine();
-        String actorInstanceName = "ActorInstance_" + backend().instaceQID(name, "_");
+        String actorInstanceName = "ActorInstance_" + name;
         emitter().emit("ART_ACTION_SCHEDULER(%s_scheduler){", actorInstanceName);
         {
             emitter().increaseIndentation();
