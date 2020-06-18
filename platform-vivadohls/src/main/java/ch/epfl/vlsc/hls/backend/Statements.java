@@ -153,7 +153,7 @@ public interface Statements {
      */
 
     default void execute(StmtAssignment assign) {
-        Type type = types().lvalueType(assign.getLValue());
+        Type type = types().type(assign.getLValue());
         String lvalue = lvalues().lvalue(assign.getLValue());
         if (type instanceof ListType && assign.getLValue() instanceof LValueVariable) {
             expressioneval().evaluate(assign.getExpression());

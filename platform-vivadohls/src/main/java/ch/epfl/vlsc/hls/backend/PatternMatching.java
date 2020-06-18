@@ -27,7 +27,7 @@ public interface PatternMatching {
 
     default String evaluate(ExprCase caseExpr) {
         String expr = backend().variables().generateTemp();
-        emitter().emit("%s = %s;", backend().declarations().declaration(backend().types().type(caseExpr.getExpression()), expr), backend().expressioneval().evaluate(caseExpr.getExpression()));
+        emitter().emit("%s = %s;", backend().declarations().declaration(backend().types().type(caseExpr.getScrutinee()), expr), backend().expressioneval().evaluate(caseExpr.getScrutinee()));
         String match = backend().variables().generateTemp();
         emitter().emit("%s = false;", backend().declarations().declaration(BoolType.INSTANCE, match));
         Type type = backend().types().type(caseExpr);
@@ -54,7 +54,7 @@ public interface PatternMatching {
 
     default void execute(StmtCase caseStmt) {
         String expr = backend().variables().generateTemp();
-        emitter().emit("%s = %s;", backend().declarations().declaration(backend().types().type(caseStmt.getExpression()), expr), backend().expressioneval().evaluate(caseStmt.getExpression()));
+        emitter().emit("%s = %s;", backend().declarations().declaration(backend().types().type(caseStmt.getScrutinee()), expr), backend().expressioneval().evaluate(caseStmt.getScrutinee()));
         String match = backend().variables().generateTemp();
         emitter().emit("%s = false;", backend().declarations().declaration(BoolType.INSTANCE, match));
         caseStmt.getAlternatives().forEach(alternative -> {
@@ -104,11 +104,11 @@ public interface PatternMatching {
         Type type = backend().types().type(pattern);
         if (type instanceof SumType) {
             SumType sum = (SumType) type;
-            SumType.VariantType variant = sum.getVariants().stream().filter(v -> Objects.equals(v.getName(), pattern.getName())).findAny().get();
+            SumType.VariantType variant = sum.getVariants().stream().filter(v -> Objects.equals(v.getName(), pattern.getDeconstructor())).findAny().get();
             emitter().emit("if (%s.tag == %s::Tag::%2$s___%s) {", member == "" ? target : target + deref + member, sum.getName(), variant.getName());
             emitter().increaseIndentation();
             for (int i = 0; i < variant.getFields().size(); ++i) {
-                openPattern(pattern.getPatterns().get(i), (member == "" ? target : target + deref + member) + "." + pattern.getName(), ".", variant.getFields().get(i).getName());
+                openPattern(pattern.getPatterns().get(i), (member == "" ? target : target + deref + member) + "." + pattern.getDeconstructor(), ".", variant.getFields().get(i).getName());
             }
         } else if (type instanceof ProductType) {
             ProductType product = (ProductType) type;
