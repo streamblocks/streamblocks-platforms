@@ -158,7 +158,7 @@ void jsonTraceFiring(gzFile *f, AbstractActorInstance *instance, unsigned int ac
     // -- Read
     int hasReads = 0;
     for (int p = 0; p < numStateVariables; p++) {
-        int var = actions[j].uses[p];
+        int var = actions[actionId].uses[p];
         if (var) {
             hasReads = 1;
             break;
