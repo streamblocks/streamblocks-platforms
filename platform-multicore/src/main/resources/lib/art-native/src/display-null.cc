@@ -39,6 +39,7 @@
 #include "display.h"
 #include <sys/timeb.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 typedef struct {
     unsigned int relative_start_time;
