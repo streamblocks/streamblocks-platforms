@@ -3,11 +3,8 @@ package ch.epfl.vlsc.analysis.partitioning.phase;
 import ch.epfl.vlsc.analysis.partitioning.util.PartitionSettings;
 
 import gurobi.*;
-import org.w3c.dom.Document;
+import org.w3c.dom.*;
 
-import org.w3c.dom.Element;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
 import se.lth.cs.tycho.compiler.CompilationTask;
 import se.lth.cs.tycho.compiler.Context;
 import se.lth.cs.tycho.ir.network.Connection;
@@ -21,6 +18,11 @@ import se.lth.cs.tycho.settings.Setting;
 import se.lth.cs.tycho.compiler.Compiler;
 
 import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -46,6 +48,7 @@ public class PartitioningAnalysisPhase implements Phase {
     public List<Setting<?>> getPhaseSettings() {
         return ImmutableList.of(
                 PartitionSettings.profilePath,
+                PartitionSettings.configPath,
                 PartitionSettings.cpuCoreCount);
     }
     @Override
@@ -61,45 +64,57 @@ public class PartitioningAnalysisPhase implements Phase {
 
         }
 
-        Path profilePath = context.getConfiguration().get(PartitionSettings.profilePath);
+
+        parseNetworkProfile(network, context);
+        Map<Integer, List<Instance>> partitions = findPartitions(network, context);
+        createConfig(partitions, context);
+
+        return task;
+    }
+
+    private void createConfig(Map<Integer, List<Instance>> partitions, Context context) {
+
+        Path configPath =
+            context.getConfiguration().isDefined(PartitionSettings.configPath) ?
+                context.getConfiguration().get(PartitionSettings.configPath) :
+                    context.getConfiguration().get(Compiler.targetPath).resolve("bin/config.xml");
+
         try {
+            // the config xml doc
+            Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();
+            Element configRoot = doc.createElement("Configuration");
+            doc.appendChild(configRoot);
+            Element partitioningRoot = doc.createElement("Partitioning");
+            configRoot.appendChild(partitioningRoot);
 
-            File profileXml = new File(profilePath.toUri());
-            Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(profileXml);
-            // normalize the doc
-            doc.getDocumentElement().normalize();
+            partitions.forEach( (partition, instances) -> {
+                Element partitionRoot = doc.createElement("Partition");
+                partitionRoot.setAttribute("id", partition.toString());
+                instances.forEach( instance -> {
+                    Element instanceRoot = doc.createElement("Instance");
+                    instanceRoot.setAttribute("actor-id", instance.getInstanceName() + "/0");
+                    partitionRoot.appendChild(instanceRoot);
+                });
+                partitioningRoot.appendChild(partitionRoot);
+            });
 
+            StreamResult configStream = new StreamResult(new File(configPath.toUri()));
+            DOMSource configDom = new DOMSource(doc);
+            Transformer configTransformer = TransformerFactory.newInstance().newTransformer();
+            configTransformer.setOutputProperty(OutputKeys.INDENT, "yes");
+            configTransformer.transform(configDom, configStream);
 
-            NodeList instanceList = doc.getElementsByTagName("Instance");
-            for (int instanceId = 0; instanceId < instanceList.getLength(); instanceId ++) {
-
-                Node instNode = instanceList.item(instanceId);
-                if (instNode.getNodeType() == Node.ELEMENT_NODE) {
-                    Element instElem = (Element) instNode;
-                    parseInstance(instElem, network, context);
-
-
-                }
-
-            }
-
-            NodeList connectionList = doc.getElementsByTagName("Connection");
-
-            for (int connectionId = 0; connectionId < connectionList.getLength(); connectionId ++) {
-                Node conNode = connectionList.item(connectionId);
-                if (conNode.getNodeType() == Node.ELEMENT_NODE) {
-                    Element conElem = (Element) conNode;
-                    parseConnection(conElem, network, context);
-                }
-            }
-
+            context.getReporter().report(
+                    new Diagnostic(Diagnostic.Kind.INFO, "Config file save to " + configPath.toString()));
 
         } catch (Exception e) {
-            throw new CompilationException(
-                    new Diagnostic(Diagnostic.Kind.ERROR, "Error opening profile data "
-                            + profilePath.toString()));
+            e.printStackTrace();
         }
 
+    }
+
+    private Map<Integer, List<Instance>> findPartitions(Network network, Context context) {
+        Map<Integer, List<Instance>> partitions = new HashMap<>();
         try {
 
             GRBEnv env = new GRBEnv(true);
@@ -178,6 +193,13 @@ public class PartitioningAnalysisPhase implements Phase {
                         maxIndex = partitionVars.get(instance).indexOf(part);
                     }
                 }
+                if (partitions.containsKey(maxIndex)) {
+                    partitions.get(maxIndex).add(instance);
+                } else {
+                    List<Instance> ls = new ArrayList<Instance>();
+                    ls.add(instance);
+                    partitions.put(maxIndex, ls);
+                }
                 context.getReporter().report(
                         new Diagnostic(Diagnostic.Kind.INFO,
                                 String.format("Instance %s -> partition %d", instance.getInstanceName(), maxIndex)));
@@ -185,15 +207,12 @@ public class PartitioningAnalysisPhase implements Phase {
             model.dispose();
             env.dispose();
 
-
         } catch (GRBException e) {
             System.out.println("Error code: " + e.getErrorCode() + ". " +
                     e.getMessage());
         }
-
-        return null;
+        return partitions;
     }
-
     private String stripAffinity(String orig) {
         return orig.substring(0, orig.indexOf("/"));
     }
@@ -228,6 +247,48 @@ public class PartitioningAnalysisPhase implements Phase {
             }
         });
 
+    }
+
+    private void parseNetworkProfile(Network network, Context context) {
+
+        Path profilePath = context.getConfiguration().get(PartitionSettings.profilePath);
+        try {
+
+            File profileXml = new File(profilePath.toUri());
+            Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(profileXml);
+            // normalize the doc
+            doc.getDocumentElement().normalize();
+
+
+            NodeList instanceList = doc.getElementsByTagName("Instance");
+            for (int instanceId = 0; instanceId < instanceList.getLength(); instanceId ++) {
+
+                Node instNode = instanceList.item(instanceId);
+                if (instNode.getNodeType() == Node.ELEMENT_NODE) {
+                    Element instElem = (Element) instNode;
+                    parseInstance(instElem, network, context);
+
+
+                }
+
+            }
+
+            NodeList connectionList = doc.getElementsByTagName("Connection");
+
+            for (int connectionId = 0; connectionId < connectionList.getLength(); connectionId ++) {
+                Node conNode = connectionList.item(connectionId);
+                if (conNode.getNodeType() == Node.ELEMENT_NODE) {
+                    Element conElem = (Element) conNode;
+                    parseConnection(conElem, network, context);
+                }
+            }
+
+
+        } catch (Exception e) {
+            throw new CompilationException(
+                    new Diagnostic(Diagnostic.Kind.ERROR, "Error opening profile data "
+                            + profilePath.toString()));
+        }
     }
 
     private void parseInstance(Element instance, Network network, Context context) {

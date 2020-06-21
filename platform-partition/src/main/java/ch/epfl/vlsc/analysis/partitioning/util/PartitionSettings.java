@@ -25,6 +25,23 @@ public class PartitionSettings {
         }
     };
 
+    public static PathSetting configPath = new PathSetting() {
+        @Override
+        public String getKey() {
+            return "config-path";
+        }
+
+        @Override
+        public String getDescription() {
+            return "path to generate a config xml file";
+        }
+
+        @Override
+        public Path defaultValue(Configuration configuration) {
+            return null;
+        }
+    };
+
     public static IntegerSetting cpuCoreCount = new IntegerSetting() {
         @Override
         public String getKey() {
