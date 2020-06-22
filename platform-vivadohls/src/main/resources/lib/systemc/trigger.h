@@ -65,7 +65,7 @@ public:
 
     void register_stat(unsigned long int count) {
       // clock_count.push_back(count);
-      total_ticks ++;
+      total_ticks += count;
       fire_counts ++;
     }
     uint64_t getTicks() {

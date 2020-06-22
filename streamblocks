@@ -17,7 +17,7 @@ libs="$lib/core-1.0-SNAPSHOT.jar:$lib/multij-core-0.1.jar:$lib/platform-core-1.0
 
 
 if [ "$1" == "partition" ]; then
-  libs="${libs}:${root}/platform-partition/target/lib/gurobi-1.0-SNAPSHOT.jar"
+  libs="${libs}:${root}/platform-partition/target/lib/gurobi-jar-8.1.0.jar"
 fi
 
 comp="$root/platform-multicore/target/lib/compiler-1.0-SNAPSHOT.jar"

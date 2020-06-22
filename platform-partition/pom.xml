@@ -12,6 +12,13 @@
     <artifactId>platform-partition</artifactId>
     <version>1.0-SNAPSHOT</version>
     <name>StreamBlocks platform, partition analysis </name>
+    <repositories>
+        <repository>
+            <id>imagej</id>
+            <name>ImageJ Public</name>
+            <url>http://maven.imagej.net/content/repositories/public/</url>
+        </repository>
+    </repositories>
     <dependencies>
         <!-- https://mvnrepository.com/artifact/commons-io/commons-io -->
         <dependency>
@@ -51,9 +58,9 @@
             <version>1.0-SNAPSHOT</version>
         </dependency>
         <dependency>
-            <groupId>org.gurobi</groupId>
-            <artifactId>gurobi</artifactId>
-            <version>1.0-SNAPSHOT</version>
+            <groupId>com.gurobi</groupId>
+            <artifactId>gurobi-jar</artifactId>
+            <version>8.1.0</version>
         </dependency>
     </dependencies>
 </project>
