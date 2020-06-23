@@ -19,6 +19,8 @@ import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.phase.Phase;
 import se.lth.cs.tycho.reporting.CompilationException;
 import se.lth.cs.tycho.reporting.Diagnostic;
+import se.lth.cs.tycho.reporting.Reporter;
+import se.lth.cs.tycho.settings.Configuration;
 import se.lth.cs.tycho.settings.Setting;
 import se.lth.cs.tycho.compiler.Compiler;
 
@@ -41,10 +43,20 @@ public class PartitioningAnalysisPhase implements Phase {
     private Map<Connection, Long> commCost;
     private Map<Connection, Long> connectionSize;
 
+    boolean definedMulticoreProfilePath;
+    boolean definedSystemCProfilePath;
+
+    boolean definedOclProfilePath;
+    boolean definedCoreCommProfilePath;
+
     public PartitioningAnalysisPhase() {
         this.executionCost = new HashMap<Instance, Long>();
         this.commCost = new HashMap<Connection, Long>();
         this.connectionSize = new HashMap<Connection, Long>();
+        this.definedCoreCommProfilePath = false;
+        this.definedOclProfilePath = false;
+        this.definedSystemCProfilePath = false;
+        this.definedMulticoreProfilePath = false;
     }
     @Override
     public String getDescription() {
@@ -54,23 +66,69 @@ public class PartitioningAnalysisPhase implements Phase {
     @Override
     public List<Setting<?>> getPhaseSettings() {
         return ImmutableList.of(
-                PartitionSettings.profilePath,
+                PartitionSettings.multiCoreProfilePath,
+                PartitionSettings.systemCProfilePath,
+                PartitionSettings.openCLProfilePath,
+                PartitionSettings.multicoreCommunicationProfilePath,
                 PartitionSettings.configPath,
                 PartitionSettings.cpuCoreCount);
+    }
+
+    private void getRequiredSettings(CompilationTask task, Context context) throws CompilationException {
+
+        Configuration configs = context.getConfiguration();
+        Reporter reporter = context.getReporter();
+        this.definedMulticoreProfilePath = configs.isDefined(PartitionSettings.multiCoreProfilePath);
+        this.definedSystemCProfilePath = configs.isDefined(PartitionSettings.systemCProfilePath);
+        this.definedOclProfilePath = configs.isDefined(PartitionSettings.openCLProfilePath);
+        this.definedCoreCommProfilePath = configs.isDefined(PartitionSettings.multicoreCommunicationProfilePath);
+//        this.definedCoreCommProfilePath = true;
+        if (!this.definedMulticoreProfilePath) {
+            throw new CompilationException(
+                    new Diagnostic(Diagnostic.Kind.ERROR,
+                            String.format("Multicore profile path is not specified! use " +
+                            "--set %s=<PATH TO XML FILE> to set the profiling path",
+                                    PartitionSettings.multiCoreProfilePath)));
+
+        }
+        if (!this.definedSystemCProfilePath) {
+
+            reporter.report(
+                    new Diagnostic(Diagnostic.Kind.WARNING ,
+                            String.format("%s not specified, " +
+                                    "the partitioning will not contain an FPGA partition, " +
+                                    "set the value using --set %1$s=<PATH TO XML FILE>",
+                                    PartitionSettings.systemCProfilePath.getKey())));
+
+        }
+
+        if (!this.definedOclProfilePath) {
+
+            reporter.report(
+                    new Diagnostic(Diagnostic.Kind.WARNING,
+                            String.format("%s is not specified, the partitioning may be inaccurate. Use" +
+                                    "--set %1$s=<PATH TO XML FILE>", PartitionSettings.openCLProfilePath.getKey())));
+
+
+        }
+
+        if (!this.definedCoreCommProfilePath) {
+
+            reporter.report(
+                    new Diagnostic(Diagnostic.Kind.WARNING,
+                            String.format("%s is not specified, the partitioning may be inaccurate. Use" +
+                                    "--set %1$s=<PATH TO XML FILE>",
+                                    PartitionSettings.multicoreCommunicationProfilePath.getKey())));
+
+        }
+
     }
     @Override
     public CompilationTask execute(CompilationTask task, Context context) throws CompilationException {
 
         Network network = task.getNetwork();
-        boolean hasProfilePath = context.getConfiguration().isDefined(PartitionSettings.profilePath) &&
-                context.getConfiguration().get(PartitionSettings.profilePath) != null;
-        if (!hasProfilePath) {
-            throw new CompilationException(
-                    new Diagnostic(Diagnostic.Kind.ERROR, "Profile path is not specified! use " +
-                            "--set profile-path= to set the profiling path"));
 
-        }
-
+        getRequiredSettings(task, context);
 
         parseNetworkProfile(network, context);
         Map<Integer, List<Instance>> partitions = findPartitions(task, context);
@@ -134,9 +192,14 @@ public class PartitioningAnalysisPhase implements Phase {
                     new Diagnostic(Diagnostic.Kind.INFO, "Logging into " + logfile.toString()));
 
             env.set("LogFile", logfile.toString());
+
+
             env.start();
 
             GRBModel model = new GRBModel(env);
+
+            // Set the objective to minimize total ticks
+            GRBLinExpr objectiveExpr = new GRBLinExpr();
 
             int numPartitions =
                     context.getConfiguration().isDefined(PartitionSettings.cpuCoreCount) ?
@@ -165,7 +228,7 @@ public class PartitioningAnalysisPhase implements Phase {
             // Partition execution tick
             for (int part = 0; part < numPartitions; part++) {
                 GRBVar partitionTicks =
-                        model.addVar(0.0, ticksUpperBound(), 0.0, GRB.INTEGER, "ticks_" + part);
+                        model.addVar(0.0, ticksUpperBound(), 0.0, GRB.CONTINUOUS, "ticks_" + part);
                 execTicks[part] = partitionTicks;
                 GRBLinExpr ticksExpr = new GRBLinExpr();
                 for (Instance instance : network.getInstances()) {
@@ -177,71 +240,76 @@ public class PartitioningAnalysisPhase implements Phase {
                 model.addConstr(partitionTicks, GRB.EQUAL, ticksExpr,
                         String.format("ticks constraint %d", part));
             }
-            GRBVar totalExecTicks = model.addVar(0.0, GRB.INFINITY, 0.0, GRB.INTEGER, "total_execution_ticks");
+            GRBVar totalExecTicks = model.addVar(0.0, GRB.INFINITY, 0.0, GRB.CONTINUOUS, "total_execution_ticks");
 
             // Total ticks is the max of parallel ticks
             model.addGenConstrMax(totalExecTicks, execTicks, 0.0, "parallel tasks time constraint");
 
+            objectiveExpr.addTerm(1.0, totalExecTicks);
+
+
+
             Map<Connection, GRBVar> commTicks = new HashMap<>();
-            // communication cost
-            for (Connection connection : network.getConnections()) {
-                Connection.End sourceEnd = connection.getSource();
 
-                Connection.End targetEnd = connection.getTarget();
+            if (definedCoreCommProfilePath) {
+                // communication cost
+                for (Connection connection : network.getConnections()) {
+                    Connection.End sourceEnd = connection.getSource();
 
-                Instance sourceInstance = findSourceInstance(sourceEnd, network);
-                Instance targetInstance = findTargetInstance(targetEnd, network);
+                    Connection.End targetEnd = connection.getTarget();
 
-                List<GRBVar> sourceVars = partitionVars.get(sourceInstance);
-                List<GRBVar> targetVars = partitionVars.get(targetInstance);
+                    Instance sourceInstance = findSourceInstance(sourceEnd, network);
+                    Instance targetInstance = findTargetInstance(targetEnd, network);
 
-                Long intraTicks = Long.valueOf(256);
-                Long interTicks = Long.valueOf(5617);
+                    List<GRBVar> sourceVars = partitionVars.get(sourceInstance);
+                    List<GRBVar> targetVars = partitionVars.get(targetInstance);
 
-                GRBQuadExpr sumOfProducts = new GRBQuadExpr();
-                for (int sourcePart = 0; sourcePart < numPartitions; sourcePart++) {
+                    Long intraTicks = Long.valueOf(256);
+                    Long interTicks = Long.valueOf(5617);
 
-                    for (int targetPart = 0; targetPart < numPartitions; targetPart++) {
-                        GRBVar sourcePartVar = sourceVars.get(sourcePart);
-                        GRBVar targetPartVar = targetVars.get(targetPart);
-                        Long tokensTransferred = commCost.get(connection);
-                        Long tokenSize = connectionSize.get(connection);
-                        Double commTime = Double.valueOf(tokensTransferred * tokenSize) / 4096;
-                        if (sourcePart == targetPart)
-                            commTime = commTime * intraTicks;
-                        else
-                            commTime = commTime * interTicks;
-                        sumOfProducts.addTerm(commTime, sourcePartVar, targetPartVar);
+                    GRBQuadExpr sumOfProducts = new GRBQuadExpr();
+                    for (int sourcePart = 0; sourcePart < numPartitions; sourcePart++) {
 
+                        for (int targetPart = 0; targetPart < numPartitions; targetPart++) {
+                            GRBVar sourcePartVar = sourceVars.get(sourcePart);
+                            GRBVar targetPartVar = targetVars.get(targetPart);
+                            Long tokensTransferred = commCost.get(connection);
+                            Long tokenSize = connectionSize.get(connection);
+                            Double commTime = Double.valueOf(tokensTransferred * tokenSize) / 4096;
+                            if (sourcePart == targetPart)
+                                commTime = commTime * intraTicks;
+                            else
+                                commTime = commTime * interTicks;
+                            sumOfProducts.addTerm(commTime, sourcePartVar, targetPartVar);
+
+                        }
                     }
+                    String connectionName = String.format("%s.%s->%s.%s",
+                            sourceEnd.getInstance().get(), sourceEnd.getPort(),
+                            targetEnd.getInstance().get(), targetEnd.getPort());
+                    GRBVar connectionTicks = model.addVar(
+                            0.0,
+                            GRB.INFINITY,
+                            0.0,
+                            GRB.CONTINUOUS,
+                            connectionName + "_ticks");
+                    commTicks.put(connection, connectionTicks);
+                    model.addQConstr(connectionTicks, GRB.EQUAL, sumOfProducts, "constraint " + connectionName);
                 }
-                String connectionName = String.format("%s.%s->%s.%s",
-                        sourceEnd.getInstance().get(), sourceEnd.getPort(),
-                        targetEnd.getInstance().get(), targetEnd.getPort());
-                GRBVar connectionTicks = model.addVar(
+
+                GRBVar totalCommTicks = model.addVar(
                         0.0,
                         GRB.INFINITY,
                         0.0,
-                        GRB.INTEGER,
-                        connectionName + "_ticks");
-                commTicks.put(connection, connectionTicks);
-                model.addQConstr(connectionTicks, GRB.EQUAL, sumOfProducts, "constraint " + connectionName);
+                        GRB.CONTINUOUS,
+                        "total communication ticks");
+                GRBLinExpr sumCommTicks = new GRBLinExpr();
+                commTicks.values().forEach(v -> sumCommTicks.addTerm(1.0, v));
+                model.addConstr(totalCommTicks, GRB.EQUAL, sumCommTicks, "sum of communication ticks");
+                objectiveExpr.addTerm(1.0, totalCommTicks);
             }
 
-            GRBVar totalCommTicks = model.addVar(
-                    0.0,
-                    GRB.INFINITY,
-                    0.0,
-                    GRB.INTEGER,
-                    "total communication ticks");
-            GRBLinExpr sumCommTicks = new GRBLinExpr();
-            commTicks.values().forEach(v -> sumCommTicks.addTerm(1.0, v));
-            model.addConstr(totalCommTicks, GRB.EQUAL, sumCommTicks, "sum of communication ticks");
 
-            // Set the objective to minimize total ticks
-            GRBLinExpr objectiveExpr = new GRBLinExpr();
-            objectiveExpr.addTerm(1.0, totalExecTicks);
-            objectiveExpr.addTerm(1.0, totalCommTicks);
             model.setObjective(objectiveExpr, GRB.MINIMIZE);
 
             Path modelFile = logPath.resolve("model.lp");
@@ -249,12 +317,14 @@ public class PartitioningAnalysisPhase implements Phase {
                     new Diagnostic(Diagnostic.Kind.INFO, "Writing model into " + modelFile.toString()));
             model.write(modelFile.toString());
 
+
+            model.presolve();
             // Find a solution
             model.optimize();
 
             context.getReporter().report(
                     new Diagnostic(
-                            Diagnostic.Kind.INFO, String.format("Partitions 0 to %d found: ", numPartitions - 1)));
+                            Diagnostic.Kind.INFO, String.format("Partitions 0 to %d: ", numPartitions - 1)));
 
             for (Instance instance: network.getInstances()) {
                 int maxIndex = 0;
@@ -276,11 +346,7 @@ public class PartitioningAnalysisPhase implements Phase {
                         new Diagnostic(Diagnostic.Kind.INFO,
                                 String.format("Instance %s -> partition %d", instance.getInstanceName(), maxIndex)));
             }
-//            Path modelIlp = logPath.resolve("model.ilp");
-//            Path solutionFile = logPath.resolve("model.sol");
 
-//            model.write(modelIlp.toString());
-//            model.write(solutionFile.toString());
             model.dispose();
             env.dispose();
 
@@ -351,10 +417,10 @@ public class PartitioningAnalysisPhase implements Phase {
 
     private void parseNetworkProfile(Network network, Context context) {
 
-        Path profilePath = context.getConfiguration().get(PartitionSettings.profilePath);
+        Path multicoreProfilePath = context.getConfiguration().get(PartitionSettings.multiCoreProfilePath);
         try {
 
-            File profileXml = new File(profilePath.toUri());
+            File profileXml = new File(multicoreProfilePath.toUri());
             Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(profileXml);
             // normalize the doc
             doc.getDocumentElement().normalize();
@@ -387,7 +453,7 @@ public class PartitioningAnalysisPhase implements Phase {
         } catch (Exception e) {
             context.getReporter().report(
                     new Diagnostic(Diagnostic.Kind.ERROR, "Error parsing profile data "
-                            + profilePath.toString()));
+                            + multicoreProfilePath.toString()));
             e.printStackTrace();
         }
     }
