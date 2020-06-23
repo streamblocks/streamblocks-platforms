@@ -51,32 +51,44 @@ public:
 
   class ProfileStat {
   private:
-    unsigned int action_id;
-    // std::vector<unsigned int> clock_count;
+    unsigned int action_ix;
+    std::string action_id;
     uint64_t total_ticks;
     uint64_t fire_counts;
+    uint64_t min_ticks;
+    uint64_t max_ticks;
 
   public:
-    ProfileStat(){
+    ProfileStat() {
       total_ticks = 0;
+      min_ticks = -1;
+      max_ticks = 0;
     };
 
-    void setId(unsigned int id) { action_id = id; };
+    void setId(unsigned int ix, std::string id) {
+      action_ix = ix;
+      action_id = id;
+    };
 
+    std::string getActionId() const{ return action_id; }
     void register_stat(unsigned long int count) {
       // clock_count.push_back(count);
       total_ticks += count;
-      fire_counts ++;
+      if (count < min_ticks)
+        min_ticks = count;
+      if (count > max_ticks)
+        max_ticks = count;
+      fire_counts++;
     }
-    uint64_t getTicks() {
-      return total_ticks;
-    }
-    uint64_t getFirings() {
-      return fire_counts;
-    }
+
+    uint64_t getFirings() const{ return fire_counts; }
+    uint64_t getTicks() const { return total_ticks; }
+    uint64_t getMinTicks() const { return min_ticks; }
+    uint64_t getMaxTicks() const { return max_ticks; }
 
   };
 
+  const std::string actor_id;
   std::array<ProfileStat, SZ> stats;
   sc_signal<unsigned long int> clock_counter;
 
@@ -259,7 +271,7 @@ public:
 
     if (actor_done.read() == true && return_code == ReturnStatus::EXECUTED) {
 
-      DEBUG_MESSAGE("@ %s Action %5d took \t %10lu cycles in %s\n",
+      DEBUG_MESSAGE("@ %s.%s %5d took \t %10lu cycles in %s\n",
                     sc_time_stamp().to_string().c_str(), action_id,
                     clock_counter.read(), this->name());
 
@@ -284,29 +296,12 @@ public:
     }
   }
 
-  uint64_t getTotalTicks() {
 
-    uint64_t total_ticks = 0;
-    for (uint32_t id = 0; id < SZ; id++) {
-      total_ticks += stats[id].getTicks();;
-    }
-    return total_ticks;
-  }
-  uint64_t getTotalFirings() {
-    uint64_t total_firings = 0;
-    for (uint32_t id = 0; id < SZ; id++) {
-      total_firings += stats[id].getFirings();
-    }
-    return total_firings;
-  }
-  void action_set() { action_sig.write(actor_return.read() >> 17); }
+  void actionSet() { action_sig.write(actor_return.read() >> 17); }
 
-  Trigger(sc_module_name name)
-      : sc_module(name), state("state", State::IDLE_STATE),
+  Trigger(sc_module_name name, std::string actor_id)
+      : sc_module(name), actor_id(actor_id), state("state", State::IDLE_STATE),
         next_state("next_state", State::IDLE_STATE) {
-
-    for (int i = 0; i < SZ; i++)
-      stats[i].setId(i);
 
     SC_METHOD(setNextState);
     sensitive << state << ap_start << external_enqueue << actor_done
@@ -324,9 +319,86 @@ public:
     SC_THREAD(countClocks);
     sensitive << ap_clk.pos();
 
-    SC_METHOD(action_set);
+    SC_METHOD(actionSet);
     sensitive << actor_return;
   }
+  void setActionId(unsigned int ix, std::string action_id) {
+    stats[ix].setId(ix, action_id);
+  }
+
+  /**
+   * get total ticks of actor, which is the sum of the total ticks of its
+   * actions
+   */
+  uint64_t getTotalTicks() {
+
+    uint64_t total_ticks = 0;
+
+    for (uint32_t id = 0; id < SZ; id++) {
+      total_ticks += stats[id].getTicks();
+    }
+    return total_ticks;
+  }
+  /**
+   * get total firings of the actor, which is the sum of firings of its actions
+   */
+  uint64_t getTotalFirings() {
+    uint64_t total_firings = 0;
+    for (uint32_t id = 0; id < SZ; id++) {
+      total_firings += stats[id].getFirings();
+    }
+    return total_firings;
+  }
+
+
+  uint64_t getActionTicks(unsigned int ix) const {
+
+    return stats[ix].getTotalTicks();
+
+  }
+
+  uint64_t getMaxActionTicks(unsigned int ix) const {
+    return stats[ix].getMaxTicks();
+  }
+
+  uint64_t getMinActionTicks(unsigned int ix) const {
+    return stats[ix].getMinTicks();
+  }
+
+  uint64_t getActionFirings(unsigned int ix) const {
+    return stats[ix].getFirings();
+  }
+  double getAverageActionTicks(unsigned int ix) const {
+
+    double total_ticks = stats[ix].getTotalTicks();
+    double firings = stats[ix].getFirings();
+    return total_ticks / firings;
+
+  }
+
+
+  void dumpStats(std::ofstream& ofs, int indent=1) {
+    std::string indent_str = "";
+    for (int i = 0; i < indent; i++)
+      indent_str = indent_str + "\t";
+
+		auto total_actor_ticks = this->getTotalTicks();
+		auto total_actor_firings = this->getTotalFirings();
+		double actor_average_ticks = double(total_actor_ticks) / double(total_actor_firings);
+		ofs << indent_str << "<actor id=\"" << this->actor_id << "\" clockcycles=\"" << actor_average_ticks << "\" clockcycles-total=\"" << total_actor_ticks << "\" firings=\"" << total_actor_firings << "\" />" << std::endl;
+		for (const auto &stat: this->stats) {
+			auto total_ticks = stat.getTicks();
+			auto min_ticks = stat.getMinTicks();
+			auto max_ticks = stat.getMaxTicks();
+			auto firings = stat.getFirings();
+			double average_ticks = double (total_ticks) / double(firings);
+			auto action_id = stat.getActionId();
+			// ofs << "hello" << std::endl;
+			ofs << indent_str << "\t<action id=\"" << action_id << "\" clockcycles=\"" << average_ticks << "\" clockcycles-min=\"" << min_ticks << "\" clockcycles-max=\"" << max_ticks << "\" clockcycles-total=\"" << total_ticks << "\" firings=\"" << firings << "\"/>" << std::endl;
+		}
+
+		ofs << indent_str << "</actor>" << std::endl;
+	}
 
   ~Trigger(){};
 };

@@ -10,10 +10,12 @@ import org.multij.BindingKind;
 import org.multij.Binding;
 import org.multij.Module;
 
+import se.lth.cs.tycho.ir.Annotation;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.entity.am.ActorMachine;
+import se.lth.cs.tycho.ir.expr.ExprLiteral;
 import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.network.Network;
@@ -159,7 +161,22 @@ public interface SystemCNetwork {
             ActorMachine am = (ActorMachine) entity;
 
             String name = backend().instaceQID(instance.getInstanceName(), "_");
-            SCInstance newInst = new SCInstance(name, readers.build(), writers.build(), am.getTransitions().size());
+
+            ImmutableList<String> actionIds = am.getTransitions().map(transition -> {
+                Optional<Annotation> annotation = Annotation.getAnnotationWithName("ActionId", transition.getAnnotations());
+
+                if (annotation.isPresent()) {
+                    return ((ExprLiteral) annotation.get().getParameters().get(0).getExpression()).getText();
+                } else {
+                    throw new CompilationException(
+                            new Diagnostic(Diagnostic.Kind.ERROR, String.format("" +
+                                    "ActionId annotation missing for actor %s ",
+                                    instance.getEntityName().toString())));
+
+                }
+            });
+
+            SCInstance newInst = new SCInstance(name, readers.build(), writers.build(), actionIds);
             instances().put(instance, newInst);
             return newInst;
         } else {
@@ -443,15 +460,22 @@ public interface SystemCNetwork {
             // -- actors
             emitter().emit("// -- instance constructors");
             network.getInstances().stream().forEach(inst ->
-                    emitter().emit("%s  = std::make_unique<%s> (\"%1$s\");", inst.getInstanceName(),
+                    emitter().emit("%s  = std::make_unique<%s> (\"%2$s\");", inst.getInstanceName(),
                             inst.getName())
             );
             emitter().emitNewLine();
             // -- triggers
             emitter().emit("// -- trigger constructors");
             network.getTriggers().stream().forEach(trigger-> {
-                emitter().emit("%s = std::make_unique<Trigger<%d>>(\"%1$s\");", trigger.getName(),
-                        trigger.getNumActions());
+                emitter().emit("%s = std::make_unique<Trigger<%d>>(\"%1$s\", \"%s\");", trigger.getName(),
+                        trigger.getNumActions(),
+                        trigger.getActorName());
+                SCInstance instance = network.getInstance(trigger);
+                instance.getActionsIds().forEach( id -> {
+                    int ix = instance.getActionsIds().indexOf(id);
+                    emitter().emit("%s->setActionId(%d, \"%s\");", trigger.getName(), ix, id);
+                });
+
             });
             emitter().emitNewLine();
             // -- queues

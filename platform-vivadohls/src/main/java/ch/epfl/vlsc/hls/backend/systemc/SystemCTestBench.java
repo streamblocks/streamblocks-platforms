@@ -545,29 +545,26 @@ public interface SystemCTestBench {
 
             emitter().emit("std::ofstream stats_dump (file_name, std::ios::out);");
 
-            emitter().emit("stats_dump << \"<?xml version = \\\"1.0\\\" encoding = \\\"UTF-8\\\"?>\" << std::endl;");
-            emitter().emit("stats_dump << \"\\t<Configuration>\" << std::endl;");
-            emitter().emit("stats_dump << \"\\t\\t<Partitioning id = \\\"systemc\\\">\" << std::endl;");
-            for (SCInstance instance: network.getInstances())
-                dumpInstanceStats(instance, network);
-            emitter().emit("stats_dump << \"\\t\\t</Partitioning>\" << std::endl;");
-            emitter().emit("stats_dump << \"\\t\\t<Scheduling type=\\\"trigger\\\"/>\" << std::endl;");
-            emitter().emit("stats_dump << \"\\t</Configuration>\" << std::endl;");
+//            emitter().emit("stats_dump << \"<?xml version = \\\"1.0\\\" encoding = \\\"UTF-8\\\"?>\" << std::endl;");
+            emitter().emit("stats_dump << \"<network name=\\\"%s\\\" />\" << std::endl;", network.getIdentifier());
+
+            for (SCTrigger trigger: network.getTriggers())
+                dumpInstanceStats(trigger, network);
+
+            emitter().emit("stats_dump << \"</network>\" << std::endl;");
+
             emitter().emit("stats_dump.close();");
             emitter().decreaseIndentation();
         }
         emitter().emit("}");
     }
-    default void dumpInstanceStats(SCInstance instance, SCNetwork network) {
+    default void dumpInstanceStats(SCTrigger trigger, SCNetwork network) {
 
-        String actor = instance.getInstanceName();
-        String trigger = network.getTrigger(instance).getName();
-
-        emitter().emit("stats_dump << \"\\t\\t\\t<Instance actor-id = \\\"\"<<  this->inst_%s->%s->name() << " +
-                "\"\\\" ticks = \\\"\" << this->inst_%1$s->%s->getTotalTicks() << " +
-                "\"\\\" firings = \\\"\" << this->inst_%1$s->%3$s->getTotalFirings() <<  " +
-                "\"\\\" />\" << std::endl;", network.getIdentifier(), actor, trigger);
-
+        emitter().emit("this->inst_%s->%s->dumpStats(stats_dump);", network.getIdentifier(), trigger.getName());
     }
+
+
+
+
 
 }

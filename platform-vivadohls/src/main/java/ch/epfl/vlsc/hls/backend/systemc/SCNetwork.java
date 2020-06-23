@@ -224,4 +224,7 @@ public class SCNetwork implements SCIF {
     public SCTrigger getTrigger(SCInstance instance) {
         return triggers.get(instances.indexOf(instance));
     }
+    public SCInstance getInstance(SCTrigger trigger) {
+        return instances.get(triggers.indexOf(trigger));
+    }
 }

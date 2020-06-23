@@ -7,9 +7,7 @@ import java.util.stream.Stream;
 
 class SCInstance implements SCIF {
 
-    public int getNumActions() {
-        return numActions;
-    }
+
 
     public static class OutputIF implements SCIF {
         private final Queue.WriterIF writer;
@@ -62,9 +60,10 @@ class SCInstance implements SCIF {
     private final String name;
     private final PortIF ret;
 
-    private final int numActions;
 
-    public SCInstance(String name, ImmutableList<InputIF> readers, ImmutableList<OutputIF> writers, int numActions) {
+    private final ImmutableList<String> actionsIds;
+
+    public SCInstance(String name, ImmutableList<InputIF> readers, ImmutableList<OutputIF> writers, ImmutableList<String> actionIds) {
         this.name = name;
         this.instanceName = "inst_" + name;
         this.apControl = new APControl(name + "_");
@@ -74,7 +73,8 @@ class SCInstance implements SCIF {
                 "ap_return",
                 Signal.of(name + "_ap_return", new LogicVector(32)),
                 Optional.of(PortIF.Kind.OUTPUT));
-        this.numActions = numActions;
+        this.actionsIds = actionIds;
+
 
     }
 
@@ -120,4 +120,9 @@ class SCInstance implements SCIF {
         return this.ret;
     }
 
+    public int getNumActions() {
+        return actionsIds.size();
+    }
+
+    public ImmutableList<String> getActionsIds() { return actionsIds; }
 }

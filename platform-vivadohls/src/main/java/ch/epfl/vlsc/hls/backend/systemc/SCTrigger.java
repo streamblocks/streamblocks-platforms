@@ -8,6 +8,8 @@ public class SCTrigger implements SCIF {
 
     private final String name;
 
+    private final String actorName;
+
     private final APControl apControl;
 
     private final SCNetwork.SyncIF globalSync;
@@ -33,6 +35,7 @@ public class SCTrigger implements SCIF {
         this.globalSync = globalSync;
         String namePrefix = instance.getName() + "_";
         this.name = namePrefix + "trigger";
+        this.actorName = instance.getName();
         this.sleep =
                 PortIF.of(
                         "sleep",
@@ -135,6 +138,7 @@ public class SCTrigger implements SCIF {
         return numActions;
     }
 
+    public String getActorName() { return actorName; }
     @Override
     public Stream<PortIF> stream() {
 
