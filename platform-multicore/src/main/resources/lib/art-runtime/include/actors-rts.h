@@ -551,7 +551,7 @@ extern unsigned int timestamp();
 
 #ifdef TRACE
 #define ART_CONDITION_ENTER(name, index)   \
- unsigned int __timestamp = timestamp(); \
+ //unsigned int __timestamp = timestamp(); \
 
 #else
 #define ART_CONDITION_ENTER(name, index)        \
@@ -573,7 +573,8 @@ actionTrace((AbstractActorInstance*)thisActor,__timestamp, index,#name);
 
 #ifdef TRACE
 #define ART_CONDITION_EXIT(name, index) \
-conditionTrace((AbstractActorInstance*)thisActor,__timestamp, index,#name);
+//conditionTrace((AbstractActorInstance*)thisActor,__timestamp, index,#name);
+
 #else
 #define ART_CONDITION_EXIT(name, index) \
 

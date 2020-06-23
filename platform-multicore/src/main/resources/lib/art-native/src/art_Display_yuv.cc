@@ -203,7 +203,7 @@ ActorClass ActorClass_art_Display_yuv = INIT_ActorClass(
         art_Display_yuv_destructor,
         1, inputPortDescriptions,
         0, 0,
-        3, actionDescriptions,
+        1, actionDescriptions,
         0, conditionDescription,
         0, stateVariableDescription
 );

@@ -1,5 +1,7 @@
 package ch.epfl.vlsc.transformation.cal2am;
 
+import se.lth.cs.tycho.ir.Annotation;
+import se.lth.cs.tycho.ir.AnnotationParameter;
 import se.lth.cs.tycho.ir.Port;
 import se.lth.cs.tycho.ir.Variable;
 import se.lth.cs.tycho.ir.decl.InputVarDecl;
@@ -7,6 +9,7 @@ import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.am.PortCondition;
 import se.lth.cs.tycho.ir.entity.am.Transition;
 import se.lth.cs.tycho.ir.entity.cal.*;
+import se.lth.cs.tycho.ir.expr.ExprLiteral;
 import se.lth.cs.tycho.ir.expr.ExprVariable;
 import se.lth.cs.tycho.ir.stmt.Statement;
 import se.lth.cs.tycho.ir.stmt.StmtAssignment;
@@ -55,11 +58,18 @@ public class Transitions {
     }
 
     private Transition actionToTransition(Action action) {
+        ImmutableList.Builder<Annotation> annotations = ImmutableList.builder();
+        annotations.addAll(action.getAnnotations());
+        // -- Add action tag as an annotation to the transition
+        AnnotationParameter actionIdNameParameter = new AnnotationParameter("name", new ExprLiteral(ExprLiteral.Kind.String, action.getTag().toString()));
+        Annotation actionId = new Annotation("ActionId", ImmutableList.of(actionIdNameParameter));
+        annotations.add(actionId);
+
         ImmutableList.Builder<Statement> builder = ImmutableList.builder();
         addInputStmts(action, builder);
         builder.addAll(action.getBody());
         addOutputStmts(action.getOutputExpressions(), builder);
-        return new Transition(ImmutableList.from(action.getAnnotations()), getInputRates(action.getInputPatterns()), getOutputRates(action.getOutputExpressions()), transientScopes, builder.build());
+        return new Transition(annotations.build(), getInputRates(action.getInputPatterns()), getOutputRates(action.getOutputExpressions()), transientScopes, builder.build());
     }
 
     private Map<Port, Integer> getOutputRates(ImmutableList<OutputExpression> outputExpressions) {

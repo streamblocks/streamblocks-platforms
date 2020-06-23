@@ -174,7 +174,7 @@ void jsonTraceFiring(gzFile *f, AbstractActorInstance *instance, unsigned int ac
             int cns = actions[actionId].uses[j];
             if (cns) {
                 if (needsComma) {
-                    gzprintf(f, ", ,");
+                    gzprintf(f, ",");
                 }
                 gzprintf(f, "{");
                 gzprintf(f, "\"var\" : \"%s\",", stateVariables[j].originalName);
