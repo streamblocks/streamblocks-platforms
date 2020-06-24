@@ -235,7 +235,13 @@ public interface Globals {
                 if (decl.getValue() != null) {
                     Expression expr = decl.getValue();
                     if (expr instanceof ExprLambda || expr instanceof ExprProc) {
+                        emitter().emit("#ifndef TRACE_TURNUS");
                         backend().callablesInActor().callablePrototypes(backend().variables().declarationName(decl), expr);
+                        emitter().emit("#else");
+                        backend().profilingbox().set(true);
+                        backend().callablesInActor().callablePrototypes(backend().variables().declarationName(decl), expr);
+                        backend().profilingbox().clear();
+                        emitter().emit("#endif");
                         emitter().emitNewLine();
                     }
                 }
@@ -254,7 +260,13 @@ public interface Globals {
                 if (decl.getValue() != null) {
                     Expression expr = decl.getValue();
                     if (expr instanceof ExprLambda || expr instanceof ExprProc) {
+                        emitter().emit("#ifndef TRACE_TURNUS");
                         backend().callablesInActor().callableDefinition(backend().variables().declarationName(decl), expr);
+                        emitter().emit("#else");
+                        backend().profilingbox().set(true);
+                        backend().callablesInActor().callableDefinition(backend().variables().declarationName(decl), expr);
+                        backend().profilingbox().clear();
+                        emitter().emit("#endif");
                         emitter().emitNewLine();
                     }
                 }

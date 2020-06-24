@@ -606,43 +606,59 @@ public interface Instances {
      */
 
     default void scopes(String instanceName, ActorMachine am) {
-        // -- Actor Instance Name
-        String actorInstanceName = "ActorInstance_" + instanceName;
-
         emitter().emit("// -- Scopes");
         for (Scope scope : am.getScopes()) {
             if (scope.getDeclarations().size() > 0 || scope.isPersistent()) {
                 if (am.getScopes().indexOf(scope) != 0) {
-                    String scopeName = instanceName + "_init_scope_" + am.getScopes().indexOf(scope);
-                    emitter().emit("ART_SCOPE(%s, %s){", scopeName, actorInstanceName);
-                    emitter().increaseIndentation();
-
-                    for (VarDecl var : scope.getDeclarations()) {
-                        Type type = types().declaredType(var);
-                        if (var.isExternal() && type instanceof CallableType) {
-                            String wrapperName = backend().callables().externalWrapperFunctionName(var);
-                            String variableName = backend().variables().declarationName(var);
-                            String t = backend().callables().mangle(type).encode();
-                            emitter().emit("thisActor->%s = (%s) { *%s, NULL };", variableName, t, wrapperName);
-                        } else if (var.getValue() != null) {
-                            emitter().emit("{");
-                            emitter().increaseIndentation();
-                            if (var.getValue() instanceof ExprInput) {
-                                expressioneval().evaluateWithLvalue("thisActor->" + backend().variables().declarationName(var), (ExprInput) var.getValue());
-                            } else {
-                                statements().copy(types().declaredType(var), "thisActor->" + backend().variables().declarationName(var), types().type(var.getValue()), expressioneval().evaluate(var.getValue()));
-                            }
-                            emitter().decreaseIndentation();
-                            emitter().emit("}");
-                        }
-                    }
-                    emitter().decreaseIndentation();
-                    emitter().emit("}");
+                    emitter().emit("#ifndef TRACE_TURNUS");
+                    scope(instanceName, am, scope);
+                    emitter().emit("#else");
+                    backend().profilingbox().set(true);
+                    scope(instanceName, am, scope);
+                    backend().profilingbox().clear();
+                    emitter().emit("#endif");
+                    emitter().emitNewLine();
                 }
-
-                emitter().emitNewLine();
             }
         }
+    }
+
+    default void scope(String instanceName, ActorMachine am, Scope scope) {
+        // -- Actor Instance Name
+        String actorInstanceName = "ActorInstance_" + instanceName;
+        String scopeName = instanceName + "_init_scope_" + am.getScopes().indexOf(scope);
+        emitter().emit("ART_SCOPE(%s, %s){", scopeName, actorInstanceName);
+        emitter().increaseIndentation();
+
+        for (VarDecl var : scope.getDeclarations()) {
+            Type type = types().declaredType(var);
+            if (var.isExternal() && type instanceof CallableType) {
+                String wrapperName = backend().callables().externalWrapperFunctionName(var);
+                String variableName = backend().variables().declarationName(var);
+                String t = backend().callables().mangle(type).encode();
+                emitter().emit("thisActor->%s = (%s) { *%s, NULL };", variableName, t, wrapperName);
+            } else if (var.getValue() != null) {
+                emitter().emit("{");
+                emitter().increaseIndentation();
+                if(!backend().profilingbox().isEmpty()){
+                    emitter().emit("OpCounters *__opCounters = new OpCounters();");
+                }
+
+                if (var.getValue() instanceof ExprInput) {
+                    expressioneval().evaluateWithLvalue("thisActor->" + backend().variables().declarationName(var), (ExprInput) var.getValue());
+                } else {
+                    statements().copy(types().declaredType(var), "thisActor->" + backend().variables().declarationName(var), types().type(var.getValue()), expressioneval().evaluate(var.getValue()));
+                }
+
+                if(!backend().profilingbox().isEmpty()){
+                    emitter().emit("delete __opCounters;");
+                }
+                emitter().decreaseIndentation();
+                emitter().emit("}");
+            }
+        }
+        emitter().decreaseIndentation();
+        emitter().emit("}");
     }
 
     /*
@@ -650,25 +666,34 @@ public interface Instances {
      */
 
     default void conditions(String instanceName, ActorMachine am) {
-        // -- Actor Instance Name
-        String actorInstanceName = "ActorInstance_" + instanceName;
+
 
         emitter().emit("// -- Conditions");
         for (Condition condition : am.getConditions()) {
-            String conditionName = instanceName + "_condition_" + am.getConditions().indexOf(condition);
-            emitter().emit("ART_CONDITION(%s, %s){", conditionName, actorInstanceName);
-            emitter().increaseIndentation();
-            emitter().emit("ART_CONDITION_ENTER(%s, %d)", conditionName, am.getConditions().indexOf(condition));
-            backend().memoryStack().enterScope();
-            emitter().emit("bool cond = %s;", evaluateCondition(condition));
-            backend().memoryStack().exitScope();
-            emitter().emit("ART_CONDITION_EXIT(%s, %d)", conditionName, am.getConditions().indexOf(condition));
-            emitter().emit("return cond;");
-
-            emitter().decreaseIndentation();
-            emitter().emit("}");
+            emitter().emit("#ifndef TRACE_TURNUS");
+            condition(instanceName, am, condition);
+            emitter().emit("#else");
+            backend().profilingbox().set(true);
+            condition(instanceName, am, condition);
+            backend().profilingbox().clear();
+            emitter().emit("#endif");
             emitter().emitNewLine();
         }
+    }
+    default void condition(String instanceName, ActorMachine am, Condition condition){
+        // -- Actor Instance Name
+        String actorInstanceName = "ActorInstance_" + instanceName;
+        String conditionName = instanceName + "_condition_" + am.getConditions().indexOf(condition);
+        emitter().emit("ART_CONDITION(%s, %s){", conditionName, actorInstanceName);
+        emitter().increaseIndentation();
+        emitter().emit("ART_CONDITION_ENTER(%s, %d)", conditionName, am.getConditions().indexOf(condition));
+        backend().memoryStack().enterScope();
+        emitter().emit("bool cond = %s;", evaluateCondition(condition));
+        backend().memoryStack().exitScope();
+        emitter().emit("ART_CONDITION_EXIT(%s, %d)", conditionName, am.getConditions().indexOf(condition));
+        emitter().emit("return cond;");
+        emitter().decreaseIndentation();
+        emitter().emit("}");
     }
 
     String evaluateCondition(Condition condition);

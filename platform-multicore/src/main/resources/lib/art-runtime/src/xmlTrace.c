@@ -155,11 +155,11 @@ void xmlDeclareNetwork(FILE *f,
         // name is not necessarily unique (not even within an actor)
         for (j = 0; j < numActions; ++j) {
             int p;
-            const char *name = actions[j].name;
+            const char *name = actions[j].originalName;
 
             if (name)
                 fprintf(f, "\t\t\t<action id=\"%d\" name=\"%s\">\n",
-                        firstAction + j, actions[j].name);
+                        firstAction + j, actions[j].originalName);
             else
                 fprintf(f, "\t\t\t<action id=\"%d\">\n", firstAction + j);
 
@@ -219,24 +219,24 @@ void xmlDeclareStateDep(FILE *f,
 
         for (j = 0; j < numActions; ++j) {
             int p;
-            const char *name = actions[j].name;
+            const char *name = actions[j].originalName;
 
             if (name)
                 fprintf(f, "\t\t\t<action id=\"%d\" name=\"%s\">\n",
-                        firstAction + j, actions[j].name);
+                        firstAction + j, actions[j].originalName);
             else
                 fprintf(f, "\t\t\t<action id=\"%d\">\n", firstAction + j);
 
             for (p = 0; p < numStateVariables; p++) {
                 int var = actions[j].uses[p];
                 if (var)
-                    fprintf(f, "\t\t\t\t<uses id=\"%d\" name=\"%s\"/>\n", firstStateVariable + p,  stateVariables[p].name);
+                    fprintf(f, "\t\t\t\t<uses id=\"%d\" name=\"%s\"/>\n", firstStateVariable + p,  stateVariables[p].originalName);
             }
 
             for (p = 0; p < numStateVariables; p++) {
                 int var = actions[j].defines[p];
                 if (var)
-                    fprintf(f, "\t\t\t\t<defines id=\"%d\" name=\"%s\"/>\n", firstStateVariable + p,  stateVariables[p].name);
+                    fprintf(f, "\t\t\t\t<defines id=\"%d\" name=\"%s\"/>\n", firstStateVariable + p,  stateVariables[p].originalName);
             }
 
             fprintf(f, "\t\t\t</action>\n");

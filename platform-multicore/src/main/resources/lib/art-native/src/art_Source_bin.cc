@@ -128,7 +128,7 @@ static const PortDescription outputPortDescriptions[] = {{0, "Out",
 
 static const int portRate_0[] = {0};
 
-static const int portRate_1[] = {1};
+static const int portRate_1[] = {8};
 
 // -- State Variables Description
 static const StateVariableDescription stateVariableDescription[] = {};

@@ -553,6 +553,10 @@ extern unsigned int timestamp();
 #define ART_CONDITION_ENTER(name, index)   \
  //unsigned int __timestamp = timestamp(); \
 
+#elif defined(TRACE_TURNUS)
+#define ART_CONDITION_ENTER(name, index)        \
+OpCounters *__opCounters = new OpCounters(); \
+
 #else
 #define ART_CONDITION_ENTER(name, index)        \
 
@@ -574,6 +578,10 @@ actionTrace((AbstractActorInstance*)thisActor,__timestamp, index,#name);
 #ifdef TRACE
 #define ART_CONDITION_EXIT(name, index) \
 //conditionTrace((AbstractActorInstance*)thisActor,__timestamp, index,#name);
+
+#elif defined(TRACE_TURNUS)
+#define ART_CONDITION_EXIT(name, index) \
+delete __opCounters;
 
 #else
 #define ART_CONDITION_EXIT(name, index) \
