@@ -1,15 +1,12 @@
 #ifndef __TRIGGER_H__
-#define __TRIGGET_H__
+#define  __TRIGGER_H__
 #include "debug_macros.h"
 #include "systemc.h"
 #include <string>
 namespace ap_rtl {
-struct ReturnStatus {
-  static const unsigned int IDLE = 0;
-  static const unsigned int WAIT = 1;
-  static const unsigned int TEST = 2;
-  static const unsigned int EXECUTED = 3;
-};
+
+enum ReturnStatus { IDLE = 0, WAIT = 1, TEST = 2, EXECUTED = 3 };
+
 class Trigger : public sc_module {
 public:
   // Module interface
@@ -37,15 +34,15 @@ public:
   sc_in<bool> actor_idle;
   sc_out<bool> actor_start;
 
-  struct State {
-    static const unsigned int IDLE_STATE = 0;
-    static const unsigned int LAUNCH = 1;
-    static const unsigned int CHECK = 2;
-    static const unsigned int SLEEP = 3;
-    static const unsigned int SYNC_LAUNCH = 4;
-    static const unsigned int SYNC_CHECK = 5;
-    static const unsigned int SYNC_WAIT = 6;
-    static const unsigned int SYNC_EXEC = 7;
+  enum State {
+    IDLE_STATE,
+    LAUNCH,
+    CHECK,
+    SLEEP,
+    SYNC_LAUNCH,
+    SYNC_CHECK,
+    SYNC_WAIT,
+    SYNC_EXEC
   };
 
   class ProfileStat {
@@ -89,8 +86,8 @@ public:
 
   sc_signal<uint16_t> action_sig;
   // Trigget state variable
-  sc_signal<uint8_t> state;
-  sc_signal<uint8_t> next_state;
+  sc_signal<State> state;
+  sc_signal<State> next_state;
 
   sc_trace_file *vcd_dump;
 
@@ -379,4 +376,4 @@ public:
   ~Trigger(){};
 };
 } // namespace ap_rtl
-#endif // __TRIGGER_H__
+  #endif // __TRIGGER_H__
