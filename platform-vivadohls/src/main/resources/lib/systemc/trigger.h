@@ -4,7 +4,13 @@
 #include "systemc.h"
 #include <string>
 namespace ap_rtl {
-template <int SZ> class Trigger : public sc_module {
+struct ReturnStatus {
+  static const unsigned int IDLE = 0;
+  static const unsigned int WAIT = 1;
+  static const unsigned int TEST = 2;
+  static const unsigned int EXECUTED = 3;
+};
+class Trigger : public sc_module {
 public:
   // Module interface
   sc_in_clk ap_clk;
@@ -42,35 +48,25 @@ public:
     static const unsigned int SYNC_EXEC = 7;
   };
 
-  struct ReturnStatus {
-    static const unsigned int IDLE = 0;
-    static const unsigned int WAIT = 1;
-    static const unsigned int TEST = 2;
-    static const unsigned int EXECUTED = 3;
-  };
-
   class ProfileStat {
   private:
-    unsigned int action_ix;
-    std::string action_id;
+    const unsigned int action_ix;
+    const std::string action_id;
     uint64_t total_ticks;
     uint64_t fire_counts;
     uint64_t min_ticks;
     uint64_t max_ticks;
 
   public:
-    ProfileStat() {
+    ProfileStat(unsigned int ix, std::string id)
+        : action_ix(ix), action_id(id) {
+      fire_counts = 0;
       total_ticks = 0;
       min_ticks = -1;
       max_ticks = 0;
     };
 
-    void setId(unsigned int ix, std::string id) {
-      action_ix = ix;
-      action_id = id;
-    };
-
-    std::string getActionId() const{ return action_id; }
+    std::string getActionId() const { return action_id; }
     void register_stat(unsigned long int count) {
       // clock_count.push_back(count);
       total_ticks += count;
@@ -81,15 +77,14 @@ public:
       fire_counts++;
     }
 
-    uint64_t getFirings() const{ return fire_counts; }
+    uint64_t getFirings() const { return fire_counts; }
     uint64_t getTicks() const { return total_ticks; }
     uint64_t getMinTicks() const { return min_ticks; }
     uint64_t getMaxTicks() const { return max_ticks; }
-
   };
 
   const std::string actor_id;
-  std::array<ProfileStat, SZ> stats;
+  std::vector<ProfileStat> stats;
   sc_signal<unsigned long int> clock_counter;
 
   sc_signal<uint16_t> action_sig;
@@ -296,7 +291,6 @@ public:
     }
   }
 
-
   void actionSet() { action_sig.write(actor_return.read() >> 17); }
 
   Trigger(sc_module_name name, std::string actor_id)
@@ -322,8 +316,10 @@ public:
     SC_METHOD(actionSet);
     sensitive << actor_return;
   }
-  void setActionId(unsigned int ix, std::string action_id) {
-    stats[ix].setId(ix, action_id);
+  void registerAction(unsigned int ix, std::string action_id) {
+    ASSERT(ix <= stats.size(), "Error registering action");
+    stats.push_back(ProfileStat(ix, action_id));
+    // stats[ix].setId(ix, action_id);
   }
 
   /**
@@ -334,8 +330,8 @@ public:
 
     uint64_t total_ticks = 0;
 
-    for (uint32_t id = 0; id < SZ; id++) {
-      total_ticks += stats[id].getTicks();
+    for (const auto &stat : stats) {
+      total_ticks += stat.getTicks();
     }
     return total_ticks;
   }
@@ -344,61 +340,41 @@ public:
    */
   uint64_t getTotalFirings() {
     uint64_t total_firings = 0;
-    for (uint32_t id = 0; id < SZ; id++) {
-      total_firings += stats[id].getFirings();
+    for (const auto &stat : stats) {
+      total_firings += stat.getFirings();
     }
     return total_firings;
   }
 
-
-  uint64_t getActionTicks(unsigned int ix) const {
-
-    return stats[ix].getTotalTicks();
-
-  }
-
-  uint64_t getMaxActionTicks(unsigned int ix) const {
-    return stats[ix].getMaxTicks();
-  }
-
-  uint64_t getMinActionTicks(unsigned int ix) const {
-    return stats[ix].getMinTicks();
-  }
-
-  uint64_t getActionFirings(unsigned int ix) const {
-    return stats[ix].getFirings();
-  }
-  double getAverageActionTicks(unsigned int ix) const {
-
-    double total_ticks = stats[ix].getTotalTicks();
-    double firings = stats[ix].getFirings();
-    return total_ticks / firings;
-
-  }
-
-
-  void dumpStats(std::ofstream& ofs, int indent=1) {
+  void dumpStats(std::ofstream &ofs, int indent = 1) {
     std::string indent_str = "";
     for (int i = 0; i < indent; i++)
       indent_str = indent_str + "\t";
 
-		auto total_actor_ticks = this->getTotalTicks();
-		auto total_actor_firings = this->getTotalFirings();
-		double actor_average_ticks = double(total_actor_ticks) / double(total_actor_firings);
-		ofs << indent_str << "<actor id=\"" << this->actor_id << "\" clockcycles=\"" << actor_average_ticks << "\" clockcycles-total=\"" << total_actor_ticks << "\" firings=\"" << total_actor_firings << "\" />" << std::endl;
-		for (const auto &stat: this->stats) {
-			auto total_ticks = stat.getTicks();
-			auto min_ticks = stat.getMinTicks() != -1 ? stat.getMinTicks() : 0;
-			auto max_ticks = stat.getMaxTicks();
-			auto firings = stat.getFirings();
-			double average_ticks = firings > 0 ? double (total_ticks) / double(firings) : 0;
-			auto action_id = stat.getActionId();
-			// ofs << "hello" << std::endl;
-			ofs << indent_str << "\t<action id=\"" << action_id << "\" clockcycles=\"" << average_ticks << "\" clockcycles-min=\"" << min_ticks << "\" clockcycles-max=\"" << max_ticks << "\" clockcycles-total=\"" << total_ticks << "\" firings=\"" << firings << "\"/>" << std::endl;
-		}
+    auto total_actor_ticks = this->getTotalTicks();
+    auto total_actor_firings = this->getTotalFirings();
+    double actor_average_ticks =
+        double(total_actor_ticks) / double(total_actor_firings);
+    ofs << indent_str << "<actor id=\"" << this->actor_id << "\" clockcycles=\""
+        << actor_average_ticks << "\" clockcycles-total=\"" << total_actor_ticks
+        << "\" firings=\"" << total_actor_firings << "\" />" << std::endl;
+    for (const auto &stat : this->stats) {
+      auto total_ticks = stat.getTicks();
+      auto min_ticks = stat.getMinTicks() != -1 ? stat.getMinTicks() : 0;
+      auto max_ticks = stat.getMaxTicks();
+      auto firings = stat.getFirings();
+      double average_ticks =
+          firings > 0 ? double(total_ticks) / double(firings) : 0;
+      auto action_id = stat.getActionId();
+      // ofs << "hello" << std::endl;
+      ofs << indent_str << "\t<action id=\"" << action_id << "\" clockcycles=\""
+          << average_ticks << "\" clockcycles-min=\"" << min_ticks
+          << "\" clockcycles-max=\"" << max_ticks << "\" clockcycles-total=\""
+          << total_ticks << "\" firings=\"" << firings << "\"/>" << std::endl;
+    }
 
-		ofs << indent_str << "</actor>" << std::endl;
-	}
+    ofs << indent_str << "</actor>" << std::endl;
+  }
 
   ~Trigger(){};
 };

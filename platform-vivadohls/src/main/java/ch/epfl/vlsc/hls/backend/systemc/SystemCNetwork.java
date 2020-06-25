@@ -427,7 +427,7 @@ public interface SystemCNetwork {
     default void getTriggers(SCNetwork network) {
         emitter().emit("// -- Triggers");
         for (SCTrigger trigger : network.getTriggers()) {
-            emitter().emit("std::unique_ptr<Trigger<%d>> %s;", trigger.getNumActions(), trigger.getName());
+            emitter().emit("std::unique_ptr<Trigger> %s;", trigger.getName());
         }
     }
 
@@ -467,13 +467,12 @@ public interface SystemCNetwork {
             // -- triggers
             emitter().emit("// -- trigger constructors");
             network.getTriggers().stream().forEach(trigger-> {
-                emitter().emit("%s = std::make_unique<Trigger<%d>>(\"%1$s\", \"%s\");", trigger.getName(),
-                        trigger.getNumActions(),
+                emitter().emit("%s = std::make_unique<Trigger>(\"%1$s\", \"%s\");", trigger.getName(),
                         trigger.getActorName());
                 SCInstance instance = network.getInstance(trigger);
                 instance.getActionsIds().forEach( id -> {
                     int ix = instance.getActionsIds().indexOf(id);
-                    emitter().emit("%s->setActionId(%d, \"%s\");", trigger.getName(), ix, id);
+                    emitter().emit("%s->registerAction(%d, \"%s\");", trigger.getName(), ix, id);
                 });
 
             });
