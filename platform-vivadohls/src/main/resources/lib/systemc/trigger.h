@@ -388,7 +388,7 @@ public:
 		ofs << indent_str << "<actor id=\"" << this->actor_id << "\" clockcycles=\"" << actor_average_ticks << "\" clockcycles-total=\"" << total_actor_ticks << "\" firings=\"" << total_actor_firings << "\" />" << std::endl;
 		for (const auto &stat: this->stats) {
 			auto total_ticks = stat.getTicks();
-			auto min_ticks = stat.getMinTicks() != -1 ? stats.getMinTicks() : 0;
+			auto min_ticks = stat.getMinTicks() != -1 ? stat.getMinTicks() : 0;
 			auto max_ticks = stat.getMaxTicks();
 			auto firings = stat.getFirings();
 			double average_ticks = firings > 0 ? double (total_ticks) / double(firings) : 0;

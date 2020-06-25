@@ -588,6 +588,12 @@ delete __opCounters;
 
 #endif
 
+#define FIFO_TYPE int64_t
+
+#include "actors-fifo.h"
+
+#undef FIFO_TYPE
+
 #define FIFO_TYPE int32_t
 
 #include "actors-fifo.h"
@@ -621,6 +627,28 @@ delete __opCounters;
 
 #undef FIFO_TYPE
 #undef REF
+
+// Define uint64_t FIFO operations in terms of int32_t operations
+
+#define pinAvailIn_uint64_t(port)   pinAvailIn_int64_t(port)
+#define pinAvailOut_uint64_t(port)  pinAvailOut_int64_t(port)
+
+#define pinWrite_uint64_t(port, token) pinWrite_int64_t(port,(int64_t)(token))
+#define pinWriteRepeat_uint64_t(port, buf, n) \
+                                 pinWriteRepeat_int64_t(port,(int64_t*)(buf),n)
+
+#define pinRead_uint64_t(port)        ((uint64_t) pinRead_int64_t(port))
+#define pinReadRepeat_uint64_t(port, buf, n)  \
+                                 pinReadRepeat_int64_t(port,(int64_t*)buf,n)
+
+#define pinPeekRepeat_uint64_t(port, buf, n) \
+                                 pinPeekRepeat_int64_t(port,(int64_t*)buf,n)
+#define pinPeekFront_uint64_t(port)   ((uint64_t) pinPeekFront_int64_t(port))
+#define pinPeek_uint64_t(port, offset) ((uint64_t) pinPeek_int64_t(port,offset))
+
+#define pinConsume_uint64_t(port)   pinConsume_int64_t(port)
+#define pinConsumeRepeat_uint64_t(port, n)   pinConsumeRepeat_int64_t(port, n)
+
 
 // Define uint32_t FIFO operations in terms of int32_t operations
 #define pinAvailIn_uint32_t(port)   pinAvailIn_int32_t(port)
