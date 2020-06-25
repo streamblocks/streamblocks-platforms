@@ -2,9 +2,10 @@ package ch.epfl.vlsc.hls.backend.systemc;
 
 import se.lth.cs.tycho.ir.entity.PortDecl;
 
+import java.util.Optional;
 import java.util.stream.Stream;
 
-public class SCInputStage implements SCIF {
+public class SCInputStage implements SCInstanceIF {
 
     public static class InputIF implements SCIF {
         private final Queue.WriterIF writer;
@@ -38,18 +39,30 @@ public class SCInputStage implements SCIF {
     private final APControl apControl;
     private final InputIF input;
     private final PortIF init;
-    private final String name;
+    private final String instanceName;
+    private final PortIF ret;
 
-    public SCInputStage(String name, PortIF init, InputIF input) {
-        this.name = name;
+    public SCInputStage(String instanceName, PortIF init, InputIF input) {
+        this.instanceName = instanceName;
         this.init = init;
         this.input = input;
-        this.apControl = new APControl(name + "_");
+        this.apControl = new APControl(instanceName + "_");
+        this.ret = PortIF.of(
+                "ap_return",
+                Signal.of(instanceName + "_", new LogicVector(32)),
+                Optional.of(PortIF.Kind.OUTPUT));
     }
 
+    @Override
     public APControl getApControl() {
         return apControl;
     }
+
+    @Override
+    public int getNumActions() {
+        return 1;
+    }
+
     public InputIF getInput() {
         return input;
     }
@@ -57,10 +70,18 @@ public class SCInputStage implements SCIF {
         return init;
 
     }
+
+    @Override
     public String getInstanceName() {
-        return name;
+        return instanceName;
     }
 
+    @Override
+    public PortIF getReturn() {
+        return ret;
+    }
+
+    @Override
     public String getName() {
         return "InputStage<" + input.writer.getDin().getSignal().getType() + ">";
     }

@@ -29,11 +29,11 @@ public class SCTrigger implements SCIF {
 
     private final int numActions;
 
-    public SCTrigger(SCInstance instance, SCNetwork.SyncIF globalSync, PortIF start) {
+    public SCTrigger(SCInstanceIF instance, SCNetwork.SyncIF globalSync, PortIF start) {
 
-        this.apControl = new APControl(instance.getName() + "_trigger_").withStart(start);
+        this.apControl = new APControl(instance.getInstanceName() + "_trigger_").withStart(start);
         this.globalSync = globalSync;
-        String namePrefix = instance.getName() + "_";
+        String namePrefix = instance.getInstanceName() + "_";
         this.name = namePrefix + "trigger";
         this.actorName = instance.getName();
         this.sleep =

@@ -62,7 +62,12 @@ public interface SystemCNetwork {
     }
 
     default SCNetwork createSCNetwork(Network network) {
-        ImmutableList.Builder<SCNetwork.InputIF> inputs = ImmutableList.builder();
+        PortIF initPort = PortIF.of(
+                "init",
+                Signal.of("init", new LogicValue()),
+                Optional.of(PortIF.Kind.INPUT));
+
+        ImmutableList.Builder<SCInputStage> inputs = ImmutableList.builder();
         for (PortDecl inPort : network.getInputPorts()) {
 
             Connection connection = network.getConnections()
@@ -76,11 +81,13 @@ public interface SystemCNetwork {
                                             " network input port " + inPort.getName())));
 
             Queue queue = findQueue(connection);
+            String inputStageInstanceName = "input_stage_" + queue.getName();
+            SCInputStage.InputIF fifoIf = new SCInputStage.InputIF(queue, inPort);
+            inputs.add(new SCInputStage(inputStageInstanceName, initPort, fifoIf));
 
-            inputs.add(new SCNetwork.InputIF(queue, inPort));
 
         }
-        ImmutableList.Builder<SCNetwork.OutputIF> outputs = ImmutableList.builder();
+        ImmutableList.Builder<SCOutputStage> outputs = ImmutableList.builder();
         for (PortDecl outPort : network.getOutputPorts()) {
 
             Connection connection = network.getConnections()
@@ -94,15 +101,17 @@ public interface SystemCNetwork {
                                             " network output port " + outPort.getName())));
             Queue queue = findQueue(connection);
 
-
-            outputs.add(new SCNetwork.OutputIF(queue, outPort));
+            String outputStageInstanceName = "output_stage_" + queue.getName();
+            SCOutputStage.OutputIF fifoIf = new SCOutputStage.OutputIF(queue, outPort);
+            outputs.add(
+                    new SCOutputStage(outputStageInstanceName, initPort, fifoIf));
 
         }
         ImmutableList<SCInstance> instances = network.getInstances().map(this::findSCInstance);
         ImmutableList<Queue> queues = network.getConnections().map(this::findQueue);
 
         String identifier = backend().task().getIdentifier().getLast().toString();
-        SCNetwork scNetwork = new SCNetwork(identifier, inputs.build(), outputs.build(), instances, queues);
+        SCNetwork scNetwork = new SCNetwork(identifier, inputs.build(), outputs.build(), instances, queues, initPort);
         return scNetwork;
     }
 
@@ -371,7 +380,7 @@ public interface SystemCNetwork {
         emitter().emit("// -- queue signals");
         network.getQueues().stream().forEach(this::getQueueSignals);
         emitter().emit("// -- trigger signals");
-        network.getTriggers().stream().forEach(this::getTriggerSignals);
+        network.getInstanceTriggers().stream().forEach(this::getTriggerSignals);
 
     }
 
@@ -426,7 +435,7 @@ public interface SystemCNetwork {
 
     default void getTriggers(SCNetwork network) {
         emitter().emit("// -- Triggers");
-        for (SCTrigger trigger : network.getTriggers()) {
+        for (SCTrigger trigger : network.getInstanceTriggers()) {
             emitter().emit("std::unique_ptr<Trigger> %s;", trigger.getName());
         }
     }
@@ -466,7 +475,7 @@ public interface SystemCNetwork {
             emitter().emitNewLine();
             // -- triggers
             emitter().emit("// -- trigger constructors");
-            network.getTriggers().stream().forEach(trigger-> {
+            network.getInstanceTriggers().stream().forEach(trigger-> {
                 emitter().emit("%s = std::make_unique<Trigger>(\"%1$s\", \"%s\");", trigger.getName(),
                         trigger.getActorName());
                 SCInstance instance = network.getInstance(trigger);
@@ -513,7 +522,7 @@ public interface SystemCNetwork {
                     });
             // -- connect triggers
             emitter().emit("// -- hardware trigger port bindings");
-            network.getTriggers().stream().forEach(
+            network.getInstanceTriggers().stream().forEach(
                     trigger -> {
                         emitter().emit("// -- port binding for trigger %s", trigger.getName());
                         trigger.stream().forEach(port ->
@@ -524,10 +533,10 @@ public interface SystemCNetwork {
             emitter().emitNewLine();
 
             // -- Register methods
-            List<Signal> syncExecs = network.getTriggers().stream().map(SCTrigger::getSyncExec).map(PortIF::getSignal).collect(Collectors.toList());
-            List<Signal> syncWaits = network.getTriggers().stream().map(SCTrigger::getSyncWait).map(PortIF::getSignal).collect(Collectors.toList());
-            List<Signal> waited = network.getTriggers().stream().map(SCTrigger::getWaited).map(PortIF::getSignal).collect(Collectors.toList());
-            List<Signal> sleeps = network.getTriggers().stream().map(SCTrigger::getSleep).map(PortIF::getSignal).collect(Collectors.toList());
+            List<Signal> syncExecs = network.getInstanceTriggers().stream().map(SCTrigger::getSyncExec).map(PortIF::getSignal).collect(Collectors.toList());
+            List<Signal> syncWaits = network.getInstanceTriggers().stream().map(SCTrigger::getSyncWait).map(PortIF::getSignal).collect(Collectors.toList());
+            List<Signal> waited = network.getInstanceTriggers().stream().map(SCTrigger::getWaited).map(PortIF::getSignal).collect(Collectors.toList());
+            List<Signal> sleeps = network.getInstanceTriggers().stream().map(SCTrigger::getSleep).map(PortIF::getSignal).collect(Collectors.toList());
             // -- Method to set the sync signals for each instance
             emitter().emit("SC_METHOD(setSyncSignals);");
             emitter().emit("sensitive << %s;", String.join(" << ",
@@ -558,7 +567,7 @@ public interface SystemCNetwork {
             emitter().emit("SC_METHOD(setApIdle);");
             emitter().emit("sensitive << %s << %s;", network.getAmIdleReg().getName(),
                     String.join(" << ",
-                            network.getTriggers()
+                            network.getInstanceTriggers()
                                     .map(SCTrigger::getApControl)
                                     .map(APControl::getIdleSignal)
                                     .map(Signal::getName)));
@@ -578,11 +587,11 @@ public interface SystemCNetwork {
         emitter().emit("void setSyncSignals() {");
         {
             emitter().increaseIndentation();
-            network.getTriggers().stream().forEach(trigger -> {
+            network.getInstanceTriggers().stream().forEach(trigger -> {
                 emitter().emit("// -- sync assignment for %s", trigger.getName());
                 Signal syncExec = trigger.getSyncExec().getSignal();
                 Signal syncWait = trigger.getSyncWait().getSignal();
-                int ix = network.getTriggers().indexOf(trigger);
+                int ix = network.getInstanceTriggers().indexOf(trigger);
                 Signal sync = network.getInstanceSyncSignals().get(ix);
                 emitter().emit("%s = %s | %s;", sync.getName(), syncExec.getName(), syncWait.getName());
             });
@@ -599,9 +608,9 @@ public interface SystemCNetwork {
         emitter().emit("void setAllWaitedSignals() {");
         {
             emitter().increaseIndentation();
-            network.getTriggers().stream().forEach(trigger -> {
+            network.getInstanceTriggers().stream().forEach(trigger -> {
                 Signal allWaited = trigger.getAllWaited().getSignal();
-                List<String> othersWaited = network.getTriggers().stream()
+                List<String> othersWaited = network.getInstanceTriggers().stream()
                         .filter(t -> !t.equals(trigger))
                         .map(SCTrigger::getWaited)
                         .map(PortIF::getSignal)
@@ -633,7 +642,7 @@ public interface SystemCNetwork {
             // -- all sleep
             emitter().emit("%s = %s;", network.getGlobalSync().getAllSleep().getSignal().getName(),
                     String.join(" & ",
-                            network.getTriggers().stream()
+                            network.getInstanceTriggers().stream()
                                     .map(SCTrigger::getSleep)
                                     .map(PortIF::getSignal)
                                     .map(Signal::getName)
@@ -643,7 +652,7 @@ public interface SystemCNetwork {
             emitter().emit("%s = %s;",
                     network.getGlobalSync().getAllSyncWait().getSignal().getName(),
                     String.join(" & ",
-                            network.getTriggers().stream()
+                            network.getInstanceTriggers().stream()
                                     .map(SCTrigger::getSyncWait)
                                     .map(PortIF::getSignal)
                                     .map(Signal::getName)
@@ -696,7 +705,7 @@ public interface SystemCNetwork {
             Signal is_idle = Signal.of("is_idle", new LogicValue());
             emitter().emit("%s %s = %s;", is_idle.getType(), is_idle.getName(),
                     String.join(" & ",
-                            network.getTriggers()
+                            network.getInstanceTriggers()
                                     .map(SCTrigger::getApControl)
                                     .map(APControl::getIdleSignal)
                                     .map(Signal::getName)));

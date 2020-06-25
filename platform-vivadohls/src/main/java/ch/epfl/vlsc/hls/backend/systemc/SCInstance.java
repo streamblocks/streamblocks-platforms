@@ -5,8 +5,7 @@ import se.lth.cs.tycho.ir.util.ImmutableList;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-class SCInstance implements SCIF {
-
+class SCInstance implements SCInstanceIF {
 
 
     public static class OutputIF implements SCIF {
@@ -66,7 +65,7 @@ class SCInstance implements SCIF {
     public SCInstance(String name, ImmutableList<InputIF> readers, ImmutableList<OutputIF> writers, ImmutableList<String> actionIds) {
         this.name = name;
         this.instanceName = "inst_" + name;
-        this.apControl = new APControl(name + "_");
+        this.apControl = new APControl(this.instanceName + "_");
         this.readers = readers;
         this.writers = writers;
         this.ret = PortIF.of(

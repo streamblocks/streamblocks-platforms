@@ -111,20 +111,20 @@ public interface SystemCTestBench {
                 emitter().emit("sc_signal<%s> %s;", port.getSignal().getType(), port.getSignal().getName());
         });
         emitter().emit("// -- network inputs");
-        network.getInputs().stream()
-                .flatMap(SCNetwork.InputIF::stream)
-                .forEach(port -> {
-                    if (!port.equals(network.getApControl().getClock()))
-                        emitter().emit("sc_signal <%s> %s;",
-                                port.getSignal().getType(), port.getSignal().getName());
-                });
+//        network.getInputs().stream()
+//                .flatMap(SCNetwork.InputIF::stream)
+//                .forEach(port -> {
+//                    if (!port.equals(network.getApControl().getClock()))
+//                        emitter().emit("sc_signal <%s> %s;",
+//                                port.getSignal().getType(), port.getSignal().getName());
+//                });
         emitter().emit("// -- network outputs");
-        network.getOutputs().stream()
-                .flatMap(SCNetwork.OutputIF::stream)
-                .forEach(port -> {
-                    emitter().emit("sc_signal <%s> %s;",
-                            port.getSignal().getType(), port.getSignal().getName());
-                });
+//        network.getOutputs().stream()
+//                .flatMap(SCNetwork.OutputIF::stream)
+//                .forEach(port -> {
+//                    emitter().emit("sc_signal <%s> %s;",
+//                            port.getSignal().getType(), port.getSignal().getName());
+//                });
 
 
         emitter().emitNewLine();
@@ -136,25 +136,25 @@ public interface SystemCTestBench {
         emitter().emit("// -- simulation related stuff");
         emitter().emit("const sc_time clock_period;");
         emitter().emit("// -- software feeder queues");
-        network.getInputs().map(SCNetwork.InputIF::getPort).forEach(input -> {
-            String type = backend().typeseval().type(backend().types().declaredPortType(input));
-            emitter().emit("std::unique_ptr<SimQueue::InputQueue<%s>> sim_buffer_%s;", type, input.getName());
-            emitter().emitNewLine();
-            emitter().emit("// -- helper signals");
-            emitter().emit("sc_signal<bool> sim_buffer_%s_read;", input.getName());
-            emitter().emit("sc_signal<%s>   sim_buffer_%s_dout;", type, input.getName());
-            emitter().emitNewLine();
-        });
+//        network.getInputs().map(SCNetwork.InputIF::getPort).forEach(input -> {
+//            String type = backend().typeseval().type(backend().types().declaredPortType(input));
+//            emitter().emit("std::unique_ptr<SimQueue::InputQueue<%s>> sim_buffer_%s;", type, input.getName());
+//            emitter().emitNewLine();
+//            emitter().emit("// -- helper signals");
+//            emitter().emit("sc_signal<bool> sim_buffer_%s_read;", input.getName());
+//            emitter().emit("sc_signal<%s>   sim_buffer_%s_dout;", type, input.getName());
+//            emitter().emitNewLine();
+//        });
         emitter().emit("// -- software eater queues");
-        network.getOutputs().map(SCNetwork.OutputIF::getPort).forEach(output -> {
-            String type = backend().typeseval().type(backend().types().declaredPortType(output));
-            emitter().emit("std::unique_ptr<SimQueue::OutputQueue<%s>> sim_buffer_%s;", type, output.getName());
-            emitter().emitNewLine();
-            emitter().emit("// -- helper signals");
-            emitter().emit("sc_signal<bool> sim_buffer_%s_write;", output.getName());
-            emitter().emit("sc_signal<%s>   sim_buffer_%s_din;", type, output.getName());
-            emitter().emitNewLine();
-        });
+//        network.getOutputs().map(SCNetwork.OutputIF::getPort).forEach(output -> {
+//            String type = backend().typeseval().type(backend().types().declaredPortType(output));
+//            emitter().emit("std::unique_ptr<SimQueue::OutputQueue<%s>> sim_buffer_%s;", type, output.getName());
+//            emitter().emitNewLine();
+//            emitter().emit("// -- helper signals");
+//            emitter().emit("sc_signal<bool> sim_buffer_%s_write;", output.getName());
+//            emitter().emit("sc_signal<%s>   sim_buffer_%s_din;", type, output.getName());
+//            emitter().emitNewLine();
+//        });
         // -- vcd trace file
         emitter().emit("sc_trace_file *vcd_dump;");
 
@@ -162,11 +162,11 @@ public interface SystemCTestBench {
     }
 
     default void getQueueEmulators(SCNetwork network) {
-
-        network.getInputs().forEach(this::getInputFeeder);
-        network.getInputs().forEach((this::getInputReadSetter));
-        network.getOutputs().forEach(this::getOutputEater);
-        network.getOutputs().forEach(this::getOutputWriteSetter);
+//
+//        network.getInputs().forEach(this::getInputFeeder);
+//        network.getInputs().forEach((this::getInputReadSetter));
+//        network.getOutputs().forEach(this::getOutputEater);
+//        network.getOutputs().forEach(this::getOutputWriteSetter);
 
     }
 
@@ -399,23 +399,23 @@ public interface SystemCTestBench {
             emitter().emit("inst_%s = std::make_unique<%1$s>(\"inst_%1$s\");", network.getIdentifier());
             // -- construct the SimQueues
             // -- inputs
-            network.getInputs().forEach(input -> {
-                emitter().emit("// -- simulation buffer for %s", input.getPort().getName());
-                String type = backend().typeseval().type(backend().types().declaredPortType(input.getPort()));
-                emitter().emit("sim_buffer_%s = " +
-                                "std::make_unique<SimQueue::InputQueue<%s>> (std::string(\"%1$s\"));",
-                        input.getPort().getName(), type);
-
-            });
+//            network.getInputs().forEach(input -> {
+//                emitter().emit("// -- simulation buffer for %s", input.getPort().getName());
+//                String type = backend().typeseval().type(backend().types().declaredPortType(input.getPort()));
+//                emitter().emit("sim_buffer_%s = " +
+//                                "std::make_unique<SimQueue::InputQueue<%s>> (std::string(\"%1$s\"));",
+//                        input.getPort().getName(), type);
+//
+//            });
             emitter().emitNewLine();
             // -- outputs
-            network.getOutputs().forEach(output -> {
-                emitter().emit("// -- simulation buffer for %s", output.getPort().getName());
-                String type = backend().typeseval().type(backend().types().declaredPortType(output.getPort()));
-                emitter().emit("sim_buffer_%s = " +
-                                "std::make_unique<SimQueue::OutputQueue<%s>> (std::string(\"%1$s\"));",
-                        output.getPort().getName(), type);
-            });
+//            network.getOutputs().forEach(output -> {
+//                emitter().emit("// -- simulation buffer for %s", output.getPort().getName());
+//                String type = backend().typeseval().type(backend().types().declaredPortType(output.getPort()));
+//                emitter().emit("sim_buffer_%s = " +
+//                                "std::make_unique<SimQueue::OutputQueue<%s>> (std::string(\"%1$s\"));",
+//                        output.getPort().getName(), type);
+//            });
 
             emitter().emitNewLine();
             // -- bind the ports to signals
@@ -427,35 +427,35 @@ public interface SystemCTestBench {
             // -- register methods
             emitter().emit("// -- registers queue emulator methods");
             emitter().emit("// -- input feeders");
-            network.getInputs().stream().map(SCNetwork.InputIF::getPort).map(PortDecl::getName).forEach(port -> {
-                emitter().emit("SC_THREAD(input_feeder_%s);", port);
-                emitter().emit("sensitive << %s.posedge_event();", network.getApControl().getClockSignal().getName());
-                emitter().emitNewLine();
-            });
+//            network.getInputs().stream().map(SCNetwork.InputIF::getPort).map(PortDecl::getName).forEach(port -> {
+//                emitter().emit("SC_THREAD(input_feeder_%s);", port);
+//                emitter().emit("sensitive << %s.posedge_event();", network.getApControl().getClockSignal().getName());
+//                emitter().emitNewLine();
+//            });
             emitter().emitNewLine();
             emitter().emit("// -- input read setters");
-            network.getInputs().forEach(port -> {
-                emitter().emit("SC_METHOD(input_read_setter_%s);", port.getPort().getName());
-                emitter().emit("sensitive << %s << sim_buffer_%s_dout;",
-                        port.getWriter().getFullN().getSignal().getName(),
-                        port.getPort().getName());
-            });
+//            network.getInputs().forEach(port -> {
+//                emitter().emit("SC_METHOD(input_read_setter_%s);", port.getPort().getName());
+//                emitter().emit("sensitive << %s << sim_buffer_%s_dout;",
+//                        port.getWriter().getFullN().getSignal().getName(),
+//                        port.getPort().getName());
+//            });
             emitter().emitNewLine();
             emitter().emit("// -- output eaters");
-            network.getOutputs().stream().map(SCNetwork.OutputIF::getPort).map(PortDecl::getName).forEach(port -> {
-                emitter().emit("SC_THREAD(output_eater_%s);", port);
-                emitter().emit("sensitive << %s.posedge_event();", network.getApControl().getClockSignal().getName());
-                emitter().emitNewLine();
-            });
+//            network.getOutputs().stream().map(SCNetwork.OutputIF::getPort).map(PortDecl::getName).forEach(port -> {
+//                emitter().emit("SC_THREAD(output_eater_%s);", port);
+//                emitter().emit("sensitive << %s.posedge_event();", network.getApControl().getClockSignal().getName());
+//                emitter().emitNewLine();
+//            });
             emitter().emitNewLine();
             emitter().emit("// -- output write setters");
-            network.getOutputs().stream().forEach(port -> {
-                emitter().emit("SC_METHOD(output_write_setter_%s);", port.getPort().getName());
-                emitter().emit("sensitive << %s << %s << %s;",
-                        port.getReader().getEmptyN().getSignal().getName(),
-                        port.getReader().getDout().getSignal().getName(),
-                        port.getAuxiliary().getPeek().getSignal().getName());
-            });
+//            network.getOutputs().stream().forEach(port -> {
+//                emitter().emit("SC_METHOD(output_write_setter_%s);", port.getPort().getName());
+//                emitter().emit("sensitive << %s << %s << %s;",
+//                        port.getReader().getEmptyN().getSignal().getName(),
+//                        port.getReader().getDout().getSignal().getName(),
+//                        port.getAuxiliary().getPeek().getSignal().getName());
+//            });
             emitter().emitNewLine();
 
             // -- register traces
@@ -497,7 +497,7 @@ public interface SystemCTestBench {
             emitter().emit("if (trace_level > 2) {");
             {
                 emitter().increaseIndentation();
-                network.getTriggers().stream().forEach(trigger -> {
+                network.getInstanceTriggers().stream().forEach(trigger -> {
                     String triggerName = trigger.getName();
                     trigger.stream().forEach(port -> {
                         emitter().emit("sc_trace(vcd_dump, inst_%s->%s->%s, \"%1$s.%2$s.%3$s\");", network.getIdentifier(),
@@ -548,7 +548,7 @@ public interface SystemCTestBench {
 //            emitter().emit("stats_dump << \"<?xml version = \\\"1.0\\\" encoding = \\\"UTF-8\\\"?>\" << std::endl;");
             emitter().emit("stats_dump << \"<network name=\\\"%s\\\" />\" << std::endl;", network.getIdentifier());
 
-            for (SCTrigger trigger: network.getTriggers())
+            for (SCTrigger trigger: network.getInstanceTriggers())
                 dumpInstanceStats(trigger, network);
 
             emitter().emit("stats_dump << \"</network>\" << std::endl;");

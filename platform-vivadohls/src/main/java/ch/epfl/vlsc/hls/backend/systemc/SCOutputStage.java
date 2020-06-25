@@ -2,9 +2,10 @@ package ch.epfl.vlsc.hls.backend.systemc;
 
 import se.lth.cs.tycho.ir.entity.PortDecl;
 
+import java.util.Optional;
 import java.util.stream.Stream;
 
-public class SCOutputStage implements SCIF {
+public class SCOutputStage implements SCInstanceIF {
 
     public static class OutputIF implements SCIF {
         private final Queue.ReaderIF reader;
@@ -39,23 +40,39 @@ public class SCOutputStage implements SCIF {
     private final APControl apControl;
     private final OutputIF output;
     private final PortIF init;
-    private final String name;
+    private final String instanceName;
+    private final PortIF ret;
 
-    public SCOutputStage(String name, PortIF init, OutputIF output) {
-        this.name = name;
+    public SCOutputStage(String instanceName, PortIF init, OutputIF output) {
+        this.instanceName = instanceName;
         this.init = init;
         this.output = output;
-        this.apControl = new APControl(name + "_");
+        this.apControl = new APControl(instanceName + "_");
+        this.ret = PortIF.of(
+                "ap_return",
+                Signal.of(instanceName + "_", new LogicVector(32)),
+                Optional.of(PortIF.Kind.OUTPUT));
     }
 
     public APControl getApControl() { return apControl; }
+
+    @Override
+    public int getNumActions() {
+        return 1;
+    }
+
     public OutputIF getOutput() { return output; }
     public PortIF getInit() { return init; }
     public String getName() {
         return "OutputStage<" + output.getReader().getDout().getSignal().getType() + ">";
     }
     public String getInstanceName() {
-        return name;
+        return instanceName;
+    }
+
+    @Override
+    public PortIF getReturn() {
+        return ret;
     }
 
     public Stream<PortIF> streamUnique() {

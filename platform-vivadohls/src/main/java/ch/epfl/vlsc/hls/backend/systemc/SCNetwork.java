@@ -126,46 +126,71 @@ public class SCNetwork implements SCIF {
     }
 
     private final String identifier;
-    private final ImmutableList<InputIF> writers;
-    private final ImmutableList<OutputIF> readers;
+//    private final ImmutableList<InputIF> writers;
+//    private final ImmutableList<OutputIF> readers;
     private final APControl apControl;
+    // Actors
     private final ImmutableList<SCInstance> instances;
-    private final ImmutableList<SCTrigger> triggers;
+    private final ImmutableList<SCInputStage> inputStages;
+    private final ImmutableList<SCOutputStage> outputStages;
+    // Triggers
+    private final ImmutableList<SCTrigger> instanceTriggers;
+    private final ImmutableList<SCTrigger> inputStageTriggers;
+    private final ImmutableList<SCTrigger> outputStageTriggers;
     private final ImmutableList<Queue> queues;
     private final SyncIF globalSync;
-    private final ImmutableList<Signal> instanceSync;
+    private final ImmutableList<Signal> instancesSync;
+    private final ImmutableList<Signal> inputStagesSync;
+    private final ImmutableList<Signal> outputStagesSync;
     private final Signal amIdle;
     private final Signal amIdleReg;
+    private final PortIF init;
 
-    public SCNetwork(String identifier, ImmutableList<InputIF> writers, ImmutableList<OutputIF> readers,
-                     ImmutableList<SCInstance> instances, ImmutableList<Queue> queues) {
+
+    public SCNetwork(String identifier, ImmutableList<SCInputStage> inputStages,
+                     ImmutableList<SCOutputStage> outputStages, ImmutableList<SCInstance> instances,
+                     ImmutableList<Queue> queues, PortIF init) {
         this.identifier = identifier;
-        this.writers = writers;
-        this.readers = readers;
+        this.inputStages = inputStages;
+        this.outputStages = outputStages;
         this.apControl = new APControl();
         this.instances = instances;
         this.queues = queues;
         this.globalSync = new SyncIF();
-        this.triggers = instances.map(inst -> new SCTrigger(inst, this.globalSync, this.apControl.getStart()));
-        this.instanceSync = ImmutableList.from(instances.stream().map(
-                inst ->
-                        Signal.of(inst.getName() + "_sync", new LogicValue())
-        ).collect(Collectors.toList()));
 
+        // create trigger
+        this.instanceTriggers = instances.map(this::makeTrigger);
+        this.inputStageTriggers = inputStages.map(this::makeTrigger);
+        this.outputStageTriggers = outputStages.map(this::makeTrigger);
+
+        // create sync signals
+        this.instancesSync = instances.map(this::makeSyncSignal);
+        this.inputStagesSync = inputStages.map(this::makeSyncSignal);
+        this.outputStagesSync = outputStages.map(this::makeSyncSignal);
+
+        // internal signals
         this.amIdle = Signal.of("am_idle", new LogicValue());
         this.amIdleReg = Signal.of("am_idle_r", new LogicValue());
+
+        this.init = init;
     }
 
+    private SCTrigger makeTrigger(SCInstanceIF inst) {
+        return new SCTrigger(inst, this.globalSync, this.apControl.getStart());
+    }
+    private Signal makeSyncSignal(SCInstanceIF inst) {
+        return Signal.of(inst.getInstanceName() + "_sync", new LogicValue());
+    }
     public String getIdentifier() {
         return identifier;
     }
 
-    public ImmutableList<InputIF> getInputs() {
-        return writers;
+    public ImmutableList<SCInputStage> getInputStages() {
+        return inputStages;
     }
 
-    public ImmutableList<OutputIF> getOutputs() {
-        return readers;
+    public ImmutableList<SCOutputStage> getOutputStages() {
+        return outputStages;
     }
 
     public ImmutableList<SCInstance> getInstances() {
@@ -176,17 +201,17 @@ public class SCNetwork implements SCIF {
         return queues;
     }
 
-    public ImmutableList<SCTrigger> getTriggers() {
-        return triggers;
+    public ImmutableList<SCTrigger> getInstanceTriggers() {
+        return instanceTriggers;
     }
 
     @Override
     public Stream<PortIF> stream() {
         return Stream.concat(
-                writers.stream().flatMap(InputIF::stream),
+                outputStages.stream().flatMap(SCOutputStage::stream),
                 Stream.concat(
-                        readers.stream().flatMap(OutputIF::stream),
-                        apControl.stream()));
+                        inputStages.stream().flatMap(SCInputStage::stream),
+                        Stream.concat(Stream.of(init), apControl.stream())));
 
     }
 
@@ -194,7 +219,7 @@ public class SCNetwork implements SCIF {
         return Stream.concat(
                 this.globalSync.stream().map(PortIF::getSignal),
                 Stream.concat(
-                        this.instanceSync.stream(),
+                        this.instancesSync.stream(),
                         Stream.of(
                                 this.amIdle,
                                 this.amIdleReg
@@ -202,7 +227,7 @@ public class SCNetwork implements SCIF {
     }
 
     public ImmutableList<Signal> getInstanceSyncSignals() {
-        return this.instanceSync;
+        return this.instancesSync;
     }
 
     public SyncIF getGlobalSync() {
@@ -222,9 +247,9 @@ public class SCNetwork implements SCIF {
     }
 
     public SCTrigger getTrigger(SCInstance instance) {
-        return triggers.get(instances.indexOf(instance));
+        return instanceTriggers.get(instances.indexOf(instance));
     }
     public SCInstance getInstance(SCTrigger trigger) {
-        return instances.get(triggers.indexOf(trigger));
+        return instances.get(instanceTriggers.indexOf(trigger));
     }
 }
