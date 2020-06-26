@@ -1,6 +1,8 @@
 package ch.epfl.vlsc.hls.backend.systemc;
 
 
+import java.util.stream.Stream;
+
 public interface SCInstanceIF extends SCIF {
 
     APControl getApControl();
@@ -8,4 +10,5 @@ public interface SCInstanceIF extends SCIF {
     String getName();
     String getInstanceName();
     PortIF getReturn();
+    Stream<PortIF> streamUnique();
 }

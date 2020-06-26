@@ -3,6 +3,7 @@ package ch.epfl.vlsc.hls.backend.systemc;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 public class SCOutputStage implements SCInstanceIF {
@@ -13,8 +14,8 @@ public class SCOutputStage implements SCInstanceIF {
         private final PortDecl port;
 
         public OutputIF(Queue queue, PortDecl port) {
-            this.reader = queue.getReader();
-            this.aux = queue.getAuxiliary();
+            this.reader = queue.getReader().withPrefix("fifo_");
+            this.aux = queue.getAuxiliary().withPrefix("fifo_");
             this.port = port;
         }
 
@@ -50,7 +51,7 @@ public class SCOutputStage implements SCInstanceIF {
         this.apControl = new APControl(instanceName + "_");
         this.ret = PortIF.of(
                 "ap_return",
-                Signal.of(instanceName + "_", new LogicVector(32)),
+                Signal.of(instanceName + "_ap_return", new LogicVector(32)),
                 Optional.of(PortIF.Kind.OUTPUT));
     }
 
@@ -64,7 +65,7 @@ public class SCOutputStage implements SCInstanceIF {
     public OutputIF getOutput() { return output; }
     public PortIF getInit() { return init; }
     public String getName() {
-        return "OutputStage<" + output.getReader().getDout().getSignal().getType() + ">";
+        return "iostage::OutputStage<" + output.getReader().getDout().getSignal().getType() + ">";
     }
     public String getInstanceName() {
         return instanceName;
@@ -76,20 +77,26 @@ public class SCOutputStage implements SCInstanceIF {
     }
 
     public Stream<PortIF> streamUnique() {
-        return Stream.of(
-                apControl.getDone(),
+        return Stream.concat(
+                Stream.of(apControl.getDone(),
                 apControl.getReady(),
                 apControl.getIdle(),
-                apControl.getStart()
+                apControl.getStart(),
+                ret),
+                output.stream()
         );
     }
 
     public Stream<PortIF> stream() {
-        return Stream.concat(output.stream(),
+        return
                 Stream.concat(
-                        Stream.of(apControl.getClock(), apControl.getReset()),
-                        streamUnique()));
+                        Stream.of(apControl.getClock(), apControl.getReset(), init),
+                        streamUnique());
 
+    }
+
+    public PortDecl getPort() {
+        return output.getPort();
     }
 
 }

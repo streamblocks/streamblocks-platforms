@@ -40,8 +40,8 @@ public:
 
   MemoryBuffer<T> mem;
 
-  sc_signal<uint32_t> state;
-  sc_signal<uint32_t> next_state;
+  sc_signal<uint8_t> state;
+  sc_signal<uint8_t> next_state;
 
   // internal counter, needs to be initialized
   std::size_t request_size;
@@ -54,7 +54,7 @@ public:
   void allocateDeviceMemory(std::size_t buffer_size) {
 
     mem.buffer.resize(buffer_size);
-    mem.buffer_size = buffer_size;
+
   }
   void writeDeviceMemory(std::vector<T> &host_buffer) {
 
@@ -121,6 +121,7 @@ public:
           PANIC("Invalid state reached!");
           break;
         }
+        state.write(next_state);
       }
     }
   }
@@ -208,6 +209,7 @@ public:
       : sc_module(name), state("state"), next_state("next_state"),
         tokens_read("tokens_read"), tokens_to_read("tokens_to_read") {
 
+    request_size = 0;
     SC_THREAD(setWriteSignal);
     sensitive << ap_clk.pos();
 
@@ -239,8 +241,8 @@ public:
   sc_in<uint32_t> fifo_count;
   sc_in<T> fifo_dout;
   sc_in<bool> fifo_empty_n;
-  sc_in<uint32_t> fifo_size;
   sc_out<bool> fifo_read;
+  sc_in<T> fifo_peek;
 
   MemoryBuffer<T> mem;
 
@@ -248,14 +250,14 @@ public:
   sc_signal<std::size_t> tokens_written;
   sc_signal<std::size_t> tokens_to_write;
 
-  sc_signal<uint32_t> state;
-  sc_signal<uint32_t> next_state;
+  sc_signal<uint8_t> state;
+  sc_signal<uint8_t> next_state;
 
   // C++ interface
   void allocateDeviceMemory(std::size_t buffer_size) {
 
     mem.buffer.resize(buffer_size);
-    mem.buffer_size = buffer_size;
+
   }
   void readDeviceMemory(std::vector<T> &host_buffer) {
 
@@ -319,6 +321,8 @@ public:
           PANIC("Invalid state reached!");
           break;
         }
+
+        state.write(next_state);
       }
     }
   }
@@ -404,6 +408,7 @@ public:
       : sc_module(name), state("state"), next_state("next_state"),
         tokens_written("tokens_written"), tokens_to_write("tokens_to_write") {
 
+    buffer_capacity = 0;
     SC_THREAD(setReadSignal);
     sensitive << ap_clk.pos();
 

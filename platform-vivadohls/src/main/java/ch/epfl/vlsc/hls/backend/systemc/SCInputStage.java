@@ -13,8 +13,8 @@ public class SCInputStage implements SCInstanceIF {
         private final PortDecl port;
 
         public InputIF(Queue queue, PortDecl port) {
-            this.writer = queue.getWriter();
-            this.aux = queue.getAuxiliary();
+            this.writer = queue.getWriter().withPrefix("fifo_");
+            this.aux = queue.getAuxiliary().withPrefix("fifo_");
             this.port = port;
         }
 
@@ -49,7 +49,7 @@ public class SCInputStage implements SCInstanceIF {
         this.apControl = new APControl(instanceName + "_");
         this.ret = PortIF.of(
                 "ap_return",
-                Signal.of(instanceName + "_", new LogicVector(32)),
+                Signal.of(instanceName + "_ap_return", new LogicVector(32)),
                 Optional.of(PortIF.Kind.OUTPUT));
     }
 
@@ -83,25 +83,30 @@ public class SCInputStage implements SCInstanceIF {
 
     @Override
     public String getName() {
-        return "InputStage<" + input.writer.getDin().getSignal().getType() + ">";
+        return "iostage::InputStage<" + input.writer.getDin().getSignal().getType() + ">";
     }
 
     public Stream<PortIF> streamUnique() {
-        return Stream.of(
-                apControl.getDone(),
+        return Stream.concat(
+                Stream.of(apControl.getDone(),
                 apControl.getReady(),
                 apControl.getIdle(),
-                apControl.getStart()
+                apControl.getStart(),
+                ret),
+                input.stream()
         );
     }
 
     public Stream<PortIF> stream() {
-        return Stream.concat(input.stream(),
+        return
                 Stream.concat(
-                    Stream.of(apControl.getClock(), apControl.getReset()),
-                    streamUnique()));
+                    Stream.of(apControl.getClock(), apControl.getReset(), init),
+                    streamUnique());
 
     }
 
+    public PortDecl getPort() {
+        return input.getPort();
+    }
 
 }

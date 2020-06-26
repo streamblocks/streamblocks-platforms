@@ -4,6 +4,7 @@ import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 
 
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -205,13 +206,13 @@ public class SCNetwork implements SCIF {
         return instanceTriggers;
     }
 
+    public ImmutableList<SCTrigger> getInputStageTriggers() { return inputStageTriggers; }
+
+    public ImmutableList<SCTrigger> getOutputStageTriggers() { return outputStageTriggers; }
+
     @Override
     public Stream<PortIF> stream() {
-        return Stream.concat(
-                outputStages.stream().flatMap(SCOutputStage::stream),
-                Stream.concat(
-                        inputStages.stream().flatMap(SCInputStage::stream),
-                        Stream.concat(Stream.of(init), apControl.stream())));
+        return Stream.concat(Stream.of(init), apControl.stream());
 
     }
 
@@ -219,16 +220,14 @@ public class SCNetwork implements SCIF {
         return Stream.concat(
                 this.globalSync.stream().map(PortIF::getSignal),
                 Stream.concat(
-                        this.instancesSync.stream(),
+                        getAllSyncSignals().stream(),
                         Stream.of(
                                 this.amIdle,
                                 this.amIdleReg
                         )));
     }
 
-    public ImmutableList<Signal> getInstanceSyncSignals() {
-        return this.instancesSync;
-    }
+
 
     public SyncIF getGlobalSync() {
         return globalSync;
@@ -238,6 +237,8 @@ public class SCNetwork implements SCIF {
         return apControl;
     }
 
+    public PortIF getInit() { return init; }
+
     public Signal getAmIdle() {
         return amIdle;
     }
@@ -246,10 +247,26 @@ public class SCNetwork implements SCIF {
         return amIdleReg;
     }
 
-    public SCTrigger getTrigger(SCInstance instance) {
+    public SCTrigger getInstanceTrigger(SCInstance instance) {
         return instanceTriggers.get(instances.indexOf(instance));
     }
-    public SCInstance getInstance(SCTrigger trigger) {
-        return instances.get(instanceTriggers.indexOf(trigger));
+
+
+    public ImmutableList<SCTrigger> getAllTriggers() {
+        ImmutableList.Builder<SCTrigger> triggers = ImmutableList.builder();
+        triggers.addAll(instanceTriggers)
+                .addAll(inputStageTriggers)
+                .addAll(outputStageTriggers);
+        return triggers.build();
+    }
+
+    public ImmutableList<Signal> getAllSyncSignals() {
+        ImmutableList.Builder<Signal> syncs = ImmutableList.builder();
+        syncs.addAll(instancesSync).addAll(inputStagesSync).addAll(outputStagesSync);
+        return syncs.build();
+    }
+
+    public Signal getSyncSignal(SCTrigger trigger) {
+        return getAllSyncSignals().get(getAllTriggers().indexOf(trigger));
     }
 }
