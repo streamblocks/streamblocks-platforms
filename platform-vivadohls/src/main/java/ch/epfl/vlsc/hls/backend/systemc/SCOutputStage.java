@@ -6,7 +6,7 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-public class SCOutputStage implements SCInstanceIF {
+public class SCOutputStage implements SCInputOutputIF {
 
     public static class OutputIF implements SCIF {
         private final Queue.ReaderIF reader;

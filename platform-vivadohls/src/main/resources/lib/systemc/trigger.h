@@ -1,5 +1,5 @@
 #ifndef __TRIGGER_H__
-#define  __TRIGGER_H__
+#define __TRIGGER_H__
 #include "debug_macros.h"
 #include "systemc.h"
 #include <string>
@@ -35,14 +35,14 @@ public:
   sc_out<bool> actor_start;
 
   enum State {
-    IDLE_STATE,
-    LAUNCH,
-    CHECK,
-    SLEEP,
-    SYNC_LAUNCH,
-    SYNC_CHECK,
-    SYNC_WAIT,
-    SYNC_EXEC
+    IDLE_STATE = 0,
+    LAUNCH = 1,
+    CHECK = 2,
+    SLEEP = 3,
+    SYNC_LAUNCH = 4,
+    SYNC_CHECK = 5,
+    SYNC_WAIT = 6,
+    SYNC_EXEC = 7
   };
 
   class ProfileStat {
@@ -86,8 +86,8 @@ public:
 
   sc_signal<uint16_t> action_sig;
   // Trigget state variable
-  sc_signal<State> state;
-  sc_signal<State> next_state;
+  sc_signal<uint8_t> state;
+  sc_signal<uint8_t> next_state;
 
   sc_trace_file *vcd_dump;
 
@@ -141,7 +141,7 @@ public:
    */
   void setNextState() {
 
-    next_state = State::IDLE_STATE;
+    next_state.write(State::IDLE_STATE);
 
     uint8_t return_code = actor_return.read() & 0x00000003;
 
@@ -159,52 +159,53 @@ public:
         if (return_code == ReturnStatus::EXECUTED ||
             return_code == ReturnStatus::TEST ||
             external_enqueue.read() == true)
-          next_state = State::LAUNCH;
+          next_state.write(State::LAUNCH);
         else
-          next_state = State::SLEEP;
+          next_state.write(State::SLEEP);
       else
-        next_state = State::CHECK;
+        next_state.write(State::CHECK);
       break;
     case State::SLEEP:
       if (all_sleep.read() == true)
-        next_state = State::SYNC_LAUNCH;
+        next_state.write(State::SYNC_LAUNCH);
       else if (all_waited.read() == false)
-        next_state = State::LAUNCH;
+        next_state.write(State::LAUNCH);
       else
-        next_state = State::SLEEP;
+        next_state.write(State::SLEEP);
       break;
 
     case State::SYNC_LAUNCH:
     case State::SYNC_CHECK:
       if (actor_done.read() == true)
         if (return_code == ReturnStatus::EXECUTED)
-          next_state = State::SYNC_EXEC;
+          next_state.write(State::SYNC_EXEC);
         else if (return_code == ReturnStatus::TEST)
-          next_state = State::SYNC_LAUNCH;
+          next_state.write(State::SYNC_LAUNCH);
         else
-          next_state = State::SYNC_WAIT;
+          next_state.write(State::SYNC_WAIT);
       else
-        next_state = State::SYNC_CHECK;
+        next_state.write(State::SYNC_CHECK);
       break;
 
     case State::SYNC_WAIT:
       if (all_sync.read() == true)
         if (all_sync_wait.read() == true)
-          next_state = State::IDLE_STATE;
+          next_state.write(State::IDLE_STATE);
         else
-          next_state = State::LAUNCH;
+          next_state.write(State::LAUNCH);
       else
-        next_state = State::SYNC_WAIT;
+        next_state.write(State::SYNC_WAIT);
       break;
 
     case State::SYNC_EXEC:
       if (all_sync.read() == true)
-        next_state = State::LAUNCH;
+        next_state.write(State::LAUNCH);
       else
-        next_state = State::SYNC_EXEC;
+        next_state.write(State::SYNC_EXEC);
       break;
     default:
-      next_state = State::IDLE_STATE;
+      PANIC("Invalid trigger state!");
+      next_state.write(State::IDLE_STATE);
       break;
     }
   }
@@ -261,12 +262,8 @@ public:
     uint8_t return_code = ret_val & 0x00000003;
     uint16_t action_count = (ret_val >> 2) & mask;
 
-    if (actor_done.read() == true && return_code == ReturnStatus::EXECUTED) {
-
-      DEBUG_MESSAGE("@ %s.%s %5d took \t %10lu cycles in %s\n",
-                    sc_time_stamp().to_string().c_str(), action_id,
-                    clock_counter.read(), this->name());
-
+    if (actor_done.read() == true && return_code == ReturnStatus::EXECUTED &&
+        action_id < stats.size()) {
       stats[action_id].register_stat(clock_counter.read() + 1);
       return true;
     }
@@ -376,4 +373,4 @@ public:
   ~Trigger(){};
 };
 } // namespace ap_rtl
-  #endif // __TRIGGER_H__
+#endif // __TRIGGER_H__

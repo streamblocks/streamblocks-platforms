@@ -5,7 +5,7 @@ import se.lth.cs.tycho.ir.entity.PortDecl;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-public class SCInputStage implements SCInstanceIF {
+public class SCInputStage implements SCInputOutputIF {
 
     public static class InputIF implements SCIF {
         private final Queue.WriterIF writer;

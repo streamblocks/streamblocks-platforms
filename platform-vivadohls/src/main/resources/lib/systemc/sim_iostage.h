@@ -65,7 +65,7 @@ public:
     std::copy(host_buffer.begin(), host_buffer.end(), mem.buffer.begin());
   }
   std::size_t querySize() { return tokens_read.read(); }
-  void setRequest(std::size_t req_sz) {
+  void setArg(std::size_t req_sz) {
     ASSERT(req_sz <= mem.buffer.size(),
            "Request size (%llu) larger than device buffer capacity (%llu)",
            req_sz, mem.buffer.size());
@@ -268,7 +268,7 @@ public:
     std::copy(mem.buffer.begin(), mem.buffer.end(), host_buffer.begin());
   }
   std::size_t querySize() { return tokens_written.read(); }
-  void setCapacity(std::size_t cap) {
+  void setArg(std::size_t cap) {
     ASSERT(cap <= mem.buffer.size(),
            "Capacity (%llu) larger than device buffer (%llu) !", cap,
            mem.buffer.size());
@@ -309,7 +309,8 @@ public:
           // Do writes
           std::size_t address = tokens_written.read();
           ASSERT(address < buffer_capacity, "Capacity violation");
-          mem.buffer[address] = fifo_dout.read();
+          T token = fifo_dout.read();
+          mem.buffer[address] = token;
           tokens_written.write(tokens_written.read() + 1);
           tokens_to_write.write(tokens_to_write.read() - 1);
           break;
@@ -328,14 +329,14 @@ public:
   }
   // SC_THREAD
   void setReadSignal() {
-    while (true) {
-      wait();
+    // while (true) {
+      // wait();
       if (state.read() == State::Loop) {
         fifo_read.write(true);
       } else {
         fifo_read.write(false);
       }
-    }
+    // }
   }
 
   // Normal C++ function
@@ -409,8 +410,8 @@ public:
         tokens_written("tokens_written"), tokens_to_write("tokens_to_write") {
 
     buffer_capacity = 0;
-    SC_THREAD(setReadSignal);
-    sensitive << ap_clk.pos();
+    SC_METHOD(setReadSignal);
+    sensitive << state;
 
     SC_THREAD(executeFSM);
     sensitive << ap_clk.pos();

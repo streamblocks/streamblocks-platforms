@@ -476,7 +476,7 @@ public class VivadoHLSBackendPhase implements Phase {
             Files.copy(getClass().getResourceAsStream("/lib/systemc/trigger.h"),
                     PathUtils.getTargetCodeGenInclude(backend.context()).resolve("trigger.h"),
                     StandardCopyOption.REPLACE_EXISTING);
-            Files.copy(getClass().getResourceAsStream("/lib/systemc/sim_queue.h"),
+            Files.copy(getClass().getResourceAsStream("/lib/systemc/sim_iostage.h"),
                     PathUtils.getTargetCodeGenInclude(backend.context()).resolve("sim_queue.h"),
                     StandardCopyOption.REPLACE_EXISTING);
 
