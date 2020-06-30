@@ -285,9 +285,7 @@ public class MultiCoreBackendPhase implements Phase {
             // -- Copy streamblcoks.py
             Files.copy(getClass().getResourceAsStream("/python/streamblocks.py"), PathUtils.getTargetBin(multicoreBackend.context()).resolve("streamblocks.py"), StandardCopyOption.REPLACE_EXISTING);
 
-            if (isSimulated) {
-                Files.copy(getClass().getResourceAsStream("/simqueue/sim-queue.h"), PathUtils.getTargetCodeGenInclude(multicoreBackend.context()).resolve("sim-queue.h"), StandardCopyOption.REPLACE_EXISTING);
-            }
+
             // -- replace some files if plink is available
             if (hasPlink && !isSimulated) {
                 Files.copy(libPath.resolve("CMakeLists.plink.txt"), libPath.resolve("CMakeLists.txt"),

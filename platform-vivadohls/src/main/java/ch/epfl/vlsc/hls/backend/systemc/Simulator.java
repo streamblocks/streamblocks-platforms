@@ -228,7 +228,7 @@ public interface Simulator {
         emitter().emit("}");
         emitter().emit("auto finish_time = std::chrono::high_resolution_clock::now();");
         emitter().emit("auto total_time = std::chrono::duration_cast<std::chrono::milliseconds>(finish_time - start_time);");
-        emitter().emit("STATUS_REPORT(\"simulation finished after %%lu ticks and %%3.6f milliseconds\", " +
+        emitter().emit("STATUS_REPORT(\"simulation finished after %%lu ticks and %%3.6f milliseconds\\n\", " +
                 "total_ticks, total_time.count() / 1e3);");
 
     }

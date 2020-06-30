@@ -191,7 +191,7 @@ public interface CMakeLists {
             {
                 emitter().increaseIndentation();
                 // -- find packages
-                emitter().emit("set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)");
+                emitter().emit("set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/lib/cmake)");
                 emitter().emit("find_package(SystemCLanguage)");
                 emitter().emit("find_package(Verilator)");
                 emitter().emitNewLine();

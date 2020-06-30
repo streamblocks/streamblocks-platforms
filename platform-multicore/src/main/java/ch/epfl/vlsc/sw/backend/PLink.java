@@ -6,6 +6,7 @@ import ch.epfl.vlsc.platformutils.PathUtils;
 import ch.epfl.vlsc.settings.PlatformSettings;
 import ch.epfl.vlsc.sw.ir.PartitionHandle;
 import ch.epfl.vlsc.sw.ir.PartitionLink;
+
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
@@ -18,6 +19,8 @@ import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.reporting.CompilationException;
 import se.lth.cs.tycho.reporting.Diagnostic;
+import se.lth.cs.tycho.type.IntType;
+import se.lth.cs.tycho.type.Type;
 
 
 import java.nio.file.Path;
@@ -190,9 +193,55 @@ public interface PLink {
     default void simulationState(String name, Entity entity) {
 
         emitter().emit("// -- simulation handle");
-        emitter().emit("std::unique_ptr<ap_rtl::network_tester> dev;");
+        emitter().emit("std::unique_ptr<ap_rtl::NetworkTester> dev;");
+
+        ImmutableList.concat(entity.getInputPorts(), entity.getOutputPorts()).forEach(port -> {
+
+            emitter().emit("// -- host buffer for %s", port.getName());
+
+            String scPortType = getSimulationPortType(port);
+
+            emitter().emit("std::vector<%s> buffer_%s;", scPortType, port.getName());
+
+        });
+
+        entity.getOutputPorts().forEach(port -> {
+
+            emitter().emit("// -- output host buffer offset pointers");
+            emitter().emit("std::size_t buffer_offset_%s;", port.getName());
+        });
+
+
         emitter().emitNewLine();
 
+    }
+
+    default String getSimulationPortType(PortDecl port) {
+
+        Type portType = backend().types().declaredPortType(port);
+
+        String scPortType = "";
+        if (portType instanceof IntType) {
+            IntType intPortType = (IntType) portType;
+            if (intPortType.getSize().isPresent()) {
+                int originalSize = intPortType.getSize().getAsInt();
+
+                if (originalSize <= 32) {
+                    scPortType = "uint32_t";
+                } else if (originalSize <= 64) {
+                    scPortType = "uint64_t";
+                } else {
+                    scPortType =  "sc_bv<" + (originalSize * 8) + ">";
+                }
+            } else {
+                scPortType = "uint32_t";
+            }
+
+        } else {
+            throw new CompilationException(
+                    new Diagnostic(Diagnostic.Kind.ERROR, "Unsupported type for SystemC simulation"));
+        }
+        return  scPortType;
     }
 
     default void deviceState(String name, Entity entity) {
@@ -247,10 +296,6 @@ public interface PLink {
 
     default void prototypes(String name, Entity entity) {
 
-//        emitter().emit("// -- TX prototype");
-//        emitter().emit("ART_ACTION(%s, %s);", TxName(), name);
-//        emitter().emit("// -- RX prototype");
-//        emitter().emit("ART_ACTION(%s, %s);", RxName(), name);
         String instanceQID = name;
         emitter().emitNewLine();
         emitter().emit("// -- scheduler prototype");
@@ -326,23 +371,45 @@ public interface PLink {
         emitter().emit("sc_time period(10.0, SC_NS);");
         emitter().emit("int trace_level = 0;");
         emitter().emit("thisActor->dev = " +
-                "std::make_unique<ap_rtl::network_tester>(\"plink\", period, trace_level);");
+                "std::make_unique<ap_rtl::NetworkTester>(\"plink\", period, trace_level);");
 
-        // -- allocate buffers
-
-        // -- allocate buffers
-        emitter().emit("// -- allocate simulation buffers");
+        emitter().emitNewLine();
         for(PortDecl port: entity.getInputPorts()) {
             int bufferSize = backend().channelsutils().targetEndSize(
                     new Connection.End(Optional.of(name),port.getName()));
-            emitter().emit("thisActor->dev->sim_buffer_%s->allocate(%d);", port.getName(), bufferSize);
-
+            emitter().emit("const std::size_t buffer_size_%s = %d;", port.getName(),bufferSize);
         }
         for(PortDecl port: entity.getOutputPorts()) {
             int bufferSize = backend().channelsutils().sourceEndSize(
-                    new Connection.End(Optional.of(name), port.getName()));
-            emitter().emit("thisActor->dev->sim_buffer_%s->allocate(%d);", port.getName(), bufferSize);
+                    new Connection.End(Optional.of(name),port.getName()));
+            emitter().emit("const std::size_t buffer_size_%s = %d;", port.getName(), bufferSize);
         }
+
+
+        emitter().emitNewLine();
+        // -- allocate host buffers
+        emitter().emit("// --allocate host buffers");
+        ImmutableList.concat(entity.getInputPorts(), entity.getOutputPorts()).forEach(port -> {
+            String portType = getSimulationPortType(port);
+            emitter().emit("thisActor->buffer_%s.resize(buffer_size_%1$s);",
+                    port.getName());
+        });
+
+        emitter().emitNewLine();
+        emitter().emit("// -- reset the output buffer offset pointers");
+        for (PortDecl outputPort : entity.getOutputPorts()) {
+            emitter().emit("thisActor->buffer_offset_%s = 0;", outputPort.getName());
+        }
+        // -- allocate device buffers
+        emitter().emit("// -- allocate simulation buffers");
+        emitter().emit("using PortAddress = ap_rtl::NetworkTester::PortAddress;");
+        emitter().emitNewLine();
+        ImmutableList.concat(entity.getInputPorts(), entity.getOutputPorts()).forEach(port -> {
+            emitter().emit("thisActor->dev->allocateMemory(PortAddress::%s, buffer_size_%1$s);", port.getName());
+        });
+        emitter().emitNewLine();
+        // -- reset the device
+        emitter().emit("// -- reset the device");
         emitter().emit("thisActor->dev->reset();");
 
     }
@@ -467,7 +534,7 @@ public interface PLink {
     }
 
     default void destructSimulator(String name, Entity entity) {
-
+        // automatic destruction using smart pointers
     }
 
     default void destructDevice(String name, Entity entity) {
@@ -543,23 +610,15 @@ public interface PLink {
                 emitter().emit("if (tokens_count_%s > 0) {", port.getName());
                 {
                     emitter().increaseIndentation();
-                    emitter().emit("pinPeekRepeat_%s(IN%d_%s, " +
-                                    "thisActor->dev->sim_buffer_%3$s->data(), tokens_count_%3$s);", type, portId,
-                            port.getName());
+                    getSimulatorPinPeek(port, entity.getInputPorts().indexOf(port));
+
                     emitter().decreaseIndentation();
                 }
                 emitter().emit("}");
-                emitter().emit("thisActor->dev->sim_buffer_%s->set_end(tokens_count_%1$s);", port.getName());
-                emitter().emit("thisActor->dev->sim_buffer_%s->set_begin(0);", port.getName());
+
             }
             emitter().emitNewLine();
 
-            // -- free up the output sim buffers
-            emitter().emit("// -- init output sim buffers");
-            for (PortDecl port: entity.getOutputPorts()) {
-                emitter().emit("thisActor->dev->sim_buffer_%s->set_begin(0);", port.getName());
-                emitter().emit("thisActor->dev->sim_buffer_%s->set_end(0);", port.getName());
-            }
             emitter().emit("thisActor->program_counter = 1;");
             emitter().emit("goto SIMULATE;");
             emitter().decreaseIndentation();
@@ -570,32 +629,61 @@ public interface PLink {
         emitter().emit("SIMULATE: {");
         {
             emitter().increaseIndentation();
+            emitter().emit("using PortAddress = ap_rtl::NetworkTester::PortAddress;");
+            // -- write host buffers to device
+            emitter().emit("// -- write host buffers to device and set the arguments");
+            for (PortDecl inputPort : entity.getInputPorts()) {
+
+                emitter().emit("thisActor->dev->writeDeviceMemory(PortAddress::%s, thisActor->buffer_%1$s);",
+                        inputPort.getName());
+                String type = typeseval().type(types().declaredPortType(inputPort));
+                emitter().emit("std::size_t req_sz_%s = pinAvailIn_%s(IN%d_%1$s);",
+                        inputPort.getName(), type, entity.getInputPorts().indexOf(inputPort));
+                emitter().emit("thisActor->dev->setArg(PortAddress::%s, req_sz_%1$s);", inputPort.getName());
+            }
+            emitter().emitNewLine();
+
+            for (PortDecl outputPort : entity.getOutputPorts()) {
+
+                emitter().emit("thisActor->dev->setArg(PortAddress::%s, thisActor->buffer_%1$s.size());",
+                        outputPort.getName());
+            }
+
+
+
             // -- simulate
             emitter().emit("// -- simulate");
-            emitter().emit("thisActor->dev->simulate();");
+
+            emitter().emit("auto sim_ticks = thisActor->dev->simulate();");
+
+            // -- read produced tokens back
+            for (PortDecl outputPort : entity.getOutputPorts()) {
+                emitter().emit("thisActor->dev->readDeviceMemory(PortAddress::%s, thisActor->buffer_%1$s);",
+                        outputPort.getName());
+            }
+
             emitter().emitNewLine();
             // -- consume
             emitter().emit("// -- consume");
-            for (PortDecl port: entity.getInputPorts()) {
-                String type = typeseval().type(types().declaredPortType(port));
-                int portId = entity.getInputPorts().indexOf(port);
-                emitter().emit("if (thisActor->dev->sim_buffer_%s->get_begin() > 0) {", port.getName());
-                {
-                    emitter().increaseIndentation();
-                    emitter().emit("pinConsumeRepeat_%s(IN%d_%s, thisActor->dev->sim_buffer_%3$s->get_begin());",
-                            type, portId, port.getName());
-                    emitter().emit("consumed += thisActor->dev->sim_buffer_%s->get_begin();", port.getName());
-                    emitter().decreaseIndentation();
-                }
+            emitter().emit("std::size_t total_consumed = 0;");
+            for (PortDecl inputPort: entity.getInputPorts()) {
 
-                emitter().emit("}");
+                emitter().emit("const std::size_t consumed_%s = thisActor->dev->querySize(PortAddress::%1$s);",
+                        inputPort.getName());
+                String type = typeseval().type(types().declaredPortType(inputPort));
+                emitter().emit("pinConsumeRepeat_%s(IN%d_%s, consumed_%3$s);", type,
+                        entity.getInputPorts().indexOf(inputPort), inputPort.getName());
+                emitter().emit("total_consumed += consumed_%s;", inputPort.getName());
+
+
             }
+            emitter().emitNewLine();
             emitter().emit("thisActor->program_counter = 2;");
             emitter().emitNewLine();
 
             // -- notify the multicore scheduler that something useful happened
             emitter().emit("// -- notify the multicore scheduler that something has happened");
-            emitter().emit("if (consumed > 0) {");
+            emitter().emit("if (total_consumed > 0) {");
             {
                 emitter().increaseIndentation();
                 emitter().emit("ART_ACTION_ENTER(CONSUME, 0);");
@@ -612,40 +700,37 @@ public interface PLink {
         {
             emitter().increaseIndentation();
             emitter().emit("uint32_t done_writing = 0;");
-
+            emitter().emit("using PortAddress = ap_rtl::NetworkTester::PortAddress;");
             // -- try to read from the sim buffers and write to multicore buffers
             for (PortDecl port : entity.getOutputPorts()) {
                 emitter().emit("// -- reading sim buffer %s", port.getName());
                 emitter().emitNewLine();
                 String type = typeseval().type(types().declaredPortType(port));
                 int portId = entity.getOutputPorts().indexOf(port);
-                String end = "thisActor->dev->sim_buffer_" + port.getName() + "->get_end()";
-                String begin = "thisActor->dev->sim_buffer_" + port.getName() + "->get_begin()";
-                String simBuffer = "thisActor->dev->sim_buffer_" + port.getName() + "->data()";
+
+                emitter().emit("std::size_t offset_%s = thisActor->buffer_offset_%1$s;", port.getName());
+                String offset = "thisActor->buffer_offset_" + port.getName();
+                String produced = "thisActor->dev->querySize(PortAddress::" + port.getName() + ")";
                 String outputPort = String.format("OUT%d_%s", portId, port.getName());
                 String remain = "remain_" + port.getName();
                 String pinAvailOut = "pinAvailOut_" + type + "(" + outputPort + ")";
                 String toWrite = "to_write_" + port.getName();
-                emitter().emit("uint32_t %s = %s - %s;", remain, end, begin);
+                emitter().emit("uint32_t %s = %s - %s;", remain, produced, offset);
                 emitter().emit("uint32_t %s = MIN(%s, %s);", toWrite, pinAvailOut, remain);
-                emitter().emit("uint32_t begin_%s = %s;", port.getName(), begin);
+
 
                 emitter().emitNewLine();
-                // -- there are tokens on the sime buffer
+                // -- there are tokens
                 emitter().emit("if (%s > 0) {", toWrite);
                 {
                     emitter().increaseIndentation();
                     emitter().emitNewLine();
-                    emitter().emit("pinWriteRepeat_%s(%s, &thisActor->dev->sim_buffer_%s->data()[begin_%3$s], %s);",
-                            type, outputPort,
-                            port.getName(), toWrite);
-                    // --se the new buffer begin
-                    emitter().emit("thisActor->dev->sim_buffer_%s->set_begin(begin_%1$s + %s);",
-                            port.getName(), toWrite);
-                    // -- increment the number of produced tokens
+                    getSimulatorPinWrite(port, entity.getOutputPorts().indexOf(port));
+
+                    emitter().emit("%s += %s;", offset, toWrite);
 
                     emitter().emit("produced += %s;", toWrite);
-                    emitter().emit("if (%s == %s) {", begin, end);
+                    emitter().emit("if (%s == %s) {", offset, produced);
                     {
                         emitter().increaseIndentation();
                         emitter().emit("done_writing ++;");
@@ -935,6 +1020,31 @@ public interface PLink {
             emitter().decreaseIndentation();
         }
         emitter().emit("}");
+    }
+
+    default void getSimulatorPinPeek(PortDecl port, int index) {
+        emitter().emit("for (std::size_t i = 0; i < tokens_count_%s; i++)", port.getName());
+        {
+            emitter().increaseIndentation();
+            String type = backend().typesEval().type(backend().types().declaredPortType(port));
+            emitter().emit("thisActor->buffer_%s[i] = pinPeek_%s(IN%d_%1$s, i);", port.getName(), type, index);
+            emitter().decreaseIndentation();
+        }
+
+        emitter().emitNewLine();
+    }
+
+    default void getSimulatorPinWrite(PortDecl port, int index) {
+
+        emitter().emit("for (std::size_t i = 0; i < to_write_%s; i++)", port.getName());
+        {
+            emitter().increaseIndentation();
+            String type = backend().typesEval().type(backend().types().declaredPortType(port));
+            emitter().emit("pinWrite_%s(OUT%d_%s, thisActor->buffer_%3$s[i]);", type, index, port.getName());
+            emitter().decreaseIndentation();
+        }
+        emitter().emitNewLine();
+
     }
 
 }
