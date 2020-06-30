@@ -83,7 +83,7 @@ public class SCInputStage implements SCInputOutputIF {
 
     @Override
     public String getName() {
-        return "iostage::InputStage<" + input.writer.getDin().getSignal().getType() + ">";
+        return "InputStage<" + input.writer.getDin().getSignal().getType() + ">";
     }
 
     public Stream<PortIF> streamUnique() {

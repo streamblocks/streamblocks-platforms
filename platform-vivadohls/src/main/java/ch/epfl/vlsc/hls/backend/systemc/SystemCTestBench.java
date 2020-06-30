@@ -139,7 +139,6 @@ public interface SystemCTestBench {
         emitter().emit("#include <chrono>");
         emitter().emit("#include \"debug_macros.h\"");
         emitter().emit("#include \"%s.h\"", network.getIdentifier());
-        emitter().emit("#include \"sim_iostage.h\"");
         emitter().emitNewLine();
         emitter().emitNewLine();
     }
@@ -371,28 +370,19 @@ public interface SystemCTestBench {
         });
     }
 
-    default void traceIOInternals(SCInputStage input, SCNetwork network) {
+    default void traceIOInternals(SCInputOutputIF inputOutput, SCNetwork network) {
 
         traceIODetails(
             Stream.of(
-                    "tokens_read",
-                    "tokens_to_read",
+                    "tokens_processed",
+                    "tokens_to_process",
                     "state",
                     "next_state"),
-            input.getInstanceName(), network.getIdentifier());
+                inputOutput.getInstanceName(), network.getIdentifier());
 
     }
 
-    default void traceIOInternals(SCOutputStage output, SCNetwork network) {
-        traceIODetails(
-                Stream.of(
-                        "tokens_written",
-                        "tokens_to_write",
-                        "state",
-                        "next_state"),
-                output.getInstanceName(), network.getIdentifier());
 
-    }
     default void traceIODetails(Stream<String> details, String stageName, String networkName){
 
         details.forEach(sig ->
@@ -453,11 +443,11 @@ public interface SystemCTestBench {
     default void getMemoryWrite(SCNetwork network) {
 
         String funName = "writeDeviceMemory";
-        ImmutableList<String> args = ImmutableList.of("std::vector<T> &host_buffer");
+        ImmutableList<String> args = ImmutableList.of("std::vector<T> &host_buffer", "std::size_t n=0");
         Map<PortDecl, ImmutableList<String>> stmts = new HashMap<>();
 
         network.getInputStages().forEach(port -> {
-           String writeStmt = String.format("inst_%s->%s->writeDeviceMemory(host_buffer)", network.getIdentifier(),
+           String writeStmt = String.format("inst_%s->%s->writeDeviceMemory(host_buffer, n)", network.getIdentifier(),
                    port.getInstanceName());
            stmts.put(port.getPort(), ImmutableList.of(writeStmt));
         });
@@ -475,7 +465,7 @@ public interface SystemCTestBench {
     default void getMemoryRead(SCNetwork network) {
 
         String funName = "readDeviceMemory";
-        ImmutableList<String> args = ImmutableList.of("std::vector<T> &host_buffer");
+        ImmutableList<String> args = ImmutableList.of("std::vector<T> &host_buffer", "std::size_t n=0");
         Map<PortDecl, ImmutableList<String>> stmts = new HashMap<>();
 
         network.getInputStages().forEach(port -> {
@@ -484,7 +474,7 @@ public interface SystemCTestBench {
         });
 
         network.getOutputStages().forEach(port -> {
-            String readStmt = String.format("inst_%s->%s->readDeviceMemory(host_buffer);", network.getIdentifier(),
+            String readStmt = String.format("inst_%s->%s->readDeviceMemory(host_buffer, n);", network.getIdentifier(),
                     port.getInstanceName());
             stmts.put(port.getPort(), ImmutableList.of(readStmt));
         });

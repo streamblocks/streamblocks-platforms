@@ -580,8 +580,7 @@ public interface PLink {
 
     default void simulationScheduler(String name, Entity entity) {
 
-        emitter().emit("size_t consumed = 0;");
-        emitter().emit("size_t produced = 0;");
+
         emitter().emitNewLine();
         emitter().emit("ART_ACTION_SCHEDULER_ENTER(%d, %d)", entity.getInputPorts().size(),
                 entity.getOutputPorts().size());
@@ -630,16 +629,17 @@ public interface PLink {
         {
             emitter().increaseIndentation();
             emitter().emit("using PortAddress = ap_rtl::NetworkTester::PortAddress;");
+            emitter().emit("std::size_t total_req_sz = 0;");
             // -- write host buffers to device
             emitter().emit("// -- write host buffers to device and set the arguments");
             for (PortDecl inputPort : entity.getInputPorts()) {
-
-                emitter().emit("thisActor->dev->writeDeviceMemory(PortAddress::%s, thisActor->buffer_%1$s);",
-                        inputPort.getName());
                 String type = typeseval().type(types().declaredPortType(inputPort));
                 emitter().emit("std::size_t req_sz_%s = pinAvailIn_%s(IN%d_%1$s);",
                         inputPort.getName(), type, entity.getInputPorts().indexOf(inputPort));
+                emitter().emit("thisActor->dev->writeDeviceMemory(PortAddress::%s, thisActor->buffer_%1$s, req_sz_%1$s);",
+                        inputPort.getName());
                 emitter().emit("thisActor->dev->setArg(PortAddress::%s, req_sz_%1$s);", inputPort.getName());
+                emitter().emit("total_req_sz += req_sz_%s;", inputPort.getName());
             }
             emitter().emitNewLine();
 
@@ -656,9 +656,16 @@ public interface PLink {
 
             emitter().emit("auto sim_ticks = thisActor->dev->simulate();");
 
+            emitter().emitNewLine();
+            // -- check production of tokens
+            emitter().emit("// -- check production");
+            emitter().emit("std::size_t total_produced = 0;");
+
             // -- read produced tokens back
             for (PortDecl outputPort : entity.getOutputPorts()) {
-                emitter().emit("thisActor->dev->readDeviceMemory(PortAddress::%s, thisActor->buffer_%1$s);",
+                emitter().emit("thisActor->dev->readDeviceMemory(PortAddress::%s, thisActor->buffer_%1$s, thisActor->dev->querySize(PortAddress::%1$s));",
+                        outputPort.getName());
+                emitter().emit("total_produced += thisActor->dev->querySize(PortAddress::%s);",
                         outputPort.getName());
             }
 
@@ -683,7 +690,17 @@ public interface PLink {
 
             // -- notify the multicore scheduler that something useful happened
             emitter().emit("// -- notify the multicore scheduler that something has happened");
-            emitter().emit("if (total_consumed > 0) {");
+
+            // -- check for potential device deadlock
+            emitter().emit("if (total_consumed == 0 && total_produced == 0 && total_req_sz > 0)");
+            {
+                emitter().increaseIndentation();
+
+                emitter().emit("runtimeError(pBase, \"Potential simulation deadlock\\n\");");
+                emitter().decreaseIndentation();
+
+            }
+            emitter().emit("if (total_consumed > 0 || total_produced > 0) {");
             {
                 emitter().increaseIndentation();
                 emitter().emit("ART_ACTION_ENTER(CONSUME, 0);");
@@ -699,6 +716,7 @@ public interface PLink {
         emitter().emit("WRITE : {");
         {
             emitter().increaseIndentation();
+            emitter().emit("std::size_t tokens_written = 0;");
             emitter().emit("uint32_t done_writing = 0;");
             emitter().emit("using PortAddress = ap_rtl::NetworkTester::PortAddress;");
             // -- try to read from the sim buffers and write to multicore buffers
@@ -729,7 +747,7 @@ public interface PLink {
 
                     emitter().emit("%s += %s;", offset, toWrite);
 
-                    emitter().emit("produced += %s;", toWrite);
+                    emitter().emit("tokens_written += %s;", toWrite);
                     emitter().emit("if (%s == %s) {", offset, produced);
                     {
                         emitter().increaseIndentation();
@@ -765,7 +783,7 @@ public interface PLink {
             }
             emitter().emit("}");
 
-            emitter().emit("if (produced > 0) {");
+            emitter().emit("if (tokens_written > 0) {");
             {
                 emitter().increaseIndentation();
                 emitter().emit("ART_ACTION_ENTER(PRODUCE, 1);");

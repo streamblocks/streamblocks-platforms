@@ -153,7 +153,7 @@ public interface Simulator {
             // -- write to device memory
             emitter().emit("// -- write host buffers to device memory");
             network.getInputPorts().forEach(port -> {
-                emitter().emit("mut->writeDeviceMemory(PortAddress::%s, buffer_%1$s);", port.getName());
+                emitter().emit("mut->writeDeviceMemory(PortAddress::%s, buffer_%1$s, req_sz_%1$s);", port.getName());
             });
 
             emitter().emit("auto ticks = mut->simulate(opts.report_every);");
@@ -173,7 +173,7 @@ public interface Simulator {
 
             emitter().emit("// -- read from device memory");
             network.getOutputPorts().forEach(port -> {
-                emitter().emit("mut->readDeviceMemory(PortAddress::%s, buffer_%1$s);", port.getName());
+                emitter().emit("mut->readDeviceMemory(PortAddress::%s, buffer_%1$s, size_%1$s);", port.getName());
             });
 
             // -- consume tokens

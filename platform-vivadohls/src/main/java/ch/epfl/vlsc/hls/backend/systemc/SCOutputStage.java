@@ -65,7 +65,7 @@ public class SCOutputStage implements SCInputOutputIF {
     public OutputIF getOutput() { return output; }
     public PortIF getInit() { return init; }
     public String getName() {
-        return "iostage::OutputStage<" + output.getReader().getDout().getSignal().getType() + ">";
+        return "OutputStage<" + output.getReader().getDout().getSignal().getType() + ">";
     }
     public String getInstanceName() {
         return instanceName;
