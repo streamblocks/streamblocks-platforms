@@ -567,7 +567,7 @@ public interface CMakeLists {
         {
             emitter().increaseIndentation();
 
-            emitter().emit("TARGET simulate PRE_BUILD");
+            emitter().emit("TARGET simulate art-systemc PRE_BUILD");
             emitter().emit("COMMAND cp ${CMAKE_CURRENT_BINARY_DIR}/%s/solution/syn/verilog/*.dat " +
                     "${EXECUTABLE_OUTPUT_PATH}  2> /dev/null || true", instance.getInstanceName());
             emitter().emit("DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/%s/solution/syn/verilog/%1$s.v",
