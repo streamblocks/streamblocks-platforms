@@ -19,6 +19,30 @@ public interface CMakeLists {
         return backend().emitter();
     }
 
+
+    default void superProjectCMakeListst() {
+
+        boolean hasPlink =
+                backend().context().getConfiguration().isDefined(PlatformSettings.PartitionNetwork) &&
+                        backend().context().getConfiguration().get(PlatformSettings.PartitionNetwork);
+
+        if (hasPlink) {
+
+            emitter().open(PathUtils.getTarget(backend().context()).resolve("../CMakeLists.txt"));
+            emitter().emit("cmake_minimum_required(VERSION 3.10)");
+            emitter().emit("project(%s)", backend().task().getIdentifier().getLast().toString());
+            emitter().emitNewLine();
+            emitter().emit("add_subdirectory(vivado-hls)");
+            emitter().emit("add_subdirectory(multicore)");
+
+            emitter().close();
+        }
+
+
+
+    }
+
+
     default void projectCMakeLists() {
         emitter().open(PathUtils.getTarget(backend().context()).resolve("CMakeLists.txt"));
         // -- CMake Minimal version

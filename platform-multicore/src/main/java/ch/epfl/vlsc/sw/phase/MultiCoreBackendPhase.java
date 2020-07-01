@@ -210,6 +210,9 @@ public class MultiCoreBackendPhase implements Phase {
 
         // -- CodeGen CMakeLists
         multicoreBackend.cmakelists().codegenCMakeLists();
+
+        // -- Super project (when partitioning is enabled) CMakeLists
+        multicoreBackend.cmakelists().superProjectCMakeListst();
     }
 
     public static void generateNodeCmakeLists(MulticoreBackend multicoreBackend){
