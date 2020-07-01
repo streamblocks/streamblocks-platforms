@@ -687,7 +687,24 @@ public interface PLink {
             emitter().emitNewLine();
             emitter().emit("thisActor->program_counter = 2;");
             emitter().emitNewLine();
-
+            // -- dump systemc profilinging info
+            emitter().emit("// -- dump systemc profiling info");
+            emitter().emit("std::ofstream ofs(\"%s.xml\", std::ios::out);", name);
+            emitter().emit("if (ofs.is_open()) {");
+            {
+                emitter().increaseIndentation();
+                emitter().emit("thisActor->dev->dumpStats(ofs);");
+                emitter().emit("ofs.close();");
+                emitter().decreaseIndentation();
+            }
+            emitter().emit("} else { ");
+            {
+                emitter().increaseIndentation();
+                emitter().emit("WARNING(\"Could not open %s to report SystemC profiling info.\\n\");", name);
+                emitter().decreaseIndentation();
+            }
+            emitter().emit("}");
+            emitter().emitNewLine();
             // -- notify the multicore scheduler that something useful happened
             emitter().emit("// -- notify the multicore scheduler that something has happened");
 
