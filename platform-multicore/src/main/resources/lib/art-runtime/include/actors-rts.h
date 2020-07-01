@@ -113,6 +113,26 @@ typedef struct {
     char *value;
 } ActorParameter;
 
+typedef struct {
+
+    int flags;
+    int show_timing;
+    int show_statistics;
+    int arg_loopmax;
+    char *generateFileName;
+    char *configFilename;
+    int with_complexity;
+    int with_bandwidth;
+    int terminationReport;
+    int generate_trace;
+    int generate_turnus_trace;
+
+    char *hardwareProfileFileName;
+    char *vcd_trace_level;
+
+} RuntimeOptions;
+
+
 typedef struct ActorClass ActorClass;
 typedef struct OutputPort OutputPort;
 typedef struct InputPort InputPort;
@@ -422,8 +442,8 @@ extern InputPort *createInputPort(AbstractActorInstance *pInstance,
                                   int capacity);
 
 extern void connectPorts(OutputPort *outputPort, InputPort *inputPort);
-
-extern int executeNetwork(int argc, char *argv[], AbstractActorInstance **instances, int numInstances);
+extern void pre_parse_args(int argc, char *argv[], RuntimeOptions *options);
+extern int executeNetwork(int argc, char *argv[], RuntimeOptions *options, AbstractActorInstance **instances, int numInstances);
 
 extern void setParameter(AbstractActorInstance *pInstance,
                          const char *key,

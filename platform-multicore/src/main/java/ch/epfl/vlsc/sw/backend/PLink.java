@@ -17,6 +17,7 @@ import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.util.ImmutableList;
+import se.lth.cs.tycho.phase.TemplateAnalysisPhase$Analysis$MultiJ;
 import se.lth.cs.tycho.reporting.CompilationException;
 import se.lth.cs.tycho.reporting.Diagnostic;
 import se.lth.cs.tycho.type.IntType;
@@ -136,6 +137,11 @@ public interface PLink {
         // -- Port description
         portDescription(instanceName, entity);
 
+
+        // -- setParam
+        if (isSimulated())
+            getSetParam(instanceName, entity);
+
         // -- State variable description
         stateVariableDescription(instanceName, entity);
 
@@ -211,7 +217,10 @@ public interface PLink {
             emitter().emit("std::size_t buffer_offset_%s;", port.getName());
         });
 
-
+        emitter().emit("// -- options");
+        emitter().emit("int vcd_trace_level;");
+        emitter().emit("char *profile_file_name;");
+        emitter().emit("bool enable_profiling;");
         emitter().emitNewLine();
 
     }
@@ -343,7 +352,10 @@ public interface PLink {
                 emitter().emit("\"%s\",", instanceQID);
                 emitter().emit("ActorInstance_%s,", instanceQID);
                 emitter().emit("ActorInstance_%s_constructor,", instanceQID);
-                emitter().emit("0, // -- setParam not needed anymore (we instantiate with params)");
+                if (isSimulated())
+                    emitter().emit("setParam, ");
+                else
+                    emitter().emit("0, // -- setParam not needed anymore (we instantiate with params)");
                 emitter().emit("ActorInstance_%s_scheduler,", instanceQID);
                 emitter().emit("ActorInstance_%s_destructor,", instanceQID);
                 emitter().emit("%d, %s,", entity.getInputPorts().size(),
@@ -367,9 +379,24 @@ public interface PLink {
 
     default void constructSimulator(String name, Entity entity) {
 
+
+        emitter().emit("if (thisActor->profile_file_name == NULL) {");
+        {
+            emitter().increaseIndentation();
+            emitter().emit("thisActor->enable_profiling = false;");
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("} else {");
+        {
+            emitter().increaseIndentation();
+            emitter().emit("thisActor->enable_profiling = true;");
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("}");
+        emitter().emitNewLine();
         emitter().emit("// -- clock period ");
         emitter().emit("sc_time period(10.0, SC_NS);");
-        emitter().emit("int trace_level = 0;");
+        emitter().emit("int trace_level = thisActor->vcd_trace_level;");
         emitter().emit("thisActor->dev = " +
                 "std::make_unique<ap_rtl::NetworkTester>(\"plink\", period, trace_level);");
 
@@ -690,24 +717,35 @@ public interface PLink {
             emitter().emitNewLine();
             emitter().emit("thisActor->program_counter = 2;");
             emitter().emitNewLine();
-            // -- dump systemc profilinging info
+
+            // -- dump systemc profiling info
             emitter().emit("// -- dump systemc profiling info");
-            emitter().emit("std::ofstream ofs(\"%s.xml\", std::ios::out);", name);
-            emitter().emit("if (ofs.is_open()) {");
+            emitter().emit("if (thisActor->enable_profiling == true) {");
             {
                 emitter().increaseIndentation();
-                emitter().emit("thisActor->dev->dumpStats(ofs);");
-                emitter().emit("ofs.close();");
-                emitter().decreaseIndentation();
-            }
-            emitter().emit("} else { ");
-            {
-                emitter().increaseIndentation();
-                emitter().emit("WARNING(\"Could not open %s to report SystemC profiling info.\\n\");", name);
+                emitter().emit("std::ofstream ofs(thisActor->profile_file_name, std::ios::out);", name);
+                emitter().emit("if (ofs.is_open()) {");
+                {
+                    emitter().increaseIndentation();
+                    emitter().emit("thisActor->dev->dumpStats(ofs);");
+                    emitter().emit("ofs.close();");
+                    emitter().decreaseIndentation();
+                }
+                emitter().emit("} else { ");
+                {
+                    emitter().increaseIndentation();
+                    emitter().emit("runtimeError(pBase, \"Could not open %%s to report SystemC " +
+                            "profiling info.\\n\", thisActor->profile_file_name);");
+                    emitter().decreaseIndentation();
+                }
+                emitter().emit("}");
+                emitter().emitNewLine();
+
                 emitter().decreaseIndentation();
             }
             emitter().emit("}");
             emitter().emitNewLine();
+
             // -- notify the multicore scheduler that something useful happened
             emitter().emit("// -- notify the multicore scheduler that something has happened");
 
@@ -1083,6 +1121,39 @@ public interface PLink {
         }
         emitter().emitNewLine();
 
+    }
+
+    default void getSetParam(String name, Entity entity) {
+
+        emitter().emit("static void setParam(AbstractActorInstance *pBase, const char *paramName, const char *value) {");
+        {
+            emitter().increaseIndentation();
+            emitter().emit("ActorInstance_%s *thisActor = (ActorInstance_%1$s *) pBase;", name);
+            emitter().emit("if (strcmp(paramName, \"vcd-trace-level\") == 0) {");
+            {
+                emitter().increaseIndentation();
+                emitter().emit("thisActor->vcd_trace_level = atoi(value);");
+                emitter().decreaseIndentation();
+            }
+            emitter().emit("} else if (strcmp(paramName, \"profile-file-name\") == 0) { ");
+            {
+                emitter().increaseIndentation();
+                emitter().emit("thisActor->profile_file_name = strdup(value);");
+                emitter().decreaseIndentation();
+            }
+            emitter().emit("} else {");
+            {
+                emitter().increaseIndentation();
+                emitter().emit("runtimeError(pBase, \"No such parameter: %%s\", paramName);");
+                emitter().decreaseIndentation();
+            }
+            emitter().emit("}");
+
+            emitter().decreaseIndentation();
+
+        }
+        emitter().emit("}");
+        emitter().emitNewLine();
     }
 
 }

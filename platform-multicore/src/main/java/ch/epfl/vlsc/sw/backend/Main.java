@@ -3,6 +3,7 @@ package ch.epfl.vlsc.sw.backend;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.PathUtils;
 import ch.epfl.vlsc.settings.PlatformSettings;
+import ch.epfl.vlsc.sw.ir.PartitionLink;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
@@ -63,11 +64,13 @@ public interface Main {
         else
             emitter().emit("int main(int argc, char *argv[]) {");
         emitter().increaseIndentation();
-
+        emitter().emit("RuntimeOptions *options = (RuntimeOptions *) calloc(1, sizeof(RuntimeOptions));");
         emitter().emit("int numberOfInstances;");
+        emitter().emitNewLine();
+        emitter().emit("pre_parse_args(argc, argv, options);");
         emitter().emit("AbstractActorInstance **instances;");
-        emitter().emit("initNetwork(&instances, &numberOfInstances);");
-        emitter().emit("return executeNetwork(argc, argv, instances, numberOfInstances);");
+        emitter().emit("initNetwork(&instances, &numberOfInstances, options);");
+        emitter().emit("return executeNetwork(argc, argv, options, instances, numberOfInstances);");
 
         emitter().decreaseIndentation();
         emitter().emit("}");
@@ -75,7 +78,7 @@ public interface Main {
     }
 
     default void initNetwork() {
-        emitter().emit("static void initNetwork(AbstractActorInstance ***pInstances, int *pNumberOfInstances) {");
+        emitter().emit("static void initNetwork(AbstractActorInstance ***pInstances, int *pNumberOfInstances, RuntimeOptions *options) {");
         emitter().increaseIndentation();
         // -- Network
         Network network = backend().task().getNetwork();
@@ -141,6 +144,16 @@ public interface Main {
             String actorClass = instanceActorClasses.get(instance);
             emitter().emit("%s = createActorInstance(&ActorClass_%s);", joinQID, actorClass);
             // -- Instantiate Parameters
+            if (entityDecl.getEntity() instanceof PartitionLink) {
+                emitter().emit("if(options->vcd_trace_level != NULL)");
+                emitter().increaseIndentation();
+                emitter().emit("setParameter(%s, \"vcd-trace-level\", options->vcd_trace_level);", joinQID);
+                emitter().decreaseIndentation();
+                emitter().emit("if(options->hardwareProfileFileName != NULL)");
+                emitter().increaseIndentation();
+                emitter().emit("setParameter(%s, \"profile-file-name\", options->hardwareProfileFileName);", joinQID);
+                emitter().decreaseIndentation();
+            }
             for (ValueParameter parameter : instance.getValueParameters()) {
                 if (entityDecl.getExternal()) {
                     emitter().emit("setParameter(%s, \"%s\", \"%s\");", joinQID, parameter.getName(), evaluator().evaluate(parameter.getValue()).replaceAll("^\"|\"$", ""));

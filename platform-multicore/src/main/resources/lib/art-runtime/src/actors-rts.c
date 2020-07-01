@@ -1245,57 +1245,53 @@ static void show_usage(char *name) {
            "                        in configuration file (see --generate).\n"
            "                        Note: wraps around at 4G tokens\n"
            "--termination-report    Describe network state at termination\n"
+           "--hardware-profile=FILE Generate hardware profiling info if \n"
+           "                        a hardware partition is present. Based \n"
+           "                        whether SystemC simulation is running or \n"
+           "                        OpenCL kernel is executing, different \n"
+           "                        profiling information may be produced.\n"
+           "--vcd-trace-level=N     Generates vcd dump if SystemC simulation \n"
+           "                        is being performed. N determines the \n"
+           "                        level of details in the VCD dump:\n"
+           "                           0: no vcd dump\n"
+           "                           1: top level signals and ports\n"
+           "                           2: + internal FIFO interfaces\n"
+           "                           3: + trigger state machines\n"
+           "                        the vcd dump is saved to: \n"
+           "                        ./network_tester.vcd\n"
     );
 }
 
-int executeNetwork(int argc,
-                   char *argv[],
-                   AbstractActorInstance **instance,
-                   int numInstances) {
-    int result = 0;
-    cpu_set_t used_cpus;
-    ActorInstance_1_t **instance_1;
-    instance_1 = (ActorInstance_1_t **) instance;
-    int i;
-    int flags = 0;
-    cpu_runtime_data_t *runtime_data;
-    int arg_print_info = 0;
-    int arg_fifo_size = DEFAULT_FIFO_LENGTH;
-    char *configFilename = 0;
-    int show_statistics = 0;
-    int affinity_is_set = 0;
-    int show_timing = 0;
-    int generate_trace = 0;
-    int generate_turnus_trace = 0;
-    const char *generateFileName = 0;
-    FILE *generateFile = 0;
-    int with_complexity = 0;
-    int with_bandwidth = 0;
-    int terminationReport = 0;
+void pre_parse_args(int argc, char *argv[], RuntimeOptions *options) {
 
+    int i = 0;
     for (i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--timing") == 0) {
-            show_timing = 1;
-            flags |= FLAG_TIMING;
+            options->show_timing = 1;
+            options->flags |= FLAG_TIMING;
         } else if (strcmp(argv[i], "--statistics") == 0) {
-            show_statistics = 1;
+            options->show_statistics = 1;
         } else if (strncmp(argv[i], "--loopmax=", 10) == 0) {
-            arg_loopmax = atoi(&argv[i][10]);
+            options->arg_loopmax = atoi(&argv[i][10]);
         } else if (strncmp(argv[i], "--cfile=", 8) == 0) {
-            configFilename = &argv[i][8];
+            options->configFilename = &argv[i][8];
         } else if (strncmp(argv[i], "--generate=", 11) == 0) {
-            generateFileName = &argv[i][11];
+            options->generateFileName = &argv[i][11];
         } else if (strcmp(argv[i], "--with-complexity") == 0) {
-            flags |= FLAG_TIMING;
-            with_complexity = 1;
+            options->flags |= FLAG_TIMING;
+            options->with_complexity = 1;
         } else if (strcmp(argv[i], "--with-bandwidth") == 0) {
-            with_bandwidth = 1;
+            options->with_bandwidth = 1;
         } else if (strcmp(argv[i], "--trace") == 0) {
-            generate_trace = 1;
+            options->generate_trace = 1;
         } else if (strcmp(argv[i], "--turnus-trace") == 0) {
-            generate_turnus_trace = 1;
+            options->generate_turnus_trace = 1;
         } else if (strcmp(argv[i], "--termination-report") == 0) {
-            terminationReport = 1;
+            options->terminationReport = 1;
+        } else if (strncmp(argv[i], "--hardware-profile=", 19) == 0) {
+            options->hardwareProfileFileName = &argv[i][19];
+        } else if (strncmp(argv[i], "--vcd-trace-level=", 18) == 0 ) {
+            options->vcd_trace_level = &argv[i][18];
         } else if (strcmp(argv[i], "--help") == 0) {
             show_usage(argv[0]);
             exit(0);
@@ -1304,6 +1300,35 @@ int executeNetwork(int argc,
             exit(1);
         }
     }
+    return options;
+}
+int executeNetwork(int argc,
+                   char *argv[],
+                   RuntimeOptions *options,
+                   AbstractActorInstance **instance,
+                   int numInstances) {
+    int result = 0;
+    cpu_set_t used_cpus;
+    ActorInstance_1_t **instance_1;
+    instance_1 = (ActorInstance_1_t **) instance;
+    int i;
+    int flags = options->flags;
+    cpu_runtime_data_t *runtime_data;
+    int arg_print_info = 0;
+    int arg_fifo_size = DEFAULT_FIFO_LENGTH;
+    char *configFilename = options->configFilename;
+    int show_statistics = options->show_statistics;
+    int affinity_is_set = 0;
+    int show_timing = options->show_timing;
+    int generate_trace = options->generate_trace;
+    int generate_turnus_trace = options->generate_turnus_trace;
+    const char *generateFileName = options->generateFileName;
+    FILE *generateFile = 0;
+    int with_complexity = options->with_complexity;
+    int with_bandwidth = options->with_bandwidth;
+    int terminationReport = options->terminationReport;
+
+
 
     if (!generateFileName && (with_bandwidth || with_complexity)) {
         printf("--with_bandwidth and --with_complexity requires --generate\n");
