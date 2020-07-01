@@ -30,7 +30,7 @@ public interface VerilogTestbench {
 
 
     default void generateTestbench(Instance instance) {
-        String identifier = backend().instaceQID(instance.getInstanceName(), "_");
+        String identifier = instance.getInstanceName();
         Path instanceTarget = PathUtils.getTargetCodeGenRtlTb(backend().context()).resolve("tb_" + identifier + ".v");
 
         // -- Get Entity
@@ -579,7 +579,7 @@ public interface VerilogTestbench {
 
     default void getDut(Instance instance) {
         // -- Identifier
-        String identifier = backend().instaceQID(instance.getInstanceName(), "_");
+        String identifier = instance.getInstanceName();
 
         // -- Get Entity
         GlobalEntityDecl entityDecl = backend().globalnames().entityDecl(instance.getEntityName(), true);

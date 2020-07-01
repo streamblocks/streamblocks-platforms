@@ -394,12 +394,13 @@ public class VivadoHLSBackendPhase implements Phase {
 
         // -- Actor Machine Controllers to DOT
         for (Instance instance : backend.task().getNetwork().getInstances()) {
-            String instanceWithQID = backend.instaceQID(instance.getInstanceName(), "_");
+
+            String instanceName = instance.getInstanceName();
             GlobalEntityDecl entityDecl = backend.globalnames().entityDecl(instance.getEntityName(), true);
 
             if (entityDecl.getEntity() instanceof ActorMachine) {
-                ControllerToGraphviz dot = new ControllerToGraphviz(entityDecl, instanceWithQID,
-                        PathUtils.getAuxiliary(backend.context()).resolve(instanceWithQID + ".dot"));
+                ControllerToGraphviz dot = new ControllerToGraphviz(entityDecl, instanceName,
+                        PathUtils.getAuxiliary(backend.context()).resolve(instanceName + ".dot"));
                 dot.print();
             }
         }

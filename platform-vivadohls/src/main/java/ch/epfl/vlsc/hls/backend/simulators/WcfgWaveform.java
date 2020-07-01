@@ -354,7 +354,7 @@ public interface WcfgWaveform {
     default int createGroupInstance(Instance instance, int groupCounter) {
         int currentGroupCounter = groupCounter;
         currentGroupCounter++;
-        String identifier = "i_" + backend().instaceQID(instance.getInstanceName(), "_");
+        String identifier = "i_" + instance.getInstanceName();
         String hierarchy = "tb_" + backend().task().getIdentifier().getLast().toString() + "/dut";
         emitter().emit("<wvobject type=\"group\" fp_name=\"%d\">", currentGroupCounter);
         {

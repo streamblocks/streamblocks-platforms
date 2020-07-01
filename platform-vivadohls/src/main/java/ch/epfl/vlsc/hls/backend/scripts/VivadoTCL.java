@@ -75,7 +75,7 @@ public interface VivadoTCL {
         emitter().emitSharpBlockComment("Import Vivado HLS RTL files");
 
         for(Instance instance: network.getInstances()){
-            String instanceId = backend().instaceQID(instance.getInstanceName(), "_");
+            String instanceId = instance.getInstanceName();
             emitter().emit("# -- Import files for instance : %s", instanceId);
             emitter().emit("set %s_files [glob -directory @CMAKE_CURRENT_BINARY_DIR@/%1$s/solution/syn/verilog *{v,dat}]", instanceId);
             emitter().emit("import_files -norecurse $%s_files", instanceId);
@@ -90,7 +90,7 @@ public interface VivadoTCL {
         String identifier = backend().task().getIdentifier().getLast().toString();
         emitter().emit("import_files -fileset sim_1 -norecurse {@CMAKE_SOURCE_DIR@/code-gen/rtl-tb/tb_%s.v}", identifier);
         for(Instance instance : network.getInstances()){
-            String instanceId = backend().instaceQID(instance.getInstanceName(), "_");
+            String instanceId = instance.getInstanceName();
             emitter().emit("import_files -fileset sim_1 -norecurse {@CMAKE_SOURCE_DIR@/code-gen/rtl-tb/tb_%s.v}", instanceId);
         }
         emitter().emitNewLine();

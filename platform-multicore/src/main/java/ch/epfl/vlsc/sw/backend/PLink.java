@@ -657,16 +657,19 @@ public interface PLink {
             emitter().emit("auto sim_ticks = thisActor->dev->simulate();");
 
             emitter().emitNewLine();
+
             // -- check production of tokens
             emitter().emit("// -- check production");
             emitter().emit("std::size_t total_produced = 0;");
 
             // -- read produced tokens back
+            emitter().emit("// -- read produced tokens");
             for (PortDecl outputPort : entity.getOutputPorts()) {
                 emitter().emit("thisActor->dev->readDeviceMemory(PortAddress::%s, thisActor->buffer_%1$s, thisActor->dev->querySize(PortAddress::%1$s));",
                         outputPort.getName());
                 emitter().emit("total_produced += thisActor->dev->querySize(PortAddress::%s);",
                         outputPort.getName());
+                emitter().emit("thisActor->buffer_offset_%s = 0;", outputPort.getName());
             }
 
             emitter().emitNewLine();
@@ -756,7 +759,7 @@ public interface PLink {
 
                 emitter().emitNewLine();
                 // -- there are tokens
-                emitter().emit("if (%s > 0) {", toWrite);
+                emitter().emit("if (%s > 0) {", remain);
                 {
                     emitter().increaseIndentation();
                     emitter().emitNewLine();
@@ -1071,7 +1074,7 @@ public interface PLink {
 
     default void getSimulatorPinWrite(PortDecl port, int index) {
 
-        emitter().emit("for (std::size_t i = 0; i < to_write_%s; i++)", port.getName());
+        emitter().emit("for (std::size_t i = thisActor->buffer_offset_%s; i < thisActor->buffer_offset_%1$s + to_write_%1$s; i++)", port.getName());
         {
             emitter().increaseIndentation();
             String type = backend().typesEval().type(backend().types().declaredPortType(port));

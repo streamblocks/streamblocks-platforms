@@ -96,7 +96,7 @@ public interface Instances {
 
     default void generateSource(Instance instance) {
         // -- Target file Path
-        Path instanceTarget = PathUtils.getTargetCodeGenSource(backend().context()).resolve(backend().instaceQID(instance.getInstanceName(), "_") + ".cpp");
+        Path instanceTarget = PathUtils.getTargetCodeGenSource(backend().context()).resolve(instance.getInstanceName() + ".cpp");
         emitter().open(instanceTarget);
 
         // -- Entity
@@ -146,7 +146,7 @@ public interface Instances {
             withIO = true;
         }
 
-        String name = backend().instaceQID(instance.getInstanceName(), "_");
+        String name = instance.getInstanceName();
         emitter().emitClikeBlockComment("HLS Top Function");
         emitter().emit("int %s(%s) {", name, entityPorts(withIO, true));
 
@@ -169,7 +169,7 @@ public interface Instances {
         emitter().increaseIndentation();
 
         // -- Static call
-        String className = "class_" + backend().instaceQID(instance.getInstanceName(), "_");
+        String className = "class_" + instance.getInstanceName();
         emitter().emit("static %s i_%s;", className, name);
         emitter().emitNewLine();
 
@@ -217,7 +217,7 @@ public interface Instances {
 
     default void generateHeader(Instance instance) {
         // -- Target file Path
-        Path instanceTarget = PathUtils.getTargetCodeGenInclude(backend().context()).resolve(backend().instaceQID(instance.getInstanceName(), "_") + ".h");
+        Path instanceTarget = PathUtils.getTargetCodeGenInclude(backend().context()).resolve(instance.getInstanceName() + ".h");
         emitter().open(instanceTarget);
 
         // -- Entity
@@ -226,8 +226,8 @@ public interface Instances {
         // -- Instance Name
         String instanceName = instance.getInstanceName();
 
-        emitter().emit("#ifndef __%s__", backend().instaceQID(instanceName, "_").toUpperCase());
-        emitter().emit("#define __%s__", backend().instaceQID(instanceName, "_").toUpperCase());
+        emitter().emit("#ifndef __%s__", instanceName.toUpperCase());
+        emitter().emit("#define __%s__", instanceName.toUpperCase());
         emitter().emitNewLine();
 
         // -- Includes
@@ -242,7 +242,7 @@ public interface Instances {
         // -- Instance State
         instanceClass(instanceName, entity);
 
-        emitter().emit("#endif // __%s__", backend().instaceQID(instanceName, "_").toUpperCase());
+        emitter().emit("#endif // __%s__", instanceName.toUpperCase());
         emitter().emitNewLine();
 
         // -- EOF
@@ -263,7 +263,7 @@ public interface Instances {
             backend().includeUser("globals.h");
         } else {
             Instance instance = backend().instancebox().get();
-            String headerName = backend().instaceQID(instance.getInstanceName(), "_") + ".h";
+            String headerName = instance.getInstanceName() + ".h";
 
             backend().includeUser(headerName);
         }
@@ -309,7 +309,7 @@ public interface Instances {
     default void instanceClass(String instanceName, CalActor actor) {
 
         emitter().emit("// -- Instance Class");
-        String className = "class_" + backend().instaceQID(instanceName, "_");
+        String className = "class_" + instanceName;
         emitter().emit("class %s {", className);
 
         // -- Private
@@ -348,7 +348,7 @@ public interface Instances {
 
     default void instanceClass(String instanceName, ActorMachine actor) {
         emitter().emit("// -- Instance Class");
-        String className = "class_" + backend().instaceQID(instanceName, "_");
+        String className = "class_" + instanceName;
         emitter().emit("class %s {", className);
 
         // -- Private
@@ -431,7 +431,7 @@ public interface Instances {
     default void instanceConstructor(String instanceName, ActorMachine actor) {
         // -- External memories
 
-        String className = "class_" + backend().instaceQID(instanceName, "_");
+        String className = "class_" + instanceName;
         emitter().emit("%s(){", className);
         {
             emitter().increaseIndentation();
@@ -533,7 +533,7 @@ public interface Instances {
 
     default void topOfInstance(String instanceName, CalActor actor) {
         if (actor.getProcessDescription() != null) {
-            String className = "class_" + backend().instaceQID(instanceName, "_");
+            String className = "class_" + instanceName;
             emitter().emit("int %s::operator()(%s) {", className, entityPorts(false, true));
             emitter().emit("#pragma HLS INLINE");
             {
@@ -561,7 +561,7 @@ public interface Instances {
     }
 
     default void topOfInstance(String instanceName, ActorMachine actor) {
-        String className = "class_" + backend().instaceQID(instanceName, "_");
+        String className = "class_" + instanceName;
         emitter().emit("int %s::operator()(%s) {", className, entityPorts(true, true));
         emitter().emit("#pragma HLS INLINE");
         {
@@ -601,7 +601,7 @@ public interface Instances {
 
     default void scope(String instanceName, Scope scope, int index) {
         // -- Actor Instance Name
-        String className = "class_" + backend().instaceQID(instanceName, "_");
+        String className = "class_" + instanceName;
         if (scope.getDeclarations().size() > 0 || scope.isPersistent()) {
             if (index != 0) {
                 emitter().emit("%s{", scopePrototype(instanceName, scope, index, true));
@@ -635,7 +635,7 @@ public interface Instances {
 
     default String scopePrototype(String instanceName, Scope scope, int index, boolean withClassName) {
         // -- Actor Instance Name
-        String className = "class_" + backend().instaceQID(instanceName, "_");
+        String className = "class_" + instanceName;
         String io = scopeIO(scope);
 
         return String.format("void %sscope_%d(%s)", withClassName ? className + "::" : "", index, io);
@@ -668,7 +668,7 @@ public interface Instances {
 
     default String conditionPrototype(String instanceName, Condition condition, int index, boolean withClassName) {
         // -- Actor Instance Name
-        String className = "class_" + backend().instaceQID(instanceName, "_");
+        String className = "class_" + instanceName;
         String io = conditionIO(condition);
         if (condition instanceof PortCondition) {
             io = io + ", " + "IO io";
@@ -738,7 +738,7 @@ public interface Instances {
 
     default String transitionPrototype(String instanceName, Transition transition, int index, boolean withClassName) {
         // -- Actor Instance Name
-        String className = "class_" + backend().instaceQID(instanceName, "_");
+        String className = "class_" + instanceName;
         String io = transitionIO(transition);
 
         return String.format("void %stransition_%d(%s)", withClassName ? className + "::" : "", index, io);
@@ -784,7 +784,7 @@ public interface Instances {
 
     default void callables(String instanceName, CalActor actor) {
         emitter().emit("// -- Callables");
-        String className = "class_" + backend().instaceQID(instanceName, "_");
+        String className = "class_" + instanceName;
         for (VarDecl decl : actor.getVarDecls()) {
             if (decl.getValue() != null) {
                 Expression expr = decl.getValue();

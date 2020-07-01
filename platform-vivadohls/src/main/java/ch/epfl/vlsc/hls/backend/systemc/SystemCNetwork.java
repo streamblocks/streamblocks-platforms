@@ -169,7 +169,7 @@ public interface SystemCNetwork {
             }
             ActorMachine am = (ActorMachine) entity;
 
-            String name = backend().instaceQID(instance.getInstanceName(), "_");
+            String name = instance.getInstanceName();
 
             ImmutableList<String> actionIds = am.getTransitions().map(transition -> {
                 Optional<Annotation> annotation = Annotation.getAnnotationWithName("ActionId", transition.getAnnotations());

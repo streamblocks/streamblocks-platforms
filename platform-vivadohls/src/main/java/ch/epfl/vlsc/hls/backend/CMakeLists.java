@@ -264,7 +264,7 @@ public interface CMakeLists {
         for (Instance instance : backend().task().getNetwork().getInstances()) {
             GlobalEntityDecl entityDecl = backend().globalnames().entityDecl(instance.getEntityName(), true);
             if (!entityDecl.getExternal()) {
-                String instanceName = backend().instaceQID(instance.getInstanceName(), "_");
+                String instanceName = instance.getInstanceName();
                 String filename = instanceName + ".cpp";
                 entityCustomCommand(instanceName, instanceName, filename);
             }
@@ -337,7 +337,7 @@ public interface CMakeLists {
                 emitter().emit(
                         "COMMAND ${VIVADO_BINARY} -mode batch -source gen_xo.tcl -tclargs ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xo ${CMAKE_PROJECT_NAME}_kernel ${TARGET} ${PLATFORM}  > ${CMAKE_PROJECT_NAME}_kernel_xo.log");
                 String verilogInstances = String.join(" ", network.getInstances().stream()
-                        .map(n -> backend().instaceQID(n.getInstanceName(), "_")).collect(Collectors.toList()));
+                        .map(Instance::getInstanceName).collect(Collectors.toList()));
                 String inputStages = String.join(" ",
                         network.getInputPorts().stream()
                                 .map(p -> p.getName() + "_input_stage_mem ")
@@ -407,7 +407,7 @@ public interface CMakeLists {
             emitter().emit("OUTPUT ${PROJECT_SOURCE_DIR}/output/%s/%1$s.xpr", identifier);
             emitter().emit("COMMAND ${VIVADO_BINARY} -mode batch -source %s.tcl  > %1$s.log", identifier);
             String verilogInstances = String.join(" ", network.getInstances().stream()
-                    .map(n -> backend().instaceQID(n.getInstanceName(), "_")).collect(Collectors.toList()));
+                    .map(Instance::getInstanceName).collect(Collectors.toList()));
 
             emitter().emit("DEPENDS %s", verilogInstances);
             emitter().decreaseIndentation();
@@ -423,7 +423,7 @@ public interface CMakeLists {
         for (Instance instance : backend().task().getNetwork().getInstances()) {
             GlobalEntityDecl entityDecl = backend().globalnames().entityDecl(instance.getEntityName(), true);
             if (!entityDecl.getExternal()) {
-                String instanceName = backend().instaceQID(instance.getInstanceName(), "_");
+                String instanceName = instance.getInstanceName();
                 emitter().emit(
                         "add_custom_target(%s ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/%1$s/solution/syn/verilog/%1$s.v)",
                         instanceName);
@@ -545,16 +545,17 @@ public interface CMakeLists {
         emitter().emit("add_custom_command(");
         {
             emitter().increaseIndentation();
-            String instanceQid = backend().instaceQID(instance.getInstanceName(), "_");
+
             emitter().emit("OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/verilated/systemc/%s.cpp " +
-                    "${CMAKE_CURRENT_BINARY_DIR}/verilated/systemc/%1$s__Syms.cpp", instanceQid);
+                    "${CMAKE_CURRENT_BINARY_DIR}/verilated/systemc/%1$s__Syms.cpp", instance.getInstanceName());
             emitter().emit("COMMAND verilator --sc --clk ap_clk -Wno-fatal " +
                     "--Mdir ${CMAKE_CURRENT_BINARY_DIR}/verilated/systemc " +
                     "--prefix %s " +
                     "-y ${CMAKE_CURRENT_BINARY_DIR}/%1$s/solution/syn/verilog " +
                     "${CMAKE_CURRENT_BINARY_DIR}/%1$s/solution/syn/verilog/%1$s.v 2> " +
-                    "%1$s_sc.log", instanceQid);
-            emitter().emit("DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/%s/solution/syn/verilog/%1$s.v", instanceQid);
+                    "%1$s_sc.log", instance.getInstanceName());
+            emitter().emit("DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/%s/solution/syn/verilog/%1$s.v",
+                    instance.getInstanceName());
             emitter().decreaseIndentation();
         }
         emitter().emit(")");
@@ -565,11 +566,12 @@ public interface CMakeLists {
         emitter().emit("add_custom_command(");
         {
             emitter().increaseIndentation();
-            String instanceQid = backend().instaceQID(instance.getInstanceName(), "_");
+
             emitter().emit("TARGET simulate PRE_BUILD");
             emitter().emit("COMMAND cp ${CMAKE_CURRENT_BINARY_DIR}/%s/solution/syn/verilog/*.dat " +
-                    "${EXECUTABLE_OUTPUT_PATH}  2> /dev/null || true", instanceQid);
-            emitter().emit("DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/%s/solution/syn/verilog/%1$s.v", instanceQid);
+                    "${EXECUTABLE_OUTPUT_PATH}  2> /dev/null || true", instance.getInstanceName());
+            emitter().emit("DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/%s/solution/syn/verilog/%1$s.v",
+                    instance.getInstanceName());
             emitter().decreaseIndentation();
         }
         emitter().emit(")");
@@ -588,9 +590,9 @@ public interface CMakeLists {
     }
 
     default void verilateTarget(Instance instance) {
-        String instanceQid = backend().instaceQID(instance.getInstanceName(), "_");
+
         emitter().emit("add_custom_target(%s_sc ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/verilated/systemc/%1$s.cpp " +
-                "${CMAKE_CURRENT_BINARY_DIR}/verilated/systemc/%1$s__Syms.cpp)", instanceQid);
+                "${CMAKE_CURRENT_BINARY_DIR}/verilated/systemc/%1$s__Syms.cpp)", instance.getInstanceName());
 
     }
 
@@ -626,9 +628,11 @@ public interface CMakeLists {
 
                 emitter().emit("${VERILATOR_INCLUDE_DIR}/verilated.cpp");
                 network.getInstances().forEach(instance -> {
-                    String instQid = backend().instaceQID(instance.getInstanceName(), "_");
-                    emitter().emit("${CMAKE_CURRENT_BINARY_DIR}/verilated/systemc/%s.cpp", instQid);
-                    emitter().emit("${CMAKE_CURRENT_BINARY_DIR}/verilated/systemc/%s__Syms.cpp", instQid);
+
+                    emitter().emit("${CMAKE_CURRENT_BINARY_DIR}/verilated/systemc/%s.cpp",
+                            instance.getInstanceName());
+                    emitter().emit("${CMAKE_CURRENT_BINARY_DIR}/verilated/systemc/%s__Syms.cpp",
+                            instance.getInstanceName());
                 });
                 emitter().decreaseIndentation();
             }

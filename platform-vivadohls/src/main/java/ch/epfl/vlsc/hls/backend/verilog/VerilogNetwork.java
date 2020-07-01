@@ -384,13 +384,13 @@ public interface VerilogNetwork {
 
     default void getInstanceApControlWires(List<Instance> instances) {
         for (Instance instance : instances) {
-            String qidName = backend().instaceQID(instance.getInstanceName(), "_");
-            emitter().emit("// -- Instance AP Control Wires : %s", qidName);
-            emitter().emit("wire %s_ap_start;", qidName);
-            emitter().emit("wire %s_ap_done;", qidName);
-            emitter().emit("wire %s_ap_idle;", qidName);
-            emitter().emit("wire %s_ap_ready;", qidName);
-            emitter().emit("wire [31:0] %s_ap_return;", qidName);
+            String name = instance.getInstanceName();
+            emitter().emit("// -- Instance AP Control Wires : %s", name);
+            emitter().emit("wire %s_ap_start;", name);
+            emitter().emit("wire %s_ap_done;", name);
+            emitter().emit("wire %s_ap_idle;", name);
+            emitter().emit("wire %s_ap_ready;", name);
+            emitter().emit("wire [31:0] %s_ap_return;", name);
             emitter().emitNewLine();
         }
     }
@@ -409,11 +409,12 @@ public interface VerilogNetwork {
 
     default void getLocalTriggerWires(ImmutableList<Instance> instances) {
         for (Instance instance : instances) {
-            String qidName = backend().instaceQID(instance.getInstanceName(), "_");
-            emitter().emit("// -- Signals for the trigger module of %s", qidName);
-            emitter().emit("wire    %s_trigger_ap_done;", qidName);
-            emitter().emit("wire    %s_trigger_ap_idle;", qidName);
-            emitter().emit("wire    %s_trigger_ap_ready;\t// currently inactive", qidName);
+            String name = instance.getInstanceName();
+
+            emitter().emit("// -- Signals for the trigger module of %s", name);
+            emitter().emit("wire    %s_trigger_ap_done;", name);
+            emitter().emit("wire    %s_trigger_ap_idle;", name);
+            emitter().emit("wire    %s_trigger_ap_ready;\t// currently inactive", name);
 
             // Local synchronization signals
             emitter().emit("// -- Local synchronization signals");
@@ -431,8 +432,8 @@ public interface VerilogNetwork {
             emitter().emit("wire    [31 : 0] %s_ap_return;", qidName);
 */
             emitter().emit("// -- Signal for wake up and sleep");
-            emitter().emit("wire    %s_waited;", qidName);
-            emitter().emit("wire    %s_all_waited;", qidName);
+            emitter().emit("wire    %s_waited;", name);
+            emitter().emit("wire    %s_all_waited;", name);
             emitter().emitNewLine();
         }
         emitter().emitNewLine();
@@ -522,27 +523,26 @@ public interface VerilogNetwork {
 
     default String getInstance(Instance instance) {
         // -- Instance name
-        String qidName = backend().instaceQID(instance.getInstanceName(), "_");
 
         String name = instance.getInstanceName();
         // -- Entity
         GlobalEntityDecl entityDecl = backend().globalnames().entityDecl(instance.getEntityName(), true);
         Entity entity = entityDecl.getEntity();
 
-        emitter().emit("// -- Instance : %s", qidName);
+        emitter().emit("// -- Instance : %s", name);
         if (useTrigger()) {
             if (entity instanceof ActorMachine) {
 
-                emitter().emit("trigger #(.mode(trigger_mode)) i_%s_trigger (", qidName);
+                emitter().emit("trigger #(.mode(trigger_mode)) i_%s_trigger (", name);
                 {
                     emitter().increaseIndentation();
 
                     emitter().emit(".ap_clk(ap_clk),");
                     emitter().emit(".ap_rst_n(ap_rst_n),");
                     emitter().emit(".ap_start(ap_start),");
-                    emitter().emit(".ap_done(%s_trigger_ap_done),", qidName);
-                    emitter().emit(".ap_idle(%s_trigger_ap_idle),", qidName);
-                    emitter().emit(".ap_ready(%s_trigger_ap_ready),", qidName);
+                    emitter().emit(".ap_done(%s_trigger_ap_done),", name);
+                    emitter().emit(".ap_idle(%s_trigger_ap_idle),", name);
+                    emitter().emit(".ap_ready(%s_trigger_ap_ready),", name);
                     emitter().emit(".external_enqueue(%s),", getExternalEnqueueSignal());
                     emitter().emit(".all_sync(%s),", getAllSyncSignal());
                     emitter().emit(".all_sync_wait(%s),", getAllSyncWaitSignal());
@@ -552,22 +552,22 @@ public interface VerilogNetwork {
                     emitter().emit(".sync_wait(%s),", getTriggerSignalByName(instance, "sync_wait"));
                     emitter().emit(".waited(%s),", getTriggerSignalByName(instance, "waited"));
                     emitter().emit(".all_waited(%s),", getTriggerSignalByName(instance, "all_waited"));
-                    emitter().emit(".actor_return(%s_ap_return[1:0]),", qidName);
-                    emitter().emit(".actor_done(%s_ap_done),", qidName);
-                    emitter().emit(".actor_ready(%s_ap_ready),", qidName);
-                    emitter().emit(".actor_idle(%s_ap_idle),", qidName);
-                    emitter().emit(".actor_start(%s_ap_start)", qidName);
+                    emitter().emit(".actor_return(%s_ap_return[1:0]),", name);
+                    emitter().emit(".actor_done(%s_ap_done),", name);
+                    emitter().emit(".actor_ready(%s_ap_ready),", name);
+                    emitter().emit(".actor_idle(%s_ap_idle),", name);
+                    emitter().emit(".actor_start(%s_ap_start)", name);
 
                     emitter().decreaseIndentation();
                 }
                 emitter().emit(");");
             } else {
-                emitter().emit("assign %s_ap_start = %s;", qidName, String.join(" || ", entity.getInputPorts().stream()
+                emitter().emit("assign %s_ap_start = %s;", name, String.join(" || ", entity.getInputPorts().stream()
                         .map(p -> String.format("q_%s_%s_empty_n", name, p.getName())).collect(Collectors.toList())));
             }
             emitter().emitNewLine();
         } else {
-            emitter().emit("assign %s_ap_start = ap_start;", qidName);
+            emitter().emit("assign %s_ap_start = ap_start;", name);
             emitter().emitNewLine();
         }
 
@@ -575,9 +575,9 @@ public interface VerilogNetwork {
         Map<VarDecl, String> mems = backend().externalMemory().getExternalMemories(entity);
 
         if (mems.isEmpty()) {
-            emitter().emit("%s i_%1$s(", qidName);
+            emitter().emit("%s i_%1$s(", name);
         } else {
-            emitter().emit("%s #(", qidName);
+            emitter().emit("%s #(", name);
 
             emitter().increaseIndentation();
 
@@ -608,7 +608,7 @@ public interface VerilogNetwork {
 
             emitter().decreaseIndentation();
 
-            emitter().emit(") i_%s (", qidName);
+            emitter().emit(") i_%s (", name);
         }
 
         {
@@ -687,11 +687,11 @@ public interface VerilogNetwork {
             }
 
             // -- Vivado HLS control signals
-            emitter().emit(".ap_start(%s_ap_start),", qidName);
-            emitter().emit(".ap_done(%s_ap_done),", qidName);
-            emitter().emit(".ap_idle(%s_ap_idle),", qidName);
-            emitter().emit(".ap_ready(%s_ap_ready),", qidName);
-            emitter().emit(".ap_return(%s_ap_return),", qidName);
+            emitter().emit(".ap_start(%s_ap_start),", name);
+            emitter().emit(".ap_done(%s_ap_done),", name);
+            emitter().emit(".ap_idle(%s_ap_idle),", name);
+            emitter().emit(".ap_ready(%s_ap_ready),", name);
+            emitter().emit(".ap_return(%s_ap_return),", name);
             emitter().emitNewLine();
             emitter().emit(".ap_clk(ap_clk),");
             emitter().emit(".ap_rst_n(ap_rst_n)");
@@ -700,7 +700,7 @@ public interface VerilogNetwork {
         }
         emitter().emit(");");
         emitter().emitNewLine();
-        return qidName;
+        return name;
     }
 
 
@@ -740,8 +740,9 @@ public interface VerilogNetwork {
 
             for (Instance instance : instances) {
                 // -- Instance name
-                String qidName = backend().instaceQID(instance.getInstanceName(), "_");
-                emitter().emit(".probe%d(%s_ap_return),", instances.indexOf(instance), qidName);
+                String name = instance.getInstanceName();
+
+                emitter().emit(".probe%d(%s_ap_return),", instances.indexOf(instance), name);
             }
 
             emitter().emit(".clk(ap_clk)");
@@ -804,7 +805,7 @@ public interface VerilogNetwork {
                         network.getInstances().stream()
                                 .filter(inst -> (backend().globalnames().entityDecl(inst.getEntityName(), true)
                                         .getEntity() instanceof ActorMachine))
-                                .map(i -> backend().instaceQID(i.getInstanceName(), "_") + "_trigger_ap_idle")
+                                .map(i -> i.getInstanceName() + "_trigger_ap_idle")
                                 .collect(Collectors.toList())));
 
         // -- AP Done
@@ -1006,7 +1007,7 @@ public interface VerilogNetwork {
     }
 
     default String getTriggerSignalByName(Instance instance, String name) {
-        return backend().instaceQID(instance.getInstanceName(), "_") + "_" + name;
+        return instance.getInstanceName() + "_" + name;
     }
 
     default void getExternalAssignments(Network network) {
