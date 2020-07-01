@@ -6,6 +6,7 @@ import ch.epfl.vlsc.settings.PlatformSettings;
 import se.lth.cs.tycho.attribute.GlobalNames;
 import se.lth.cs.tycho.compiler.CompilationTask;
 import se.lth.cs.tycho.compiler.Context;
+import se.lth.cs.tycho.ir.Attributable;
 import se.lth.cs.tycho.ir.ToolAttribute;
 import se.lth.cs.tycho.ir.ToolValueAttribute;
 
@@ -271,14 +272,16 @@ public class NetworkPartitioningPhase implements Phase {
                         Connection srcCon =
                                 new Connection(
                                         new Connection.End(con.getSource().getInstance(), con.getSource().getPort()),
-                                        new Connection.End(Optional.empty(), portName));
+                                        new Connection.End(Optional.empty(), portName))
+                                        .withAttributes(con.getAttributes().map(ToolAttribute::deepClone));
                         partToCon.get(sourcePartition).add(srcCon);
                     }
 
                     Connection tgtCon =
                             new Connection(
                                     new Connection.End(Optional.empty(), fanoutPort.get(fanoutSource.get(con)).getName()),
-                                    new Connection.End(con.getTarget().getInstance(), con.getTarget().getPort()));
+                                    new Connection.End(con.getTarget().getInstance(), con.getTarget().getPort()))
+                                    .withAttributes(con.getAttributes().map(ToolAttribute::deepClone));
                     partToCon.get(targetPartition).add(tgtCon);
                 } else {
                     PortDecl input = new PortDecl(portName, (TypeExpr) entityInput.getType().deepClone());
@@ -289,11 +292,13 @@ public class NetworkPartitioningPhase implements Phase {
                     Connection srcCon =
                             new Connection(
                                     new Connection.End(con.getSource().getInstance(), con.getSource().getPort()),
-                                    new Connection.End(Optional.empty(), portName));
+                                    new Connection.End(Optional.empty(), portName))
+                                    .withAttributes(con.getAttributes().map(ToolAttribute::deepClone));
                     Connection tgtCon =
                             new Connection(
                                     new Connection.End(Optional.empty(), portName),
-                                    new Connection.End(con.getTarget().getInstance(), con.getTarget().getPort()));
+                                    new Connection.End(con.getTarget().getInstance(), con.getTarget().getPort()))
+                                    .withAttributes(con.getAttributes().map(ToolAttribute::deepClone));
 
                     partToCon.get(sourcePartition).add(srcCon.withAttributes(con.getAttributes().map(ToolAttribute::deepClone)));
                     partToCon.get(targetPartition).add(tgtCon.withAttributes(con.getAttributes().map(ToolAttribute::deepClone)));
