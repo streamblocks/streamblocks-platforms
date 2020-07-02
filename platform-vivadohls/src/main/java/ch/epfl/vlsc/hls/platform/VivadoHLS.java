@@ -1,10 +1,7 @@
 package ch.epfl.vlsc.hls.platform;
 
 import ch.epfl.vlsc.hls.phase.VivadoHLSBackendPhase;
-import ch.epfl.vlsc.phases.AddFanoutPhase;
-import ch.epfl.vlsc.phases.CalToAmHwPhase;
-import ch.epfl.vlsc.phases.ExtractHardwarePartition;
-import ch.epfl.vlsc.phases.NetworkPartitioningPhase;
+import ch.epfl.vlsc.phases.*;
 import se.lth.cs.tycho.compiler.Compiler;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.phase.*;
@@ -23,22 +20,32 @@ public class VivadoHLS implements Platform {
         return "StreamBlocks code-generator for VivadoHLS.";
     }
 
-    public static List<Phase> networkElaborationPhases() {
+
+    public static List<Phase> prePartitionNetworkElaborationPhases() {
         return ImmutableList.of(
                 new CreateNetworkPhase(),
                 new RenameActorVariablesPhase(),
                 new ResolveGlobalEntityNamesPhase(),
                 new ResolveGlobalVariableNamesPhase(),
-                new ElaborateNetworkPhase(),
+                new ElaborateNetworkPhase()
+        );
+    }
+    public static List<Phase> networkPartitioningPhases() {
+        return ImmutableList.of(
+                new VerilogNameCheckerPhase(),
                 new NetworkPartitioningPhase(),
-                new ExtractHardwarePartition(),
+                new ExtractHardwarePartition()
+        );
+    }
+    public static List<Phase> postPartitionNetworkElaborationPhases() {
+        return ImmutableList.of(
                 new ResolveGlobalEntityNamesPhase(),
                 new AddFanoutPhase(),
                 new ResolveGlobalEntityNamesPhase(),
-                new RemoveUnusedGlobalDeclarations()
+                new RemoveUnusedGlobalDeclarations(),
+                new VerilogNameCheckerPhase()
         );
     }
-
     public static List<Phase> actorMachinePhases() {
         return ImmutableList.of(
                 new RenameActorVariablesPhase(),
@@ -66,7 +73,9 @@ public class VivadoHLS implements Platform {
     private static final List<Phase> phases = ImmutableList.<Phase>builder()
             .addAll(Compiler.frontendPhases())
             .add(new RecursiveTypeDetectionPhase())
-            .addAll(networkElaborationPhases())
+            .addAll(prePartitionNetworkElaborationPhases())
+            .addAll(networkPartitioningPhases())
+            .addAll(postPartitionNetworkElaborationPhases())
             .addAll(Compiler.nameAndTypeAnalysis())
             .addAll(actorMachinePhases())
             .add(new RemoveUnusedEntityDeclsPhase())

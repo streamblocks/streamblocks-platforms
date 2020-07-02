@@ -57,17 +57,17 @@ public interface VivadoTCL {
 
     default void createProject(String identifier){
         emitter().emit("# -- Create project");
-        emitter().emit("create_project %s @CMAKE_SOURCE_DIR@/output/%1$s -part @FPGA_NAME@ -force", identifier);
+        emitter().emit("create_project %s @PROJECT_SOURCE_DIR@/output/%1$s -part @FPGA_NAME@ -force", identifier);
         emitter().emitNewLine();
     }
 
     default void importStreamblocksVerilogFiles(String identifier){
         emitter().emitSharpBlockComment("Import StreamBlocks Verilog RTL files");
-        emitter().emit("import_files -norecurse {@CMAKE_SOURCE_DIR@/code-gen/rtl/TriggerTypes.sv}");
-        emitter().emit("import_files -norecurse {@CMAKE_SOURCE_DIR@/code-gen/rtl/trigger.sv}");
-        emitter().emit("import_files -norecurse {@CMAKE_SOURCE_DIR@/code-gen/rtl/fifo.v}");
-        emitter().emit("import_files -norecurse {@CMAKE_SOURCE_DIR@/code-gen/rtl/%s.sv}", identifier);
-        emitter().emit("import_files -norecurse {@CMAKE_SOURCE_DIR@/code-gen/rtl/%s_pure.sv}", identifier);
+        emitter().emit("import_files -norecurse {@PROJECT_SOURCE_DIR@/code-gen/rtl/TriggerTypes.sv}");
+        emitter().emit("import_files -norecurse {@PROJECT_SOURCE_DIR@/code-gen/rtl/trigger.sv}");
+        emitter().emit("import_files -norecurse {@PROJECT_SOURCE_DIR@/code-gen/rtl/fifo.v}");
+        emitter().emit("import_files -norecurse {@PROJECT_SOURCE_DIR@/code-gen/rtl/%s.sv}", identifier);
+        emitter().emit("import_files -norecurse {@PROJECT_SOURCE_DIR@/code-gen/rtl/%s_pure.sv}", identifier);
         emitter().emitNewLine();
     }
 
@@ -88,10 +88,10 @@ public interface VivadoTCL {
         emitter().emit("set_property SOURCE_SET sources_1 [get_filesets sim_1]");
         // -- Identifier
         String identifier = backend().task().getIdentifier().getLast().toString();
-        emitter().emit("import_files -fileset sim_1 -norecurse {@CMAKE_SOURCE_DIR@/code-gen/rtl-tb/tb_%s.v}", identifier);
+        emitter().emit("import_files -fileset sim_1 -norecurse {@PROJECT_SOURCE_DIR@/code-gen/rtl-tb/tb_%s.v}", identifier);
         for(Instance instance : network.getInstances()){
             String instanceId = instance.getInstanceName();
-            emitter().emit("import_files -fileset sim_1 -norecurse {@CMAKE_SOURCE_DIR@/code-gen/rtl-tb/tb_%s.v}", instanceId);
+            emitter().emit("import_files -fileset sim_1 -norecurse {@PROJECT_SOURCE_DIR@/code-gen/rtl-tb/tb_%s.v}", instanceId);
         }
         emitter().emitNewLine();
     }
@@ -101,7 +101,7 @@ public interface VivadoTCL {
         emitter().emit("# -- Import WCFG Waveform");
         // -- Identifier
         String identifier = backend().task().getIdentifier().getLast().toString();
-        emitter().emit("import_files -fileset sim_1 -norecurse {@CMAKE_SOURCE_DIR@/code-gen/wcfg/tb_%s_behav.wcfg}", identifier);
+        emitter().emit("import_files -fileset sim_1 -norecurse {@PROJECT_SOURCE_DIR@/code-gen/wcfg/tb_%s_behav.wcfg}", identifier);
         // -- TODO : Add wcfg for instances
         emitter().emitNewLine();
     }

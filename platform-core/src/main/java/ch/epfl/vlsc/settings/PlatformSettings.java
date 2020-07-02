@@ -1,10 +1,7 @@
 package ch.epfl.vlsc.settings;
 
 import ch.epfl.vlsc.compiler.PartitionedCompilationTask.PartitionKind;
-import se.lth.cs.tycho.settings.Configuration;
-import se.lth.cs.tycho.settings.IntegerSetting;
-import se.lth.cs.tycho.settings.OnOffSetting;
-import se.lth.cs.tycho.settings.EnumSetting;
+import se.lth.cs.tycho.settings.*;
 
 
 public class PlatformSettings {
@@ -135,6 +132,23 @@ public class PlatformSettings {
         }
     };
 
+    static public OnOffSetting enableActionProfile = new OnOffSetting() {
+        @Override
+        public String getKey() {
+            return "enable-action-profile";
+        }
+
+        @Override
+        public String getDescription() {
+            return "Enable action profile for systemC";
+        }
+
+        @Override
+        public Boolean defaultValue(Configuration configuration) {
+            return false;
+        }
+    };
+
     static public IntegerSetting defaultBufferDepth = new IntegerSetting() {
         @Override
         public String getKey() {
@@ -167,6 +181,26 @@ public class PlatformSettings {
         public Boolean defaultValue(Configuration configuration) {
             return false;
         }
+    };
+
+    static public SizeSetting maxBRAMSize = new SizeSetting() {
+
+
+        @Override
+        public String getKey() {
+            return "max-bram";
+        }
+
+        @Override
+        public String getDescription() {
+            return "maximum on chip memory size for an actor, example value 1MiB, 1MB, 2.2KiB, 1024B, 1024, 1.2GB";
+        }
+
+        @Override
+        public Long defaultValue(Configuration configuration) {
+            return Long.valueOf(1024 * 1024); // 1MiB
+        }
+
     };
 
 

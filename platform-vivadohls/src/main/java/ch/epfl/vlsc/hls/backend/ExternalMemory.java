@@ -1,5 +1,6 @@
 package ch.epfl.vlsc.hls.backend;
 
+import ch.epfl.vlsc.settings.PlatformSettings;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
@@ -36,8 +37,25 @@ public interface ExternalMemory {
         return new HashMap<>();
     }
 
+    @Binding(INJECTED)
+    VivadoHLSBackend backend();
+
     Map<VarDecl, String> getExternalMemories(Entity entiy);
 
+    default int sizeThresholdBits() {
+        Long maxBramSizeBytes = backend().context().getConfiguration().get(PlatformSettings.maxBRAMSize);
+        return maxBramSizeBytes.intValue() * 8;
+
+    }
+
+    default int getListSizeBits(ListType listType) {
+        Type elementType = listType.getElementType();
+        List<Integer> dim = typeseval().sizeByDimension(listType);
+        int listSize = dim.stream().mapToInt(s -> s).reduce(1, Math::multiplyExact);
+        int bitSize = typeseval().bitPerType(elementType);
+        int size = listSize * bitSize;
+        return size;
+    }
     default Map<VarDecl, String> getExternalMemories(ActorMachine actorMachine) {
         Map<VarDecl, String> externalVars = new HashMap<>();
         List<VarDecl> variables = variableScopes().declarations(actorMachine);
@@ -45,12 +63,9 @@ public interface ExternalMemory {
             Type type = types().declaredType(decl);
             if (type instanceof ListType) {
                 ListType listType = (ListType) type;
-                Type elementType = listType.getElementType();
-                List<Integer> dim = typeseval().sizeByDimension(listType);
-                int listSize = dim.stream().mapToInt(s -> s).reduce(1, Math::multiplyExact);
-                int bitSize = typeseval().bitPerType(elementType);
-                int size = listSize * bitSize;
-                if (size > 1024 * 1024 * 8) {
+
+
+                if (getListSizeBits(listType) > sizeThresholdBits()) {
                     if (!externalMemories().containsKey(decl)) {
                         int mapSize = externalMemories().size() + 1;
                         externalMemories().put(decl, "mem_" + mapSize);
@@ -73,12 +88,8 @@ public interface ExternalMemory {
             Type type = types().declaredType(decl);
             if (type instanceof ListType) {
                 ListType listType = (ListType) type;
-                Type elementType = listType.getElementType();
-                List<Integer> dim = typeseval().sizeByDimension(listType);
-                int listSize = dim.stream().mapToInt(s -> s).reduce(1, Math::multiplyExact);
-                int bitSize = typeseval().bitPerType(elementType);
-                int size = listSize * bitSize;
-                if (size > 1024 * 1024 * 8) {
+
+                if (getListSizeBits(listType) > sizeThresholdBits()) {
                     if (!externalMemories().containsKey(decl)) {
                         int mapSize = externalMemories().size() + 1;
                         externalMemories().put(decl, "mem_" + mapSize);

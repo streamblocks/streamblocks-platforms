@@ -17,4 +17,4 @@ if {[file exists "${xoname}"]} {
     file delete -force "${xoname}"
 }
 
-package_xo -xo_path ${xoname} -kernel_name ${krnl_name} -ip_directory @CMAKE_SOURCE_DIR@/output/kernel/packaged_kernel_${suffix} -kernel_xml @CMAKE_SOURCE_DIR@/code-gen/rtl/kernel.xml
+package_xo -xo_path ${xoname} -kernel_name ${krnl_name} -ip_directory @PROJECT_SOURCE_DIR@/output/kernel/packaged_kernel_${suffix} -kernel_xml @PROJECT_SOURCE_DIR@/code-gen/rtl/kernel.xml

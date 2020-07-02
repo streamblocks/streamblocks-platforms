@@ -239,8 +239,8 @@ public interface FsmController {
     default void emitInstruction(ActorMachine am, String name, Exec exec, Map<State, Integer> stateNumbers) {
         emitter().emit("transition_%d(%s);", exec.transition(), backend().instance().transitionIoArguments(am.getTransitions().get(exec.transition())));
         State target = exec.target();
-        boolean traceEnabled = backend().context().getConfiguration().isDefined(PlatformSettings.enableTraces) &&
-                backend().context().getConfiguration().get(PlatformSettings.enableTraces);
+        boolean traceEnabled = backend().context().getConfiguration().isDefined(PlatformSettings.enableActionProfile) &&
+                backend().context().getConfiguration().get(PlatformSettings.enableActionProfile);
         if (target.getInstructions().get(0) instanceof Exec) {
             Exec secondCall = (Exec) target.getInstructions().get(0);
             emitter().emit("transition_%d(%s);", secondCall.transition(), backend().instance().transitionIoArguments(am.getTransitions().get(secondCall.transition())));
@@ -250,9 +250,9 @@ public interface FsmController {
                         .getReporter()
                         .report(
                                 new Diagnostic(Diagnostic.Kind.ERROR,
-                                        String.format("Error while emitting the QuickJumpController: " +
+                                        String.format("Error while emitting the FSMController: " +
                                                 "Back to back transitions %d and %d lead to invalid " +
-                                                "profiling/trace information.", exec.transition(),
+                                                "profiling information.", exec.transition(),
                                                 secondCall.transition())));
             }
 

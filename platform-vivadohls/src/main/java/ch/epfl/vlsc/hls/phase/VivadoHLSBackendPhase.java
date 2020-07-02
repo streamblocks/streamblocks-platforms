@@ -84,8 +84,10 @@ public class VivadoHLSBackendPhase implements Phase {
                 PlatformSettings.scopeLivenessAnalysis,
                 PlatformSettings.C99Host,
                 PlatformSettings.arbitraryPrecisionIntegers,
-                PlatformSettings.enableTraces,
-                PlatformSettings.enableSystemC);
+                PlatformSettings.enableActionProfile,
+                PlatformSettings.enableSystemC,
+                PlatformSettings.maxBRAMSize
+        );
     }
 
     /**

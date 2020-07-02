@@ -225,6 +225,7 @@ public interface VivadoHLSBackend {
     @Binding(LAZY)
     default ExternalMemory externalMemory() {
         return MultiJ.from(ExternalMemory.class)
+                .bind("backend").to(this)
                 .bind("variableScopes").to(task().getModule(VariableScopes.key))
                 .bind("types").to(task().getModule(Types.key))
                 .bind("typeseval").to(typeseval())

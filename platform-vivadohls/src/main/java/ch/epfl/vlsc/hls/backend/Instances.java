@@ -566,8 +566,8 @@ public interface Instances {
         emitter().emit("#pragma HLS INLINE");
         {
             emitter().increaseIndentation();
-            boolean traceEnabled = backend().context().getConfiguration().isDefined(PlatformSettings.enableTraces) &&
-                    backend().context().getConfiguration().get(PlatformSettings.enableTraces);
+            boolean traceEnabled = backend().context().getConfiguration().isDefined(PlatformSettings.enableActionProfile) &&
+                    backend().context().getConfiguration().get(PlatformSettings.enableActionProfile);
             if (traceEnabled) {
                 emitter().emit("unsigned int action_id = 0;");
                 emitter().emit("unsigned int action_size = 0;");

@@ -6,6 +6,7 @@ import ch.epfl.vlsc.platformutils.PathUtils;
 
 import ch.epfl.vlsc.platformutils.utils.Box;
 import ch.epfl.vlsc.platformutils.utils.MathUtils;
+import ch.epfl.vlsc.settings.PlatformSettings;
 import org.multij.BindingKind;
 import org.multij.Binding;
 import org.multij.Module;
@@ -23,7 +24,9 @@ import se.lth.cs.tycho.ir.network.Network;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.reporting.CompilationException;
 import se.lth.cs.tycho.reporting.Diagnostic;
+import se.lth.cs.tycho.type.ListType;
 import se.lth.cs.tycho.type.Type;
+
 
 
 import java.util.HashMap;
@@ -281,10 +284,27 @@ public interface SystemCNetwork {
         emitter().open(PathUtils.getTargetCodeGenInclude(backend().context()).resolve(identifier + ".h"));
 
         if (!backend().externalMemory().externalMemories().isEmpty()) {
+            Integer maxBramSize= backend().externalMemory().sizeThresholdBits();
+            backend().context().getReporter().report(new Diagnostic(Diagnostic.Kind.INFO, "The following " +
+                    "variables are mapped to external memories:"));
+            backend().externalMemory().externalMemories().forEach((var, str) -> {
+
+                ListType type = (ListType) backend().types().declaredType(var);
+                int sizeBits = backend().externalMemory().getListSizeBits(type);
+
+                backend().context().getReporter().report(
+                        new Diagnostic(Diagnostic.Kind.INFO, String.format("%s with size %d bits", var.getName(),
+                                sizeBits)));
+
+            });
             backend().context().getReporter().report(
-                    new Diagnostic(Diagnostic.Kind.ERROR, "External memories are not yet supported on" +
-                            "SystemC networks!")
-            );
+                    new Diagnostic(Diagnostic.Kind.ERROR,
+                            String.format(
+                                    "Actors with external memories are not yet supported, consider increasing" +
+                                            " the on-chip memory using --set max-bram=VALUE_BYTES to " +
+                                            "make all memories internal. Current limit is %d bits", maxBramSize)));
+
+
         }
 
         emitter().emit("#ifndef __%s_H__", identifier);
@@ -510,6 +530,7 @@ public interface SystemCNetwork {
             emitter().emit("// -- instance trigger constructors");
             network.getInstanceTriggers().forEach(this::constructTrigger);
             emitter().emit("// -- registers actions for profiling");
+
             network.getInstances().forEach(inst -> registerActions(inst, network.getInstanceTrigger(inst)));
             emitter().emitNewLine();
             emitter().emit("/// -- input stage trigger constructors");
@@ -618,11 +639,14 @@ public interface SystemCNetwork {
     }
 
     default void registerActions(SCInstance instance, SCTrigger trigger) {
-
-        instance.getActionsIds().forEach( id -> {
-            int ix = instance.getActionsIds().indexOf(id);
-            emitter().emit("%s->registerAction(%d, \"%s\");", trigger.getName(), ix, id);
-        });
+        if (backend().context().getConfiguration().get(PlatformSettings.enableActionProfile))
+            instance.getActionsIds().forEach( id -> {
+                int ix = instance.getActionsIds().indexOf(id);
+                emitter().emit("%s->registerAction(%d, \"%s\");", trigger.getName(), ix, id);
+            });
+        else {
+            emitter().emit("%s->registerAction(0, \"__all__\");", trigger.getName());
+        }
     }
 
     default void bindInstnacePorts(SCInstanceIF instance) {

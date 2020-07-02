@@ -23,7 +23,8 @@ public class OpalKelly implements Platform {
 
     private static final List<Phase> phases = ImmutableList.<Phase>builder()
             .addAll(Compiler.frontendPhases())
-            .addAll(VivadoHLS.networkElaborationPhases())
+            .addAll(VivadoHLS.prePartitionNetworkElaborationPhases())
+            .addAll(VivadoHLS.postPartitionNetworkElaborationPhases())
             .addAll(VivadoHLS.actorMachinePhases())
             .add(new RemoveUnusedEntityDeclsPhase())
             .add(new OpalKellyBackendPhase())

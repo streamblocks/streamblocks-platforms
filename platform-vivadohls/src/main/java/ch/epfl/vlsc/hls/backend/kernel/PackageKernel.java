@@ -33,8 +33,8 @@ public interface PackageKernel {
         emitter().open(PathUtils.getTargetScript(backend().context()).resolve("package_kernel.tcl.in"));
 
         // -- Paths
-        emitter().emit("set path_to_packaged \"@CMAKE_SOURCE_DIR@/output/kernel/packaged_kernel_${suffix}\"");
-        emitter().emit("set path_to_tmp_project \"@CMAKE_SOURCE_DIR@/output/kernel/tmp_kernel_pack_${suffix}\"");
+        emitter().emit("set path_to_packaged \"@PROJECT_SOURCE_DIR@/output/kernel/packaged_kernel_${suffix}\"");
+        emitter().emit("set path_to_tmp_project \"@PROJECT_SOURCE_DIR@/output/kernel/tmp_kernel_pack_${suffix}\"");
         emitter().emitNewLine();
 
         // -- Create Project
@@ -136,14 +136,14 @@ public interface PackageKernel {
     default void importKernelVerilogFiles(Network network, String identifier) {
         emitter().emitSharpBlockComment("Import StreamBlocks Kernel Verilog RTL files");
         for (PortDecl port : network.getInputPorts()) {
-            emitter().emit("import_files -norecurse {@CMAKE_SOURCE_DIR@/code-gen/rtl/%s_input_stage.sv}", port.getName());
+            emitter().emit("import_files -norecurse {@PROJECT_SOURCE_DIR@/code-gen/rtl/%s_input_stage.sv}", port.getName());
         }
         for (PortDecl port : network.getOutputPorts()) {
-            emitter().emit("import_files -norecurse {@CMAKE_SOURCE_DIR@/code-gen/rtl/%s_output_stage.sv}", port.getName());
+            emitter().emit("import_files -norecurse {@PROJECT_SOURCE_DIR@/code-gen/rtl/%s_output_stage.sv}", port.getName());
         }
-        emitter().emit("import_files -norecurse {@CMAKE_SOURCE_DIR@/code-gen/rtl/%s_control_s_axi.v}", identifier);
-        emitter().emit("import_files -norecurse {@CMAKE_SOURCE_DIR@/code-gen/rtl/%s_wrapper.sv}", identifier);
-        emitter().emit("import_files -norecurse {@CMAKE_SOURCE_DIR@/code-gen/rtl/%s_kernel.v}", identifier);
+        emitter().emit("import_files -norecurse {@PROJECT_SOURCE_DIR@/code-gen/rtl/%s_control_s_axi.v}", identifier);
+        emitter().emit("import_files -norecurse {@PROJECT_SOURCE_DIR@/code-gen/rtl/%s_wrapper.sv}", identifier);
+        emitter().emit("import_files -norecurse {@PROJECT_SOURCE_DIR@/code-gen/rtl/%s_kernel.v}", identifier);
         emitter().emitNewLine();
     }
 

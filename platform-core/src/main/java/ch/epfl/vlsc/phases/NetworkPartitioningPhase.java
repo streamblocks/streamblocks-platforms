@@ -54,6 +54,11 @@ public class NetworkPartitioningPhase implements Phase {
     }
 
     @Override
+    public Set<Class <? extends Phase>> dependencies() {
+        return Collections.singleton(VerilogNameCheckerPhase.class);
+    }
+
+    @Override
     public PartitionedCompilationTask execute(CompilationTask task, Context context) throws CompilationException {
         partition = new HashMap<String, PartitionKind>();
         partition.put("sw", PartitionKind.SW);

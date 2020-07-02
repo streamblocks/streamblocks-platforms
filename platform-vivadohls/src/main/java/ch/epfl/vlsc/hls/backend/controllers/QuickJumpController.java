@@ -91,8 +91,8 @@ public interface QuickJumpController {
         emitter().emit("transition_%d(%s);", exec.transition(), backend().instance().transitionIoArguments(am.getTransitions().get(exec.transition())));
         emitter().emit("this->program_counter = %d;", stateNumbers.get(exec.target()));
 
-        boolean traceEnabled = backend().context().getConfiguration().isDefined(PlatformSettings.enableTraces) &&
-                backend().context().getConfiguration().get(PlatformSettings.enableTraces);
+        boolean traceEnabled = backend().context().getConfiguration().isDefined(PlatformSettings.enableActionProfile) &&
+                backend().context().getConfiguration().get(PlatformSettings.enableActionProfile);
 
         if (traceEnabled) {
             if (am.getTransitions().size() >= (1 << 15)) {
@@ -102,7 +102,7 @@ public interface QuickJumpController {
                         .report(
                                 new Diagnostic(Diagnostic.Kind.ERROR, String.format(
                                         "The maximum number of supported actions" +
-                                                "while traces are enabled is %d", (1 << 15) - 1)));
+                                                "while action profile is enabled is %d", (1 << 15) - 1)));
 
             }
             emitter().emit("action_id = %d << 17;", exec.transition());

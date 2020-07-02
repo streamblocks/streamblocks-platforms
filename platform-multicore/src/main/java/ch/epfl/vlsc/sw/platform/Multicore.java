@@ -2,6 +2,7 @@ package ch.epfl.vlsc.sw.platform;
 
 import ch.epfl.vlsc.phases.ExtractSoftwarePartition;
 import ch.epfl.vlsc.phases.NetworkPartitioningPhase;
+import ch.epfl.vlsc.phases.VerilogNameCheckerPhase;
 import ch.epfl.vlsc.sw.phase.CreatePartitionLinkPhase;
 import ch.epfl.vlsc.sw.phase.MultiCoreBackendPhase;
 import se.lth.cs.tycho.compiler.Compiler;
@@ -42,6 +43,7 @@ public class Multicore implements Platform {
 
     public static List<Phase> partitioningPhases() {
         return ImmutableList.of(
+                new VerilogNameCheckerPhase(),
                 new NetworkPartitioningPhase(),
                 new ExtractSoftwarePartition(),
                 new CreatePartitionLinkPhase()
