@@ -183,7 +183,7 @@ public class PlatformSettings {
         }
     };
 
-    static public SizeSetting maxBRAMSize = new SizeSetting() {
+    static public StringSetting maxBRAMSize = new StringSetting() {
 
 
         @Override
@@ -197,8 +197,8 @@ public class PlatformSettings {
         }
 
         @Override
-        public Long defaultValue(Configuration configuration) {
-            return Long.valueOf(1024 * 1024); // 1MiB
+        public String defaultValue(Configuration configuration) {
+            return"1MiB"; // 1MiB
         }
 
     };

@@ -1,6 +1,7 @@
 package ch.epfl.vlsc.hls.backend;
 
 import ch.epfl.vlsc.settings.PlatformSettings;
+import ch.epfl.vlsc.settings.SizeValueParser;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
@@ -43,7 +44,9 @@ public interface ExternalMemory {
     Map<VarDecl, String> getExternalMemories(Entity entiy);
 
     default int sizeThresholdBits() {
-        Long maxBramSizeBytes = backend().context().getConfiguration().get(PlatformSettings.maxBRAMSize);
+        String text = backend().context().getConfiguration().get(PlatformSettings.maxBRAMSize);
+        Long maxBramSizeBytes = new SizeValueParser().parse(text);
+
         return maxBramSizeBytes.intValue() * 8;
 
     }

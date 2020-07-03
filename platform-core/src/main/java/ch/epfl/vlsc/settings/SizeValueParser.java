@@ -2,40 +2,39 @@ package ch.epfl.vlsc.settings;
 
 import se.lth.cs.tycho.reporting.CompilationException;
 import se.lth.cs.tycho.reporting.Diagnostic;
-import se.lth.cs.tycho.settings.Setting;
 
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public abstract class SizeSetting implements Setting<Long> {
+public class SizeValueParser {
 
-    @Override
-    public Optional<Long> read(String text) {
+    public SizeValueParser() {}
 
-
-
+    public Long parse(String text) throws CompilationException {
         Optional<Long> floatSize = readFloat(text);
         Optional<Long> integerSize = readInteger(text);
         Optional<Long> byteSize = readByteInteger(text);
         Optional<Long> unitless = readUnitless(text);
 
         if (floatSize.isPresent()) {
-            return floatSize;
+            return floatSize.get();
         } else if (integerSize.isPresent()) {
-            return integerSize;
+            return integerSize.get();
         } else if (byteSize.isPresent()) {
-            return byteSize;
+            return byteSize.get();
         } else if (unitless.isPresent()) {
-            return  unitless;
+            return  unitless.get();
         } else {
-            return Optional.empty();
-        }
+            throw new CompilationException(
+                    new Diagnostic(Diagnostic.Kind.ERROR, "could not parse " + text));
 
+        }
     }
 
+
     private Optional<Long> readFloat(String text) {
-        String floatRegEx = "(\\s*)(\\d+).(\\d+)(Mi|Ki|Gi|M|K|G)B(\\s*)";
+        String floatRegEx = "(\\s*)(\\d+)\\.(\\d+)(Mi|Ki|Gi|M|K|G)B(\\s*)";
         Pattern floatPattern = Pattern.compile(floatRegEx);
         Matcher matchter = floatPattern.matcher(text);
         if (matchter.matches()) {
@@ -62,7 +61,7 @@ public abstract class SizeSetting implements Setting<Long> {
 
     }
 
-    private Optional<Long> readByteInteger(String text) {
+    public Optional<Long> readByteInteger(String text) {
         String byteIntegerRegEx = "(\\s*)(\\d+)(\\s*)B(\\s*)";
         Pattern bytePattern = Pattern.compile(byteIntegerRegEx);
         Matcher matcher = bytePattern.matcher(text);
@@ -91,11 +90,8 @@ public abstract class SizeSetting implements Setting<Long> {
             default:
                 throw new CompilationException(
                         new Diagnostic(Diagnostic.Kind.ERROR,
-                                "can not parse unit" + unit + " in setting " + this.getKey()));
+                                "can not parse unit" + unit));
         }
 
     }
-    @Override
-    public String getType() { return "Long"; }
-
 }
