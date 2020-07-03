@@ -20,6 +20,7 @@ import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.phase.TemplateAnalysisPhase$Analysis$MultiJ;
 import se.lth.cs.tycho.reporting.CompilationException;
 import se.lth.cs.tycho.reporting.Diagnostic;
+import se.lth.cs.tycho.type.BoolType;
 import se.lth.cs.tycho.type.IntType;
 import se.lth.cs.tycho.type.Type;
 
@@ -234,21 +235,21 @@ public interface PLink {
             IntType intPortType = (IntType) portType;
             if (intPortType.getSize().isPresent()) {
                 int originalSize = intPortType.getSize().getAsInt();
-
                 if (originalSize <= 32) {
                     scPortType = "uint32_t";
                 } else if (originalSize <= 64) {
                     scPortType = "uint64_t";
                 } else {
-                    scPortType =  "sc_bv<" + (originalSize * 8) + ">";
+                    scPortType = "sc_bv<" + (originalSize * 8) + ">";
                 }
             } else {
                 scPortType = "uint32_t";
             }
-
+        } else if (portType instanceof BoolType) {
+            return scPortType = "bool";
         } else {
             throw new CompilationException(
-                    new Diagnostic(Diagnostic.Kind.ERROR, "Unsupported type for SystemC simulation"));
+                    new Diagnostic(Diagnostic.Kind.ERROR, "Unsupported port type for SystemC simulation"));
         }
         return  scPortType;
     }

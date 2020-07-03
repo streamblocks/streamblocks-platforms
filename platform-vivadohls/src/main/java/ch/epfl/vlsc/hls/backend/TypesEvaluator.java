@@ -2,11 +2,15 @@ package ch.epfl.vlsc.hls.backend;
 
 import ch.epfl.vlsc.platformutils.utils.MathUtils;
 import ch.epfl.vlsc.settings.PlatformSettings;
+
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.Types;
+import se.lth.cs.tycho.reporting.CompilationException;
+import se.lth.cs.tycho.reporting.Diagnostic;
 import se.lth.cs.tycho.type.*;
+
 
 import java.util.ArrayList;
 import java.util.List;
@@ -275,8 +279,13 @@ public interface TypesEvaluator {
                 size += sizeOfBits(field.getType());
             }
             return size;
+        } else if (type instanceof BoolType) {
+            return 1;
         } else {
-            return 32;
+            throw new CompilationException(
+                    new Diagnostic(Diagnostic.Kind.ERROR,
+                            "Unhandled connection type " + type.getClass().toString()));
+//            return 32;
         }
     }
 

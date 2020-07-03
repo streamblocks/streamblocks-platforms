@@ -17,7 +17,9 @@ public class LogicVector implements SCType{
 
     @Override
     public String getType() {
-        if (width <= 32) {
+        if (width == 1) {
+            return "bool";
+        } else if (width <= 32) {
             return "uint32_t";
         } else if (width <= 64) {
             return "vluint64_t";

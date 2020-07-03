@@ -51,7 +51,7 @@ public class VerilogNameCheckerPhase implements Phase {
                     new Diagnostic(Diagnostic.Kind.WARNING,
                             String.format("Renaming instance %s to %1$s_renamed because " +
                                     "%1$s is a reserved SystemVerilog keyword", instance.getInstanceName())));
-            newName = instance.getInstanceName() + "_renamed";
+            newName = instance.getInstanceName() + "_r";
 
         }
         else
