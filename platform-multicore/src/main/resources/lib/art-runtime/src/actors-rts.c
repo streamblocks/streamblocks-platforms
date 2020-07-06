@@ -1187,23 +1187,24 @@ static void generate_config(FILE *f,
                             break;
                         }
 
+                    int tokenSize = producer->actor->outputPortDescriptions[k].tokenSize;
                     if (producer->actor->outputPortDescriptions[k].isBytes) {
                         /*
                          * "isBytes" means struct tokens:
                          * capacity and bandwidth measured in bytes by run-time,
                          * but we need number of tokens in generated file
                          */
-                        int tokenSize = producer->actor->outputPortDescriptions[k].tokenSize;
 
                         inputCapacity /= tokenSize;
                         inputBandwidth /= tokenSize;
                     }
 
                     fprintf(f, "\t\t<Connection src=\"%s\" src-port=\"%s\" "
-                               "dst=\"%s\" dst-port=\"%s\" size=\"%u\"",
+                               "dst=\"%s\" dst-port=\"%s\" size=\"%u\" "
+                               "token-size=\"%u\"",
                             producer->name, outputPortName,
                             consumer->name, inputPortName,
-                            inputCapacity);
+                            inputCapacity, tokenSize);
 
                     if (with_bandwidth) {
                         fprintf(f, " bandwidth=\"%u\"/>\n", inputBandwidth);

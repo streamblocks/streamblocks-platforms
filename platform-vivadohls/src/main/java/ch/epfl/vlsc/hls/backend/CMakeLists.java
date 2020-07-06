@@ -440,7 +440,7 @@ public interface CMakeLists {
         {
             emitter().increaseIndentation();
 
-            emitter().emit("add_custom_target(emconfig ALL DEPENDS ${PROJECT_SOURCE_DIR}/bin/emconfig.json)");
+            emitter().emit("add_custom_target(emconfig ALL DEPENDS ${CMAKE_SOURCE_DIR}/bin/emconfig.json)");
 
             for (PortDecl port : network.getInputPorts()) {
                 emitter().emit(
