@@ -49,7 +49,7 @@ public class VerilogNameCheckerPhase implements Phase {
         if (isReserved(instance)) {
             context.getReporter().report(
                     new Diagnostic(Diagnostic.Kind.WARNING,
-                            String.format("Renaming instance %s to %1$s_renamed because " +
+                            String.format("Renaming instance %s to %1$s_r because " +
                                     "%1$s is a reserved SystemVerilog keyword", instance.getInstanceName())));
             newName = instance.getInstanceName() + "_r";
 

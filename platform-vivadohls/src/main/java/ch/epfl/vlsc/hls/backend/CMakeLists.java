@@ -187,8 +187,8 @@ public interface CMakeLists {
         {
             emitter().increaseIndentation();
 
-            emitter().emit("file(MAKE_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)");
-            emitter().emit("file(MAKE_DIRECTORY ${PROJECT_SOURCE_DIR}/bin/xclbin)");
+            emitter().emit("file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)");
+            emitter().emit("file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/bin/xclbin)");
             emitter().emit("file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/xclbin)");
             emitter().emit("set(TARGET \"hw\" CACHE STRING \"Vitis/SDAccel TARGET : hw_emu, hw\")");
             emitter().emitNewLine();
@@ -236,9 +236,9 @@ public interface CMakeLists {
             emitter().emitNewLine();
 
             emitter().emit("if(USE_VITIS)");
-            emitter().emit("\tconfigure_file(${PROJECT_SOURCE_DIR}/scripts/sdaccel.ini.in ${PROJECT_SOURCE_DIR}/bin/xrt.ini @ONLY)");
+            emitter().emit("\tconfigure_file(${PROJECT_SOURCE_DIR}/scripts/sdaccel.ini.in ${CMAKE_SOURCE_DIR}/bin/xrt.ini @ONLY)");
             emitter().emit("else()");
-            emitter().emit("\tconfigure_file(${PROJECT_SOURCE_DIR}/scripts/sdaccel.ini.in ${PROJECT_SOURCE_DIR}/bin/sdaccel.ini @ONLY)");
+            emitter().emit("\tconfigure_file(${PROJECT_SOURCE_DIR}/scripts/sdaccel.ini.in ${CMAKE_SOURCE_DIR}/bin/sdaccel.ini @ONLY)");
             emitter().emit("endif()");
 
 
@@ -287,7 +287,7 @@ public interface CMakeLists {
                 {
                     emitter().increaseIndentation();
 
-                    emitter().emit("OUTPUT ${PROJECT_SOURCE_DIR}/bin/emconfig.json");
+                    emitter().emit("OUTPUT ${CMAKE_SOURCE_DIR}/bin/emconfig.json");
                     emitter().emit(
                             "COMMAND ${VITIS_EMCONFIGUTIL} --nd 1 --platform ${PLATFORM} --od ${PROJECT_SOURCE_DIR}/bin > emconfigutil.log");
                     emitter().decreaseIndentation();
@@ -304,7 +304,7 @@ public interface CMakeLists {
                 {
                     emitter().increaseIndentation();
 
-                    emitter().emit("OUTPUT ${PROJECT_SOURCE_DIR}/bin/emconfig.json");
+                    emitter().emit("OUTPUT ${CMAKE_SOURCE_DIR}/bin/emconfig.json");
                     emitter().emit(
                             "COMMAND ${SDACCEL_EMCONFIGUTIL} --nd 1 --platform ${PLATFORM} --od ${PROJECT_SOURCE_DIR}/bin > emconfigutil.log");
                     emitter().decreaseIndentation();
@@ -361,9 +361,9 @@ public interface CMakeLists {
                     emitter().increaseIndentation();
 
                     emitter().emit(
-                            "OUTPUT  ${PROJECT_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xclbin");
+                            "OUTPUT  ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xclbin");
                     emitter().emit(
-                            "COMMAND ${VITIS_VPP} -g -t ${TARGET} --platform ${PLATFORM} --kernel_frequency ${KERNEL_FREQ}  --save-temps  ${XOCC_DEBUG} ${XOCC_PROFILE} -lo ${PROJECT_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xclbin ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xo  > ${CMAKE_PROJECT_NAME}_kernel_xclbin.log");
+                            "COMMAND ${VITIS_VPP} -g -t ${TARGET} --platform ${PLATFORM} --kernel_frequency ${KERNEL_FREQ}  --save-temps  ${XOCC_DEBUG} ${XOCC_PROFILE} -lo ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xclbin ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xo  > ${CMAKE_PROJECT_NAME}_kernel_xclbin.log");
                     emitter().emit("DEPENDS ${CMAKE_PROJECT_NAME}_kernel_xo");
 
                     emitter().decreaseIndentation();
@@ -381,9 +381,9 @@ public interface CMakeLists {
                     emitter().increaseIndentation();
 
                     emitter().emit(
-                            "OUTPUT  ${PROJECT_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xclbin");
+                            "OUTPUT  ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xclbin");
                     emitter().emit(
-                            "COMMAND ${SDACCEL_XOCC} -g -t ${TARGET} --platform ${PLATFORM} --kernel_frequency ${KERNEL_FREQ} --save-temps ${XOCC_DEBUG} ${XOCC_PROFILE} -lo ${PROJECT_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xclbin ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xo  > ${CMAKE_PROJECT_NAME}_kernel_xclbin.log");
+                            "COMMAND ${SDACCEL_XOCC} -g -t ${TARGET} --platform ${PLATFORM} --kernel_frequency ${KERNEL_FREQ} --save-temps ${XOCC_DEBUG} ${XOCC_PROFILE} -lo ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xclbin ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xo  > ${CMAKE_PROJECT_NAME}_kernel_xclbin.log");
                     emitter().emit("DEPENDS ${CMAKE_PROJECT_NAME}_kernel_xo");
 
                     emitter().decreaseIndentation();
@@ -459,7 +459,7 @@ public interface CMakeLists {
                     "add_custom_target(${CMAKE_PROJECT_NAME}_kernel_xo ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xo)");
             // -- Generate XCLBIN custom target
             emitter().emit(
-                    "add_custom_target(${CMAKE_PROJECT_NAME}_kernel_xclbin ALL DEPENDS ${PROJECT_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xclbin)");
+                    "add_custom_target(${CMAKE_PROJECT_NAME}_kernel_xclbin ALL DEPENDS ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xclbin)");
 
             emitter().decreaseIndentation();
         }

@@ -751,14 +751,10 @@ public interface PLink {
             emitter().emit("// -- notify the multicore scheduler that something has happened");
 
             // -- check for potential device deadlock
-            emitter().emit("if (total_consumed == 0 && total_produced == 0 && total_req_sz > 0)");
-            {
-                emitter().increaseIndentation();
+            getDeadlockCheck("total_produced", "total_consumed", "total_req_sz");
 
-                emitter().emit("runtimeError(pBase, \"Potential simulation deadlock\\n\");");
-                emitter().decreaseIndentation();
-
-            }
+            emitter().emitNewLine();
+            // -- notify the scheduler that an action has been performed
             emitter().emit("if (total_consumed > 0 || total_produced > 0) {");
             {
                 emitter().increaseIndentation();
@@ -868,7 +864,20 @@ public interface PLink {
         emitter().emit("}");
     }
 
+    default void getDeadlockCheck(String produced, String consumed, String request) {
+        emitter().emit("if (%s == 0 && %s == 0 && %s > 0)", produced, consumed, request);
+        {
+            emitter().increaseIndentation();
+
+            emitter().emit("runtimeError(pBase, \"Potential device deadlock\\n\");");
+            emitter().decreaseIndentation();
+
+        }
+    }
     default void deviceScheduler(String name, Entity entity) {
+        /**
+         * To do
+         */
         PartitionHandle handle = ((PartitionLink) entity).getHandle();
         emitter().emit("ART_ACTION_SCHEDULER_ENTER(%d, %d)", entity.getInputPorts().size(),
                 entity.getOutputPorts().size());
@@ -974,13 +983,16 @@ public interface PLink {
         emitter().emit("RX: { // -- Receive from FPGA");
         {
             emitter().increaseIndentation();
-            emitter().emit("ART_ACTION_ENTER(RX, 1);");
             //-- wait on device
             emitter().emit("// -- read the produced and consumed size");
             emitter().emit("%s(&thisActor->dev);", getMethod(handle, "waitForReadSize"));
             emitter().emit("// -- read the device outputs buffers");
             emitter().emit("%s(&thisActor->dev);", getMethod(handle, "enqueueReadBuffers"));
             emitter().emitNewLine();
+
+            emitter().emit("uint64_t total_request = 0;");
+            emitter().emit("uint64_t total_consumed = 0;");
+            emitter().emit("uint64_t total_produced = 0;");
 
             // -- consume tokens
             emitter().emit("// -- Consume on behalf of device");
@@ -989,15 +1001,39 @@ public interface PLink {
                 emitter().emit("if (thisActor->%s_size[0] > 0)", port.getName());
                 emitter().emit("\tpinConsumeRepeat_%s(IN%d_%s, thisActor->%3$s_size[0]);",
                         type, entity.getInputPorts().indexOf(port), port.getName());
+                emitter().emit("total_consumed += %s_size[0];", port.getName());
+                emitter().emit("total_request += thisActor->%s_request_size;", port.getName());
             }
             emitter().emitNewLine();
             for (PortDecl port : entity.getOutputPorts()) {
                 emitter().emit("thisActor->%s_offset = 0;", port.getName());
+                emitter().emit("total_produced += %s_size[0];", port.getName());
             }
             emitter().emitNewLine();
-            emitter().emit("thisActor->program_counter = 3;", entity.getInputPorts().size() + 2);
-            emitter().emit("ART_ACTION_EXIT(RX, 1);");
-            emitter().emit("goto WRITE;");
+
+            // -- check for potential deadlock
+            getDeadlockCheck("total_produced", "total_consumed", "total_request");
+
+            emitter().emit("if (total_produced > 0 || total_consumed > 0) {");
+            {
+                emitter().increaseIndentation();
+
+                emitter().emit("ART_ACTION_ENTER(RX, 1);");
+
+                emitter().emit("ART_ACTION_EXIT(RX, 1);");
+                emitter().emit("thisActor->program_counter = 3;");
+                emitter().emit("goto WRITE;");
+
+                emitter().decreaseIndentation();
+            }
+            emitter().emit("} else {");
+            {
+                emitter().increaseIndentation();
+                emitter().emit("thisActor->program_counter = 0;");
+                emitter().emit("goto YIELD;");
+                emitter().decreaseIndentation();
+            }
+            emitter().emit("}");
             emitter().decreaseIndentation();
         }
         emitter().emit("}");
