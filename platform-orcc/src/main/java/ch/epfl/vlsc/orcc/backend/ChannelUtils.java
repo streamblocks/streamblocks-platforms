@@ -43,6 +43,9 @@ public interface ChannelUtils {
         List<Connection> connections = network.getConnections().stream()
                 .filter(conn -> conn.getTarget().equals(target))
                 .collect(Collectors.toList());
+        if(connections.isEmpty()){
+         return null;
+        }
         return connections.get(0);
     }
 

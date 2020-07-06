@@ -504,7 +504,8 @@ static int set_instance_affinity(ActorInstance_1_t *instance,
                                  int numInstances) {
     int i;
     char instanceName[128];
-    sprintf(instanceName, "%s/%d", instance->actorClass->name, instance->index);
+    AbstractActorInstance *abstractActorInstance = (AbstractActorInstance*) instance;
+    sprintf(instanceName, "%s", abstractActorInstance->name);
     for (i = 0; i < numInstances; i++) {
         if (!config[i].flag
             && strcmp(instanceName, config[i].name) == 0) {
@@ -531,7 +532,9 @@ static ActorInstance_1_t **sort_instances(ActorInstance_1_t **unsorted,
         int iSorted = set_instance_affinity(unsorted[i], config, numInstances);
 
         if (iSorted < 0 || iSorted >= numInstances) {
-            runtimeError(NULL, "sort_instances: not mentioned in config file: %s/%d\n",
+            AbstractActorInstance *instance = (AbstractActorInstance*) unsorted[i];
+            runtimeError(NULL, "sort_instances: not mentioned in config file: (instance) %s/ (class) %s/%d\n",
+                         instance->name,
                          unsorted[i]->actorClass->name,
                          unsorted[i]->index);
         }
@@ -947,6 +950,8 @@ static cpu_runtime_data_t *allocate_network(
             result[cpu].has_affected = cpu_local_p;
             cpu_local_p += (nr_of_cpus(used_cpus) * sizeof(*result[0].has_affected));
             result[cpu].traceFile = 0;
+            result[cpu].traceTurnusFile = 0;
+            result[cpu].infoFile = 0;
 
             for (j = 0; j < numInstances; j++) {
                 if (instance[j]->affinity == result[cpu].physical_id) {
@@ -959,10 +964,17 @@ static cpu_runtime_data_t *allocate_network(
                     cpu_actor_data += instance[j]->actorClass->sizeActorInstance;
 
                     actor->actor = instance[j]->actorClass;
-                    sprintf(buf, "%s/%d",
-                            instance[j]->actorClass->name,
-                            instance[j]->index);
-                    actor->name = strdup(buf);
+
+                    AbstractActorInstance *abstractActorInstance = (AbstractActorInstance *) instance[j];
+                    if (abstractActorInstance->name == NULL) {
+                        sprintf(buf, "%s/%d",
+                                instance[j]->actorClass->name,
+                                instance[j]->index);
+                        actor->name = strdup(buf);
+                    } else {
+                        actor->name = strdup(abstractActorInstance->name);
+                    }
+
                     actor->cpu_index = cpu;
                     actor->outputs = instance[j]->actorClass->numOutputPorts;
                     actor->output = instance[j]->output_list;
@@ -1028,7 +1040,7 @@ static void run_destructors(cpu_runtime_data_t *runtime) {
         cpu_runtime_data_t *cpu = &runtime[i];
         if (cpu->traceFile)
             xmlCloseTrace(cpu->traceFile);
-        if (cpu->traceTurnusFile){
+        if (cpu->traceTurnusFile) {
             jsonCloseTrace(cpu->traceTurnusFile);
             infoCloseFile(cpu->infoFile);
         }
@@ -1194,6 +1206,7 @@ static void generate_config(FILE *f,
                          * capacity and bandwidth measured in bytes by run-time,
                          * but we need number of tokens in generated file
                          */
+                        int tokenSize = producer->actor->outputPortDescriptions[k].tokenSize;
 
                         inputCapacity /= tokenSize;
                         inputBandwidth /= tokenSize;
@@ -1291,7 +1304,7 @@ void pre_parse_args(int argc, char *argv[], RuntimeOptions *options) {
             options->terminationReport = 1;
         } else if (strncmp(argv[i], "--hardware-profile=", 19) == 0) {
             options->hardwareProfileFileName = &argv[i][19];
-        } else if (strncmp(argv[i], "--vcd-trace-level=", 18) == 0 ) {
+        } else if (strncmp(argv[i], "--vcd-trace-level=", 18) == 0) {
             options->vcd_trace_level = &argv[i][18];
         } else if (strcmp(argv[i], "--help") == 0) {
             show_usage(argv[0]);
@@ -1303,6 +1316,7 @@ void pre_parse_args(int argc, char *argv[], RuntimeOptions *options) {
     }
     return options;
 }
+
 int executeNetwork(int argc,
                    char *argv[],
                    RuntimeOptions *options,
@@ -1328,8 +1342,6 @@ int executeNetwork(int argc,
     int with_complexity = options->with_complexity;
     int with_bandwidth = options->with_bandwidth;
     int terminationReport = options->terminationReport;
-
-
 
     if (!generateFileName && (with_bandwidth || with_complexity)) {
         printf("--with_bandwidth and --with_complexity requires --generate\n");

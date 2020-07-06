@@ -729,7 +729,9 @@ public interface Instances {
         emitter().increaseIndentation();
         emitter().emit("= INIT_ActorClass(");
         emitter().increaseIndentation();
-        emitter().emit("(char*) \"%s\",", instanceQID);
+
+        Instance instance = backend().instancebox().get();
+        emitter().emit("(char*) \"%s\",", instance.getEntityName().toString());
         emitter().emit("ActorInstance_%s,", instanceQID);
         emitter().emit("ActorInstance_%s_constructor,", instanceQID);
         emitter().emit("0, // -- setParam not needed anymore (we instantiate with params)");

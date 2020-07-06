@@ -20,7 +20,7 @@ public class Orcc implements Platform {
     }
 
     private static final List<Phase> phases = ImmutableList.<Phase>builder()
-            .addAll(Compiler.frontendPhases())
+            .addAll(frontendPhases())
             .addAll(Compiler.networkElaborationPhases())
             .addAll(Compiler.nameAndTypeAnalysis())
             .addAll(Compiler.actorMachinePhases())
@@ -31,5 +31,29 @@ public class Orcc implements Platform {
     @Override
     public List<Phase> phases() {
         return phases;
+    }
+
+    public static ImmutableList<Phase> frontendPhases() {
+        return ImmutableList.of(
+                // Parse
+                new LoadEntityPhase(),
+                new LoadPreludePhase(),
+                new LoadImportsPhase(),
+
+                // For debugging
+                new PrintLoadedSourceUnits(),
+                new PrintTreesPhase(),
+
+                // Post parse
+                new RemoveExternStubPhase(),
+                new OperatorParsingPhase(),
+                new ImportAnalysisPhase(),
+                new ResolvePatternDeconstructionPhase(),
+                new DeclarationAnalysisPhase(),
+                new ResolveTypeConstructionPhase(),
+               // new ConstantVariableImmutabilityPhase(),
+                new ConstantVariableInitializationPhase(),
+                new NameAnalysisPhase()
+        );
     }
 }

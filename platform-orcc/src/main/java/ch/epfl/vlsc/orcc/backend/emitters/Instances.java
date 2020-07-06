@@ -194,15 +194,19 @@ public interface Instances {
         emitter().emitClikeBlockComment("Input Fifo control variables");
         for (PortDecl port : entity.getInputPorts()) {
             Connection.End target = new Connection.End(Optional.of(backend().instancebox().get().getInstanceName()), port.getName());
-            emitter().emit("static unsigned int index_%s;", port.getName());
-            emitter().emit("static unsigned int numTokens_%s;", port.getName());
-            emitter().emit("#define SIZE_%s %d", port.getName(), backend().channelUtils().connectionBufferSize(backend().channelUtils().sourceEndConnection(target)));
-            emitter().emit("#define tokens_%s %s_%1$s->contents", port.getName(), instanceQidName());
-            emitter().emitNewLine();
+            if ((backend().channelUtils().sourceEndConnection(target)) != null) {
+                // -- Port has a connection
 
-            emitter().emit("extern connection_t connection_%s_%s;", instanceQidName(), port.getName());
-            emitter().emit("#define rate_%s connection_%s_%1$s.rate", port.getName(), instanceQidName());
-            emitter().emitNewLine();
+                emitter().emit("static unsigned int index_%s;", port.getName());
+                emitter().emit("static unsigned int numTokens_%s;", port.getName());
+                emitter().emit("#define SIZE_%s %d", port.getName(), backend().channelUtils().connectionBufferSize(backend().channelUtils().sourceEndConnection(target)));
+                emitter().emit("#define tokens_%s %s_%1$s->contents", port.getName(), instanceQidName());
+                emitter().emitNewLine();
+
+                emitter().emit("extern connection_t connection_%s_%s;", instanceQidName(), port.getName());
+                emitter().emit("#define rate_%s connection_%s_%1$s.rate", port.getName(), instanceQidName());
+                emitter().emitNewLine();
+            }
         }
 
         if (enableTraces()) {
@@ -217,10 +221,13 @@ public interface Instances {
         List<String> predecessors = new ArrayList<>();
         for (PortDecl port : entity.getInputPorts()) {
             Connection.End target = new Connection.End(Optional.of(backend().instancebox().get().getInstanceName()), port.getName());
-            Instance predecessor = backend().channelUtils().sourceEndInstance(target);
-            String qidInstanceName = backend().instaceQID(predecessor.getInstanceName(), "_");
-            if (!predecessors.contains(qidInstanceName))
-                predecessors.add(qidInstanceName);
+            if ((backend().channelUtils().sourceEndConnection(target)) != null) {
+                // -- Port has a predecessor
+                Instance predecessor = backend().channelUtils().sourceEndInstance(target);
+                String qidInstanceName = backend().instaceQID(predecessor.getInstanceName(), "_");
+                if (!predecessors.contains(qidInstanceName))
+                    predecessors.add(qidInstanceName);
+            }
         }
 
         predecessors.forEach(p -> emitter().emit("extern actor_t %s;", p));
@@ -239,11 +246,13 @@ public interface Instances {
         emitter().emitClikeBlockComment("Output Fifo control variables");
         for (PortDecl port : entity.getOutputPorts()) {
             Connection.End source = new Connection.End(Optional.of(backend().instancebox().get().getInstanceName()), port.getName());
-            emitter().emit("static unsigned int index_%s;", port.getName());
-            emitter().emit("#define NUM_READERS_%s %d", port.getName(), backend().channelUtils().targetEndConnections(source).size());
-            emitter().emit("#define SIZE_%s %d", port.getName(), backend().channelUtils().connectionBufferSize(backend().channelUtils().targetEndConnections(source).get(0)));
-            emitter().emit("#define tokens_%s %s_%1$s->contents", port.getName(), instanceQidName());
-            emitter().emitNewLine();
+            if (!backend().channelUtils().targetEndConnections(source).isEmpty()) {
+                emitter().emit("static unsigned int index_%s;", port.getName());
+                emitter().emit("#define NUM_READERS_%s %d", port.getName(), backend().channelUtils().targetEndConnections(source).size());
+                emitter().emit("#define SIZE_%s %d", port.getName(), backend().channelUtils().connectionBufferSize(backend().channelUtils().targetEndConnections(source).get(0)));
+                emitter().emit("#define tokens_%s %s_%1$s->contents", port.getName(), instanceQidName());
+                emitter().emitNewLine();
+            }
         }
 
         if (enableTraces()) {
@@ -286,6 +295,9 @@ public interface Instances {
                         //emitter().emit("%s = %s;", backend().variables().declarationName(par), expressioneval().evaluate(assignment.getValue()));
                         assigned = true;
                     }
+                }
+                if (par.getDefaultValue() != null) {
+                    assigned = true;
                 }
                 if (!assigned) {
                     throw new RuntimeException(String.format("Could not assign to %s. Candidates: {%s}.", par.getName(), String.join(", ", instance.getValueParameters().map(Parameter::getName))));
@@ -412,47 +424,51 @@ public interface Instances {
         String qidInstanceName = instanceQidName();
         for (PortDecl port : entity.getInputPorts()) {
             Connection.End target = new Connection.End(Optional.of(backend().instancebox().get().getInstanceName()), port.getName());
+            if ((backend().channelUtils().sourceEndConnection(target)) != null) {
+                int readerId = connectionReaderId.get(backend().channelUtils().sourceEndConnection(target));
 
-            int readerId = connectionReaderId.get(backend().channelUtils().sourceEndConnection(target));
+                // int readerId =  backend().main().connectionId().get(backend().channelUtils().sourceEndConnection(target).getSource());
 
-            // int readerId =  backend().main().connectionId().get(backend().channelUtils().sourceEndConnection(target).getSource());
+                emitter().emit("static void read_%s(){", port.getName());
+                {
+                    emitter().increaseIndentation();
 
-            emitter().emit("static void read_%s(){", port.getName());
-            {
-                emitter().increaseIndentation();
+                    emitter().emit("index_%s = %s_%1$s->read_inds[%d];", port.getName(), qidInstanceName, readerId);
+                    emitter().emit("numTokens_%s = index_%1$s + fifo_%s_get_num_tokens(%s_%1$s, %d);", port.getName(), typesEval().type(backend().channelUtils().targetEndType(target)), qidInstanceName, readerId);
 
-                emitter().emit("index_%s = %s_%1$s->read_inds[%d];", port.getName(), qidInstanceName, readerId);
-                emitter().emit("numTokens_%s = index_%1$s + fifo_%s_get_num_tokens(%s_%1$s, %d);", port.getName(), typesEval().type(backend().channelUtils().targetEndType(target)), qidInstanceName, readerId);
+                    emitter().decreaseIndentation();
+                }
+                emitter().emit("}");
+                emitter().emitNewLine();
 
-                emitter().decreaseIndentation();
+                emitter().emit("static void read_end_%s(){", port.getName());
+
+                emitter().emit("\t%s_%s->read_inds[%d] = index_%2$s;", qidInstanceName, port.getName(), readerId);
+
+                emitter().emit("}");
+                emitter().emitNewLine();
             }
-            emitter().emit("}");
-            emitter().emitNewLine();
-
-            emitter().emit("static void read_end_%s(){", port.getName());
-
-            emitter().emit("\t%s_%s->read_inds[%d] = index_%2$s;", qidInstanceName, port.getName(), readerId);
-
-            emitter().emit("}");
-            emitter().emitNewLine();
         }
 
         for (PortDecl port : entity.getOutputPorts()) {
-            emitter().emit("static void write_%s(){", port.getName());
+            Connection.End source = new Connection.End(Optional.of(backend().instancebox().get().getInstanceName()), port.getName());
+            if (!backend().channelUtils().targetEndConnections(source).isEmpty()) {
+                emitter().emit("static void write_%s(){", port.getName());
 
-            emitter().emit("\tindex_%s = %s_%1$s->write_ind;", port.getName(), qidInstanceName);
+                emitter().emit("\tindex_%s = %s_%1$s->write_ind;", port.getName(), qidInstanceName);
 
-            emitter().emit("}");
+                emitter().emit("}");
 
-            emitter().emitNewLine();
+                emitter().emitNewLine();
 
-            emitter().emit("static void write_end_%s(){", port.getName());
+                emitter().emit("static void write_end_%s(){", port.getName());
 
-            emitter().emit("\t%s_%s->write_ind = index_%2$s;", qidInstanceName, port.getName());
+                emitter().emit("\t%s_%s->write_ind = index_%2$s;", qidInstanceName, port.getName());
 
-            emitter().emit("}");
+                emitter().emit("}");
 
-            emitter().emitNewLine();
+                emitter().emitNewLine();
+            }
         }
     }
 

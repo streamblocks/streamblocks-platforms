@@ -105,10 +105,9 @@ public interface Main {
             if (!entityDecl.getExternal()) {
                 instanceActorClasses.put(instance, joinQID);
             } else {
-                instanceActorClasses.put(instance, instance.getEntityName().getLast().toString());
+                instanceActorClasses.put(instance, entityDecl.getOriginalName());
             }
         }
-
 
         emitter().emit("int numberOfInstances = %d;", network.getInstances().size());
         emitter().emitNewLine();
@@ -143,6 +142,8 @@ public interface Main {
             String joinQID = instanceQIDs.get(instance);
             String actorClass = instanceActorClasses.get(instance);
             emitter().emit("%s = createActorInstance(&ActorClass_%s);", joinQID, actorClass);
+            emitter().emit("%s->name = (char *) calloc(%d, sizeof(char));", joinQID, joinQID.length()+1);
+            emitter().emit("strcpy(%s->name, \"%1$s\");", joinQID);
             // -- Instantiate Parameters
             if (entityDecl.getEntity() instanceof PartitionLink) {
                 emitter().emit("if(options->vcd_trace_level != NULL)");

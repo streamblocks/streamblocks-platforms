@@ -654,7 +654,7 @@ public interface VerilogTestbench {
 
     default void getDutIO(String name, PortDecl port, boolean isInput) {
         String wireName = name.isEmpty() ? port.getName() : String.format("q_%s_%s", name, port.getName());
-        String portName = name.isEmpty() ? port.getName() : port.getName() + getPortExtension();
+        String portName = name.isEmpty() ? port.getSafeName() : port.getSafeName() + getPortExtension();
         if (isInput) {
             emitter().emit(".%s_din(%s_din),", portName, wireName);
             emitter().emit(".%s_full_n(%s_full_n),", portName, wireName);
