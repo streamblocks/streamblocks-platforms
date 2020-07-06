@@ -105,7 +105,7 @@ static const ActionDescription actionDescriptions[] = {
 static const ConditionDescription conditionDescription[] = {};
 
 ActorClass ActorClass_art_Sink_bin = INIT_ActorClass(
-        "art_Sink_bin",
+        "ART.art_Sink_bin",
         ActorInstance_art_Sink,
         constructor,
         setParam,

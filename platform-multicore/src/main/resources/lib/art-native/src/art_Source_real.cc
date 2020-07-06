@@ -114,7 +114,7 @@ static const ActionDescription actionDescriptions[] = {
 static const ConditionDescription conditionDescription[] = {};
 
 ActorClass ActorClass_art_Source_real = INIT_ActorClass(
-        "art_Source_real",
+        "ART.art_Source_real",
         ActorInstance_art_Source,
         constructor,
         setParam,

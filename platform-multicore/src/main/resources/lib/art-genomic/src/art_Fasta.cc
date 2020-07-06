@@ -255,7 +255,7 @@ static const ActionDescription actionDescriptions[] = {{"action", "action", 0,
 static const ConditionDescription conditionDescription[] = {};
 
 ActorClass ActorClass_art_Fasta = INIT_ActorClass(
-        "art_Fasta",
+        "ART.art_Fasta",
         ActorInstance_art_Fasta,
         constructor,
         setParam,

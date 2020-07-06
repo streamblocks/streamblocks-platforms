@@ -167,7 +167,7 @@ static const ActionDescription actionDescriptions[] = {{"action", "action", 0,
 static const ConditionDescription conditionDescription[] = {};
 
 ActorClass ActorClass_art_Source_byte = INIT_ActorClass(
-        "art_Source_byte",
+        "ART.art_Source_byte",
         ActorInstance_art_Source_Byte,
         constructor,
         setParam,
