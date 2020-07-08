@@ -1347,8 +1347,11 @@ int executeNetwork(int argc,
         printf("--with_bandwidth and --with_complexity requires --generate\n");
         exit(1);
     }
-
-    result = index_nodes(instance_1, numInstances);
+    // We no longer need to index nodes since the instance names are no longer actorClass names,
+    // in fact if we index nodes, then the instance names will be corrupted, because the char *name field in
+    // AbstractActorInstance struct collides with the int index filed in ActorInstance_1_t... stupid way of casting
+    // things, maybe the people who wrote this had a sever lack of space in embedded system memory.
+//    result = index_nodes(instance_1, numInstances);
     if (result == 0) {
         // Assign command line affinity
         for (i = 1; i < argc; i++) {
