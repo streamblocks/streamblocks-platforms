@@ -11,7 +11,7 @@ set(art_plink_header
 
 
 # -- Set CMake module path, for finding the necessary tools
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/lib/cmake)
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake)
 find_package(Vivado REQUIRED)
 find_package(VivadoHLS REQUIRED)
 find_package(SDAccel REQUIRED)
