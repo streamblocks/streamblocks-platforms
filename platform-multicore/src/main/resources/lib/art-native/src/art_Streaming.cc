@@ -203,7 +203,7 @@ static const ActionDescription actionDescriptions[] = {
 };
 
 ActorClass ActorClass_art_Streaming = INIT_ActorClass(
-        "art_Streaming",
+        "ART.art_Streaming",
         ActorInstance_art_Streaming,
         constructor,
         setParam,

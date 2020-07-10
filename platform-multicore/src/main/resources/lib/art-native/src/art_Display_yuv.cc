@@ -195,7 +195,7 @@ static const ActionDescription actionDescriptions[] = {
 static const ConditionDescription conditionDescription[] = {};
 
 ActorClass ActorClass_art_Display_yuv = INIT_ActorClass(
-        "art_Display_yuv",
+        "ART.art_Display_yuv",
         ActorInstance_art_Display_yuv,
         art_Display_yuv_constructor,
         art_Display_yuv_setParam,
