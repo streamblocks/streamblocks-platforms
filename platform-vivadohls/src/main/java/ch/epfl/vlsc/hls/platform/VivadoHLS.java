@@ -27,7 +27,8 @@ public class VivadoHLS implements Platform {
                 new RenameActorVariablesPhase(),
                 new ResolveGlobalEntityNamesPhase(),
                 new ResolveGlobalVariableNamesPhase(),
-                new ElaborateNetworkPhase()
+                new ElaborateNetworkPhase(),
+                new AnnotateExternalMemories()
         );
     }
     public static List<Phase> networkPartitioningPhases() {

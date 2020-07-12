@@ -85,8 +85,7 @@ public class VivadoHLSBackendPhase implements Phase {
                 PlatformSettings.C99Host,
                 PlatformSettings.arbitraryPrecisionIntegers,
                 PlatformSettings.enableActionProfile,
-                PlatformSettings.enableSystemC,
-                PlatformSettings.maxBRAMSize
+                PlatformSettings.enableSystemC
         );
     }
 
