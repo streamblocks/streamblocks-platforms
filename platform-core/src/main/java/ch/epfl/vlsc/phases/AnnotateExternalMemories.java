@@ -19,6 +19,7 @@ import se.lth.cs.tycho.ir.decl.LocalVarDecl;
 import se.lth.cs.tycho.ir.decl.ParameterVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 
+import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.expr.ExprLiteral;
 import se.lth.cs.tycho.ir.expr.Expression;
 
@@ -35,6 +36,7 @@ import se.lth.cs.tycho.type.Type;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -181,14 +183,14 @@ public class AnnotateExternalMemories implements Phase {
 
             reporter().report(
                     new Diagnostic(Diagnostic.Kind.INFO,
-                            String.format("%s (estimated size = %s B) is going to be mapped to external memories",
-                                    decl.getName(), memories().sizeInBytes(type).get()), sourceUnit(decl), decl));
+                            String.format("Variable %s (estimated byte-aligned size = %s B) is going to be mapped to external memories",
+                                    decl.getOriginalName(), memories().sizeInBytes(type).get()), sourceUnit(decl), decl));
 
 
             if (!memories().isPowerOfTwo(type))
                 reporter().report(new Diagnostic(Diagnostic.Kind.ERROR,
                         String.format("%s of type %s is not power-of-two, but is inferred as external memory.",
-                                decl.getName(), type.toString()),
+                                decl.getOriginalName(), type.toString()),
                         sourceUnit(decl), decl));
         }
 
@@ -207,6 +209,8 @@ public class AnnotateExternalMemories implements Phase {
         default SourceUnit sourceUnit(SourceUnit unit) {
             return unit;
         }
+
+
     }
 
 

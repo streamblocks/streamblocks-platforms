@@ -1,5 +1,6 @@
 package ch.epfl.vlsc.hls.backend.kernel;
 
+import ch.epfl.vlsc.attributes.Memories;
 import ch.epfl.vlsc.hls.backend.ExternalMemory;
 import ch.epfl.vlsc.hls.backend.VivadoHLSBackend;
 import ch.epfl.vlsc.platformutils.Emitter;
@@ -33,7 +34,7 @@ public interface KernelXml {
 
         // -- Network
         Network network = backend().task().getNetwork();
-        ImmutableList<ExternalMemory.InstanceVarDeclPair> pairs = backend()
+        ImmutableList<Memories.InstanceVarDeclPair> pairs = backend()
                 .externalMemory().getExternalMemories(network);
 
         // -- Network file
@@ -55,7 +56,7 @@ public interface KernelXml {
 
 
 
-                    for (ExternalMemory.InstanceVarDeclPair pair : pairs) {
+                    for (Memories.InstanceVarDeclPair pair : pairs) {
                         String memName = backend().externalMemory().namePair(pair);
                         xmlPort("m_axi_" + memName, "master", "0xFFFFFFFF",
                                 backend().externalMemory().getAxiWidth(pair));
@@ -126,7 +127,7 @@ public interface KernelXml {
 
                     // -- External memory args
 
-                    for (ExternalMemory.InstanceVarDeclPair pair : pairs) {
+                    for (Memories.InstanceVarDeclPair pair : pairs) {
                         String memName = backend().externalMemory().namePair(pair);
                         VarDecl decl = pair.getDecl();
                         xmlArg(idCounter++, memName, 1, "m_axi_" + memName,

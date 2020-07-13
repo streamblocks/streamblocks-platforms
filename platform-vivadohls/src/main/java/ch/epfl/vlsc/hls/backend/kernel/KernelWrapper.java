@@ -1,5 +1,6 @@
 package ch.epfl.vlsc.hls.backend.kernel;
 
+import ch.epfl.vlsc.attributes.Memories;
 import ch.epfl.vlsc.hls.backend.ExternalMemory;
 import ch.epfl.vlsc.hls.backend.VivadoHLSBackend;
 import ch.epfl.vlsc.platformutils.Emitter;
@@ -110,7 +111,9 @@ public interface KernelWrapper {
 
         // -- external memory params
 
-        backend().vnetwork().getExternalMemoryAxiParams(network);
+
+        backend().vnetwork().getExternalMemoryAxiParams(network,
+                (network.getInputPorts().size() > 0 || network.getOutputPorts().size() > 0) ? "," : "");
 
 
         for (PortDecl port : network.getInputPorts()) {
@@ -158,7 +161,7 @@ public interface KernelWrapper {
 
         // -- Network external memory ports ports
         if (!backend().externalMemory().getExternalMemories(network).isEmpty()) {
-            for (ExternalMemory.InstanceVarDeclPair mem : backend().externalMemory().getExternalMemories(network)) {
+            for (Memories.InstanceVarDeclPair mem : backend().externalMemory().getExternalMemories(network)) {
                 String memName = backend().externalMemory().namePair(mem);
                 backend().topkernel().getAxiMasterPorts(memName);
             }
@@ -181,7 +184,7 @@ public interface KernelWrapper {
         // -- SDX control signals
         emitter().emit("// -- SDx Control signals");
 
-        for (ExternalMemory.InstanceVarDeclPair mem : backend().externalMemory().getExternalMemories(network)) {
+        for (Memories.InstanceVarDeclPair mem : backend().externalMemory().getExternalMemories(network)) {
             String memName = backend().externalMemory().namePair(mem);
             emitter().emit("input  wire    [64 - 1 : 0]    %s_offset,", memName);
         }
@@ -472,17 +475,17 @@ public interface KernelWrapper {
 
                 // -- External memories parameters
 
-                ImmutableList<ExternalMemory.InstanceVarDeclPair> mems =
+                ImmutableList<Memories.InstanceVarDeclPair> mems =
                         backend().externalMemory().getExternalMemories(network);
 
-                for (ExternalMemory.InstanceVarDeclPair mem: mems) {
+                for (Memories.InstanceVarDeclPair mem: mems) {
 
 
                     boolean lastElement = mems.indexOf(mem) == mems.size() - 1;
 
                     ImmutableList<String> params = backend().externalMemory().getAxiParams(mem);
                     for (String param: params) {
-                        emitter().emit(".%s(%s) %s", param, lastElement ? "" : ",");
+                        emitter().emit(".%s(%1$s) %s", param, lastElement ? "" : ",");
                     }
 
                 }
@@ -496,7 +499,7 @@ public interface KernelWrapper {
             emitter().increaseIndentation();
             // -- External memories
             if (!backend().externalMemory().getExternalMemories(network).isEmpty()) {
-                for (ExternalMemory.InstanceVarDeclPair mem : backend().externalMemory().getExternalMemories(network)) {
+                for (Memories.InstanceVarDeclPair mem : backend().externalMemory().getExternalMemories(network)) {
                     String memName = backend().externalMemory().namePair(mem);
                     backend().vnetwork().getAxiMasterByPort(memName, memName);
                     emitter().emit(".%s_offset(%1$s_offset),", memName);

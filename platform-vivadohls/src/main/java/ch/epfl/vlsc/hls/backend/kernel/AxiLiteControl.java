@@ -1,5 +1,6 @@
 package ch.epfl.vlsc.hls.backend.kernel;
 
+import ch.epfl.vlsc.attributes.Memories;
 import ch.epfl.vlsc.hls.backend.ExternalMemory;
 import ch.epfl.vlsc.hls.backend.VivadoHLSBackend;
 import ch.epfl.vlsc.platformutils.Emitter;
@@ -123,7 +124,7 @@ public interface AxiLiteControl {
 
 
 
-        for (ExternalMemory.InstanceVarDeclPair pair : backend().externalMemory().getExternalMemories(network)) {
+        for (Memories.InstanceVarDeclPair pair : backend().externalMemory().getExternalMemories(network)) {
             String memName = backend().externalMemory().namePair(pair);
             emitter().emit("output  wire    [63 : 0]    %s_offset,", memName);
         }
@@ -183,7 +184,7 @@ public interface AxiLiteControl {
         }
 
 
-        for (ExternalMemory.InstanceVarDeclPair mem : backend().externalMemory().getExternalMemories(network)) {
+        for (Memories.InstanceVarDeclPair mem : backend().externalMemory().getExternalMemories(network)) {
             String memName = backend().externalMemory().namePair(mem);
             emitter().emit("ADDR_%s_OFFSET_DATA_0 = %d'h%s,", memName.toUpperCase(), addressWidth, String.format("%x", value));
             value += 4;
@@ -277,7 +278,7 @@ public interface AxiLiteControl {
         emitter().emit("// -- Internal Registers for addresses for I/O");
 
 
-        for(ExternalMemory.InstanceVarDeclPair mem: backend().externalMemory().getExternalMemories(network)){
+        for(Memories.InstanceVarDeclPair mem: backend().externalMemory().getExternalMemories(network)){
             String memName = backend().externalMemory().namePair(mem);
             emitter().emit("reg [63 : 0]    int_%s_offset = 64'd0;", memName);
         }
@@ -553,7 +554,7 @@ public interface AxiLiteControl {
 
 
 
-                        for(ExternalMemory.InstanceVarDeclPair mem :
+                        for(Memories.InstanceVarDeclPair mem :
                                 backend().externalMemory().getExternalMemories(network)) {
 
                             String memName = backend().externalMemory().namePair(mem);
@@ -730,7 +731,7 @@ public interface AxiLiteControl {
         emitter().emit("assign ap_start     = int_ap_start;");
 
 
-        for (ExternalMemory.InstanceVarDeclPair mem : backend().externalMemory().getExternalMemories(network)) {
+        for (Memories.InstanceVarDeclPair mem : backend().externalMemory().getExternalMemories(network)) {
             String memName = backend().externalMemory().namePair(mem);
             emitter().emit("assign %s_offset = int_%1$s_offset;", memName);
         }
@@ -989,7 +990,7 @@ public interface AxiLiteControl {
             getReg32Bit(port.getName(), "available_size");
         }
 
-        for (ExternalMemory.InstanceVarDeclPair mem: backend().externalMemory().getExternalMemories(network)) {
+        for (Memories.InstanceVarDeclPair mem: backend().externalMemory().getExternalMemories(network)) {
             // -- offset
             String memName = backend().externalMemory().namePair(mem);
             getReg64Bit(memName, "offset");

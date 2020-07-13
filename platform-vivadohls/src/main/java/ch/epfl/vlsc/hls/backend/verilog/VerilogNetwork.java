@@ -1,5 +1,6 @@
 package ch.epfl.vlsc.hls.backend.verilog;
 
+import ch.epfl.vlsc.attributes.Memories;
 import ch.epfl.vlsc.hls.backend.ExternalMemory;
 import ch.epfl.vlsc.hls.backend.VivadoHLSBackend;
 import ch.epfl.vlsc.hls.backend.kernel.AxiConstants;
@@ -104,7 +105,7 @@ public interface VerilogNetwork {
             emitter().increaseIndentation();
 
             // -- external memory parameters
-            getExternalMemoryAxiParams(network);
+            getExternalMemoryAxiParams(network, "");
 
             emitter().decreaseIndentation();
 
@@ -158,7 +159,7 @@ public interface VerilogNetwork {
     default void getModulePortNames(Network network) {
         // -- External Memory ports
         if (!backend().externalMemory().getExternalMemories(network).isEmpty()) {
-            for (ExternalMemory.InstanceVarDeclPair pair : backend().externalMemory().getExternalMemories(network)) {
+            for (Memories.InstanceVarDeclPair pair : backend().externalMemory().getExternalMemories(network)) {
                 String name = backend().externalMemory().namePair(pair);
                 backend().topkernel().getAxiMasterPorts(name);
             }
@@ -178,7 +179,7 @@ public interface VerilogNetwork {
             }
         }
 
-        for (ExternalMemory.InstanceVarDeclPair pair: backend().externalMemory().getExternalMemories(network)) {
+        for (Memories.InstanceVarDeclPair pair: backend().externalMemory().getExternalMemories(network)) {
             String memName = backend().externalMemory().namePair(pair);
             emitter().emit("input  wire    [64 - 1 : 0]    %s_offset,", memName);
         }
@@ -1146,16 +1147,16 @@ public interface VerilogNetwork {
             return 12;
     }
 
-    default void getExternalMemoryAxiParams(Network network) {
+    default void getExternalMemoryAxiParams(Network network, String lastDelim) {
 
-        ImmutableList<ExternalMemory.InstanceVarDeclPair> mems = backend()
+        ImmutableList<Memories.InstanceVarDeclPair> mems = backend()
                 .externalMemory().getExternalMemories(network);
-        for (ExternalMemory.InstanceVarDeclPair pair: mems) {
+        for (Memories.InstanceVarDeclPair pair: mems) {
 
             ImmutableList<String> params =  backend().externalMemory().getAxiParams(pair);
-            boolean last = mems.indexOf(pair) == mems.size() - 1;
             for (String param: params) {
-                emitter().emit("%s %s", param, last ? "" : ",");
+                boolean last = (mems.indexOf(pair) == mems.size() - 1) && (params.indexOf(param) == params.size() - 1);
+                emitter().emit("%s%s", param, last ? lastDelim : ",");
             }
         }
     }

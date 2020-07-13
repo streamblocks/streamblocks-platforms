@@ -1,5 +1,6 @@
 package ch.epfl.vlsc.hls.backend.kernel;
 
+import ch.epfl.vlsc.attributes.Memories;
 import ch.epfl.vlsc.hls.backend.ExternalMemory;
 import ch.epfl.vlsc.hls.backend.VivadoHLSBackend;
 import ch.epfl.vlsc.platformutils.Emitter;
@@ -91,7 +92,7 @@ public interface PackageKernel {
 
         // -- Kernel IO
 
-        for (ExternalMemory.InstanceVarDeclPair mem : backend().externalMemory().getExternalMemories(network)) {
+        for (Memories.InstanceVarDeclPair mem : backend().externalMemory().getExternalMemories(network)) {
             String memName = backend().externalMemory().namePair(mem);
             emitter().emit("ipx::associate_bus_interfaces -busif m_axi_%s -clock ap_clk [ipx::current_core]", memName);
             emitter().emit("ipx::add_bus_parameter HAS_BURST [ipx::get_bus_interfaces m_axi_%s -of_objects [ipx::current_core]]", memName);

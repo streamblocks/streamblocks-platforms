@@ -4,22 +4,31 @@ import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import org.multij.MultiJ;
+import se.lth.cs.tycho.attribute.GlobalNames;
 import se.lth.cs.tycho.attribute.ModuleKey;
 import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.attribute.VariableScopes;
 import se.lth.cs.tycho.compiler.Context;
+import se.lth.cs.tycho.ir.Annotation;
 import se.lth.cs.tycho.ir.decl.VarDecl;
+import se.lth.cs.tycho.ir.entity.Entity;
+import se.lth.cs.tycho.ir.network.Instance;
+import se.lth.cs.tycho.ir.network.Network;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.type.*;
 
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
+
+/**
+ * This interface defines a set of utility functions used to annotate external memories
+ */
 @Module
 public interface Memories {
 
     ModuleKey<Memories>  key = task ->
             MultiJ.from(Implementation.class)
+                    .bind("globalNames").to(task.getModule(GlobalNames.key))
                     .bind("types").to(task.getModule(Types.key))
                     .bind("variableScopes").to(task.getModule(VariableScopes.key))
                     .instance();
@@ -58,6 +67,73 @@ public interface Memories {
     Type rawListType(ListType listType);
 
 
+
+    class Pair<U, V> {
+        private final U first;
+        private final V second;
+        public Pair(U first, V second) {
+            this.first = first;
+            this.second = second;
+        }
+        public static <U, V> Pair<U, V> of(U first, V second) {
+            return new Pair<U, V>(first, second);
+        }
+        public U getFirst() {
+            return first;
+        }
+
+        public V getSecond() {
+            return second;
+        }
+    }
+    class InstanceVarDeclPair extends Pair<Instance, VarDecl>{
+
+        public InstanceVarDeclPair(VarDecl decl, Instance instance) {
+            super(instance, decl);
+        }
+
+        public Instance getInstance() {
+            return getFirst();
+        }
+
+        public VarDecl getDecl() {
+            return getSecond();
+        }
+    }
+
+
+
+    default String name(Instance instance, VarDecl decl) {
+        return name(instance.getInstanceName(), decl);
+    }
+
+    default String name(String instanceName, VarDecl decl) {
+        return instanceName + "_" + decl.getName();
+    }
+
+    default String namePair(InstanceVarDeclPair pair) {
+        return name(pair.getInstance(), pair.getDecl());
+    }
+
+    /**
+     * Collects all of the external memories in a given network, sorted lexicographically depending
+     * on the name produced by the name() method.
+     * @param network
+     * @return A sorted list of Instance VarDecl pairs
+     */
+    ImmutableList<InstanceVarDeclPair> getExternalMemories(Network network);
+
+    /**
+     * Collects all the external memories in a given entity, not sorted.
+     * @param entity
+     * @return A list VarDecl that are supposed to be stored externally
+     */
+    ImmutableList<VarDecl> getExternalMemories(Entity entity);
+
+
+
+    Boolean isStoredExternally(VarDecl decl);
+
     @Module
     interface Implementation extends Memories {
 
@@ -66,6 +142,10 @@ public interface Memories {
 
         @Binding(BindingKind.INJECTED)
         VariableScopes variableScopes();
+
+
+        @Binding(BindingKind.INJECTED)
+        GlobalNames globalNames();
 
         @Binding(BindingKind.LAZY)
         default ImmutableList.Builder<VarDecl> builder() {
@@ -81,7 +161,7 @@ public interface Memories {
         // IntType can have arbitrary precision given by the
         // size parameter (e.g. int (size = 3) is a 3 bit int)
         // However, for practical purposes the size is rounded to
-        // a byte aligned size in most implementation cases.
+        // a byte aligned size in most implementation cases because memory addresses are byte-aligned.
         default Optional<Long> sizeInBytes(IntType type) {
 
             if (type.getSize().isPresent()) {
@@ -167,6 +247,76 @@ public interface Memories {
             }
         }
 
+
+
+
+        /**
+         * Collects all of the external memories in a given network, sorted lexicographically depending
+         * on the name produced by the name() method.
+         * @param network
+         * @return A sorted list of Instance VarDecl pairs
+         */
+        default ImmutableList<InstanceVarDeclPair> getExternalMemories(Network network) {
+
+            List<InstanceVarDeclPair> list = new ArrayList<>();
+
+            for (Instance instance: network.getInstances()) {
+                Entity entity = globalNames().entityDecl(instance.getEntityName(), true).getEntity();
+
+                list.addAll(getExternalMemories(entity).map(decl -> new InstanceVarDeclPair(decl, instance)));
+            }
+            Comparator<InstanceVarDeclPair> comparator = new Comparator<InstanceVarDeclPair>() {
+                @Override
+                public int compare(InstanceVarDeclPair first, InstanceVarDeclPair second) {
+                    String firstName = name(first.getInstance(), first.getDecl());
+                    String secondName = name(second.getInstance(), second.getDecl());
+                    return firstName.compareTo(secondName);
+                }
+            };
+
+            Collections.sort(list, comparator);
+
+            return list.stream().collect(ImmutableList.collector());
+
+        }
+
+        default ImmutableList<VarDecl> getExternalMemories(Entity entity) {
+
+            return variableScopes().declarations(entity)
+                    .stream().filter(this::isStoredExternally).collect(ImmutableList.collector());
+        }
+
+
+
+        default Boolean isStoredExternally(VarDecl decl) {
+
+            return decl.getAnnotations().stream().filter(this::isHLSStorageAnnotation).count() > 0;
+
+        }
+
+        default Boolean isHLSStorageAnnotation(Annotation annotation) {
+            if (annotation.getName().equals("HLS") && annotation.getParameters().get(0).getName().equals("external")) {
+                // TODO: Do better handling of HLS annotations, what if there are other
+                // types of HLS annotations added?
+                return true;
+
+            } else {
+                return false;
+            }
+        }
+
+
+        default String name(Instance instance, VarDecl decl) {
+            return name(instance.getInstanceName(), decl);
+        }
+
+        default String name(String instanceName, VarDecl decl) {
+            return instanceName + "_" + decl.getName();
+        }
+
+        default String namePair(InstanceVarDeclPair pair) {
+            return name(pair.getInstance(), pair.getDecl());
+        }
 
 
 
