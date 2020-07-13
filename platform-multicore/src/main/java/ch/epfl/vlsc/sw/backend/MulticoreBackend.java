@@ -1,5 +1,6 @@
 package ch.epfl.vlsc.sw.backend;
 
+import ch.epfl.vlsc.attributes.Memories;
 import ch.epfl.vlsc.platformutils.DefaultValues;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.utils.Box;
@@ -219,7 +220,10 @@ public interface MulticoreBackend {
     // -- DeviceHandle generator
     @Binding(LAZY)
     default DeviceHandle devicehandle() {
-        return MultiJ.from(DeviceHandle.class).bind("backend").to(this).instance();
+        return MultiJ.from(DeviceHandle.class)
+                .bind("backend").to(this)
+                .bind("memories").to(task().getModule(Memories.key))
+                .instance();
     }
     // -- Main generator
     @Binding(LAZY)

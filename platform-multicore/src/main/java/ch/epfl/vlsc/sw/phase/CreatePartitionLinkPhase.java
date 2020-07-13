@@ -1,5 +1,7 @@
 package ch.epfl.vlsc.sw.phase;
 
+import ch.epfl.vlsc.attributes.Memories;
+import ch.epfl.vlsc.compiler.PartitionedCompilationTask;
 import ch.epfl.vlsc.phases.ExtractSoftwarePartition;
 import ch.epfl.vlsc.phases.NetworkPartitioningPhase;
 import ch.epfl.vlsc.settings.PlatformSettings;
@@ -53,10 +55,13 @@ public class CreatePartitionLinkPhase implements Phase {
         return "Creates a PartitionLink Entity that directs all floating connections to an instance of this entity";
     }
 
+    CompilationTask task;
+
     @Override
     public CompilationTask execute(CompilationTask task, Context context) throws CompilationException {
 
         context.getReporter().report(new Diagnostic(Diagnostic.Kind.INFO, "Generating PartitionLink entity."));
+        this.task = task;
         if (context.getConfiguration().isDefined(PlatformSettings.PartitionNetwork)
                 && context.getConfiguration().get(PlatformSettings.PartitionNetwork))
             return createPartitionLink(task, context);
@@ -116,7 +121,16 @@ public class CreatePartitionLinkPhase implements Phase {
         String plinkEntityName = "system_plink";
 
         // -- create a PartitionLink entity
-        PartitionHandle handle = createPartitionHandle(ImmutableList.from(inputPorts), ImmutableList.from(outputPorts));
+
+        ImmutableList<Memories.InstanceVarDeclPair> memoryResidentVars =
+                task.getModule(Memories.key).getExternalMemories(task.getNetwork());
+
+        PartitionHandle handle = createPartitionHandle(
+                ImmutableList.from(inputPorts),
+                ImmutableList.from(outputPorts),
+                memoryResidentVars);
+
+
         PartitionLink plink = new PartitionLink(inputPorts, outputPorts, handle);
         GlobalEntityDecl plinkEntity = GlobalEntityDecl.global(Availability.PUBLIC, plinkEntityName, plink, false);
         String plinkInstanceName = uniquePlinkName(task.getNetwork(), plinkEntityName);
@@ -244,9 +258,10 @@ public class CreatePartitionLinkPhase implements Phase {
     }
 
     private PartitionHandle createPartitionHandle(ImmutableList<PortDecl> inputPorts,
-                                                  ImmutableList<PortDecl> outputPorts) {
+                                                  ImmutableList<PortDecl> outputPorts,
+                                                  ImmutableList<Memories.InstanceVarDeclPair> memories) {
         ImmutableList<PartitionHandle.Method> methods = createMethods(inputPorts, outputPorts);
-        ImmutableList<Field> fields = createFields(inputPorts, outputPorts);
+        ImmutableList<Field> fields = createFields(inputPorts, outputPorts, memories);
         String className = createName();
         PartitionHandle.Method constructor = createConstructor();
         PartitionHandle.Method desttructor = createDestructor();
@@ -264,14 +279,16 @@ public class CreatePartitionLinkPhase implements Phase {
 
         // -- independent methods
         funcs.addAll(
-                Method.of("cl_int", "load_file_to_memory",
+                Method.global("cl_int", "load_file_to_memory",
                         ImmutableList.of(
                                 Method.MethodArg("const char*", "filename"),
-                                Method.MethodArg("char**", "result")), true),
+                                Method.MethodArg("char**", "result"))),
+
                 Method.of("void", "createCLBuffers",
                         ImmutableList.of(
                             Method.MethodArg(Type.of("size_t", true), "cl_write_buffer_size"),
                             Method.MethodArg(Type.of("size_t", true), "cl_read_buffer_size"))),
+
                 Method.of("void", "setArgs"),
                 Method.of("void", "enqueueExecution"),
                 Method.of("void", "enqueueWriteBuffers"),
@@ -290,6 +307,8 @@ public class CreatePartitionLinkPhase implements Phase {
         );
 
         // -- topology dependent methods
+
+
 
         // -- set request size
         inputPorts.stream().forEachOrdered(
@@ -325,7 +344,8 @@ public class CreatePartitionLinkPhase implements Phase {
      * @return
      */
     private ImmutableList<Field> createFields(ImmutableList<PortDecl> inputPorts,
-                                                              ImmutableList<PortDecl> outputPorts) {
+                                              ImmutableList<PortDecl> outputPorts,
+                                              ImmutableList<Memories.InstanceVarDeclPair> memories) {
 
         ImmutableList.Builder<Field> fields = ImmutableList.builder();
 
@@ -397,8 +417,8 @@ public class CreatePartitionLinkPhase implements Phase {
         }
 
 
-        Stream.concat(inputPorts.stream(), outputPorts.stream())
-                .forEachOrdered(p -> fields.addAll(
+        ImmutableList.concat(inputPorts, outputPorts)
+                .forEach(p -> fields.addAll(
                         Field.of(
                                 Type.of(p, true),
                                 p.getName() + "_buffer",
@@ -419,6 +439,14 @@ public class CreatePartitionLinkPhase implements Phase {
                                 "cl_mem",
                                 p.getName() + "_cl_size",
                                 "device size buffer for port " + p.getName())));
+
+        // -- external memories
+        memories.forEach(p ->
+                fields.add(
+                        Field.of("cl_mem",
+                                task.getModule(Memories.key).namePair(p) + "_cl_buffer",
+                                "cl_buffer descriptor for externally stored variable " +
+                                p.getDecl().getName() + " in instance " + p.getInstance().getInstanceName())));
 
         return fields.build();
     }
@@ -444,34 +472,6 @@ public class CreatePartitionLinkPhase implements Phase {
         return Method.of("void", "terminate");
     }
 
-    private ImmutableList<Field> networkMemories(CompilationTask task, Network network) {
-        return ImmutableList.from(
-                network.getInstances().stream().flatMap(i -> instanceMemories(task, i)).collect(Collectors.toList()));
-    }
 
-    private Stream<Field> instanceMemories(CompilationTask task, Instance instance) {
-
-
-        return Stream.empty();
-    }
-
-
-    private Stream<Field> entityMemories(CompilationTask task, ActorMachine entity) {
-
-        VariableScopes varScopes = task.getModule(VariableScopes.key);
-        Types types = task.getModule(Types.key);
-        for (VarDecl decl: varScopes.declarations(entity)) {
-            if (types.declaredType(decl) instanceof ListType) {
-                ListType listType = (ListType) (types.declaredType(decl));
-
-            }
-        }
-        return Stream.empty();
-    }
-
-    private Stream<Field> entityMemories(CalActor entity) {
-
-        return Stream.empty();
-    }
 
 }

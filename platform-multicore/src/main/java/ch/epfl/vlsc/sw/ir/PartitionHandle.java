@@ -59,11 +59,13 @@ public class PartitionHandle {
         private final Type retType;
         private final ImmutableList<Pair<Type, String>> args;
         private final boolean global;
-        public Method(Type retType, String name, List<Pair<Type, String>> args, boolean global) {
+        private final boolean fixed;
+        public Method(Type retType, String name, List<Pair<Type, String>> args, boolean fixed, boolean global) {
             this.retType = retType;
             this.name = name;
             this.args = ImmutableList.from(args);
             this.global = global;
+            this.fixed = fixed;
         }
 
         public String getName() { return this.name; }
@@ -79,18 +81,26 @@ public class PartitionHandle {
             return Pair.of(type, name);
         }
 
-        public static Method of(String retType, String name, List<Pair<Type, String>> args, boolean global) {
-            return new Method(Type.of(retType), name, args, global);
+        public static Method global(String retType, String name, List<Pair<Type, String>> args, boolean fixed) {
+            return new Method(Type.of(retType), name, args, fixed, true);
         }
 
-        public static Method of(Type retType, String name, List<Pair<Type, String>> args, boolean global) {
-            return new Method(retType, name, args, global);
+        public static Method global(String retType, String name, List<Pair<Type, String>> args) {
+            return Method.global(retType, name, args, true);
+        }
+
+        public static Method of(String retType, String name, List<Pair<Type, String>> args, boolean fixed) {
+            return new Method(Type.of(retType), name, args, fixed, false);
+        }
+
+        public static Method of(Type retType, String name, List<Pair<Type, String>> args, boolean fixed) {
+            return new Method(retType, name, args, fixed, false);
         }
         public static Method of(String retType, String name) {
-            return new Method(Type.of(retType), name, ImmutableList.empty(), false);
+            return new Method(Type.of(retType), name, ImmutableList.empty(), false, false);
         }
         public static Method of(Type retType, String name) {
-            return new Method(retType, name, ImmutableList.empty(), false);
+            return new Method(retType, name, ImmutableList.empty(), false, false);
         }
         public static Method of(String retType, String name, List<Pair<Type, String>> args) {
             return Method.of(retType, name, args, false);

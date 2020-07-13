@@ -1,6 +1,7 @@
 package ch.epfl.vlsc.sw.backend;
 
 
+import ch.epfl.vlsc.attributes.Memories;
 import ch.epfl.vlsc.platformutils.PathUtils;
 import ch.epfl.vlsc.settings.PlatformSettings;
 import ch.epfl.vlsc.sw.ir.PartitionHandle;
@@ -40,6 +41,9 @@ import java.util.stream.Stream;
 public interface DeviceHandle {
     @Binding(BindingKind.INJECTED)
     MulticoreBackend backend();
+
+    @Binding(BindingKind.INJECTED)
+    Memories memories();
 
     default void unimpl() {
         StackTraceElement[] stackTrace = new Throwable().getStackTrace();
@@ -254,12 +258,29 @@ public interface DeviceHandle {
                 getCreateCLBuffer(port.getName() + "_cl_buffer", "CL_MEM_WRITE_ONLY", size);
             }
             emitter().emitNewLine();
-            emitter().emit("// -- consumed and produces size of streams");
-            Stream.concat(entity.getInputPorts().stream(), entity.getOutputPorts().stream()).forEach(
+            emitter().emit("// -- consumed and produced size of streams");
+            ImmutableList.concat(entity.getInputPorts(), entity.getOutputPorts()).forEach(
                     p ->
                             getCreateCLBuffer(p.getName() + "_cl_size",
                                     "CL_MEM_WRITE_ONLY", "sizeof(" + defaultIntType() + ")")
             );
+
+            emitter().emitNewLine();
+            emitter().emit("// -- external memories used hardware actors");
+
+            memories().getExternalMemories(backend().task().getNetwork()).forEach(
+                    p -> {
+
+
+                        Long sizeBytes =
+                                memories().sizeInBytes(backend().types().declaredType(p.getDecl())).orElseThrow(
+                                        () -> new CompilationException(
+                                                new Diagnostic(Diagnostic.Kind.ERROR, "Could not compute " +
+                                                        "the size of " + p.getDecl().getName())));
+
+                        String name = memories().namePair(p);
+                        getCreateCLBuffer(name, "CL_MEM_READ_WRITE", sizeBytes.toString());
+                    });
 
             emitter().decreaseIndentation();
         }
@@ -399,6 +420,14 @@ public interface DeviceHandle {
 
             emitter().emit("// -- kernel command arg");
             getSetKernelArg(kernelIndex++, "sizeof(cl_ulong)", "kernel_command");
+
+            emitter().emitNewLine();
+            // -- external memories
+            emitter().emit("// -- external memories");
+            for (Memories.InstanceVarDeclPair mem : memories().getExternalMemories(backend().task().getNetwork())) {
+                String memName = memories().namePair(mem);
+                getSetKernelArg(kernelIndex++, "sizeof(cl_mem)", memName + "_cl_buffer");
+            }
             emitter().emitNewLine();
             emitter().decreaseIndentation();
         }
