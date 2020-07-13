@@ -1314,7 +1314,6 @@ void pre_parse_args(int argc, char *argv[], RuntimeOptions *options) {
             exit(1);
         }
     }
-    return options;
 }
 
 int executeNetwork(int argc,
