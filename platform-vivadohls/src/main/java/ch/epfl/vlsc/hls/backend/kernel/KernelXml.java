@@ -1,5 +1,6 @@
 package ch.epfl.vlsc.hls.backend.kernel;
 
+import ch.epfl.vlsc.hls.backend.ExternalMemory;
 import ch.epfl.vlsc.hls.backend.VivadoHLSBackend;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.PathUtils;
@@ -9,6 +10,9 @@ import org.multij.Module;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.network.Network;
+import se.lth.cs.tycho.ir.util.ImmutableList;
+import se.lth.cs.tycho.reporting.CompilationException;
+import se.lth.cs.tycho.reporting.Diagnostic;
 import se.lth.cs.tycho.type.ListType;
 import se.lth.cs.tycho.type.Type;
 
@@ -29,6 +33,8 @@ public interface KernelXml {
 
         // -- Network
         Network network = backend().task().getNetwork();
+        ImmutableList<ExternalMemory.InstanceVarDeclPair> pairs = backend()
+                .externalMemory().getExternalMemories(network);
 
         // -- Network file
         emitter().open(PathUtils.getTargetCodeGenRtl(backend().context()).resolve("kernel.xml"));
@@ -46,26 +52,29 @@ public interface KernelXml {
                     emitter().increaseIndentation();
 
                     // -- External Memories
-                    Map<VarDecl, String> mems = backend().externalMemory().externalMemories();
-                    for (VarDecl decl : mems.keySet()) {
-                        String memName = mems.get(decl);
-                        ListType listType = (ListType) backend().types().declaredType(decl);
-                        int bitSize = backend().typeseval().sizeOfBits(listType.getElementType());
-                        xmlPort("m_axi_" + memName, "master", "0xFFFFFFFF", Math.max(bitSize, AxiConstants.C_M_AXI_DATA_WIDTH));
+
+
+
+                    for (ExternalMemory.InstanceVarDeclPair pair : pairs) {
+                        String memName = backend().externalMemory().namePair(pair);
+                        xmlPort("m_axi_" + memName, "master", "0xFFFFFFFF",
+                                backend().externalMemory().getAxiWidth(pair));
                     }
 
                     // -- Input ports
                     for (PortDecl port : network.getInputPorts()) {
                         Type type = backend().types().declaredPortType(port);
                         int bitSize = backend().typeseval().sizeOfBits(type);
-                        xmlPort("m_axi_" + port.getName(), "master", "0xFFFFFFFF", Math.max(bitSize, AxiConstants.C_M_AXI_DATA_WIDTH));
+                        xmlPort("m_axi_" + port.getName(), "master", "0xFFFFFFFF",
+                                Math.max(bitSize, AxiConstants.IO_STAGE_BUS_WIDTH));
                     }
 
                     // -- Output ports
                     for (PortDecl port : network.getOutputPorts()) {
                         Type type = backend().types().declaredPortType(port);
                         int bitSize = backend().typeseval().sizeOfBits(type);
-                        xmlPort("m_axi_" + port.getName(), "master", "0xFFFFFFFF", Math.max(bitSize, AxiConstants.C_M_AXI_DATA_WIDTH));
+                        xmlPort("m_axi_" + port.getName(), "master", "0xFFFFFFFF",
+                                Math.max(bitSize, AxiConstants.IO_STAGE_BUS_WIDTH));
                     }
 
                     // -- AXI4-Lite Control
@@ -93,14 +102,8 @@ public interface KernelXml {
                     }
                     // -- Increase by 4 for reserved offset
 
-                    Map<VarDecl, String> mems = backend().externalMemory().externalMemories();
-                    for (VarDecl decl : mems.keySet()) {
-                        String memName = mems.get(decl);
-                        ListType listType = (ListType) backend().types().declaredType(decl);
-                        Type type = listType.getElementType();
-                        xmlArg(idCounter++, memName, 1, "m_axi_" + memName, "0x0", "0x8", String.format("0x%X", offset), "0x8", "unsigned int*");
-                        offset += 12;
-                    }
+
+
 
                     for (PortDecl port : network.getInputPorts()) {
                         Type type = backend().types().declaredPortType(port);
@@ -120,6 +123,17 @@ public interface KernelXml {
                     }
                     xmlArg(idCounter++, "kernel_command", 0, "s_axi_control", "0x0", "0x8", String.format("0x%x", offset), "0x8", "unsigned long int");
                     offset += 12;
+
+                    // -- External memory args
+
+                    for (ExternalMemory.InstanceVarDeclPair pair : pairs) {
+                        String memName = backend().externalMemory().namePair(pair);
+                        VarDecl decl = pair.getDecl();
+                        xmlArg(idCounter++, memName, 1, "m_axi_" + memName,
+                                "0x0", "0x8", String.format("0x%X", offset), "0x8", "unsigned int*");
+                        offset += 12;
+                    }
+
                     emitter().decreaseIndentation();
                 }
                 emitter().emit("</args>");

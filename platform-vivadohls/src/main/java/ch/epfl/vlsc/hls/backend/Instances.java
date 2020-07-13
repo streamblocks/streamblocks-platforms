@@ -63,11 +63,6 @@ public interface Instances {
         return backend().channelsutils();
     }
 
-    @Binding(BindingKind.LAZY)
-    default Map<VarDecl, String> externalMemories() {
-        return new HashMap<>();
-    }
-
 
     default void generateInstance(Instance instance) {
         // -- Add instance to box
@@ -80,7 +75,7 @@ public interface Instances {
         // -- Add entity to box
         backend().entitybox().set(entity);
 
-        externalMemories().putAll(backend().externalMemory().getExternalMemories(entity));
+
 
         // -- Generate Source
         generateSource(instance);
@@ -89,7 +84,7 @@ public interface Instances {
         generateHeader(instance);
 
         // -- Clear boxes
-        externalMemories().clear();
+
         backend().entitybox().clear();
         backend().instancebox().clear();
     }
@@ -160,11 +155,12 @@ public interface Instances {
         algebraicPeek.forEach(peek -> emitter().emit("#pragma HLS DATA_PACK variable=io.%s_peek", peek));
 
         // -- Large state variables to external memories
-        for (VarDecl decl : externalMemories().keySet()) {
+        for (VarDecl decl : backend().externalMemory().getExternalMemories(entity)) {
             ListType listType = (ListType) types().declaredType(decl);
             List<Integer> dim = backend().typeseval().sizeByDimension(listType);
-            int listSize = dim.stream().mapToInt(s -> s).reduce(1, Math::multiplyExact);
-            emitter().emit("#pragma HLS INTERFACE m_axi depth=%d port=%s offset=direct bundle=%2$s", listSize, externalMemories().get(decl));
+            Long listDepth = backend().externalMemory().memories().listDepth(listType);
+            String memoryName = backend().externalMemory().name(instance, decl);
+            emitter().emit("#pragma HLS INTERFACE m_axi depth=%d port=%s offset=direct bundle=%2$s", listDepth, memoryName);
         }
         emitter().increaseIndentation();
 
@@ -173,15 +169,14 @@ public interface Instances {
         emitter().emit("static %s i_%s;", className, name);
         emitter().emitNewLine();
 
-        // -- External memories
         List<String> ports = new ArrayList<>();
 
-        // -- Ports IO
-        List<String> mems = new ArrayList<>();
-        for (VarDecl decl : externalMemories().keySet()) {
-            mems.add(externalMemories().get(decl));
-        }
-        ports.addAll(mems);
+
+        // -- External memories
+        ports.addAll(
+                backend().externalMemory()
+                        .getExternalMemories(entity).map(v -> backend().externalMemory().name(instance, v)));
+
         ports.addAll(entity.getInputPorts().stream().map(PortDecl::getName).collect(Collectors.toList()));
         ports.addAll(entity.getOutputPorts().stream().map(PortDecl::getName).collect(Collectors.toList()));
 
@@ -364,11 +359,15 @@ public interface Instances {
                         } else {
                             Type type = backend().types().declaredType(var);
                             if (type instanceof ListType) {
-                                if (backend().externalMemory().isExternalMemory(var)) {
+                                if (backend().externalMemory().isStoredExternally(var)) {
                                     ListType listType = (ListType) type;
-                                    emitter().emit("%s* %s;", backend().typeseval().type(listType.getElementType()), backend().variables().declarationName(var));
+                                    emitter().emit("%s* %s;",
+                                            backend().typeseval().type(
+                                                    listType.getElementType()),
+                                            backend().variables().declarationName(var));
                                 } else {
-                                    String decl = declarations().declaration(types().declaredType(var), backend().variables().declarationName(var));
+                                    String decl = declarations().declaration(types().declaredType(var),
+                                            backend().variables().declarationName(var));
                                     emitter().emit("%s;", decl);
                                 }
                             } else {
@@ -499,9 +498,10 @@ public interface Instances {
 
         if (withExternalMemories) {
             // -- External memories
-            for (VarDecl decl : externalMemories().keySet()) {
+            for (VarDecl decl : backend().externalMemory().getExternalMemories(entity)) {
                 ListType listType = (ListType) backend().types().declaredType(decl);
-                String mem = String.format("%s* %s", backend().typeseval().type(listType.getElementType()), externalMemories().get(decl));
+                String mem = String.format("%s* %s", backend().typeseval().type(listType.getElementType()),
+                        backend().variables().declarationName(decl));
                 ports.add(mem);
             }
         }
@@ -540,10 +540,10 @@ public interface Instances {
                 emitter().increaseIndentation();
 
                 // -- External Memories
-                for (VarDecl var : externalMemories().keySet()) {
+                for (VarDecl var : backend().externalMemory().getExternalMemories(actor)) {
                     String decl = backend().variables().declarationName(var);
-                    String value = externalMemories().get(var);
-                    emitter().emit("%s = %s;", decl, value);
+                    String portName = backend().externalMemory().name(instanceName, var);
+                    emitter().emit("%s = %s;", decl, portName);
                 }
 
                 actor.getProcessDescription().getStatements().forEach(backend().statements()::execute);
@@ -573,12 +573,12 @@ public interface Instances {
                 emitter().emit("unsigned int action_size = 0;");
             }
             // -- External Memories
-            if (!externalMemories().isEmpty()) {
+            if (!backend().externalMemory().getExternalMemories(actor).isEmpty()) {
                 emitter().emit("// -- Initialize large memory pointers");
-                for (VarDecl var : externalMemories().keySet()) {
+                for (VarDecl var : backend().externalMemory().getExternalMemories(actor)) {
                     String decl = backend().variables().declarationName(var);
-                    String value = externalMemories().get(var);
-                    emitter().emit("%s = %s;", decl, value);
+                    String portName = backend().externalMemory().name(instanceName, var);
+                    emitter().emit("%s = %s;", decl, portName);
                 }
                 emitter().emitNewLine();
             }

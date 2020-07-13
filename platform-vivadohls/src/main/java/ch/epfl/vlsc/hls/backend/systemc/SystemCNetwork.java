@@ -283,26 +283,15 @@ public interface SystemCNetwork {
 
         emitter().open(PathUtils.getTargetCodeGenInclude(backend().context()).resolve(identifier + ".h"));
 
-        if (!backend().externalMemory().externalMemories().isEmpty()) {
-            Integer maxBramSize= backend().externalMemory().sizeThresholdBits();
-            backend().context().getReporter().report(new Diagnostic(Diagnostic.Kind.INFO, "The following " +
-                    "variables are mapped to external memories:"));
-            backend().externalMemory().externalMemories().forEach((var, str) -> {
+        if (!backend().externalMemory().getExternalMemories(network).isEmpty()) {
 
-                ListType type = (ListType) backend().types().declaredType(var);
-                int sizeBits = backend().externalMemory().getListSizeBits(type);
 
-                backend().context().getReporter().report(
-                        new Diagnostic(Diagnostic.Kind.INFO, String.format("%s with size %d bits", var.getName(),
-                                sizeBits)));
-
-            });
             backend().context().getReporter().report(
                     new Diagnostic(Diagnostic.Kind.ERROR,
                             String.format(
                                     "Actors with external memories are not yet supported, consider increasing" +
                                             " the on-chip memory using --set max-bram=VALUE_BYTES to " +
-                                            "make all memories internal. Current limit is %d bits", maxBramSize)));
+                                            "make all memories internal")));
 
 
         }

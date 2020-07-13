@@ -3,13 +3,17 @@ package ch.epfl.vlsc.phases;
 
 import se.lth.cs.tycho.compiler.CompilationTask;
 import se.lth.cs.tycho.compiler.Context;
+import se.lth.cs.tycho.compiler.SourceUnit;
+import se.lth.cs.tycho.ir.IRNode;
 import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.network.Network;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.phase.Phase;
+import se.lth.cs.tycho.phase.TreeShadow;
 import se.lth.cs.tycho.reporting.CompilationException;
 import se.lth.cs.tycho.reporting.Diagnostic;
+
 
 import java.util.HashMap;
 import java.util.Map;
@@ -28,11 +32,12 @@ public class VerilogNameCheckerPhase implements Phase {
     }
 
 
-
+    CompilationTask task;
     @Override
     public CompilationTask execute(CompilationTask task, Context context) throws CompilationException {
 
         this.context = context;
+        this.task = task;
         ImmutableList<Instance> instances = task.getNetwork().getInstances().map(this::renameInstance);
         ImmutableList<Connection> connections = task.getNetwork().getConnections().map(this::renameConnection);
         return task.withNetwork(task.getNetwork().withInstances(instances).withConnections(connections));
@@ -59,6 +64,7 @@ public class VerilogNameCheckerPhase implements Phase {
         newNames.put(instance.getInstanceName(), newName);
         return instance.withInstanceName(newName);
     }
+
 
     private Connection renameConnection(Connection connection) {
         Connection.End source = connection.getSource().withInstance(
@@ -300,4 +306,5 @@ public class VerilogNameCheckerPhase implements Phase {
                 "xor"
         );
     }
+
 }

@@ -1,5 +1,6 @@
 package ch.epfl.vlsc.hls.backend;
 
+import ch.epfl.vlsc.attributes.Memories;
 import ch.epfl.vlsc.hls.backend.controllers.BranchingController;
 import ch.epfl.vlsc.hls.backend.controllers.FsmController;
 import ch.epfl.vlsc.hls.backend.controllers.QuickJumpController;
@@ -225,10 +226,11 @@ public interface VivadoHLSBackend {
     @Binding(LAZY)
     default ExternalMemory externalMemory() {
         return MultiJ.from(ExternalMemory.class)
-                .bind("backend").to(this)
+                .bind("task").to(task())
                 .bind("variableScopes").to(task().getModule(VariableScopes.key))
                 .bind("types").to(task().getModule(Types.key))
                 .bind("typeseval").to(typeseval())
+                .bind("memories").to(task().getModule(Memories.key))
                 .instance();
     }
 

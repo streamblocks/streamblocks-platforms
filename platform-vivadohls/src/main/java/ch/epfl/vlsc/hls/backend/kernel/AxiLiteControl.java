@@ -1,5 +1,6 @@
 package ch.epfl.vlsc.hls.backend.kernel;
 
+import ch.epfl.vlsc.hls.backend.ExternalMemory;
 import ch.epfl.vlsc.hls.backend.VivadoHLSBackend;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.PathUtils;
@@ -121,9 +122,9 @@ public interface AxiLiteControl {
         emitter().emit("input  wire                          RREADY,");
 
 
-        Map<VarDecl, String> mems = backend().externalMemory().externalMemories();
-        for (VarDecl decl : mems.keySet()) {
-            String memName = mems.get(decl);
+
+        for (ExternalMemory.InstanceVarDeclPair pair : backend().externalMemory().getExternalMemories(network)) {
+            String memName = backend().externalMemory().namePair(pair);
             emitter().emit("output  wire    [63 : 0]    %s_offset,", memName);
         }
 
@@ -181,9 +182,9 @@ public interface AxiLiteControl {
             value += 4;
         }
 
-        Map<VarDecl, String> mems = backend().externalMemory().externalMemories();
-        for (VarDecl decl : mems.keySet()) {
-            String memName = mems.get(decl);
+
+        for (ExternalMemory.InstanceVarDeclPair mem : backend().externalMemory().getExternalMemories(network)) {
+            String memName = backend().externalMemory().namePair(mem);
             emitter().emit("ADDR_%s_OFFSET_DATA_0 = %d'h%s,", memName.toUpperCase(), addressWidth, String.format("%x", value));
             value += 4;
             emitter().emit("ADDR_%s_OFFSET_DATA_1 = %d'h%s,", memName.toUpperCase(), addressWidth, String.format("%x", value));
@@ -275,9 +276,9 @@ public interface AxiLiteControl {
 
         emitter().emit("// -- Internal Registers for addresses for I/O");
 
-        Map<VarDecl, String> mems = backend().externalMemory().externalMemories();
-        for (VarDecl decl : mems.keySet()) {
-            String memName = mems.get(decl);
+
+        for(ExternalMemory.InstanceVarDeclPair mem: backend().externalMemory().getExternalMemories(network)){
+            String memName = backend().externalMemory().namePair(mem);
             emitter().emit("reg [63 : 0]    int_%s_offset = 64'd0;", memName);
         }
 
@@ -551,9 +552,11 @@ public interface AxiLiteControl {
                         emitter().emit("end");
 
 
-                        Map<VarDecl, String> mems = backend().externalMemory().externalMemories();
-                        for (VarDecl decl : mems.keySet()) {
-                            String memName = mems.get(decl);
+
+                        for(ExternalMemory.InstanceVarDeclPair mem :
+                                backend().externalMemory().getExternalMemories(network)) {
+
+                            String memName = backend().externalMemory().namePair(mem);
 
                             emitter().emit("ADDR_%s_OFFSET_DATA_0: begin", memName.toUpperCase());
                             {
@@ -726,9 +729,9 @@ public interface AxiLiteControl {
         emitter().emit("assign event_start  = int_event_start;");
         emitter().emit("assign ap_start     = int_ap_start;");
 
-        Map<VarDecl, String> mems = backend().externalMemory().externalMemories();
-        for (VarDecl decl : mems.keySet()) {
-            String memName = mems.get(decl);
+
+        for (ExternalMemory.InstanceVarDeclPair mem : backend().externalMemory().getExternalMemories(network)) {
+            String memName = backend().externalMemory().namePair(mem);
             emitter().emit("assign %s_offset = int_%1$s_offset;", memName);
         }
 
@@ -986,9 +989,9 @@ public interface AxiLiteControl {
             getReg32Bit(port.getName(), "available_size");
         }
 
-        for (VarDecl decl : mems.keySet()) {
+        for (ExternalMemory.InstanceVarDeclPair mem: backend().externalMemory().getExternalMemories(network)) {
             // -- offset
-            String memName = mems.get(decl);
+            String memName = backend().externalMemory().namePair(mem);
             getReg64Bit(memName, "offset");
         }
 
@@ -1100,7 +1103,13 @@ public interface AxiLiteControl {
     // -- Helper Methods
 
     default int getAddressBitWidth(Network network) {
-        int value = 16 + network.getInputPorts().size() * 8 + network.getOutputPorts().size() * 8 + backend().externalMemory().externalMemories().size() * 24 + network.getInputPorts().size() * 24 + network.getOutputPorts().size() * 24 + 24;
+        int value = 16 +
+                network.getInputPorts().size() * 8 +
+                network.getOutputPorts().size() * 8 +
+                backend().externalMemory().getExternalMemories(network).size() * 24 +
+                network.getInputPorts().size() * 24 +
+                network.getOutputPorts().size() * 24 + 24;
+
         return MathUtils.countBit(value);
     }
 

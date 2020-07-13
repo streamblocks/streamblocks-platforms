@@ -5,26 +5,23 @@ import ch.epfl.vlsc.settings.PlatformSettings;
 import ch.epfl.vlsc.settings.SizeValueParser;
 import org.multij.BindingKind;
 import org.multij.MultiJ;
-import se.lth.cs.tycho.attribute.GlobalNames;
+
 import se.lth.cs.tycho.attribute.Types;
-import se.lth.cs.tycho.attribute.VariableScopes;
+
 import se.lth.cs.tycho.compiler.CompilationTask;
 import se.lth.cs.tycho.compiler.Context;
 import se.lth.cs.tycho.compiler.SourceUnit;
-import se.lth.cs.tycho.compiler.Transformations;
+
 import se.lth.cs.tycho.ir.Annotation;
 import se.lth.cs.tycho.ir.AnnotationParameter;
 import se.lth.cs.tycho.ir.IRNode;
 import se.lth.cs.tycho.ir.decl.LocalVarDecl;
 import se.lth.cs.tycho.ir.decl.ParameterVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
-import se.lth.cs.tycho.ir.entity.Entity;
-import se.lth.cs.tycho.ir.entity.am.ActorMachine;
-import se.lth.cs.tycho.ir.entity.am.Scope;
-import se.lth.cs.tycho.ir.entity.cal.CalActor;
+
 import se.lth.cs.tycho.ir.expr.ExprLiteral;
 import se.lth.cs.tycho.ir.expr.Expression;
-import se.lth.cs.tycho.ir.network.Instance;
+
 import se.lth.cs.tycho.ir.type.TypeExpr;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.phase.Phase;
@@ -33,7 +30,7 @@ import se.lth.cs.tycho.reporting.CompilationException;
 import se.lth.cs.tycho.reporting.Diagnostic;
 import se.lth.cs.tycho.reporting.Reporter;
 import se.lth.cs.tycho.settings.Setting;
-import se.lth.cs.tycho.type.ListType;
+
 import se.lth.cs.tycho.type.Type;
 
 import java.util.Collections;
@@ -77,7 +74,12 @@ public class AnnotateExternalMemories implements Phase {
         this.context = context;
 
         this.sizeThreshold = new SizeValueParser()
-                .parse(context.getConfiguration().get(PlatformSettings.maxBRAMSize)) * 8;
+                .parse(context.getConfiguration().get(PlatformSettings.maxBRAMSize));
+        context.getReporter().report(
+                new Diagnostic(Diagnostic.Kind.INFO, "Maximum bram size: " +
+                        context.getConfiguration().get(PlatformSettings.maxBRAMSize)
+                        + " (" + this.sizeThreshold + "B)"));
+
         Transformation transform = MultiJ.from(Transformation.class)
                 .bind("reporter").to(context.getReporter())
                 .bind("tree").to(task.getModule(TreeShadow.key))
@@ -117,10 +119,8 @@ public class AnnotateExternalMemories implements Phase {
         default ParameterVarDecl apply(ParameterVarDecl varDecl) {
 
             if (shouldBeExternal(varDecl)) {
-                reporter().report(
-                        new Diagnostic(Diagnostic.Kind.INFO,
-                                String.format("%s is going to be mapped to external memories",
-                                        varDecl.getName()), sourceUnit(varDecl), varDecl));
+                warnIfNotAligned(varDecl);
+
                 TypeExpr type = (TypeExpr) varDecl.getType().deepClone();
 
                 List<Annotation> annotations =
@@ -140,11 +140,8 @@ public class AnnotateExternalMemories implements Phase {
         default LocalVarDecl apply(LocalVarDecl varDecl) {
 
             if (shouldBeExternal(varDecl)) {
+                warnIfNotAligned(varDecl);
 
-                reporter().report(
-                        new Diagnostic(Diagnostic.Kind.INFO,
-                                String.format("%s is going to be mapped to external memories",
-                                        varDecl.getName()), sourceUnit(varDecl), varDecl));
                 TypeExpr type = (TypeExpr) varDecl.getType().deepClone();
 
 
@@ -168,14 +165,31 @@ public class AnnotateExternalMemories implements Phase {
         default Boolean shouldBeExternal(VarDecl decl) {
             Type type = types().declaredType(decl);
 
-            Optional<Long> bitsInType = memories().sizeInBits(type);
+            Optional<Long> bitsInType = memories().sizeInBytes(type);
 
             if (bitsInType.isPresent() && bitsInType.get() > maxInternalMemory()) {
+
                 return true;
             }
 
             // Either we could not compute the memory size or the variable fits in the given limits
             return false;
+        }
+
+        default void warnIfNotAligned(VarDecl decl) {
+            Type type = types().declaredType(decl);
+
+            reporter().report(
+                    new Diagnostic(Diagnostic.Kind.INFO,
+                            String.format("%s (estimated size = %s B) is going to be mapped to external memories",
+                                    decl.getName(), memories().sizeInBytes(type).get()), sourceUnit(decl), decl));
+
+
+            if (!memories().isPowerOfTwo(type))
+                reporter().report(new Diagnostic(Diagnostic.Kind.ERROR,
+                        String.format("%s of type %s is not power-of-two, but is inferred as external memory.",
+                                decl.getName(), type.toString()),
+                        sourceUnit(decl), decl));
         }
 
         default Annotation getAnnotation() {

@@ -1,5 +1,6 @@
 package ch.epfl.vlsc.hls.backend.verilog;
 
+import ch.epfl.vlsc.hls.backend.ExternalMemory;
 import ch.epfl.vlsc.hls.backend.VivadoHLSBackend;
 import ch.epfl.vlsc.hls.backend.kernel.AxiConstants;
 import ch.epfl.vlsc.platformutils.Emitter;
@@ -18,6 +19,8 @@ import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.network.Network;
 import se.lth.cs.tycho.ir.util.ImmutableList;
+import se.lth.cs.tycho.reporting.CompilationException;
+import se.lth.cs.tycho.reporting.Diagnostic;
 import se.lth.cs.tycho.type.IntType;
 import se.lth.cs.tycho.type.ListType;
 import se.lth.cs.tycho.type.Type;
@@ -93,36 +96,15 @@ public interface VerilogNetwork {
         }
 
         // -- Network module
-        if (backend().externalMemory().externalMemories().isEmpty()) {
+        if (backend().externalMemory().getExternalMemories(network).isEmpty()) {
             emitter().emit("module %s (", identifier);
         } else {
             emitter().emit("module %s #(", identifier);
 
             emitter().increaseIndentation();
 
-            Map<VarDecl, String> mems = backend().externalMemory().externalMemories();
-
-            Iterator<VarDecl> itr = mems.keySet().iterator();
-
-            while (itr.hasNext()) {
-                VarDecl decl = itr.next();
-                String memName = mems.get(decl);
-                ListType listType = (ListType) backend().types().declaredType(decl);
-                Type type = listType.getElementType();
-                int bitSize = backend().typeseval().sizeOfBits(type);
-                boolean lastElement = !itr.hasNext();
-                emitter().emit("parameter integer C_M_AXI_%s_ADDR_WIDTH = %d,", memName.toUpperCase(),
-                        AxiConstants.C_M_AXI_ADDR_WIDTH);
-                emitter().emit("parameter integer C_M_AXI_%s_DATA_WIDTH = %d,", memName.toUpperCase(),
-                        Math.max(bitSize, 32));
-                emitter().emit("parameter integer C_M_AXI_%s_ID_WIDTH = %d,", memName.toUpperCase(), 1);
-                emitter().emit("parameter integer C_M_AXI_%s_AWUSER_WIDTH = %d,", memName.toUpperCase(), 1);
-                emitter().emit("parameter integer C_M_AXI_%s_ARUSER_WIDTH = %d,", memName.toUpperCase(), 1);
-                emitter().emit("parameter integer C_M_AXI_%s_WUSER_WIDTH = %d,", memName.toUpperCase(), 1);
-                emitter().emit("parameter integer C_M_AXI_%s_RUSER_WIDTH = %d,", memName.toUpperCase(), 1);
-                emitter().emit("parameter integer C_M_AXI_%s_BUSER_WIDTH =  %d%s", memName.toUpperCase(), 1,
-                        lastElement ? "" : ",");
-            }
+            // -- external memory parameters
+            getExternalMemoryAxiParams(network);
 
             emitter().decreaseIndentation();
 
@@ -175,9 +157,10 @@ public interface VerilogNetwork {
 
     default void getModulePortNames(Network network) {
         // -- External Memory ports
-        if (!backend().externalMemory().externalMemories().isEmpty()) {
-            for (VarDecl decl : backend().externalMemory().externalMemories().keySet()) {
-                backend().topkernel().getAxiMasterPorts(backend().externalMemory().externalMemories().get(decl));
+        if (!backend().externalMemory().getExternalMemories(network).isEmpty()) {
+            for (ExternalMemory.InstanceVarDeclPair pair : backend().externalMemory().getExternalMemories(network)) {
+                String name = backend().externalMemory().namePair(pair);
+                backend().topkernel().getAxiMasterPorts(name);
             }
         }
 
@@ -195,8 +178,8 @@ public interface VerilogNetwork {
             }
         }
 
-        for (VarDecl decl : backend().externalMemory().externalMemories().keySet()) {
-            String memName = backend().externalMemory().externalMemories().get(decl);
+        for (ExternalMemory.InstanceVarDeclPair pair: backend().externalMemory().getExternalMemories(network)) {
+            String memName = backend().externalMemory().namePair(pair);
             emitter().emit("input  wire    [64 - 1 : 0]    %s_offset,", memName);
         }
 
@@ -572,7 +555,8 @@ public interface VerilogNetwork {
         }
 
         // -- External memories
-        Map<VarDecl, String> mems = backend().externalMemory().getExternalMemories(entity);
+
+        ImmutableList<VarDecl> mems = backend().externalMemory().getExternalMemories(entity);
 
         if (mems.isEmpty()) {
             emitter().emit("%s i_%1$s(", name);
@@ -581,13 +565,9 @@ public interface VerilogNetwork {
 
             emitter().increaseIndentation();
 
-            Iterator<VarDecl> itr = mems.keySet().iterator();
-
-            while (itr.hasNext()) {
-                VarDecl decl = itr.next();
-                String memName = mems.get(decl);
-                boolean lastElement = !itr.hasNext();
-
+            for (VarDecl decl : mems) {
+                boolean lastElement = mems.indexOf(decl) == mems.size() - 1;
+                String memName = backend().externalMemory().name(instance, decl);
                 emitter().emit(".C_M_AXI_%s_ID_WIDTH( C_M_AXI_%s_ID_WIDTH ),", memName.toUpperCase(),
                         memName.toUpperCase());
                 emitter().emit(".C_M_AXI_%s_ADDR_WIDTH( C_M_AXI_%s_ADDR_WIDTH ),", memName.toUpperCase(),
@@ -606,6 +586,7 @@ public interface VerilogNetwork {
                         memName.toUpperCase(), lastElement ? "" : ",");
             }
 
+
             emitter().decreaseIndentation();
 
             emitter().emit(") i_%s (", name);
@@ -615,8 +596,8 @@ public interface VerilogNetwork {
             emitter().increaseIndentation();
 
             // -- External Memories
-            for (VarDecl decl : mems.keySet()) {
-                String memName = mems.get(decl);
+            for (VarDecl decl : mems) {
+                String memName = backend().externalMemory().name(instance, decl);
                 getAxiMasterByPort(memName, memName);
                 Type type = backend().types().declaredType(decl);
                 String suffix = "";
@@ -1165,4 +1146,17 @@ public interface VerilogNetwork {
             return 12;
     }
 
+    default void getExternalMemoryAxiParams(Network network) {
+
+        ImmutableList<ExternalMemory.InstanceVarDeclPair> mems = backend()
+                .externalMemory().getExternalMemories(network);
+        for (ExternalMemory.InstanceVarDeclPair pair: mems) {
+
+            ImmutableList<String> params =  backend().externalMemory().getAxiParams(pair);
+            boolean last = mems.indexOf(pair) == mems.size() - 1;
+            for (String param: params) {
+                emitter().emit("%s %s", param, last ? "" : ",");
+            }
+        }
+    }
 }

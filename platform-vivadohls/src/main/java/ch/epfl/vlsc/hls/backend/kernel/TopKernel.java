@@ -1,5 +1,6 @@
 package ch.epfl.vlsc.hls.backend.kernel;
 
+import ch.epfl.vlsc.hls.backend.ExternalMemory;
 import ch.epfl.vlsc.hls.backend.VivadoHLSBackend;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.PathUtils;
@@ -9,6 +10,7 @@ import org.multij.Module;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.network.Network;
+import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.type.ListType;
 import se.lth.cs.tycho.type.Type;
 
@@ -82,21 +84,7 @@ public interface TopKernel {
     default void getParameters(Network network) {
 
         // -- External Memory
-        Map<VarDecl, String> mems = backend().externalMemory().externalMemories();
-        for (VarDecl decl : mems.keySet()) {
-            String memName = mems.get(decl);
-            ListType listType = (ListType) backend().types().declaredType(decl);
-            Type type = listType.getElementType();
-            int bitSize = backend().typeseval().sizeOfBits(type);
-            emitter().emit("parameter integer C_M_AXI_%s_ADDR_WIDTH = %d,", memName.toUpperCase(), AxiConstants.C_M_AXI_ADDR_WIDTH);
-            emitter().emit("parameter integer C_M_AXI_%s_DATA_WIDTH = %d,", memName.toUpperCase(), Math.max(bitSize, AxiConstants.C_M_AXI_DATA_WIDTH));
-            emitter().emit("parameter integer C_M_AXI_%s_ID_WIDTH = %d,", memName.toUpperCase(), 1);
-            emitter().emit("parameter integer C_M_AXI_%s_AWUSER_WIDTH = %d,", memName.toUpperCase(), 1);
-            emitter().emit("parameter integer C_M_AXI_%s_ARUSER_WIDTH = %d,", memName.toUpperCase(), 1);
-            emitter().emit("parameter integer C_M_AXI_%s_WUSER_WIDTH = %d,", memName.toUpperCase(), 1);
-            emitter().emit("parameter integer C_M_AXI_%s_RUSER_WIDTH = %d,", memName.toUpperCase(), 1);
-            emitter().emit("parameter integer C_M_AXI_%s_BUSER_WIDTH =  %d,", memName.toUpperCase(), 1);
-        }
+        backend().vnetwork().getExternalMemoryAxiParams(network);
 
         // -- Network Input ports
         if (!network.getInputPorts().isEmpty()) {
@@ -104,7 +92,7 @@ public interface TopKernel {
                 Type type = backend().types().declaredPortType(port);
                 int bitSize = backend().typeseval().sizeOfBits(type);
                 emitter().emit("parameter integer C_M_AXI_%s_ADDR_WIDTH = %d,", port.getName().toUpperCase(), AxiConstants.C_M_AXI_ADDR_WIDTH);
-                emitter().emit("parameter integer C_M_AXI_%s_DATA_WIDTH = %d,", port.getName().toUpperCase(), Math.max(bitSize, AxiConstants.C_M_AXI_DATA_WIDTH));
+                emitter().emit("parameter integer C_M_AXI_%s_DATA_WIDTH = %d,", port.getName().toUpperCase(), Math.max(bitSize, AxiConstants.IO_STAGE_BUS_WIDTH));
                 emitter().emit("parameter integer C_M_AXI_%s_ID_WIDTH = %d,", port.getName().toUpperCase(), 1);
                 emitter().emit("parameter integer C_M_AXI_%s_AWUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
                 emitter().emit("parameter integer C_M_AXI_%s_ARUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
@@ -119,7 +107,7 @@ public interface TopKernel {
                 Type type = backend().types().declaredPortType(port);
                 int bitSize = backend().typeseval().sizeOfBits(type);
                 emitter().emit("parameter integer C_M_AXI_%s_ADDR_WIDTH = %d,", port.getName().toUpperCase(), AxiConstants.C_M_AXI_ADDR_WIDTH);
-                emitter().emit("parameter integer C_M_AXI_%s_DATA_WIDTH = %d,", port.getName().toUpperCase(), Math.max(bitSize, AxiConstants.C_M_AXI_DATA_WIDTH));
+                emitter().emit("parameter integer C_M_AXI_%s_DATA_WIDTH = %d,", port.getName().toUpperCase(), Math.max(bitSize, AxiConstants.IO_STAGE_BUS_WIDTH));
                 emitter().emit("parameter integer C_M_AXI_%s_ID_WIDTH = %d,", port.getName().toUpperCase(), 1);
                 emitter().emit("parameter integer C_M_AXI_%s_AWUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
                 emitter().emit("parameter integer C_M_AXI_%s_ARUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
@@ -198,9 +186,9 @@ public interface TopKernel {
         
 
         // -- Network external memory ports ports
-        if(!backend().externalMemory().externalMemories().isEmpty()){
-            for(VarDecl decl : backend().externalMemory().externalMemories().keySet()){
-                String memName = backend().externalMemory().externalMemories().get(decl);
+        if(!backend().externalMemory().getExternalMemories(network).isEmpty()){
+            for(ExternalMemory.InstanceVarDeclPair mem : backend().externalMemory().getExternalMemories(network)){
+                String memName = backend().externalMemory().namePair(mem);
                 getAxiMasterPorts(memName);
             }
         }
@@ -256,9 +244,10 @@ public interface TopKernel {
         emitter().emit("wire    ap_done;");
         emitter().emit("wire    event_start;");
 
-        Map<VarDecl, String> mems = backend().externalMemory().externalMemories();
-        for(VarDecl decl : mems.keySet()){
-            String memName = mems.get(decl);
+        ImmutableList<ExternalMemory.InstanceVarDeclPair> mems =
+                backend().externalMemory().getExternalMemories(network);
+        for(ExternalMemory.InstanceVarDeclPair mem: mems){
+            String memName = backend().externalMemory().namePair(mem);
             emitter().emit("wire    [64 - 1 : 0] %s_offset;", memName);
             emitter().emitNewLine();
         }
@@ -334,9 +323,10 @@ public interface TopKernel {
             emitter().emit(".BRESP(s_axi_control_BRESP),");
 
 
-            Map<VarDecl, String> mems = backend().externalMemory().externalMemories();
-            for(VarDecl decl : mems.keySet()){
-                String memName = mems.get(decl);
+            ImmutableList<ExternalMemory.InstanceVarDeclPair> mems =
+                    backend().externalMemory().getExternalMemories(network);
+            for(ExternalMemory.InstanceVarDeclPair mem: mems){
+                String memName = backend().externalMemory().namePair(mem);
                 emitter().emit(".%s_offset(%1$s_offset),", memName);
             }
 
@@ -378,9 +368,10 @@ public interface TopKernel {
         {
             emitter().increaseIndentation();
 
-            Map<VarDecl, String> mems = backend().externalMemory().externalMemories();
-            for (VarDecl decl : mems.keySet()) {
-                String memName = mems.get(decl);
+            ImmutableList<ExternalMemory.InstanceVarDeclPair> mems =
+                    backend().externalMemory().getExternalMemories(network);
+            for (ExternalMemory.InstanceVarDeclPair mem : mems) {
+                String memName = backend().externalMemory().namePair(mem);
                 emitter().emit(".C_M_AXI_%s_ADDR_WIDTH(C_M_AXI_%1$s_ADDR_WIDTH),", memName.toUpperCase());
                 emitter().emit(".C_M_AXI_%s_DATA_WIDTH(C_M_AXI_%1$s_DATA_WIDTH),", memName.toUpperCase());
             }
@@ -409,9 +400,9 @@ public interface TopKernel {
             emitter().emit(".ap_clk( ap_clk ),");
             emitter().emit(".ap_rst_n( ap_rst_n ),");
 
-            if(!backend().externalMemory().externalMemories().isEmpty()){
-                for(VarDecl decl : backend().externalMemory().externalMemories().keySet()){
-                    String memName = backend().externalMemory().externalMemories().get(decl);
+            if(!backend().externalMemory().getExternalMemories(network).isEmpty()){
+                for(ExternalMemory.InstanceVarDeclPair mem : backend().externalMemory().getExternalMemories(network)){
+                    String memName = backend().externalMemory().namePair(mem);
                     backend().vnetwork().getAxiMasterByPort(memName, memName);
                     emitter().emit(".%s_offset(%1$s_offset),", memName);
                     emitter().emitNewLine();

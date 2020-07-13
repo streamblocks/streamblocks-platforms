@@ -27,14 +27,14 @@ public class VivadoHLS implements Platform {
                 new RenameActorVariablesPhase(),
                 new ResolveGlobalEntityNamesPhase(),
                 new ResolveGlobalVariableNamesPhase(),
-                new ElaborateNetworkPhase(),
-                new AnnotateExternalMemories()
+                new ElaborateNetworkPhase()
         );
     }
     public static List<Phase> networkPartitioningPhases() {
         return ImmutableList.of(
                 new VerilogNameCheckerPhase(),
                 new NetworkPartitioningPhase(),
+                new AnnotateExternalMemories(),
                 new ExtractHardwarePartition()
         );
     }
