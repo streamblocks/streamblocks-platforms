@@ -42,8 +42,6 @@ public interface DeviceHandle {
     @Binding(BindingKind.INJECTED)
     MulticoreBackend backend();
 
-    @Binding(BindingKind.INJECTED)
-    Memories memories();
 
     default void unimpl() {
         StackTraceElement[] stackTrace = new Throwable().getStackTrace();
@@ -268,18 +266,19 @@ public interface DeviceHandle {
             emitter().emitNewLine();
             emitter().emit("// -- external memories used hardware actors");
 
-            memories().getExternalMemories(backend().task().getNetwork()).forEach(
+            backend().externalMemory().getExternalMemories().forEach(
                     p -> {
 
 
                         Long sizeBytes =
-                                memories().sizeInBytes(backend().types().declaredType(p.getDecl())).orElseThrow(
+                                backend().externalMemory().memories().sizeInBytes(
+                                        backend().types().declaredType(p.getDecl())).orElseThrow(
                                         () -> new CompilationException(
                                                 new Diagnostic(Diagnostic.Kind.ERROR, "Could not compute " +
                                                         "the size of " + p.getDecl().getName())));
 
-                        String name = memories().namePair(p);
-                        getCreateCLBuffer(name, "CL_MEM_READ_WRITE", sizeBytes.toString());
+                        String name = backend().externalMemory().memories().namePair(p);
+                        getCreateCLBuffer(name + "_cl_buffer", "CL_MEM_READ_WRITE", sizeBytes.toString());
                     });
 
             emitter().decreaseIndentation();
@@ -424,8 +423,8 @@ public interface DeviceHandle {
             emitter().emitNewLine();
             // -- external memories
             emitter().emit("// -- external memories");
-            for (Memories.InstanceVarDeclPair mem : memories().getExternalMemories(backend().task().getNetwork())) {
-                String memName = memories().namePair(mem);
+            for (Memories.InstanceVarDeclPair mem : backend().externalMemory().getExternalMemories()) {
+                String memName = backend().externalMemory().memories().namePair(mem);
                 getSetKernelArg(kernelIndex++, "sizeof(cl_mem)", memName + "_cl_buffer");
             }
             emitter().emitNewLine();

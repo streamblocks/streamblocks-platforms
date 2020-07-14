@@ -222,6 +222,13 @@ public interface MulticoreBackend {
     default DeviceHandle devicehandle() {
         return MultiJ.from(DeviceHandle.class)
                 .bind("backend").to(this)
+                .instance();
+    }
+
+    // -- External memory
+    default ExternalMemory externalMemory() {
+        return MultiJ.from(ExternalMemory.class)
+                .bind("task").to(task())
                 .bind("memories").to(task().getModule(Memories.key))
                 .instance();
     }

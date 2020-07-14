@@ -2,6 +2,7 @@ package ch.epfl.vlsc.sw.ir;
 
 
 
+import ch.epfl.vlsc.attributes.Memories;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.type.TypeExpr;
 import se.lth.cs.tycho.ir.util.ImmutableList;
@@ -9,6 +10,7 @@ import se.lth.cs.tycho.reporting.CompilationException;
 import se.lth.cs.tycho.reporting.Diagnostic;
 
 
+import javax.swing.text.html.Option;
 import java.util.List;
 import java.util.Optional;
 
@@ -180,11 +182,13 @@ public class PartitionHandle {
 
         private final Optional<String> type;
         private final Optional<PortDecl> port;
+        private final Optional<Memories.InstanceVarDeclPair> mem;
         private boolean isRef;
 
         public Type(String type, boolean isRef) {
             this.type = Optional.of(type);
             this.port = Optional.empty();
+            this.mem  = Optional.empty();
             this.isRef = isRef;
         }
         public Type(String type) {
@@ -194,11 +198,17 @@ public class PartitionHandle {
             this.type = Optional.empty();
             this.port = Optional.of(port);
             this.isRef = isRef;
+            this.mem = Optional.empty();
         }
         public Type(PortDecl port) {
             this(port, false);
         }
-
+        public Type(Memories.InstanceVarDeclPair mem) {
+            this.type = Optional.empty();
+            this.port = Optional.empty();
+            this.mem = Optional.of(mem);
+            this.isRef = false;
+        }
 
         public boolean isEvaluated() { return type.isPresent(); }
         public Optional<PortDecl> getPort() {return this.port; }
@@ -209,6 +219,7 @@ public class PartitionHandle {
         public static Type of(PortDecl port, boolean isRef) { return new Type(port, isRef); }
         public static Type of(String type) { return new Type(type); }
         public static Type of(PortDecl port) { return new Type(port); }
+        public static Type of(Memories.InstanceVarDeclPair mem) { return new Type(mem); }
     }
 
 

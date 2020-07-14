@@ -5,6 +5,7 @@ import ch.epfl.vlsc.compiler.PartitionedCompilationTask;
 import ch.epfl.vlsc.phases.ExtractSoftwarePartition;
 import ch.epfl.vlsc.phases.NetworkPartitioningPhase;
 import ch.epfl.vlsc.settings.PlatformSettings;
+import ch.epfl.vlsc.sw.backend.ExternalMemory;
 import ch.epfl.vlsc.sw.ir.PartitionHandle;
 import ch.epfl.vlsc.sw.ir.PartitionLink;
 import se.lth.cs.tycho.attribute.GlobalNames;
@@ -122,13 +123,19 @@ public class CreatePartitionLinkPhase implements Phase {
 
         // -- create a PartitionLink entity
 
-        ImmutableList<Memories.InstanceVarDeclPair> memoryResidentVars =
-                task.getModule(Memories.key).getExternalMemories(task.getNetwork());
+        ImmutableList.Builder<Memories.InstanceVarDeclPair> memoryResidentVars = ImmutableList.builder();
 
+        if (task instanceof PartitionedCompilationTask &&
+            ((PartitionedCompilationTask) task).getPartition(PartitionedCompilationTask.PartitionKind.HW).isPresent()) {
+            PartitionedCompilationTask ptask = (PartitionedCompilationTask) task;
+            CompilationTask otherTask =
+                    task.withNetwork(ptask.getPartition(PartitionedCompilationTask.PartitionKind.HW).get());
+            memoryResidentVars.addAll(otherTask.getModule(Memories.key).getExternalMemories(otherTask.getNetwork()));
+        }
         PartitionHandle handle = createPartitionHandle(
                 ImmutableList.from(inputPorts),
                 ImmutableList.from(outputPorts),
-                memoryResidentVars);
+                memoryResidentVars.build());
 
 
         PartitionLink plink = new PartitionLink(inputPorts, outputPorts, handle);

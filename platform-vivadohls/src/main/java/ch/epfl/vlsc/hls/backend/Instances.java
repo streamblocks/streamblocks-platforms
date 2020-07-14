@@ -143,7 +143,7 @@ public interface Instances {
 
         String name = instance.getInstanceName();
         emitter().emitClikeBlockComment("HLS Top Function");
-        emitter().emit("int %s(%s) {", name, entityPorts(withIO, true));
+        emitter().emit("int %s(%s) {", name, entityPorts(name, withIO, true));
 
         // -- Data pack I/O with algebraic types
         List<String> algebraicIO = new ArrayList<>();
@@ -332,7 +332,7 @@ public interface Instances {
         emitter().emit("public:");
         emitter().increaseIndentation();
 
-        emitter().emit("int operator()(%s);", entityPorts(false, false));
+        emitter().emit("int operator()(%s);", entityPorts(instanceName,false, false));
 
         emitter().decreaseIndentation();
 
@@ -419,7 +419,7 @@ public interface Instances {
 
             instanceConstructor(instanceName, actor);
 
-            emitter().emit("int operator()(%s);", entityPorts(true, true));
+            emitter().emit("int operator()(%s);", entityPorts(instanceName, true, true));
 
             emitter().decreaseIndentation();
         }
@@ -492,7 +492,7 @@ public interface Instances {
         emitter().emitNewLine();
     }
 
-    default String entityPorts(boolean withIO, boolean withExternalMemories) {
+    default String entityPorts(String instanceName, boolean withIO, boolean withExternalMemories) {
         Entity entity = backend().entitybox().get();
         List<String> ports = new ArrayList<>();
 
@@ -501,7 +501,7 @@ public interface Instances {
             for (VarDecl decl : backend().externalMemory().getExternalMemories(entity)) {
                 ListType listType = (ListType) backend().types().declaredType(decl);
                 String mem = String.format("%s* %s", backend().typeseval().type(listType.getElementType()),
-                        backend().variables().declarationName(decl));
+                        backend().externalMemory().memories().name(instanceName, decl));
                 ports.add(mem);
             }
         }
@@ -534,7 +534,7 @@ public interface Instances {
     default void topOfInstance(String instanceName, CalActor actor) {
         if (actor.getProcessDescription() != null) {
             String className = "class_" + instanceName;
-            emitter().emit("int %s::operator()(%s) {", className, entityPorts(false, true));
+            emitter().emit("int %s::operator()(%s) {", className, entityPorts(instanceName, false, true));
             emitter().emit("#pragma HLS INLINE");
             {
                 emitter().increaseIndentation();
@@ -562,7 +562,7 @@ public interface Instances {
 
     default void topOfInstance(String instanceName, ActorMachine actor) {
         String className = "class_" + instanceName;
-        emitter().emit("int %s::operator()(%s) {", className, entityPorts(true, true));
+        emitter().emit("int %s::operator()(%s) {", className, entityPorts(instanceName, true, true));
         emitter().emit("#pragma HLS INLINE");
         {
             emitter().increaseIndentation();

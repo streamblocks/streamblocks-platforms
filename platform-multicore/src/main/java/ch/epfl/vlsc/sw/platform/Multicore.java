@@ -1,5 +1,6 @@
 package ch.epfl.vlsc.sw.platform;
 
+import ch.epfl.vlsc.phases.AnnotateExternalMemories;
 import ch.epfl.vlsc.phases.ExtractSoftwarePartition;
 import ch.epfl.vlsc.phases.NetworkPartitioningPhase;
 import ch.epfl.vlsc.phases.VerilogNameCheckerPhase;
@@ -41,12 +42,23 @@ public class Multicore implements Platform {
         );
     }
 
+    public static List<Phase> networkElaborationPhases() {
+        return ImmutableList.of(
+                new CreateNetworkPhase(),
+                new ResolveGlobalEntityNamesPhase(),
+                new ResolveGlobalVariableNamesPhase(),
+                new ElaborateNetworkPhase(),
+                new RemoveUnusedGlobalDeclarations()
+        );
+    }
+
     public static List<Phase> partitioningPhases() {
         return ImmutableList.of(
                 new VerilogNameCheckerPhase(),
                 new NetworkPartitioningPhase(),
-                new ExtractSoftwarePartition(),
-                new CreatePartitionLinkPhase()
+                new AnnotateExternalMemories(),
+                new ExtractSoftwarePartition()
+//                new CreatePartitionLinkPhase()
         );
     }
     private static final List<Phase> phases = ImmutableList.<Phase>builder()
@@ -55,7 +67,8 @@ public class Multicore implements Platform {
             .addAll(partitioningPhases())
             .addAll(Compiler.nameAndTypeAnalysis())
             .addAll(Compiler.actorMachinePhases())
-            .add(new RemoveUnusedEntityDeclsPhase())
+//            .add(new RemoveUnusedEntityDeclsPhase()) // This can not happen after network elaboration because the hardware partition entities get removed.
+            .add(new CreatePartitionLinkPhase())
             .add(new MultiCoreBackendPhase())
             .build();
 

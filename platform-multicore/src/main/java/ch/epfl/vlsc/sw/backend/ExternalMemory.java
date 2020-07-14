@@ -24,14 +24,17 @@ public interface ExternalMemory {
 
     default ImmutableList<Memories.InstanceVarDeclPair> getExternalMemories() {
 
-        if (task() instanceof CompilationTask) {
+        ImmutableList.Builder<Memories.InstanceVarDeclPair> memoryResidentVars = ImmutableList.builder();
+
+        if (task() instanceof PartitionedCompilationTask &&
+                ((PartitionedCompilationTask) task()).getPartition(PartitionedCompilationTask.PartitionKind.HW)
+                        .isPresent()) {
             PartitionedCompilationTask ptask = (PartitionedCompilationTask) task();
-            Optional<Network> hwnetwork = ptask.getPartition(PartitionedCompilationTask.PartitionKind.HW);
-            if (hwnetwork.isPresent())
-                return memories().getExternalMemories(hwnetwork.get());
-
-
+            CompilationTask otherTask =
+                    task().withNetwork(ptask.getPartition(PartitionedCompilationTask.PartitionKind.HW).get());
+            memoryResidentVars.addAll(otherTask.getModule(Memories.key).getExternalMemories(otherTask.getNetwork()));
         }
-        return ImmutableList.empty();
+
+        return memoryResidentVars.build();
     }
 }

@@ -24,7 +24,6 @@ public class VivadoHLS implements Platform {
     public static List<Phase> prePartitionNetworkElaborationPhases() {
         return ImmutableList.of(
                 new CreateNetworkPhase(),
-                new RenameActorVariablesPhase(),
                 new ResolveGlobalEntityNamesPhase(),
                 new ResolveGlobalVariableNamesPhase(),
                 new ElaborateNetworkPhase(),

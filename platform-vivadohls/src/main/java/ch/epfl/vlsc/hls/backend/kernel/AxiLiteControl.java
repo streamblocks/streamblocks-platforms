@@ -124,10 +124,7 @@ public interface AxiLiteControl {
 
 
 
-        for (Memories.InstanceVarDeclPair pair : backend().externalMemory().getExternalMemories(network)) {
-            String memName = backend().externalMemory().namePair(pair);
-            emitter().emit("output  wire    [63 : 0]    %s_offset,", memName);
-        }
+
 
         if (!network.getInputPorts().isEmpty()) {
             for (PortDecl port : network.getInputPorts()) {
@@ -146,6 +143,13 @@ public interface AxiLiteControl {
             }
         }
         emitter().emit("output  wire    [64 - 1 : 0]    kernel_command,");
+
+        for (Memories.InstanceVarDeclPair pair : backend().externalMemory().getExternalMemories(network)) {
+            String memName = backend().externalMemory().namePair(pair);
+            emitter().emit("output  wire    [63 : 0]    %s_offset,", memName);
+        }
+
+
         emitter().emit("output  wire    ap_start,");
         emitter().emit("input   wire    ap_done,");
         emitter().emit("input   wire    ap_ready,");
@@ -183,16 +187,6 @@ public interface AxiLiteControl {
             value += 4;
         }
 
-
-        for (Memories.InstanceVarDeclPair mem : backend().externalMemory().getExternalMemories(network)) {
-            String memName = backend().externalMemory().namePair(mem);
-            emitter().emit("ADDR_%s_OFFSET_DATA_0 = %d'h%s,", memName.toUpperCase(), addressWidth, String.format("%x", value));
-            value += 4;
-            emitter().emit("ADDR_%s_OFFSET_DATA_1 = %d'h%s,", memName.toUpperCase(), addressWidth, String.format("%x", value));
-            value += 4;
-            emitter().emit("ADDR_%s_OFFSET_CTRL = %d'h%s,", memName.toUpperCase(), addressWidth, String.format("%x", value));
-            value += 4;
-        }
 
         for (PortDecl port : network.getInputPorts()) {
             emitter().emit("ADDR_%s_SIZE_DATA_0 = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
@@ -233,6 +227,15 @@ public interface AxiLiteControl {
         emitter().emit("ADDR_KERNEL_COMMAND_CTRL = %d'h%s,", addressWidth, String.format("%x", value));
         value += 4;
 
+        for (Memories.InstanceVarDeclPair mem : backend().externalMemory().getExternalMemories(network)) {
+            String memName = backend().externalMemory().namePair(mem);
+            emitter().emit("ADDR_%s_OFFSET_DATA_0 = %d'h%s,", memName.toUpperCase(), addressWidth, String.format("%x", value));
+            value += 4;
+            emitter().emit("ADDR_%s_OFFSET_DATA_1 = %d'h%s,", memName.toUpperCase(), addressWidth, String.format("%x", value));
+            value += 4;
+            emitter().emit("ADDR_%s_OFFSET_CTRL = %d'h%s,", memName.toUpperCase(), addressWidth, String.format("%x", value));
+            value += 4;
+        }
 
         emitter().emit("WRIDLE = 2'd0,");
         emitter().emit("WRDATA = 2'd1,");
@@ -278,10 +281,6 @@ public interface AxiLiteControl {
         emitter().emit("// -- Internal Registers for addresses for I/O");
 
 
-        for(Memories.InstanceVarDeclPair mem: backend().externalMemory().getExternalMemories(network)){
-            String memName = backend().externalMemory().namePair(mem);
-            emitter().emit("reg [63 : 0]    int_%s_offset = 64'd0;", memName);
-        }
 
         for (PortDecl port : network.getInputPorts()) {
             emitter().emit("reg [31 : 0]    int_%s_requested_size = 32'd0;", port.getName());
@@ -296,6 +295,12 @@ public interface AxiLiteControl {
         // -- kernel command register
         emitter().emit("// -- kernel command");
         emitter().emit("reg [63:0]    int_kernel_command = 64'd0;");
+        emitter().emit(" // -- external memories");
+        for(Memories.InstanceVarDeclPair mem: backend().externalMemory().getExternalMemories(network)){
+            String memName = backend().externalMemory().namePair(mem);
+            emitter().emit("reg [63 : 0]    int_%s_offset = 64'd0;", memName);
+        }
+
         emitter().emitNewLine();
     }
 
@@ -554,31 +559,7 @@ public interface AxiLiteControl {
 
 
 
-                        for(Memories.InstanceVarDeclPair mem :
-                                backend().externalMemory().getExternalMemories(network)) {
 
-                            String memName = backend().externalMemory().namePair(mem);
-
-                            emitter().emit("ADDR_%s_OFFSET_DATA_0: begin", memName.toUpperCase());
-                            {
-                                emitter().increaseIndentation();
-
-                                emitter().emit("rdata<= int_%s_offset[31:0];", memName);
-
-                                emitter().decreaseIndentation();
-                            }
-                            emitter().emit("end");
-
-                            emitter().emit("ADDR_%s_OFFSET_DATA_1: begin", memName.toUpperCase());
-                            {
-                                emitter().increaseIndentation();
-
-                                emitter().emit("rdata<= int_%s_offset[63:32];", memName);
-
-                                emitter().decreaseIndentation();
-                            }
-                            emitter().emit("end");
-                        }
 
                         for (PortDecl port : network.getInputPorts()) {
                             emitter().emit("ADDR_%s_REQUESTED_SIZE_DATA_0: begin", port.getName().toUpperCase());
@@ -682,29 +663,56 @@ public interface AxiLiteControl {
                                 emitter().decreaseIndentation();
                             }
                             emitter().emit("end");
-
-                            // -- kernel command
-                            emitter().emit("ADDR_KERNEL_COMMAND_DATA_0: begin");
-                            {
-                                emitter().increaseIndentation();
-
-                                emitter().emit("rdata <= int_kernel_command[31:0];");
-
-                                emitter().decreaseIndentation();
-                            }
-                            emitter().emit("end");
-
-                            emitter().emit("ADDR_KERNEL_COMMAND_DATA_1: begin");
-                            {
-                                emitter().increaseIndentation();
-
-                                emitter().emit("rdata <= int_kernel_command[63:32];");
-
-                                emitter().decreaseIndentation();
-                            }
-                            emitter().emit("end");
-
                         }
+                        // -- kernel command
+                        emitter().emit("ADDR_KERNEL_COMMAND_DATA_0: begin");
+                        {
+                            emitter().increaseIndentation();
+
+                            emitter().emit("rdata <= int_kernel_command[31:0];");
+
+                            emitter().decreaseIndentation();
+                        }
+                        emitter().emit("end");
+
+                        emitter().emit("ADDR_KERNEL_COMMAND_DATA_1: begin");
+                        {
+                            emitter().increaseIndentation();
+
+                            emitter().emit("rdata <= int_kernel_command[63:32];");
+
+                            emitter().decreaseIndentation();
+                        }
+                        emitter().emit("end");
+
+
+                        // -- external memories
+                        for(Memories.InstanceVarDeclPair mem :
+                                backend().externalMemory().getExternalMemories(network)) {
+
+                            String memName = backend().externalMemory().namePair(mem);
+
+                            emitter().emit("ADDR_%s_OFFSET_DATA_0: begin", memName.toUpperCase());
+                            {
+                                emitter().increaseIndentation();
+
+                                emitter().emit("rdata<= int_%s_offset[31:0];", memName);
+
+                                emitter().decreaseIndentation();
+                            }
+                            emitter().emit("end");
+
+                            emitter().emit("ADDR_%s_OFFSET_DATA_1: begin", memName.toUpperCase());
+                            {
+                                emitter().increaseIndentation();
+
+                                emitter().emit("rdata<= int_%s_offset[63:32];", memName);
+
+                                emitter().decreaseIndentation();
+                            }
+                            emitter().emit("end");
+                        }
+
 
                         emitter().decreaseIndentation();
                     }
@@ -731,10 +739,7 @@ public interface AxiLiteControl {
         emitter().emit("assign ap_start     = int_ap_start;");
 
 
-        for (Memories.InstanceVarDeclPair mem : backend().externalMemory().getExternalMemories(network)) {
-            String memName = backend().externalMemory().namePair(mem);
-            emitter().emit("assign %s_offset = int_%1$s_offset;", memName);
-        }
+
 
         for (PortDecl port : network.getInputPorts()) {
             emitter().emit("assign %s_requested_size = int_%1$s_requested_size;", port.getName());
@@ -749,6 +754,13 @@ public interface AxiLiteControl {
         emitter().emitNewLine();
 
         emitter().emit("assign kernel_command = int_kernel_command;");
+
+
+        for (Memories.InstanceVarDeclPair mem : backend().externalMemory().getExternalMemories(network)) {
+            String memName = backend().externalMemory().namePair(mem);
+            emitter().emit("assign %s_offset = int_%1$s_offset;", memName);
+        }
+
 
         // int_event_start
         emitter().emit("// -- int_event_start");
@@ -990,11 +1002,7 @@ public interface AxiLiteControl {
             getReg32Bit(port.getName(), "available_size");
         }
 
-        for (Memories.InstanceVarDeclPair mem: backend().externalMemory().getExternalMemories(network)) {
-            // -- offset
-            String memName = backend().externalMemory().namePair(mem);
-            getReg64Bit(memName, "offset");
-        }
+
 
         for (PortDecl port : network.getInputPorts()) {
             // -- size
@@ -1014,6 +1022,13 @@ public interface AxiLiteControl {
 
         // -- kernel command reg
         getKernelCommandReg();
+
+
+        for (Memories.InstanceVarDeclPair mem: backend().externalMemory().getExternalMemories(network)) {
+            // -- offset
+            String memName = backend().externalMemory().namePair(mem);
+            getReg64Bit(memName, "offset");
+        }
 
     }
 
