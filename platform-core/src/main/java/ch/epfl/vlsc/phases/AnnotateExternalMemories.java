@@ -74,23 +74,27 @@ public class AnnotateExternalMemories implements Phase {
 
         this.task = task;
         this.context = context;
+        if (context.getConfiguration().get(PlatformSettings.PartitionNetwork)) {
+            this.sizeThreshold = new SizeValueParser()
+                    .parse(context.getConfiguration().get(PlatformSettings.maxBRAMSize));
+            context.getReporter().report(
+                    new Diagnostic(Diagnostic.Kind.INFO, "Maximum bram size: " +
+                            context.getConfiguration().get(PlatformSettings.maxBRAMSize)
+                            + " (" + this.sizeThreshold + "B)"));
 
-        this.sizeThreshold = new SizeValueParser()
-                .parse(context.getConfiguration().get(PlatformSettings.maxBRAMSize));
-        context.getReporter().report(
-                new Diagnostic(Diagnostic.Kind.INFO, "Maximum bram size: " +
-                        context.getConfiguration().get(PlatformSettings.maxBRAMSize)
-                        + " (" + this.sizeThreshold + "B)"));
+            Transformation transform = MultiJ.from(Transformation.class)
+                    .bind("reporter").to(context.getReporter())
+                    .bind("tree").to(task.getModule(TreeShadow.key))
+                    .bind("types").to(task.getModule(Types.key))
+                    .bind("memories").to(task.getModule(Memories.key))
+                    .bind("maxInternalMemory").to(this.sizeThreshold)
+                    .instance();
+            CompilationTask transformedTask = task.transformChildren(transform);
+            return transformedTask;
+        } else {
+            return task;
+        }
 
-        Transformation transform = MultiJ.from(Transformation.class)
-                .bind("reporter").to(context.getReporter())
-                .bind("tree").to(task.getModule(TreeShadow.key))
-                .bind("types").to(task.getModule(Types.key))
-                .bind("memories").to(task.getModule(Memories.key))
-                .bind("maxInternalMemory").to(this.sizeThreshold)
-                .instance();
-        CompilationTask transformedTask = task.transformChildren(transform);
-        return transformedTask;
 
     }
 
