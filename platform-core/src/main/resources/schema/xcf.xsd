@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xs:schema attributeFormDefault="unqualified" elementFormDefault="qualified" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+    <xs:element name="Configuration">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="Network">
+                    <xs:complexType>
+                        <xs:attribute name="id" type="xs:string" use="required" />
+                    </xs:complexType>
+                </xs:element>
+                <xs:element name="Partitioning">
+                    <xs:complexType>
+                        <xs:sequence>
+                            <xs:element maxOccurs="unbounded" name="Partition">
+                                <xs:complexType>
+                                    <xs:sequence>
+                                        <xs:element maxOccurs="unbounded" name="Instance">
+                                            <xs:complexType>
+                                                <xs:attribute name="id" type="xs:string" use="required" />
+                                            </xs:complexType>
+                                        </xs:element>
+                                    </xs:sequence>
+                                    <xs:attribute name="id" type="xs:unsignedByte" use="required" />
+                                    <xs:attribute name="pe" type="xs:string" use="required" />
+                                    <xs:attribute name="code-generator" type="xs:string" use="required" />
+                                    <xs:attribute name="host" type="xs:boolean" use="optional" />
+                                </xs:complexType>
+                            </xs:element>
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element>
+                <xs:element name="Code-Generators">
+                    <xs:complexType>
+                        <xs:sequence>
+                            <xs:element maxOccurs="unbounded" name="Code-Generator">
+                                <xs:complexType>
+                                    <xs:sequence minOccurs="0">
+                                        <xs:element maxOccurs="unbounded" name="Parameter">
+                                            <xs:complexType>
+                                                <xs:attribute name="key" type="xs:string" use="required" />
+                                                <xs:attribute name="value" type="xs:string" use="required" />
+                                            </xs:complexType>
+                                        </xs:element>
+                                    </xs:sequence>
+                                    <xs:attribute name="id" type="xs:string" use="required" />
+                                    <xs:attribute name="platform" type="xs:string" use="required" />
+                                </xs:complexType>
+                            </xs:element>
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element>
+                <xs:element name="Media">
+                    <xs:complexType>
+                        <xs:sequence>
+                            <xs:element name="Interface">
+                                <xs:complexType>
+                                    <xs:sequence>
+                                        <xs:element name="Parameter">
+                                            <xs:complexType>
+                                                <xs:attribute name="key" type="xs:string" use="required" />
+                                                <xs:attribute name="value" type="xs:unsignedByte" use="required" />
+                                            </xs:complexType>
+                                        </xs:element>
+                                    </xs:sequence>
+                                    <xs:attribute name="medium" type="xs:string" use="required" />
+                                    <xs:attribute name="serialization" type="xs:string" use="required" />
+                                    <xs:attribute name="external" type="xs:boolean" use="required" />
+                                </xs:complexType>
+                            </xs:element>
+                            <xs:element name="Memory">
+                                <xs:complexType>
+                                    <xs:sequence>
+                                        <xs:element maxOccurs="unbounded" name="Parameter">
+                                            <xs:complexType>
+                                                <xs:attribute name="key" type="xs:string" use="required" />
+                                                <xs:attribute name="value" type="xs:string" use="required" />
+                                            </xs:complexType>
+                                        </xs:element>
+                                    </xs:sequence>
+                                    <xs:attribute name="medium" type="xs:string" use="required" />
+                                    <xs:attribute name="size" type="xs:string" use="required" />
+                                    <xs:attribute name="shared" type="xs:boolean" use="required" />
+                                    <xs:attribute name="reserve" type="xs:boolean" use="required" />
+                                </xs:complexType>
+                            </xs:element>
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element>
+                <xs:element name="Connections">
+                    <xs:complexType>
+                        <xs:sequence>
+                            <xs:element maxOccurs="unbounded" name="Fifo-Connection">
+                                <xs:complexType>
+                                    <xs:attribute name="src" type="xs:string" use="required" />
+                                    <xs:attribute name="src-port" type="xs:string" use="required" />
+                                    <xs:attribute name="dst" type="xs:string" use="required" />
+                                    <xs:attribute name="dst-port" type="xs:string" use="required" />
+                                    <xs:attribute name="size" type="xs:unsignedShort" use="required" />
+                                    <xs:attribute name="medium" type="xs:string" use="required" />
+                                </xs:complexType>
+                            </xs:element>
+                            <xs:element name="Memory-Connection">
+                                <xs:complexType>
+                                    <xs:attribute name="instance" type="xs:string" use="required" />
+                                    <xs:attribute name="var" type="xs:string" use="required" />
+                                    <xs:attribute name="medium" type="xs:string" use="required" />
+                                </xs:complexType>
+                            </xs:element>
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+</xs:schema>
