@@ -1,5 +1,7 @@
 package ch.epfl.vlsc.sw.phase;
 
+import ch.epfl.vlsc.configuration.Configuration;
+import ch.epfl.vlsc.configuration.ConfigurationManager;
 import ch.epfl.vlsc.platformutils.ControllerToGraphviz;
 import ch.epfl.vlsc.platformutils.PathUtils;
 import ch.epfl.vlsc.settings.PlatformSettings;
@@ -19,6 +21,8 @@ import se.lth.cs.tycho.reporting.Diagnostic;
 import se.lth.cs.tycho.reporting.Reporter;
 import se.lth.cs.tycho.settings.Setting;
 
+import javax.xml.bind.JAXBException;
+import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -160,6 +164,8 @@ public class MultiCoreBackendPhase implements Phase {
         // -- Generate Node scripts
         generateNodeScripts(backend);
 
+        // -- Generate configuration
+        generateConfiguration(task, context);
         return task;
     }
 
@@ -189,9 +195,7 @@ public class MultiCoreBackendPhase implements Phase {
 
                     multicoreBackend.plink().generatePLink(instance);
                     multicoreBackend.devicehandle().generateDeviceHandle(instance);
-                }
-
-                else
+                } else
                     multicoreBackend.instance().generateInstance(instance);
 
             }
@@ -215,7 +219,7 @@ public class MultiCoreBackendPhase implements Phase {
         multicoreBackend.cmakelists().superProjectCMakeListst();
     }
 
-    public static void generateNodeCmakeLists(MulticoreBackend multicoreBackend){
+    public static void generateNodeCmakeLists(MulticoreBackend multicoreBackend) {
         // -- Node CodeGen CMakeLists
         multicoreBackend.cmakelists().codegenNodeCCCMakeLists();
     }
@@ -252,14 +256,58 @@ public class MultiCoreBackendPhase implements Phase {
         }
     }
 
+    private void generateConfiguration(CompilationTask task, Context context) {
+        Configuration xcf = new Configuration();
 
-    public static void generateNodeScripts(MulticoreBackend multicoreBackend){
-        multicoreBackend.nodescripts().scriptNetwork();
-        multicoreBackend.nodescripts().pythonScriptNode();
+        // -- Set Configuration Network
+        Configuration.Network xcfNetwork = new Configuration.Network();
+        xcfNetwork.setId(task.getIdentifier().toString());
+        xcf.setNetwork(xcfNetwork);
+
+        // -- Create a Partition
+        Configuration.Partitioning partitioning = new Configuration.Partitioning();
+        Configuration.Partitioning.Partition partition = new Configuration.Partitioning.Partition();
+
+        partition.setId((short) 0);
+        partition.setPe("x86_64");
+        partition.setCodeGenerator("sw");
+        partition.setHost(true);
+
+        // -- Create instances
+        for (Instance instance : task.getNetwork().getInstances()) {
+            Configuration.Partitioning.Partition.Instance xcfInstance = new Configuration.Partitioning.Partition.Instance();
+            xcfInstance.setId(instance.getInstanceName());
+            partition.getInstance().add(xcfInstance);
+        }
+
+        partitioning.getPartition().add(partition);
+        xcf.setPartitioning(partitioning);
+
+        // -- Code generator
+        Configuration.CodeGenerators xcfCodeGenerators = new Configuration.CodeGenerators();
+        Configuration.CodeGenerators.CodeGenerator xcfSwCodeGenerator = new Configuration.CodeGenerators.CodeGenerator();
+        xcfSwCodeGenerator.setId("sw");
+        xcfSwCodeGenerator.setPlatform("multicore");
+        xcfCodeGenerators.getCodeGenerator().add(xcfSwCodeGenerator);
+
+        xcf.setCodeGenerators(xcfCodeGenerators);
+
+
+        // -- Write XCF File
+        try {
+
+            File xcfFile = new File(binPath + File.separator + "configuration.xcf");
+            ConfigurationManager.write(xcfFile, xcf);
+        } catch (JAXBException e) {
+            e.printStackTrace();
+        }
     }
 
 
-
+    public static void generateNodeScripts(MulticoreBackend multicoreBackend) {
+        multicoreBackend.nodescripts().scriptNetwork();
+        multicoreBackend.nodescripts().pythonScriptNode();
+    }
 
     /**
      * Copy the MulticoreBackend resources to the target directory
@@ -277,7 +325,7 @@ public class MultiCoreBackendPhase implements Phase {
             URL url = getClass().getResource("/lib/");
             // -- Temporary hack to launch it from command line
             if (url.toString().contains("jar")) {
-                PathUtils.copyFromJar(getClass().getResource("").toURI(),"/lib", libPath);
+                PathUtils.copyFromJar(getClass().getResource("").toURI(), "/lib", libPath);
             } else {
                 Path libResourcePath = Paths.get(url.toURI());
                 PathUtils.copyDirTree(libResourcePath, libPath, StandardCopyOption.REPLACE_EXISTING);
