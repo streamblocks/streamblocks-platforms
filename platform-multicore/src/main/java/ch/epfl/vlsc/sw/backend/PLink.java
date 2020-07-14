@@ -1001,13 +1001,13 @@ public interface PLink {
                 emitter().emit("if (thisActor->%s_size[0] > 0)", port.getName());
                 emitter().emit("\tpinConsumeRepeat_%s(IN%d_%s, thisActor->%3$s_size[0]);",
                         type, entity.getInputPorts().indexOf(port), port.getName());
-                emitter().emit("total_consumed += %s_size[0];", port.getName());
+                emitter().emit("total_consumed += thisActor->%s_size[0];", port.getName());
                 emitter().emit("total_request += thisActor->%s_request_size;", port.getName());
             }
             emitter().emitNewLine();
             for (PortDecl port : entity.getOutputPorts()) {
                 emitter().emit("thisActor->%s_offset = 0;", port.getName());
-                emitter().emit("total_produced += %s_size[0];", port.getName());
+                emitter().emit("total_produced += thisActor->%s_size[0];", port.getName());
             }
             emitter().emitNewLine();
 

@@ -31,6 +31,7 @@ public interface CMakeLists {
             emitter().open(PathUtils.getTarget(backend().context()).resolve("../CMakeLists.txt"));
             emitter().emit("cmake_minimum_required(VERSION 3.10)");
             emitter().emit("project(%s)", backend().task().getIdentifier().getLast().toString());
+            emitter().emit("set(CMAKE_CXX_STANDARD 14)");
             emitter().emitNewLine();
             emitter().emit("add_subdirectory(vivado-hls)");
             emitter().emit("add_subdirectory(multicore)");

@@ -287,7 +287,7 @@ public interface CMakeLists {
                 {
                     emitter().increaseIndentation();
 
-                    emitter().emit("OUTPUT ${CMAKE_SOURCE_DIR}/bin/emconfig.json");
+                    emitter().emit("OUTPUT ${PROJECT_SOURCE_DIR}/bin/emconfig.json");
                     emitter().emit(
                             "COMMAND ${VITIS_EMCONFIGUTIL} --nd 1 --platform ${PLATFORM} --od ${PROJECT_SOURCE_DIR}/bin > emconfigutil.log");
                     emitter().decreaseIndentation();
@@ -304,7 +304,7 @@ public interface CMakeLists {
                 {
                     emitter().increaseIndentation();
 
-                    emitter().emit("OUTPUT ${CMAKE_SOURCE_DIR}/bin/emconfig.json");
+                    emitter().emit("OUTPUT ${PROJECT_SOURCE_DIR}/bin/emconfig.json");
                     emitter().emit(
                             "COMMAND ${SDACCEL_EMCONFIGUTIL} --nd 1 --platform ${PLATFORM} --od ${PROJECT_SOURCE_DIR}/bin > emconfigutil.log");
                     emitter().decreaseIndentation();
@@ -440,7 +440,7 @@ public interface CMakeLists {
         {
             emitter().increaseIndentation();
 
-            emitter().emit("add_custom_target(emconfig ALL DEPENDS ${CMAKE_SOURCE_DIR}/bin/emconfig.json)");
+            emitter().emit("add_custom_target(emconfig ALL DEPENDS ${PROJECT_SOURCE_DIR}/bin/emconfig.json)");
 
             for (PortDecl port : network.getInputPorts()) {
                 emitter().emit(

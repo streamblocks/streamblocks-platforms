@@ -481,11 +481,13 @@ public interface KernelWrapper {
                 for (Memories.InstanceVarDeclPair mem: mems) {
 
 
-                    boolean lastElement = mems.indexOf(mem) == mems.size() - 1;
 
-                    ImmutableList<String> params = backend().externalMemory().getAxiParams(mem);
-                    for (String param: params) {
-                        emitter().emit(".%s(%1$s) %s", param, lastElement ? "" : ",");
+                    ImmutableList<Memories.Pair<String, Integer>> params =
+                            backend().externalMemory().getAxiParamPairs(mem);
+                    for (Memories.Pair<String, Integer> param: params) {
+                        boolean lastElement = (mems.indexOf(mem) == mems.size() - 1) &&
+                                params.indexOf(param) == params.size() - 1;
+                        emitter().emit(".%s(%1$s)%s", param.getFirst(), lastElement ? "" : ",");
                     }
 
                 }
