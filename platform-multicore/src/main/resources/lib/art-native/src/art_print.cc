@@ -15,7 +15,7 @@ void print_d(double value){
     printf("%f", value);
 }
 
-void print_s(const char * value){
+void print_s(char * value){
     printf("%s", value);
 }
 
@@ -41,10 +41,10 @@ void println_d(double value){
     printf("%f\n", value);
 }
 
-void println_s(const char * value){
+void println_s(char * value){
     printf("%s\n", value);
 }
 
-void println_s_i(const char * id, int value){
+void println_s_i(char * id, int value){
     printf("%s : %d\n", id, value);
 }
