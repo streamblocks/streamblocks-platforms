@@ -101,14 +101,14 @@ public class NetworkPartitioningPhase implements Phase {
 
 
         if (pattrs.size() == 0) {
-            context
-                    .getReporter()
-                    .report(
-                            new Diagnostic(Diagnostic.Kind.WARNING,
-                                    "No partition attribute specified for instance "
-                                            + instance.getInstanceName() +
-                                            ", using default partition " + defaultPartition.toString() + ".\n" +
-                                    "Use attribute partition=hw|sw in actor instantiation to manually set partitions."));
+//            context
+//                    .getReporter()
+//                    .report(
+//                            new Diagnostic(Diagnostic.Kind.WARNING,
+//                                    "No partition attribute specified for instance "
+//                                            + instance.getInstanceName() +
+//                                            ", using default partition " + defaultPartition.toString() + ".\n" +
+//                                    "Use attribute partition=hw|sw in actor instantiation to manually set partitions."));
             return defaultPartition;
         } else if (pattrs.size() == 1) {
             if (pattrs.get(0) instanceof ToolValueAttribute) {

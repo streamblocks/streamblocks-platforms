@@ -1,6 +1,7 @@
 package com.streamgenomics.platforms.opalkelly.platform;
 
 import ch.epfl.vlsc.hls.platform.VivadoHLS;
+import ch.epfl.vlsc.phases.CommonPhases;
 import com.streamgenomics.platforms.opalkelly.phase.OpalKellyBackendPhase;
 import se.lth.cs.tycho.compiler.Compiler;
 import se.lth.cs.tycho.ir.util.ImmutableList;
@@ -23,7 +24,7 @@ public class OpalKelly implements Platform {
 
     private static final List<Phase> phases = ImmutableList.<Phase>builder()
             .addAll(Compiler.frontendPhases())
-            .addAll(VivadoHLS.prePartitionNetworkElaborationPhases())
+            .addAll(CommonPhases.networkElaborationPhases)
             .addAll(VivadoHLS.postPartitionNetworkElaborationPhases())
             .addAll(VivadoHLS.actorMachinePhases())
             .add(new RemoveUnusedEntityDeclsPhase())

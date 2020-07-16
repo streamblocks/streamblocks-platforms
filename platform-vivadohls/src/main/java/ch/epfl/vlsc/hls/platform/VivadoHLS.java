@@ -21,23 +21,6 @@ public class VivadoHLS implements Platform {
     }
 
 
-    public static List<Phase> prePartitionNetworkElaborationPhases() {
-        return ImmutableList.of(
-                new CreateNetworkPhase(),
-                new ResolveGlobalEntityNamesPhase(),
-                new ResolveGlobalVariableNamesPhase(),
-                new ElaborateNetworkPhase(),
-                new RemoveUnusedGlobalDeclarations()
-        );
-    }
-    public static List<Phase> networkPartitioningPhases() {
-        return ImmutableList.of(
-                new VerilogNameCheckerPhase(),
-                new NetworkPartitioningPhase(),
-                new AnnotateExternalMemories(),
-                new ExtractHardwarePartition()
-        );
-    }
     public static List<Phase> postPartitionNetworkElaborationPhases() {
         return ImmutableList.of(
                 new ResolveGlobalEntityNamesPhase(),
@@ -74,8 +57,8 @@ public class VivadoHLS implements Platform {
     private static final List<Phase> phases = ImmutableList.<Phase>builder()
             .addAll(Compiler.frontendPhases())
             .add(new RecursiveTypeDetectionPhase())
-            .addAll(prePartitionNetworkElaborationPhases())
-            .addAll(networkPartitioningPhases())
+            .addAll(CommonPhases.networkElaborationPhases)
+            .addAll(CommonPhases.hardwarePartitioningPhases)
             .addAll(postPartitionNetworkElaborationPhases())
             .addAll(Compiler.nameAndTypeAnalysis())
             .addAll(actorMachinePhases())
