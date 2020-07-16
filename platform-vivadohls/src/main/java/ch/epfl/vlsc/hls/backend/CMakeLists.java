@@ -1,5 +1,6 @@
 package ch.epfl.vlsc.hls.backend;
 
+import ch.epfl.vlsc.hls.backend.systemc.SCInstance;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.PathUtils;
 import ch.epfl.vlsc.settings.PlatformSettings;
@@ -545,15 +546,15 @@ public interface CMakeLists {
         emitter().emit("add_custom_command(");
         {
             emitter().increaseIndentation();
-
+            String verilatedInstanceName = SCInstance.makeName(instance.getInstanceName());
             emitter().emit("OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/verilated/systemc/%s.cpp " +
-                    "${CMAKE_CURRENT_BINARY_DIR}/verilated/systemc/%1$s__Syms.cpp", instance.getInstanceName());
+                    "${CMAKE_CURRENT_BINARY_DIR}/verilated/systemc/%1$s__Syms.cpp", verilatedInstanceName);
             emitter().emit("COMMAND verilator --sc --clk ap_clk -Wno-fatal " +
                     "--Mdir ${CMAKE_CURRENT_BINARY_DIR}/verilated/systemc " +
                     "--prefix %s " +
-                    "-y ${CMAKE_CURRENT_BINARY_DIR}/%1$s/solution/syn/verilog " +
-                    "${CMAKE_CURRENT_BINARY_DIR}/%1$s/solution/syn/verilog/%1$s.v 2> " +
-                    "%1$s_sc.log", instance.getInstanceName());
+                    "-y ${CMAKE_CURRENT_BINARY_DIR}/%s/solution/syn/verilog " +
+                    "${CMAKE_CURRENT_BINARY_DIR}/%2$s/solution/syn/verilog/%2$s.v 2> " +
+                    "%1$s_sc.log", verilatedInstanceName, instance.getInstanceName());
             emitter().emit("DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/%s/solution/syn/verilog/%1$s.v",
                     instance.getInstanceName());
             emitter().decreaseIndentation();
@@ -591,8 +592,9 @@ public interface CMakeLists {
 
     default void verilateTarget(Instance instance) {
 
+        String verilatedInstanceName = SCInstance.makeName(instance.getInstanceName());
         emitter().emit("add_custom_target(%s_sc ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/verilated/systemc/%1$s.cpp " +
-                "${CMAKE_CURRENT_BINARY_DIR}/verilated/systemc/%1$s__Syms.cpp)", instance.getInstanceName());
+                "${CMAKE_CURRENT_BINARY_DIR}/verilated/systemc/%1$s__Syms.cpp)", verilatedInstanceName);
 
     }
 
@@ -628,11 +630,11 @@ public interface CMakeLists {
 
                 emitter().emit("${VERILATOR_INCLUDE_DIR}/verilated.cpp");
                 network.getInstances().forEach(instance -> {
-
+                    String varilateInstanceName = SCInstance.makeName(instance.getInstanceName());
                     emitter().emit("${CMAKE_CURRENT_BINARY_DIR}/verilated/systemc/%s.cpp",
-                            instance.getInstanceName());
+                            varilateInstanceName);
                     emitter().emit("${CMAKE_CURRENT_BINARY_DIR}/verilated/systemc/%s__Syms.cpp",
-                            instance.getInstanceName());
+                            varilateInstanceName);
                 });
                 emitter().decreaseIndentation();
             }

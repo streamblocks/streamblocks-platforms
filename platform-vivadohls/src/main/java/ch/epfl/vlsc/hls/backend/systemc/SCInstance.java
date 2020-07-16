@@ -5,9 +5,11 @@ import se.lth.cs.tycho.ir.util.ImmutableList;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-class SCInstance implements SCInstanceIF {
+public class SCInstance implements SCInstanceIF {
 
-
+    public static String makeName(String instanceName) {
+        return instanceName + "_verimodule";
+    }
     public static class OutputIF implements SCIF {
         private final Queue.WriterIF writer;
         private final PortIF capacity;
@@ -63,7 +65,7 @@ class SCInstance implements SCInstanceIF {
     private final ImmutableList<String> actionsIds;
 
     public SCInstance(String name, ImmutableList<InputIF> readers, ImmutableList<OutputIF> writers, ImmutableList<String> actionIds) {
-        this.name = name;
+        this.name = this.makeName(name);
         this.instanceName = "inst_" + name;
         this.apControl = new APControl(this.instanceName + "_");
         this.readers = readers;

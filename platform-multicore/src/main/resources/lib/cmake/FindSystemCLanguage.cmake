@@ -11,7 +11,7 @@
 
 cmake_minimum_required(VERSION 3.3)
 find_path(SYSTEMC_PATH
-  NAMES systemc
+  NAMES systemc.h
   PATHS ${SYSTEMC_ROOT_DIR} ENV SYSTEMC_HOME
   PATH_SUFFIXES include
 )
