@@ -453,9 +453,7 @@ public interface SystemCNetwork {
         emitter().emit("// -- Queues");
         for (Queue queue : network.getQueues()) {
 
-//            int addressWidth = MathUtils.log2Ceil(queue.getDepth());
-            int addressWidth = 9;
-            int width = queue.getType().getWidth();
+            int addressWidth = MathUtils.log2Ceil(queue.getDepth());
             emitter().emit("std::unique_ptr<Queue<%s, %d>> %s;", queue.getType().getType(), addressWidth, queue.getName());
         }
         emitter().emitNewLine();

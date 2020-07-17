@@ -12,7 +12,7 @@ namespace ap_rtl {
 
 template <typename T, int LOG2_DEPTH> class Queue : public sc_module {
 public:
-  static const unsigned int ADDR_WIDTH = LOG2_DEPTH;
+  static const unsigned int ADDR_WIDTH = LOG2_DEPTH != 0 ? LOG2_DEPTH : 1;
   static const unsigned int FIFO_DEPTH = 1 << LOG2_DEPTH;
   sc_core::sc_in_clk ap_clk;
   sc_core::sc_in<bool> ap_rst_n;
