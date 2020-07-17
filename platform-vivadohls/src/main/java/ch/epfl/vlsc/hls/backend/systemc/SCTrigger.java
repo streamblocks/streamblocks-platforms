@@ -35,7 +35,7 @@ public class SCTrigger implements SCIF {
         this.globalSync = globalSync;
         String namePrefix = instance.getInstanceName() + "_";
         this.name = namePrefix + "trigger";
-        this.actorName = instance.getName();
+        this.actorName = instance.getOriginalName();
         this.sleep =
                 PortIF.of(
                         "sleep",

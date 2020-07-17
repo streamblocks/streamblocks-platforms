@@ -67,6 +67,7 @@ public class SCOutputStage implements SCInputOutputIF {
     public String getName() {
         return "OutputStage<" + output.getReader().getDout().getSignal().getType() + ">";
     }
+
     public String getInstanceName() {
         return instanceName;
     }

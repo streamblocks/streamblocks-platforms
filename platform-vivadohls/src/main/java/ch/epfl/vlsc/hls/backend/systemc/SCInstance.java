@@ -60,11 +60,12 @@ public class SCInstance implements SCInstanceIF {
     private final String instanceName;
     private final String name;
     private final PortIF ret;
-
+    private final String originalName;
 
     private final ImmutableList<String> actionsIds;
 
     public SCInstance(String name, ImmutableList<InputIF> readers, ImmutableList<OutputIF> writers, ImmutableList<String> actionIds) {
+        this.originalName = name;
         this.name = this.makeName(name);
         this.instanceName = "inst_" + name;
         this.apControl = new APControl(this.instanceName + "_");
@@ -126,4 +127,6 @@ public class SCInstance implements SCInstanceIF {
     }
 
     public ImmutableList<String> getActionsIds() { return actionsIds; }
+
+    public String getOriginalName() { return this.originalName; }
 }

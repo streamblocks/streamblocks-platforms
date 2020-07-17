@@ -9,6 +9,7 @@ public interface SCInstanceIF extends SCIF {
     int getNumActions();
     String getName();
     String getInstanceName();
+    String getOriginalName();
     PortIF getReturn();
     Stream<PortIF> streamUnique();
 }

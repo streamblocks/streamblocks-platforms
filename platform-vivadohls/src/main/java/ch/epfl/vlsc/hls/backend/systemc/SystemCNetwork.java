@@ -202,7 +202,10 @@ public interface SystemCNetwork {
             return queues().get(connection);
         } else {
             int bitWidth = backend().typeseval().sizeOfBits(getConnectionType(connection));
+
             int bufferDepth = backend().channelsutils().connectionBufferSize(connection);
+
+
             Queue queue = new Queue(connection, bitWidth, bufferDepth);
             queues().put(connection, queue);
             return queue;
@@ -534,7 +537,6 @@ public interface SystemCNetwork {
             emitter().emit("// -- queue constructors");
             network.getQueues().stream().forEach(queue -> {
                 int addressWidth = MathUtils.log2Ceil(queue.getDepth());
-                addressWidth = 9;
                 emitter().emit("%s = std::make_unique<Queue<%s, %d>>(\"%1$s\");", queue.getName(),
                         queue.getType().getType(), addressWidth);
             });
