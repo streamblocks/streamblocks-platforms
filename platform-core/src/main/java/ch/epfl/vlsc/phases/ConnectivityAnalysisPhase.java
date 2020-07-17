@@ -268,7 +268,7 @@ public class ConnectivityAnalysisPhase implements Phase {
                 Optional<InstanceDecl> instanceDecl = findSourceInstanceDecl(stmt);
                 if (instanceDecl.isPresent()) {
                     GlobalEntityDecl entityDecl = getEntityDecl(instanceDecl.get());
-                    Optional<PortDecl> entityPort = findInputPort(entityDecl.getEntity(), stmt.getDst().getPortName());
+                    Optional<PortDecl> entityPort = findOutputPort(entityDecl.getEntity(), stmt.getSrc().getPortName());
                     if (entityPort.isPresent()) {
                         port = entityPort;
 

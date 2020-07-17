@@ -55,7 +55,7 @@ public class VerilogNameCheckerPhase implements Phase {
             context.getReporter().report(
                     new Diagnostic(Diagnostic.Kind.WARNING,
                             String.format("Renaming instance %s to %1$s_r because " +
-                                    "%1$s is a reserved SystemVerilog keyword", instance.getInstanceName())));
+                                    "%1$s is a reserved HDL keyword", instance.getInstanceName())));
             newName = instance.getInstanceName() + "_r";
 
         }
@@ -76,7 +76,7 @@ public class VerilogNameCheckerPhase implements Phase {
         return connection.copy(source, target);
     }
     private boolean isReserved(Instance instance) {
-        return keywords.stream().filter(key -> key.equals(instance.getInstanceName())).count() > 0;
+        return keywords.stream().filter(key -> key.equalsIgnoreCase(instance.getInstanceName())).count() > 0;
     }
 
 
@@ -184,6 +184,7 @@ public class VerilogNameCheckerPhase implements Phase {
                 "integer",
                 "interface",
                 "intersect",
+                "is",
                 "join",
                 "join_any",
                 "join_none",
