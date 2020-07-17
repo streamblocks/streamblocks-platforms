@@ -179,9 +179,9 @@ public class AddFanoutPhase implements Phase {
                     Connection.End source = new Connection.End(Optional.of(instanceName), portName);
                     Connection.End target = new Connection.End(Optional.of(name), "F_IN");
                     Connection connection = new Connection(source, target);
-                    ImmutableList.Builder<ToolAttribute> attributes = ImmutableList.builder();
-                    attributes.add(new ToolValueAttribute("bufferSize", new ExprLiteral(ExprLiteral.Kind.Integer, "2")));
-                    connection = connection.withAttributes(attributes.build());
+                    //ImmutableList.Builder<ToolAttribute> attributes = ImmutableList.builder();
+                    //attributes.add(new ToolValueAttribute("bufferSize", new ExprLiteral(ExprLiteral.Kind.Integer, "2")));
+                    //connection = connection.withAttributes(attributes.build());
                     networkConnections.add(connection);
                 }
 
