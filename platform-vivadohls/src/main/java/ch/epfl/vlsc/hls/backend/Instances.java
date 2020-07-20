@@ -75,8 +75,6 @@ public interface Instances {
         // -- Add entity to box
         backend().entitybox().set(entity);
 
-
-
         // -- Generate Source
         generateSource(instance);
 
@@ -84,7 +82,6 @@ public interface Instances {
         generateHeader(instance);
 
         // -- Clear boxes
-
         backend().entitybox().clear();
         backend().instancebox().clear();
     }
@@ -332,7 +329,7 @@ public interface Instances {
         emitter().emit("public:");
         emitter().increaseIndentation();
 
-        emitter().emit("int operator()(%s);", entityPorts(instanceName,false, false));
+        emitter().emit("int operator()(%s);", entityPorts(instanceName, false, false));
 
         emitter().decreaseIndentation();
 
@@ -384,6 +381,13 @@ public interface Instances {
             emitter().emit("// -- Actor return value");
             emitter().emit("unsigned int __ret;");
             emitter().emitNewLine();
+
+            if (!actor.getInputPorts().isEmpty()) {
+                emitter().emit("// -- PinConsume");
+                for (PortDecl port : actor.getInputPorts()) {
+                    emitter().emit("uint32_t __consume_%s;", port.getName());
+                }
+            }
 
             if (!actor.getValueParameters().isEmpty()) {
                 emitter().emit("// -- Parameters");
@@ -485,6 +489,14 @@ public interface Instances {
                     throw new RuntimeException(String.format("Could not assign to %s. Candidates: {%s}.", par.getName(), String.join(", ", instance.getValueParameters().map(Parameter::getName))));
                 }
             }
+
+            if (!actor.getInputPorts().isEmpty()) {
+                emitter().emit("// -- PinConsume");
+                for (PortDecl port : actor.getInputPorts()) {
+                    emitter().emit("__consume_%s = 0;", port.getName());
+                }
+            }
+
 
             emitter().decreaseIndentation();
         }
@@ -672,6 +684,8 @@ public interface Instances {
         String io = conditionIO(condition);
         if (condition instanceof PortCondition) {
             io = io + ", " + "IO io";
+        } else {
+            io = "IO io";
         }
         return String.format("bool %scondition_%d(%s)", withClassName ? className + "::" : "", index, io);
     }

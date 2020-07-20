@@ -42,7 +42,7 @@ public class VivadoHLS implements Platform {
                 new ScheduleUntaggedPhase(),
                 new ScheduleInitializersPhase(),
                 new MergeManyGuardsPhase(),
-                new CalToAmHwPhase(),
+                new CalToAmPhase(),
                 new RemoveEmptyTransitionsPhase(),
                 new ReduceActorMachinePhase(),
                 new CompositionEntitiesUniquePhase(),
@@ -50,6 +50,7 @@ public class VivadoHLS implements Platform {
                 new InternalizeBuffersPhase(),
                 new RemoveUnusedConditionsPhase(),
                 new LiftScopesPhase()
+                //,new LiftExprInputFromScopesPhase()
         );
     }
 

@@ -59,7 +59,9 @@ public interface Globals {
         emitter().emitNewLine();
 
         // -- PinRead
-        emitter().emit("#define pinRead(NAME, value) NAME.read_nb(value)");
+        emitter().emit("#define pinRead(NAME, value) \\");
+        emitter().emit("\tNAME.read_nb(value);\\");
+        emitter().emit("\t__consume_ ## NAME++;\\");
         emitter().emitNewLine();
 
         // -- PinReadBlocking
@@ -117,6 +119,23 @@ public interface Globals {
         // -- PinAvailOut
         emitter().emit("#define pinAvailOut(NAME, IO) IO.NAME ## _size - IO.NAME ## _count");
         emitter().emitNewLine();
+
+        // -- PinConsume
+        emitter().emit("#define pinConsume(NAME) \\");
+        emitter().emit("{\\");
+        emitter().increaseIndentation();
+        emitter().emit("if(__consume_ ## NAME == 0) {\\");
+        emitter().emit("\tNAME.read(); \\");
+        emitter().emit("}\\");
+        emitter().emit("\t__consume_ ## NAME = 0; \\");
+        emitter().decreaseIndentation();
+        emitter().emit("}");
+        emitter().emitNewLine();
+
+
+        emitter().emit("#define pinConsumeRepeat(NAME, d)");
+        emitter().emitNewLine();
+
 
         // -- Headers
         backend().includeSystem("ap_int.h");

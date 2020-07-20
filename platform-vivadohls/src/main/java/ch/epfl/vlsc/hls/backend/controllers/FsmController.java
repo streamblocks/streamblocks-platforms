@@ -135,7 +135,10 @@ public interface FsmController {
 
             String portName = condition.getPortName().getName();
             io = portName + ", io";
+        }else{
+            io = "io";
         }
+
         emitter().emit("if (condition_%d(%s)) {", test.condition(), io);
         emitter().increaseIndentation();
 
@@ -163,6 +166,8 @@ public interface FsmController {
                 PortCondition condition = (PortCondition) am.getCondition(secondTest.condition());
                 String portName = condition.getPortName().getName();
                 io = portName + ", io";
+            }else{
+                io = "io";
             }
 
             Instruction instruction = tgtState.getInstructions().get(0);

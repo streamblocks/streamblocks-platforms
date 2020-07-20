@@ -8,6 +8,8 @@ set(art_native_source
     src/art_Source_byte.cc
     src/art_Source_real.cc
     src/art_Source_txt.cc
+    src/art_Sink_8bit_txt.cc
+    src/art_Sink_16bit_txt.cc
     src/art_print.cc
     src/display.cc)
 

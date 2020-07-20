@@ -68,6 +68,8 @@ public interface QuickJumpController {
             PortCondition condition = (PortCondition) am.getCondition(test.condition());
             String portName = condition.getPortName().getName();
             io = portName + ", io";
+        }else{
+            io = "io";
         }
         emitter().emit("if (condition_%d(%s)) {", test.condition(), io);
         emitter().increaseIndentation();

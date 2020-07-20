@@ -70,7 +70,7 @@ public interface Statements {
 
     default void execute(StmtConsume consume) {
         if (consume.getNumberOfTokens() > 1) {
-            emitter().emit("pinConsume(%s, %d);", consume.getPort().getName(), consume.getNumberOfTokens());
+            emitter().emit("pinConsumeRepeat(%s, %d);", consume.getPort().getName(), consume.getNumberOfTokens());
 
         } else {
             emitter().emit("pinConsume(%s);", consume.getPort().getName());
@@ -108,6 +108,26 @@ public interface Statements {
                     emitter().emit("pinReadRepeatBlocking(%s, %s, %s);", read.getPort().getName(), l, repeat);
                 }
             }
+        }
+    }
+
+
+    default void exprInputRead(String lvalue, ExprInput input) {
+        if (input.hasRepeat()) {
+            if (input.getOffset() == 0) {
+                emitter().emit("pinReadRepeat(%s, %s, %s);", channelsutils().definedInputPort(input.getPort()), lvalue, input.getRepeat());
+            } else {
+                throw new RuntimeException("not implemented");
+            }
+        } else {
+            emitter().emit("pinRead(%s, %s);", channelsutils().definedInputPort(input.getPort()), lvalue);
+            /*
+            if (input.getOffset() == 0) {
+                emitter().emit("pinRead(%s, %s);", channelsutils().definedInputPort(input.getPort()), lvalue);
+            } else {
+                emitter().emit("pinRead(%s, %d, %s);", channelsutils().definedInputPort(input.getPort()), input.getOffset(), lvalue);
+            }
+            */
         }
     }
 
@@ -169,15 +189,15 @@ public interface Statements {
     }
 
     default void copy(ListType lvalueType, String lvalue, ListType rvalueType, String rvalue) {
-        //if (!lvalueType.equals(rvalueType)) {
-        String maxIndex = typeseval().sizeByDimension(lvalueType).stream().map(Object::toString).collect(Collectors.joining(" * "));
-        String index = variables().generateTemp();
-        emitter().emit("for (size_t %1$s = 0; %1$s < (%2$s); %1$s++) {", index, maxIndex);
-        emitter().increaseIndentation();
-        emitter().emit("%s[%s] = %s[%2$s];", lvalue, index, rvalue);
-        emitter().decreaseIndentation();
-        emitter().emit("}");
-        //}
+        if (!lvalue.equals(rvalue)) {
+            String maxIndex = typeseval().sizeByDimension(lvalueType).stream().map(Object::toString).collect(Collectors.joining(" * "));
+            String index = variables().generateTemp();
+            emitter().emit("for (size_t %1$s = 0; %1$s < (%2$s); %1$s++) {", index, maxIndex);
+            emitter().increaseIndentation();
+            emitter().emit("%s[%s] = %s[%2$s];", lvalue, index, rvalue);
+            emitter().decreaseIndentation();
+            emitter().emit("}");
+        }
     }
 
     default String compare(Type lvalueType, String lvalue, Type rvalueType, String rvalue) {
@@ -215,7 +235,7 @@ public interface Statements {
             if (decl.getValue() != null) {
                 if (decl.getValue() instanceof ExprInput) {
                     // -- Do nothing
-                    //expressioneval().evaluateWithLvalue(backend().variables().declarationName(decl), (ExprInput) decl.getValue());
+                    exprInputRead(backend().variables().declarationName(decl), (ExprInput) decl.getValue());
                 } else {
                     if (backend().context().getConfiguration().get(PlatformSettings.arbitraryPrecisionIntegers)) {
                         if (decl.getValue() instanceof ExprLiteral) {
@@ -239,7 +259,7 @@ public interface Statements {
         }
         //block.getStatements().forEach(this::execute);
 
-        for(Statement stmt : block.getStatements()){
+        for (Statement stmt : block.getStatements()) {
             execute(stmt);
         }
         emitter().decreaseIndentation();
