@@ -88,6 +88,7 @@ public class AnnotateExternalMemories implements Phase {
                     .bind("types").to(task.getModule(Types.key))
                     .bind("memories").to(task.getModule(Memories.key))
                     .bind("maxInternalMemory").to(this.sizeThreshold)
+                    .bind("context").to(this.context)
                     .instance();
             CompilationTask transformedTask = task.transformChildren(transform);
             return transformedTask;
@@ -116,6 +117,9 @@ public class AnnotateExternalMemories implements Phase {
 
         @Binding(BindingKind.INJECTED)
         Long maxInternalMemory();
+
+        @Binding(BindingKind.INJECTED)
+        Context context();
 
 
         @Override
@@ -190,8 +194,10 @@ public class AnnotateExternalMemories implements Phase {
                             String.format("Variable %s (estimated byte-aligned size = %s B) is going to be mapped to external memories",
                                     decl.getOriginalName(), memories().sizeInBytes(type).get()), sourceUnit(decl), decl));
 
-
-            if (!memories().isPowerOfTwo(type))
+            boolean hasArbitraryPrecision =
+            context().getConfiguration().isDefined(PlatformSettings.arbitraryPrecisionIntegers) &&
+                    context().getConfiguration().get(PlatformSettings.arbitraryPrecisionIntegers);
+            if (!memories().isPowerOfTwo(type) && hasArbitraryPrecision)
                 reporter().report(new Diagnostic(Diagnostic.Kind.ERROR,
                         String.format("%s of type %s is not power-of-two, but is inferred as external memory.",
                                 decl.getOriginalName(), type.toString()),
