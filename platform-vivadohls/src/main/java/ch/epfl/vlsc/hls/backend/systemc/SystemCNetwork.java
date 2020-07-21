@@ -292,7 +292,7 @@ public interface SystemCNetwork {
             backend().context().getReporter().report(
                     new Diagnostic(Diagnostic.Kind.ERROR,
                             String.format(
-                                    "Actors with external memories are not yet supported, consider increasing" +
+                                    "Actors with external memories for SystemC are not yet supported, consider increasing" +
                                             " the on-chip memory using --set max-bram=VALUE_BYTES to " +
                                             "make all memories internal")));
 
