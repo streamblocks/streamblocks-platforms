@@ -354,7 +354,9 @@ public:
               tmp_token;
         }
 
-        this->partial_bus_line.len += tokens_to_fill_bus_line;
+        this->partial_bus_line.len =
+            (this->partial_bus_line.len + tokens_to_fill_bus_line) %
+            this->tokens_per_bus_line;
 
         burst_buffer[burst_buffer_index++] = this->partial_bus_line.bus_line;
       }
@@ -399,7 +401,10 @@ public:
               this->partial_bus_line.len = last_partial_tokens;
               this->partial_bus_line.bus_line = tmp_bus_line;
             } else {
+              // This is the last line and its full so reset the
+              // partial_bus_line
               this->partial_bus_line.len = 0;
+              this->partial_bus_line.bus_line = 0;
             }
           }
           burst_buffer[burst_buffer_index] = tmp_bus_line;

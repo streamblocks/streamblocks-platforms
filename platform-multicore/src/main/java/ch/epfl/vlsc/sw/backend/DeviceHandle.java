@@ -777,11 +777,13 @@ public interface DeviceHandle {
                 emitter().emit("for (int i = 0; i < dev->num_inputs; i++)");
                 {
                     emitter().increaseIndentation();
-                    emitter().emit("if (dev->%s[i].active == true)",
-                            handle.findField("write_buffer_event_info").get().getName());
+                    String eventInfo = "dev->" + handle.findField("write_buffer_event_info").get().getName();
+                    emitter().emit("if (%s[i].active == true)",
+                            eventInfo);
                     {
                         emitter().increaseIndentation();
                         OclCheck("clReleaseEvent(dev->write_buffer_event[i])");
+                        emitter().emit("%s[i].active = false;", eventInfo);
                         emitter().decreaseIndentation();
                     }
                     emitter().decreaseIndentation();
@@ -809,6 +811,7 @@ public interface DeviceHandle {
             {
                 emitter().increaseIndentation();
                 OclCheck("clReleaseEvent(%s[i]);", events);
+
                 emitter().decreaseIndentation();
             }
             emitter().emit("}");
@@ -834,6 +837,7 @@ public interface DeviceHandle {
                     {
                         emitter().increaseIndentation();
                         OclCheck("clReleaseEvent(%s[i])", events);
+                        emitter().emit("%s[i].active == false;", eventsInfo);
                         emitter().decreaseIndentation();
                     }
                     emitter().decreaseIndentation();
@@ -859,9 +863,9 @@ public interface DeviceHandle {
             String readSizeEvents = "dev->" + handle.findField("read_size_event").get().getName();
             OclMsg("Waiting on read size events\\n");
             OclCheck("clWaitForEvents(%s  + %s, %s)", numInputs, numOutputs, readSizeEvents);
-            OclMsg("Releasing read size events\\n");
-            Method releaseEvents = getMethod(handle, "releaseReadSizeEvents");
-            emitter().emit("%s(dev);", methodName(handle, releaseEvents));
+//            OclMsg("Releasing read size events\\n");
+//            Method releaseEvents = getMethod(handle, "releaseReadSizeEvents");
+//            emitter().emit("%s(dev);", methodName(handle, releaseEvents));
             emitter().decreaseIndentation();
         }
         emitter().emitNewLine();
@@ -874,23 +878,33 @@ public interface DeviceHandle {
         emitter().emit("%s {", methodSignature(handle, method));
         {
             emitter().increaseIndentation();
-//            if (entity.getOutputPorts().size() > 0)
-//            {
-//                emitter().increaseIndentation();
-//                String numOutputs = "dev->" + handle.findField("num_outputs").get().getName();
-//                String readBuffersEvents = "dev->" + handle.findField("read_buffer_event").get().getName();
-//                OclMsg("Waiting on read buffer events\\n");
-//                OclCheck("clWaitForEvents(%s, %s)", numOutputs, readBuffersEvents);
-//                OclMsg("Releasing read buffer events\\n");
-//                Method releaseEvents = getMethod(handle, "releaseReadBufferEvents");
-//                emitter().emit("%s(dev);", methodName(handle, releaseEvents));
-//                emitter().decreaseIndentation();
-//            } else {
-//
-//                OclMsg("No read buffer event to wait on\\n");
-//            }
-            String cmdQ = "dev->" + handle.findField("world").get().getName() + ".command_queue";
-            emitter().emit("clFinish(%s);", cmdQ);
+            if (entity.getOutputPorts().size() > 0)
+            {
+
+
+                for (PortDecl port : entity.getOutputPorts()) {
+                    int portIx = entity.getOutputPorts().indexOf(port);
+                    String eventActive = "dev->" +
+                            handle.findField("read_buffer_event_info").get().getName() + "[" +
+                                portIx + "].active";
+                    String readBufferEvent = "dev->" +
+                            handle.findField("read_buffer_event").get().getName() + "[" + portIx + "]";
+                    emitter().emit("if (%s == true) {", eventActive);
+                    {
+                        emitter().increaseIndentation();
+                        OclMsg("Waiting on %s read buffer event \\n", port.getName());
+                        OclCheck("clWaitForEvents(1, %s)", readBufferEvent);
+                        emitter().decreaseIndentation();
+
+                    }
+                    emitter().emit("}");
+                    emitter().emitNewLine();
+                }
+
+            } else {
+
+                OclMsg("No read buffer event to wait on\\n");
+            }
             emitter().decreaseIndentation();
         }
         emitter().emitNewLine();
