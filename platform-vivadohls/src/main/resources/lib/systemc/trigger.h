@@ -351,7 +351,7 @@ public:
         double(total_actor_ticks) / double(total_actor_firings);
     ofs << indent_str << "<actor id=\"" << this->actor_id << "\" clockcycles=\""
         << actor_average_ticks << "\" clockcycles-total=\"" << total_actor_ticks
-        << "\" firings=\"" << total_actor_firings << "\" />" << std::endl;
+        << "\" firings=\"" << total_actor_firings << "\" >" << std::endl;
     for (const auto &stat : this->stats) {
       auto total_ticks = stat.getTicks();
       auto min_ticks = stat.getMinTicks() != -1 ? stat.getMinTicks() : 0;

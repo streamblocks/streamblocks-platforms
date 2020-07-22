@@ -165,6 +165,8 @@ public interface SystemCTestBench {
         emitter().emit("std::size_t total_ticks;");
         // -- vcd trace file
         emitter().emit("sc_trace_file *vcd_dump;");
+        // -- time tracking
+        emitter().emit("std::chrono::time_point<std::chrono::high_resolution_clock> zero_time;");
 
         emitter().emitNewLine();
     }
@@ -177,6 +179,8 @@ public interface SystemCTestBench {
         emitter().emit("void reset() {");
         {
             emitter().increaseIndentation();
+
+            emitter().emit("this->zero_time = std::chrono::high_resolution_clock::now();");
             emitter().emit("%s.write(%s);", network.getApControl().getResetSignal().getName(),
                     LogicValue.Value.SC_LOGIC_0);
             emitter().emit("sc_start(clock_period + clock_period);");
@@ -192,7 +196,7 @@ public interface SystemCTestBench {
     default void getSimulator(SCNetwork network) {
 
         emitter().emit("// -- simulator method");
-        emitter().emit("std::size_t simulate(std::size_t report_every = 1000000) {");
+        emitter().emit("std::size_t simulate(std::size_t report_every = 500000) {");
         {
             emitter().increaseIndentation();
             emitter().emit("bool started = false;");
@@ -214,6 +218,8 @@ public interface SystemCTestBench {
                     emitter().emit("auto current_time = std::chrono::high_resolution_clock::now();");
                     emitter().emit(" auto diff_time = " +
                             "std::chrono::duration_cast<std::chrono::milliseconds>(current_time - start_time);");
+                    emitter().emit("auto diff_time_zero = " +
+                            "std::chrono::duration_cast<std::chrono::milliseconds>(current_time - this->zero_time);");
                     emitter().emit("auto sim_curr_time = sc_time_stamp();");
                     emitter().emit("auto sim_time_diff = sim_curr_time - sim_start_time;");
                     emitter().emit("auto slow_down = diff_time.count() / sim_time_diff.to_seconds() / 1e3;");
@@ -222,7 +228,7 @@ public interface SystemCTestBench {
                             "            \"\\nSimulated for %%10lu cycles \\n\\tsystemc time: \"\n" +
                             "            \"%%.9f s (%%s) \\n\\treal time   : %%3.6f s\\n\\tslow down   : %%6.3f\\n\\n\",\n" +
                             "            total_ticks , sim_curr_time.to_seconds(), sim_curr_time.to_string().c_str(),\n" +
-                            "            diff_time.count() / 1e3, slow_down);");
+                            "            diff_time_zero.count() / 1e3, slow_down);");
                     emitter().emit("break_point += report_every;");
                     emitter().decreaseIndentation();
                 }
@@ -395,7 +401,7 @@ public interface SystemCTestBench {
         emitter().emit("void dumpStats(std::ofstream& stats_dump) {");
         {
 
-            emitter().emit("stats_dump << \"<network name=\\\"%s\\\" />\" << std::endl;", network.getIdentifier());
+            emitter().emit("stats_dump << \"<network name=\\\"%s\\\" clockcycles-total=\\\"\" << this->total_ticks << \"\\\">\" << std::endl;", network.getIdentifier());
 
             for (SCTrigger trigger: network.getInstanceTriggers())
                 dumpInstanceStats(trigger, network);
