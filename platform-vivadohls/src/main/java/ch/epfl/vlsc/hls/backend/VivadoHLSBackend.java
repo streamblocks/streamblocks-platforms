@@ -6,12 +6,21 @@ import ch.epfl.vlsc.hls.backend.controllers.FsmController;
 import ch.epfl.vlsc.hls.backend.controllers.QuickJumpController;
 import ch.epfl.vlsc.hls.backend.controllers.StrawManController;
 import ch.epfl.vlsc.hls.backend.host.DeviceHandle;
-import ch.epfl.vlsc.hls.backend.kernel.*;
+import ch.epfl.vlsc.hls.backend.kernel.AxiLiteControl;
+import ch.epfl.vlsc.hls.backend.kernel.InputStage;
+import ch.epfl.vlsc.hls.backend.kernel.InputStageMem;
+import ch.epfl.vlsc.hls.backend.kernel.KernelWrapper;
+import ch.epfl.vlsc.hls.backend.kernel.KernelXml;
+import ch.epfl.vlsc.hls.backend.kernel.OutputStage;
+import ch.epfl.vlsc.hls.backend.kernel.OutputStageMem;
+import ch.epfl.vlsc.hls.backend.kernel.PackageKernel;
+import ch.epfl.vlsc.hls.backend.kernel.TopKernel;
 import ch.epfl.vlsc.hls.backend.scripts.VivadoTCL;
 import ch.epfl.vlsc.hls.backend.simulators.WcfgWaveform;
 import ch.epfl.vlsc.hls.backend.systemc.Simulator;
 import ch.epfl.vlsc.hls.backend.systemc.SystemCNetwork;
 import ch.epfl.vlsc.hls.backend.systemc.SystemCTestBench;
+import ch.epfl.vlsc.hls.backend.testbench.TestbenchHLS;
 import ch.epfl.vlsc.hls.backend.verilog.VerilogNetwork;
 import ch.epfl.vlsc.hls.backend.verilog.VerilogTestbench;
 import ch.epfl.vlsc.platformutils.DefaultValues;
@@ -20,7 +29,14 @@ import ch.epfl.vlsc.platformutils.utils.Box;
 import org.multij.Binding;
 import org.multij.Module;
 import org.multij.MultiJ;
-import se.lth.cs.tycho.attribute.*;
+import se.lth.cs.tycho.attribute.ActorMachineScopes;
+import se.lth.cs.tycho.attribute.Closures;
+import se.lth.cs.tycho.attribute.ConstantEvaluator;
+import se.lth.cs.tycho.attribute.FreeVariables;
+import se.lth.cs.tycho.attribute.GlobalNames;
+import se.lth.cs.tycho.attribute.ScopeDependencies;
+import se.lth.cs.tycho.attribute.Types;
+import se.lth.cs.tycho.attribute.VariableDeclarations;
 import se.lth.cs.tycho.compiler.CompilationTask;
 import se.lth.cs.tycho.compiler.Context;
 import se.lth.cs.tycho.compiler.UniqueNumbers;
@@ -176,13 +192,13 @@ public interface VivadoHLSBackend {
 
     // -- Pattern Matching
     @Binding(LAZY)
-    default PatternMatching patternMatching(){
+    default PatternMatching patternMatching() {
         return MultiJ.from(PatternMatching.class).bind("backend").to(this).instance();
     }
 
     // -- Default Values
     @Binding(LAZY)
-    default DefaultValues defaultValues(){
+    default DefaultValues defaultValues() {
         return MultiJ.from(DefaultValues.class).instance();
     }
 
@@ -269,6 +285,12 @@ public interface VivadoHLSBackend {
         return MultiJ.from(VerilogTestbench.class).bind("backend").to(this).instance();
     }
 
+    // -- HLS Testbenches
+    @Binding(LAZY)
+    default TestbenchHLS testbenchHLS() {
+        return MultiJ.from(TestbenchHLS.class).bind("backend").to(this).instance();
+    }
+
     // -- SystemC Tester
     @Binding(LAZY)
     default SystemCTestBench sctester() {
@@ -281,7 +303,7 @@ public interface VivadoHLSBackend {
         return MultiJ.from(Simulator.class).bind("backend").to(this).instance();
     }
 
-    // -- Verilog Testbenches
+    // -- Verilog Waveform for ISIM
     @Binding(LAZY)
     default WcfgWaveform wcfg() {
         return MultiJ.from(WcfgWaveform.class).bind("backend").to(this).instance();

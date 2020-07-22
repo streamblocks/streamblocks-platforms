@@ -125,6 +125,9 @@ public class VivadoHLSBackendPhase implements Phase {
         // -- Include path
         PathUtils.createDirectory(codeGenPath, "include");
 
+        // -- Include testbench path
+        PathUtils.createDirectory(codeGenPath, "include-tb");
+
         // -- Source testbench path
         PathUtils.createDirectory(codeGenPath, "src-tb");
 
@@ -365,6 +368,9 @@ public class VivadoHLSBackendPhase implements Phase {
 
         // -- Instance Verilog Testbench
         network.getInstances().forEach(backend.testbench()::generateTestbench);
+
+        // -- Instance HLS Testbench
+        network.getInstances().forEach(backend.testbenchHLS()::generateInstanceTestbench);
     }
 
     public static void generateWcfg(VivadoHLSBackend backend) {

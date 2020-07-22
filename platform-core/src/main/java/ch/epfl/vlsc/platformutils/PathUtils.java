@@ -196,6 +196,17 @@ public class PathUtils {
      * @param context
      * @return
      */
+    public static Path getTargetCodeGenSrcTb(Context context) {
+        File directory = new File(getTargetCodeGen(context).toFile(), "src-tb");
+        return directory.toPath();
+    }
+
+    /**
+     * Get the code-gen RTL target output directory
+     *
+     * @param context
+     * @return
+     */
     public static Path getTargetCodeGenWcfg(Context context) {
         File directory = new File(getTargetCodeGen(context).toFile(), "wcfg");
         return directory.toPath();
