@@ -193,15 +193,19 @@ public class AnnotateExternalMemories implements Phase {
                     new Diagnostic(Diagnostic.Kind.INFO,
                             String.format("Variable %s (estimated byte-aligned size = %s B) is going to be mapped to external memories",
                                     decl.getOriginalName(), memories().sizeInBytes(type).get()), sourceUnit(decl), decl));
+            try{
+                boolean hasArbitraryPrecision =
+                        context().getConfiguration().isDefined(PlatformSettings.arbitraryPrecisionIntegers) &&
+                                context().getConfiguration().get(PlatformSettings.arbitraryPrecisionIntegers);
+                if (!memories().isPowerOfTwo(type) && hasArbitraryPrecision)
+                    reporter().report(new Diagnostic(Diagnostic.Kind.ERROR,
+                            String.format("%s of type %s is not power-of-two, but is inferred as external memory.",
+                                    decl.getOriginalName(), type.toString()),
+                            sourceUnit(decl), decl));
+            } catch (IllegalArgumentException e) {
+                // Do nothing, the setting is not defined at all.
+            }
 
-            boolean hasArbitraryPrecision =
-            context().getConfiguration().isDefined(PlatformSettings.arbitraryPrecisionIntegers) &&
-                    context().getConfiguration().get(PlatformSettings.arbitraryPrecisionIntegers);
-            if (!memories().isPowerOfTwo(type) && hasArbitraryPrecision)
-                reporter().report(new Diagnostic(Diagnostic.Kind.ERROR,
-                        String.format("%s of type %s is not power-of-two, but is inferred as external memory.",
-                                decl.getOriginalName(), type.toString()),
-                        sourceUnit(decl), decl));
         }
 
         default Annotation getAnnotation() {

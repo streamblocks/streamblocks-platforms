@@ -282,6 +282,12 @@ public interface PLink {
         for (PortDecl port : entity.getOutputPorts()) {
             emitter().emit("%s %s_offset;", defaultSizeType(), port.getName());
         }
+
+        emitter().emitNewLine();
+        emitter().emit("uint64_t total_consumed;");
+        emitter().emit("uint64_t total_produced;");
+        emitter().emit("uint64_t total_request;");
+        emitter().emit("bool should_retry;");
     }
 
     default void instanceState(String name, Entity entity) {
@@ -477,8 +483,8 @@ public interface PLink {
         emitter().emit("// -- Construct the FPGA device handle");
         String consName = backend().devicehandle().methodName(handle, handle.getConstructor());
         String xclBinPath = "xclbin";
-        emitter().emit("%s(&thisActor->dev, \"%s\", \"xilinx_kcu1500_dynamic_5_0\", \"%s\", false);",
-                consName, kernelID, xclBinPath);
+        emitter().emit("%s(&thisActor->dev, %d, %s, \"%s\", \"xilinx_kcu1500_dynamic_5_0\", \"%s\", false);",
+                consName, entity.getInputPorts().size(), entity.getOutputPorts().size(), kernelID, xclBinPath);
         emitter().emitNewLine();
 
 
@@ -516,8 +522,8 @@ public interface PLink {
 
 
         emitter().emit("// -- allocate buffers for TX/RX size buffers");
-        for (PortDecl port : Stream.concat(
-                entity.getInputPorts().stream(), entity.getOutputPorts().stream()).collect(Collectors.toList())) {
+        for (PortDecl port : ImmutableList.concat(
+                entity.getInputPorts(), entity.getOutputPorts())) {
 
             emitter().emit("thisActor->%s_size = (%s *) aligned_alloc(MEM_ALIGNMENT, sizeof(%2$s));",
                     port.getName(), defaultIntType());
@@ -526,6 +532,12 @@ public interface PLink {
                     setSizePtrName, port.getName());
 
         }
+        emitter().emitNewLine();
+        emitter().emit("thisActor->total_consumed = 0;");
+        emitter().emit("thisActor->total_produced = 0;");
+        emitter().emit("thisActor->total_request = 0;");
+        emitter().emit("thisActor->should_retry = false;");
+        emitter().emitNewLine();
 
     }
 
@@ -913,7 +925,8 @@ public interface PLink {
                 emitter().emitNewLine();
                 String canTransmit = String.join(" && ",
                         tokens.build().stream().map(t -> "(" + t + " > 0)").collect(Collectors.toList()));
-                emitter().emit("if (%s) {", canTransmit);
+                emitter().emit("bool should_start = %s || thisActor->should_retry;", canTransmit);
+                emitter().emit("if (should_start) {");
                 {
                     emitter().increaseIndentation();
                     emitter().emit("thisActor->program_counter = 1;");
@@ -990,9 +1003,10 @@ public interface PLink {
             emitter().emit("%s(&thisActor->dev);", getMethod(handle, "enqueueReadBuffers"));
             emitter().emitNewLine();
 
-            emitter().emit("uint64_t total_request = 0;");
-            emitter().emit("uint64_t total_consumed = 0;");
-            emitter().emit("uint64_t total_produced = 0;");
+            emitter().emit("thisActor->total_request = 0;");
+            emitter().emit("thisActor->total_consumed = 0;");
+            emitter().emit("thisActor->total_produced = 0;");
+            emitter().emit("thisActor->should_retry = false;");
 
             // -- consume tokens
             emitter().emit("// -- Consume on behalf of device");
@@ -1001,20 +1015,21 @@ public interface PLink {
                 emitter().emit("if (thisActor->%s_size[0] > 0)", port.getName());
                 emitter().emit("\tpinConsumeRepeat_%s(IN%d_%s, thisActor->%3$s_size[0]);",
                         type, entity.getInputPorts().indexOf(port), port.getName());
-                emitter().emit("total_consumed += thisActor->%s_size[0];", port.getName());
-                emitter().emit("total_request += thisActor->%s_request_size;", port.getName());
+                emitter().emit("thisActor->total_consumed += thisActor->%s_size[0];", port.getName());
+                emitter().emit("thisActor->total_request += thisActor->%s_request_size;", port.getName());
             }
             emitter().emitNewLine();
             for (PortDecl port : entity.getOutputPorts()) {
                 emitter().emit("thisActor->%s_offset = 0;", port.getName());
-                emitter().emit("total_produced += thisActor->%s_size[0];", port.getName());
+                emitter().emitNewLine();
+                emitter().emit("thisActor->total_produced += thisActor->%s_size[0];", port.getName());
             }
             emitter().emitNewLine();
 
             // -- check for potential deadlock
-            getDeadlockCheck("total_produced", "total_consumed", "total_request");
+            getDeadlockCheck("thisActor->total_produced", "thisActor->total_consumed", "thisActor->total_request");
 
-            emitter().emit("if (total_produced > 0 || total_consumed > 0) {");
+            emitter().emit("if (thisActor->total_produced > 0 || thisActor->total_consumed > 0) {");
             {
                 emitter().increaseIndentation();
 
@@ -1062,8 +1077,19 @@ public interface PLink {
                 emitter().emit("if (%s > 0) { // -- if there are tokens remaining", remain);
                 {
                     emitter().increaseIndentation();
-                    emitter().emit("pinWriteRepeat_%s(%s, %s, %s);", type, outputPort, offsetBuffer,
-                            toWrite);
+                    emitter().emit("if (%s > 0) {", toWrite);
+                    {
+                        emitter().increaseIndentation();
+                        emitter().emit("ART_ACTION_ENTER(WRITE, 2);");
+
+                        emitter().emit("pinWriteRepeat_%s(%s, %s, %s);", type, outputPort, offsetBuffer,
+                                toWrite);
+
+                        emitter().emit("ART_ACTION_EXIT(WRITE, 2);");
+                        emitter().decreaseIndentation();
+                    }
+                    emitter().emit("}");
+                    emitter().emitNewLine();
                     emitter().emit("%s += %s;", offset, toWrite);
                     emitter().emit("if (%s == %s) // this port is done", offset, readSize);
                     emitter().emit("\tdone_reading ++;");
@@ -1084,6 +1110,22 @@ public interface PLink {
             {
                 emitter().increaseIndentation();
                 emitter().emit("thisActor->program_counter = 0;");
+
+                emitter().emit("%s(&thisActor->dev);", getMethod(handle, "releaseKernelEvent"));
+                emitter().emit("%s(&thisActor->dev);", getMethod(handle, "releaseWriteEvents"));
+                emitter().emit("%s(&thisActor->dev);", getMethod(handle, "releaseReadSizeEvents"));
+                emitter().emit("%s(&thisActor->dev);", getMethod(handle, "releaseReadBufferEvents"));
+
+                String fullBuffers = String.join(" || ",
+                        entity.getOutputPorts().map(outputPort -> {
+                            int size = backend().channelsutils().sourceEndSize(new Connection.End(Optional.of(name),
+                                    outputPort.getName()));
+                            return "(thisActor->" + outputPort.getName() + "_size[0] == " + size + ")";
+                        }));
+                // -- retry if the device output buffers were full
+                emitter().emit("// -- retry if the output buffers were full");
+                emitter().emit("thisActor->should_retry  = %s;", fullBuffers);
+                emitter().emitNewLine();
                 emitter().decreaseIndentation();
             }
             emitter().emit("} else {");

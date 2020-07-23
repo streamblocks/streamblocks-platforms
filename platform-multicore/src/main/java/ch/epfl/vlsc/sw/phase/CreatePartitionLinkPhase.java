@@ -364,11 +364,11 @@ public class CreatePartitionLinkPhase implements Phase {
             Field.of("size_t", "local"),
             Field.of("uint32_t", "num_inputs"),
             Field.of("uint32_t", "num_outputs"),
-            Field.of("size_t", "buffer_size"),
             Field.of("size_t", "mem_alignment"),
             Field.of("uint64_t", "kernel_command", "the kernel command word (deprecated)"),
-            Field.of("uint32_t", "command_is_set", "the kernel command status (deprecated)"),
-            Field.of("uint32_t", "pending_status", "status of a kernel run (deprecated)"));
+            Field.of("uint32_t", "command_is_set", "the kernel command status (deprecated)")
+        );
+
         if (inputPorts.size() > 0) {
             fields.addAll(
                     Field.of(
@@ -400,9 +400,15 @@ public class CreatePartitionLinkPhase implements Phase {
                             "read_buffer_event",
                             "an array containing read buffer events"),
                     Field.of(Type.of("EventInfo", true),
-                            "read_buffer_event_info", "read buffer event info")
+                            "read_buffer_event_info", "read buffer event info"),
+                    Field.of(Type.of("cl_event", true),
+                            "read_buffer_event_wait_list",
+                            "events for the read buffers to wait on")
             );
         }
+
+
+
 
 
         fields.addAll(
@@ -412,7 +418,11 @@ public class CreatePartitionLinkPhase implements Phase {
 
             Field.of(
                     Type.of("EventInfo", false),
-                    "kernel_event_info", "kernel enqueue event info")
+                    "kernel_event_info", "kernel enqueue event info"),
+            Field.of(
+                    Type.of("cl_event", true),
+                    "kernel_event_wait_list", "list of events the kernel has to wait on")
+
         );
 
         for (PortDecl port: inputPorts) {
@@ -465,6 +475,8 @@ public class CreatePartitionLinkPhase implements Phase {
     private PartitionHandle.Method createConstructor() {
         return Method.of("void", "constructor",
                 ImmutableList.of(
+                        Method.MethodArg("int", "num_inputs"),
+                        Method.MethodArg("int", "num_outputs"),
                         Method.MethodArg("char*", "kernel_name"),
                         Method.MethodArg("char*", "target_device_name"),
                         Method.MethodArg("char*", "dir"),

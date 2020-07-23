@@ -152,7 +152,7 @@ public interface DeviceHandle {
     }
 
     /**
-     * Generates the source file device-handle.c
+     * Generates the source file device-handle.cc
      * @param entity the PartitionLink entity for which the source file is generated.
      */
     default void generateDeviceHandleSource(PartitionLink entity) {
@@ -161,10 +161,10 @@ public interface DeviceHandle {
         emitter().open(artPlinkPath.resolve("device-handle.cc"));
 
         BufferedReader reader;
-        // -- read the common methods from plink/device-handle.c in resources
+        // -- read the common methods from plink/device-handle.cc in resources
         try {
             reader = new BufferedReader(
-                    new InputStreamReader(getClass().getResourceAsStream("/lib/art-plink/device-handle.c")));
+                    new InputStreamReader(getClass().getResourceAsStream("/lib/art-plink/device-handle.cc")));
             String line = reader.readLine();
             while (line != null) {
                 emitter().emitRawLine(line);
@@ -173,7 +173,7 @@ public interface DeviceHandle {
         } catch (IOException e) {
             throw new CompilationException(
                     new Diagnostic(Diagnostic.Kind.ERROR, "Could not read the resource file " +
-                            "lib/art-plink/device-handle.c"));
+                            "lib/art-plink/device-handle.cc"));
         }
 
 
@@ -332,9 +332,11 @@ public interface DeviceHandle {
                 String readBufferEvents = "dev->" + handle.findField("read_buffer_event").get().getName();
                 String readBufferEventInfo = "dev->" + handle.findField("read_buffer_event_info")
                         .get().getName();
-
+                String readBufferEventsList = "dev->" +
+                        handle.findField("read_buffer_event_wait_list").get().getName();
                 allocateEvent(readBufferEvents, "cl_event", numOutputs);
                 allocateEvent(readBufferEventInfo, "EventInfo", numOutputs);
+                allocateEvent(readBufferEventsList, "cl_event", numOutputs);
                 emitter().emitNewLine();
                 emitter().emit("for(int i = 0; i < %s; i++) {", numOutputs);
                 {
@@ -369,7 +371,8 @@ public interface DeviceHandle {
             emitter().emit("}");
 
             emitter().emitNewLine();
-            String kernelEvent = "dev->" + handle.findField("kernel_event").get().getName();
+            String kernelEventWaitList = "dev->" + handle.findField("kernel_event_wait_list").get().getName();
+            allocateEvent(kernelEventWaitList, "cl_event", numInputs);
             String kernelEventInfo = "dev->" + handle.findField("kernel_event_info").get().getName();
             emitter().emit("%s.counter = 0;", kernelEventInfo);
             emitter().emit("%s.active = false;", kernelEventInfo);
@@ -381,7 +384,7 @@ public interface DeviceHandle {
 
     }
     default void allocateEvent(String name, String type, String size) {
-        emitter().emit("%s = (%s*) malloc (sizeof(%s) * %s);", name, type, type, size);
+        emitter().emit("%s = (%s*) calloc (%s, sizeof(%s));", name, type, size, type);
     }
     default void getSetArgs(PartitionLink entity) {
         Method method = getMethod(entity.getHandle(), "setArgs");
@@ -439,6 +442,7 @@ public interface DeviceHandle {
 
     default void getEnqueueWriteBuffers(PartitionLink entity) {
         Method method = getMethod(entity.getHandle(), "enqueueWriteBuffers");
+        PartitionHandle handle = entity.getHandle();
 
         emitter().emit("%s {", methodSignature(entity.getHandle(), method));
         {
@@ -447,7 +451,18 @@ public interface DeviceHandle {
 
             emitter().emit("size_t req_sz = 1;");
             emitter().emitNewLine();
+
+
             for (PortDecl port: entity.getInputPorts()) {
+                int portIx = entity.getInputPorts().indexOf(port);
+                String writeEventInfo = "dev->" +
+                        handle.findField("write_buffer_event_info").get().getName() + "[" + portIx + "].active";
+                emitter().emit("if (%s == true) ", writeEventInfo);
+                {
+                    emitter().increaseIndentation();
+                    OclErr("Detected unreleased write buffer event for %s\\n", port.getName());
+                    emitter().decreaseIndentation();
+                }
                 emitter().emit("if (dev->%s_request_size > 0) { // -- make sure there is something to send",
                         port.getName(), entity.getInputPorts().indexOf(port));
                 {
@@ -460,36 +475,37 @@ public interface DeviceHandle {
                         emitter().emit("clEnqueueWriteBuffer(");
                         {
                             emitter().increaseIndentation();
-                            emitter().emit("dev->world.command_queue, // -- the command queue");
-                            emitter().emit("dev->%s_cl_buffer, // -- the cl device buffer", port.getName());
+                            String writeBufferEvent = handle.findField("write_buffer_event").get().getName();
+                            String writeBufferEventInfo =
+                                    handle.findField("write_buffer_event_info").get().getName();
+                            emitter().emit("dev->%s.command_queue, // -- the command queue",
+                                    handle.findField("world").get().getName());
+                            emitter().emit("dev->%s, // -- the cl device buffer",
+                                    handle.findField(port.getName() + "_cl_buffer").get().getName());
                             emitter().emit("CL_FALSE, // -- blocking write operation");
                             emitter().emit("0, // -- buffer offset, not use");
-                            emitter().emit("dev->%s_request_size * sizeof(%s), // -- size of data transfer in byte",
-                                    port.getName(), portType(port));
-                            emitter().emit("dev->%s_buffer, // -- pointer to the host memory", port.getName());
+                            emitter().emit("dev->%s * sizeof(%s), // -- size of data transfer in byte",
+                                    handle.findField(port.getName() + "_request_size").get().getName(),
+                                    portType(port));
+                            emitter().emit("dev->%s, // -- pointer to the host memory",
+                                    handle.findField(port.getName() + "_buffer").get().getName());
                             emitter().emit("0, // -- number of events in wait list, writes do not wait for anything");
                             emitter().emit("NULL, // -- the event wait list, not used for writes");
-                            emitter().emit("&dev->write_buffer_event[%d])); // -- the generated event",
+                            emitter().emit("&dev->%s[%d])); // -- the generated event",
+                                    writeBufferEvent,
                                     entity.getInputPorts().indexOf(port));
                             emitter().emitNewLine();
                             emitter().emit("// -- register call back for the write event");
                             emitter().emit("dev->%s[%d].active = true;",
-                                    entity.getHandle().findField("write_buffer_event_info").get().getName(),
+                                    writeBufferEventInfo,
                                     entity.getInputPorts().indexOf(port));
-                            emitter().emit("on_completion(dev->write_buffer_event[%d], " +
-                                    "&dev->write_buffer_event_info[%1$d]);", entity.getInputPorts().indexOf(port));
+                            emitter().emit("on_completion(dev->%s[%d], " +
+                                    "&dev->%s[%2$d]);", writeBufferEvent, entity.getInputPorts().indexOf(port),
+                                    writeBufferEventInfo);
                             emitter().decreaseIndentation();
                         }
                         emitter().decreaseIndentation();
                     }
-                    emitter().decreaseIndentation();
-                }
-                emitter().emit("} else { // -- else do not make the DMA transfer");
-                {
-                    emitter().increaseIndentation();
-                    emitter().emit("dev->%s[%d].active = false;",
-                            entity.getHandle().findField("write_buffer_event_info").get().getName(), entity.getInputPorts().indexOf(port));
-                    OclMsg("Info: skipping a write transfer of size 0 for %s.\\n", port.getName());
                     emitter().decreaseIndentation();
                 }
                 emitter().emit("}");
@@ -504,40 +520,63 @@ public interface DeviceHandle {
     default void getEnqueueExecution(PartitionLink entity) {
 
         Method method = getMethod(entity.getHandle(), "enqueueExecution");
+        PartitionHandle handle = entity.getHandle();
         emitter().emit("%s {", methodSignature(entity.getHandle(), method));
         {
             emitter().increaseIndentation();
             OclMsg("Equeueing kernel\\n");
+
+            emitter().emitNewLine();
+            emitter().emit("uint32_t num_events_to_wait_on = 0;");
+            String numInputs = "dev->" + handle.findField("num_inputs").get().getName();
+            String kernelEventWaitList = "dev->" + handle.findField("kernel_event_wait_list").get().getName();
+            String writeBufferEvent = "dev->" + handle.findField("write_buffer_event").get().getName();
+            String writeBufferEventInfo = "dev->" +
+                    handle.findField("write_buffer_event_info").get().getName();
+            emitter().emit("for (int i = 0; i < %s; i ++) {", numInputs);
+            {
+                emitter().increaseIndentation();
+                emitter().emit("if (%s[i].active == true)", writeBufferEventInfo);
+                {
+                    emitter().increaseIndentation();
+                    emitter().emit("%s[num_events_to_wait_on++] = %s[i];", kernelEventWaitList, writeBufferEvent);
+                    emitter().decreaseIndentation();
+                }
+                emitter().decreaseIndentation();
+            }
+            emitter().emit("}");
+
+            emitter().emitNewLine();
+            emitter().emit("cl_event* event_list = num_events_to_wait_on > 0 ? %s : NULL;", kernelEventWaitList);
             emitter().emit("OCL_CHECK(");
+            String kernelEvent = handle.findField("kernel_event").get().getName();
+            String kernelEventInfo = handle.findField("kernel_event_info").get().getName();
             {
                 emitter().increaseIndentation();
                 emitter().emit("clEnqueueNDRangeKernel(");
                 {
                     emitter().increaseIndentation();
-                    emitter().emit("dev->world.command_queue, // -- command queue");
-                    emitter().emit("dev->kernel, // -- kernel");
+                    emitter().emit("dev->%s.command_queue, // -- command queue",
+                            handle.findField("world").get().getName());
+                    emitter().emit("dev->%s, // -- kernel",
+                            handle.findField("kernel").get().getName());
                     emitter().emit("1, // -- work dimension");
                     emitter().emit("NULL, // -- global work offset");
-                    emitter().emit("&dev->global, //-- global work size");
-                    emitter().emit("&dev->local, //-- local work size");
-                    if (entity.getInputPorts().size() > 0){
+                    emitter().emit("&dev->%s, //-- global work size",
+                            handle.findField("global").get().getName());
+                    emitter().emit("&dev->%s, //-- local work size",
+                            handle.findField("local").get().getName());
 
-                        emitter().emit("dev->num_inputs, // -- number of events to wait on");
-                        emitter().emit("dev->write_buffer_event, // -- event wait list");
-                    }
-                    else {
+                    emitter().emit("num_events_to_wait_on, // -- number of events to wait on");
+                    emitter().emit("event_list, // -- event wait list");
 
-                        emitter().emit("0, // -- number of events to wait on");
-                        emitter().emit("NULL, // -- event wait list");
-
-                    }
-                    emitter().emit("&dev->kernel_event)); // -- the generated event");
+                    emitter().emit("&dev->%s)); // -- the generated event", kernelEvent);
                     emitter().decreaseIndentation();
                 }
                 emitter().decreaseIndentation();
 
             }
-            emitter().emit("on_completion(dev->kernel_event, &dev->kernel_event_info);");
+            emitter().emit("on_completion(dev->%s, &dev->%s);", kernelEvent, kernelEventInfo);
             emitter().decreaseIndentation();
         }
         emitter().emit("}");
@@ -595,6 +634,7 @@ public interface DeviceHandle {
     }
     default void getEnqueueReadBuffers(PartitionLink entity) {
         Method method = getMethod(entity.getHandle(), "enqueueReadBuffers");
+        PartitionHandle handle = entity.getHandle();
         emitter().emit("%s {", methodSignature(entity.getHandle(), method));
         {
             emitter().increaseIndentation();
@@ -603,7 +643,16 @@ public interface DeviceHandle {
             // -- output buffers
             emitter().emit("// -- Enqueue read for output buffers");
             for(PortDecl port: entity.getOutputPorts()) {
-                OclMsg("Enqueue readf for %s\\n", port.getName());
+
+                int portIx = entity.getOutputPorts().indexOf(port);
+                String readEventInfo = "dev->" +
+                        handle.findField("read_buffer_event_info").get().getName() + "[" + portIx + "].active";
+                emitter().emit("if (%s == true) ", readEventInfo);
+                {
+                    emitter().increaseIndentation();
+                    OclErr("Detected unreleased read buffer event for %s\\n", port.getName());
+                    emitter().decreaseIndentation();
+                }
 
                 emitter().emit("if (dev->%s_size[0] > 0) {// -- only read if something was produced",
                         port.getName());
@@ -639,14 +688,6 @@ public interface DeviceHandle {
                         emitter().decreaseIndentation();
                     }
 
-                    emitter().decreaseIndentation();
-                } emitter().emit("} else {");
-                {
-                    emitter().increaseIndentation();
-                    emitter().emit("dev->%s[%d].active = false;",
-                            entity.getHandle().findField("read_buffer_event_info").get().getName(),
-                            entity.getOutputPorts().indexOf(port));
-                    OclMsg("Info: port %s did not produce any data, skipping read transfer.\\n", port.getName());
                     emitter().decreaseIndentation();
                 }
                 emitter().emit("}");
@@ -746,10 +787,12 @@ public interface DeviceHandle {
             if(entity.getOutputPorts().size() > 0) {
                 String readEvents = "dev->" + handle.findField("read_buffer_event").get().getName();
                 String readEventsInfo = "dev->" + handle.findField("read_buffer_event_info").get().getName();
-
+                String readEventWaitLost = "dev->" +
+                        handle.findField("read_buffer_event_wait_list").get().getName();
                 OclMsg("Freeing read buffer events...\\n");
                 emitter().emit("free (%s);", readEvents);
                 emitter().emit("free (%s);", readEventsInfo);
+                emitter().emit("free (%s);", readEventWaitLost);
                 emitter().emitNewLine();
             }
             OclMsg("Freeing read size events... \\n");
@@ -757,6 +800,9 @@ public interface DeviceHandle {
             String readSizeEventInfo = "dev->" + handle.findField("read_size_event_info").get().getName();
             emitter().emit("free (%s);", readSizeEvents);
             emitter().emit("free (%s);", readSizeEventInfo);
+            emitter().emitNewLine();
+            String kernelEventWaitList = "dev->" + handle.findField("kernel_event_wait_list").get().getName();
+            emitter().emit("free (%s);", kernelEventWaitList);
             emitter().emitNewLine();
             emitter().decreaseIndentation();
         }
@@ -774,7 +820,7 @@ public interface DeviceHandle {
             if (entity.getInputPorts().size() > 0) {
 
                 OclMsg("Releasing write buffer events..\\n");
-                emitter().emit("for (int i = 0; i < dev->num_inputs; i++)");
+                emitter().emit("for (int i = 0; i < dev->num_inputs; i++) {");
                 {
                     emitter().increaseIndentation();
                     String eventInfo = "dev->" + handle.findField("write_buffer_event_info").get().getName();
@@ -782,12 +828,14 @@ public interface DeviceHandle {
                             eventInfo);
                     {
                         emitter().increaseIndentation();
-                        OclCheck("clReleaseEvent(dev->write_buffer_event[i])");
+                        OclCheck("clReleaseEvent(dev->%s[i])",
+                                handle.findField("write_buffer_event").get().getName());
                         emitter().emit("%s[i].active = false;", eventInfo);
                         emitter().decreaseIndentation();
                     }
                     emitter().decreaseIndentation();
                 }
+                emitter().emit("}");
                 OclMsg("All write buffer events released.\\n");
             } else {
                 OclMsg("No write events present.\\n");
@@ -826,7 +874,9 @@ public interface DeviceHandle {
         emitter().emit("%s {", methodSignature(handle, method));
         {
             emitter().increaseIndentation();
+
             if (entity.getOutputPorts().size() > 0) {
+                OclMsg("Releasing read events\\n");
                 String numOutputs = "dev->" + handle.findField("num_outputs").get().getName();
                 String events = "dev->" + handle.findField("read_buffer_event").get().getName();
                 emitter().emit("for (int i = 0; i < %s; i++) {", numOutputs);
@@ -837,7 +887,7 @@ public interface DeviceHandle {
                     {
                         emitter().increaseIndentation();
                         OclCheck("clReleaseEvent(%s[i])", events);
-                        emitter().emit("%s[i].active == false;", eventsInfo);
+                        emitter().emit("%s[i].active = false;", eventsInfo);
                         emitter().decreaseIndentation();
                     }
                     emitter().decreaseIndentation();
@@ -881,24 +931,36 @@ public interface DeviceHandle {
             if (entity.getOutputPorts().size() > 0)
             {
 
-
-                for (PortDecl port : entity.getOutputPorts()) {
-                    int portIx = entity.getOutputPorts().indexOf(port);
-                    String eventActive = "dev->" +
-                            handle.findField("read_buffer_event_info").get().getName() + "[" +
-                                portIx + "].active";
-                    String readBufferEvent = "dev->" +
-                            handle.findField("read_buffer_event").get().getName() + "[" + portIx + "]";
-                    emitter().emit("if (%s == true) {", eventActive);
+                emitter().emitNewLine();
+                emitter().emit("uint32_t num_events_to_wait_on = 0;");
+                String numOutputs = "dev->" + handle.findField("num_outputs").get().getName();
+                String readEventWaitList = "dev->" + handle.findField("read_buffer_event_wait_list")
+                        .get().getName();
+                String readBufferEvent = "dev->" + handle.findField("read_buffer_event").get().getName();
+                String readBufferEventInfo = "dev->" +
+                        handle.findField("read_buffer_event_info").get().getName();
+                emitter().emit("for (int i = 0; i < %s; i ++) {", numOutputs);
+                {
+                    emitter().increaseIndentation();
+                    emitter().emit("if (%s[i].active == true)", readBufferEventInfo);
                     {
                         emitter().increaseIndentation();
-                        OclMsg("Waiting on %s read buffer event \\n", port.getName());
-                        OclCheck("clWaitForEvents(1, %s)", readBufferEvent);
+                        emitter().emit("%s[num_events_to_wait_on++] = %s[i];",
+                                readEventWaitList, readBufferEvent);
                         emitter().decreaseIndentation();
-
                     }
-                    emitter().emit("}");
-                    emitter().emitNewLine();
+                    emitter().decreaseIndentation();
+                }
+                emitter().emit("}");
+                emitter().emitNewLine();
+                emitter().emit("cl_event* event_list = num_events_to_wait_on > 0 ? %s : NULL;",
+                        readEventWaitList);
+                OclMsg("Waiting on output buffers\\n");
+                emitter().emit("if (num_events_to_wait_on > 0)");
+                {
+                    emitter().increaseIndentation();
+                    OclCheck("clWaitForEvents(num_events_to_wait_on, %s)", readEventWaitList);
+                    emitter().decreaseIndentation();
                 }
 
             } else {

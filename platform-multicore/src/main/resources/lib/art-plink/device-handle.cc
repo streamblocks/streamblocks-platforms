@@ -28,8 +28,8 @@ void CL_CALLBACK completion_handler(cl_event event, cl_int cmd_status,
   char callback_msg[2048];
 
   if (OCL_VERBOSE)
-      sprintf(callback_msg, "<<Completed %s (%d)>>: %s\n", command_str,
-              event_info->counter, (char *)event_info->msg);
+    sprintf(callback_msg, "<<Completed %s (%d)>>: %s\n", command_str,
+            event_info->counter, (char *)event_info->msg);
   event_info->counter++;
 
   OCL_MSG("%s", callback_msg);
@@ -41,12 +41,13 @@ void on_completion(cl_event event, void *info) {
       clSetEventCallback(event, CL_COMPLETE, completion_handler, (void *)info));
 }
 
-void DeviceHandleConstructor(DeviceHandle_t *dev, char *kernel_name,
-                  char *target_device_name, char *dir, bool hw_emu) {
+void DeviceHandleConstructor(DeviceHandle_t *dev, int num_inputs,
+                             int num_outputs, char *kernel_name,
+                             char *target_device_name, char *dir, bool hw_emu) {
   // cl_int err;
-  dev->buffer_size = BUFFER_SIZE;
-  dev->num_inputs = NUM_INPUTS;
-  dev->num_outputs = NUM_OUTPUTS;
+  // dev->buffer_size = 0;
+  dev->num_inputs = num_inputs;
+  dev->num_outputs = num_outputs;
   dev->mem_alignment = MEM_ALIGNMENT;
 
   OCL_MSG("Initializing device\n");
@@ -190,9 +191,6 @@ void DeviceHandleConstructor(DeviceHandle_t *dev, char *kernel_name,
 
   dev->global = 1;
   dev->local = 1;
-  dev->pending_status = false;
-  OCL_MSG("Allocating buffers\n");
-
   DeviceHandleInitEvents(dev);
 }
 cl_int load_file_to_memory(const char *filename, char **result) {
@@ -217,7 +215,6 @@ cl_int load_file_to_memory(const char *filename, char **result) {
 
 void DeviceHandleRun(DeviceHandle_t *dev) {
 
-
   OCL_MSG("Migrating to Device\n");
   DeviceHandleEnqueueWriteBuffers(dev);
 
@@ -229,12 +226,11 @@ void DeviceHandleRun(DeviceHandle_t *dev) {
 
   OCL_MSG("Migrating to host\n");
   DeviceHandleEnqueueReadBuffers(dev);
-
 }
 
 void DeviceHandleTerminate(DeviceHandle_t *dev) {
-//  clFlush(dev->world.command_queue);
-//  clFinish(dev->world.command_queue);
+  //  clFlush(dev->world.command_queue);
+  //  clFinish(dev->world.command_queue);
   OCL_CHECK(clReleaseKernel(dev->kernel));
   OCL_CHECK(clReleaseProgram(dev->program));
   DeviceHandleReleaseMemObjects(dev);
