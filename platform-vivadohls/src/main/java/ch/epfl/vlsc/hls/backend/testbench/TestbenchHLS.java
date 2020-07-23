@@ -63,7 +63,7 @@ public interface TestbenchHLS {
         backend().entitybox().set(entity);
 
         // -- Target file Path
-        Path instanceTarget = PathUtils.getTargetCodeGenSrcTb(backend().context()).resolve(instance.getInstanceName() + "_tb.cpp");
+        Path instanceTarget = PathUtils.getTargetCodeGenSrcTb(backend().context()).resolve("tb_" + instance.getInstanceName() + ".cpp");
         emitter().open(instanceTarget);
 
         // -- Includes
@@ -117,7 +117,7 @@ public interface TestbenchHLS {
 
             if (!entity.getOutputPorts().isEmpty()) {
                 emitter().emit("// -- Store output tokens to the reference queue");
-                entity.getInputPorts().forEach(this::storeToQueueRef);
+                entity.getOutputPorts().forEach(this::storeToQueueRef);
             }
 
             // -- Output counters
@@ -147,7 +147,7 @@ public interface TestbenchHLS {
                 }
                 for (PortDecl port : entity.getOutputPorts()) {
                     emitter().emit("io.%s_count = 0;", port.getName());
-                    emitter().emit("io.%s_size = 512", port.getName());
+                    emitter().emit("io.%s_size = 512;", port.getName());
                 }
                 emitter().emitNewLine();
 
