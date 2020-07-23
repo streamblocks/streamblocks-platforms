@@ -194,7 +194,7 @@ public interface TestbenchHLS {
     default void openStreams(PortDecl port) {
         Instance instance = backend().instancebox().get();
         emitter().emit("std::ifstream %s_file(\"fifo-traces/%s/%1$s.txt\");", port.getName(), instance.getInstanceName());
-        emitter().emit("if(%s_file.fail()){", port.getSafeName());
+        emitter().emit("if(%s_file.fail()){", port.getName());
         {
             emitter().increaseIndentation();
             emitter().emit("std::cout <<\"%s input file not found!\" << std::endl;", port.getName());
@@ -220,7 +220,7 @@ public interface TestbenchHLS {
             emitter().increaseIndentation();
 
             emitter().emit("std::istringstream iss(%s_line);", port.getName());
-            emitter().emit("int %s_tmp;", port.getName());
+            emitter().emit("%s %s_tmp;", backend().typeseval().type(backend().types().declaredPortType(port)), port.getName());
             emitter().emit("iss >> %s_tmp;", port.getName());
             emitter().emit("%s.write((%s) %1$s_tmp);", port.getName(), backend().typeseval().type(backend().types().declaredPortType(port)));
 
@@ -237,7 +237,7 @@ public interface TestbenchHLS {
             emitter().increaseIndentation();
 
             emitter().emit("std::istringstream iss(%s_line);", port.getName());
-            emitter().emit("int %s_tmp;", port.getName());
+            emitter().emit("%s %s_tmp;", backend().typeseval().type(backend().types().declaredPortType(port)), port.getName());
             emitter().emit("iss >> %s_tmp;", port.getName());
             emitter().emit("qref_%s.push((%s) %1$s_tmp);", port.getName(), backend().typeseval().type(backend().types().declaredPortType(port)));
 
@@ -252,7 +252,7 @@ public interface TestbenchHLS {
     }
 
     default void compareOutput(PortDecl port) {
-        emitter().emit("if(!%s.empty() && !qref_%1$s.empty()) {", port.getName());
+        emitter().emit("while(!%s.empty() && !qref_%1$s.empty()) {", port.getName());
         {
             emitter().increaseIndentation();
 
@@ -274,6 +274,8 @@ public interface TestbenchHLS {
                 String gotValue = isAlgebraic ? "got_value" : isSigned ? "signed(got_value)" : "unsigned(got_value)";
                 emitter().emit("std::cout << \"Expected: \" << %s << std::endl;", refValue);
                 emitter().emit("std::cout << \"Got: \"      << %s << std::endl;", gotValue);
+                emitter().emitNewLine();
+                emitter().emit("return 1;");
 
                 emitter().decreaseIndentation();
             }

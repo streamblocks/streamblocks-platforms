@@ -555,7 +555,7 @@ public interface CMakeLists {
                     "-y ${CMAKE_CURRENT_BINARY_DIR}/%s/solution/syn/verilog " +
                     "${CMAKE_CURRENT_BINARY_DIR}/%2$s/solution/syn/verilog/%2$s.v 2> " +
                     "%1$s_sc.log", verilatedInstanceName, instance.getInstanceName());
-            emitter().emit("DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/%s/solution/syn/verilog/%1$s.v",
+            emitter().emit("DEPENDS %1$s",
                     instance.getInstanceName());
             emitter().decreaseIndentation();
         }
@@ -571,7 +571,7 @@ public interface CMakeLists {
             emitter().emit("TARGET simulate art-systemc PRE_BUILD");
             emitter().emit("COMMAND cp ${CMAKE_CURRENT_BINARY_DIR}/%s/solution/syn/verilog/*.dat " +
                     "${EXECUTABLE_OUTPUT_PATH}  2> /dev/null || true", instance.getInstanceName());
-            emitter().emit("DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/%s/solution/syn/verilog/%1$s.v",
+            emitter().emit("DEPENDS %1$s",
                     instance.getInstanceName());
             emitter().decreaseIndentation();
         }
