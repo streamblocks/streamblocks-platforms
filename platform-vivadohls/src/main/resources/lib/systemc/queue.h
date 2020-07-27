@@ -10,10 +10,9 @@
 
 namespace ap_rtl {
 
-template <typename T, int LOG2_DEPTH> class Queue : public sc_module {
+template <typename T> class Queue : public sc_module {
 public:
-  static const unsigned int ADDR_WIDTH = LOG2_DEPTH != 0 ? LOG2_DEPTH : 1;
-  static const unsigned int FIFO_DEPTH = 1 << LOG2_DEPTH;
+  const unsigned int fifo_depth;
   sc_core::sc_in_clk ap_clk;
   sc_core::sc_in<bool> ap_rst_n;
   sc_core::sc_out<bool> empty_n;
@@ -34,16 +33,17 @@ public:
   sc_core::sc_signal<bool> internal_empty_n;
   sc_core::sc_signal<bool> internal_full_n;
 
-  sc_core::sc_signal<T> mStorage[FIFO_DEPTH];
-  sc_core::sc_signal<sc_dt::sc_uint<ADDR_WIDTH>> mInPtr;
-  sc_core::sc_signal<sc_dt::sc_uint<ADDR_WIDTH>> mOutPtr;
+  std::vector<sc_core::sc_signal<T>> mStorage;
+  sc_core::sc_signal<uint32_t> mInPtr;
+  sc_core::sc_signal<uint32_t> mOutPtr;
   sc_core::sc_signal<sc_dt::sc_uint<1>> mFlag_nEF_hint;
 
   SC_HAS_PROCESS(Queue);
-  Queue(sc_module_name name)
-      : sc_module(name), ap_clk("ap_clk"), ap_rst_n("rst_n"),
-        empty_n("empty_n"), read("read"), dout("dout"), full_n("full_n"),
-        write("write"), din("din"), count("count"), size("size"), peek("peek") {
+  Queue(sc_module_name name, const unsigned int capacity)
+      : sc_module(name), fifo_depth(capacity), mStorage(capacity),
+        ap_clk("ap_clk"), ap_rst_n("rst_n"), empty_n("empty_n"), read("read"),
+        dout("dout"), full_n("full_n"), write("write"), din("din"),
+        count("count"), size("size"), peek("peek") {
 
     mInPtr = 0;
     mOutPtr = 0;
@@ -54,7 +54,7 @@ public:
 
     SC_METHOD(proc_dout);
     sensitive << mOutPtr;
-    for (unsigned i = 0; i < FIFO_DEPTH; i++) {
+    for (unsigned i = 0; i < fifo_depth; i++) {
       sensitive << mStorage[i];
     }
 
@@ -72,7 +72,7 @@ public:
   }
 
   void proc_read_write() {
-    size.write(1 << LOG2_DEPTH);
+    size.write(fifo_depth);
     if (ap_rst_n.read() == false) {
       mInPtr.write(0);
       mOutPtr.write(0);
@@ -86,8 +86,8 @@ public:
                    sc_time_stamp().to_string().c_str(), this->name());
 
       if (read.read() == true && internal_empty_n.read() == true) {
-        sc_dt::sc_uint<ADDR_WIDTH> ptr;
-        if (mOutPtr.read().to_uint() == (FIFO_DEPTH - 1)) {
+        uint32_t ptr;
+        if (mOutPtr.read() == (fifo_depth - 1)) {
           ptr = 0;
           mFlag_nEF_hint.write(~mFlag_nEF_hint.read());
         } else {
@@ -97,8 +97,7 @@ public:
 
         new_count--;
 
-        DEBUG_ASSERT(ptr.to_uint() < FIFO_DEPTH,
-                     "@ %s fifo pointer overflow in %s\n",
+        DEBUG_ASSERT(ptr < fifo_depth, "@ %s fifo pointer overflow in %s\n",
                      sc_time_stamp().to_string().c_str(), this->name());
 
         mOutPtr.write(ptr);
@@ -109,16 +108,15 @@ public:
                    sc_time_stamp().to_string().c_str(), this->name());
 
       if (write.read() == true && internal_full_n.read() == true) {
-        sc_dt::sc_uint<ADDR_WIDTH> ptr;
+        uint32_t ptr;
         ptr = mInPtr.read();
-        mStorage[ptr.to_uint()].write(din.read());
-        if (ptr.to_uint() == (FIFO_DEPTH - 1)) {
+        mStorage[ptr].write(din.read());
+        if (ptr == (fifo_depth - 1)) {
           ptr = 0;
           mFlag_nEF_hint.write(~mFlag_nEF_hint.read());
         } else {
           ptr++;
-          DEBUG_ASSERT(ptr.to_uint() < FIFO_DEPTH,
-                       "@ %s fifo pointer overflow in %s\n",
+          DEBUG_ASSERT(ptr < fifo_depth, "@ %s fifo pointer overflow in %s\n",
                        sc_time_stamp().to_string().c_str(), this->name());
         }
 
@@ -131,13 +129,13 @@ public:
   }
 
   void proc_dout() {
-    sc_dt::sc_uint<ADDR_WIDTH> ptr = mOutPtr.read();
-    if (ptr.to_uint() > FIFO_DEPTH) {
+    uint32_t ptr = mOutPtr.read();
+    if (ptr > fifo_depth) {
       dout.write(0);
       peek.write(0);
     } else {
-      dout.write(mStorage[ptr.to_uint()]);
-      peek.write(mStorage[ptr.to_uint()]);
+      dout.write(mStorage[ptr]);
+      peek.write(mStorage[ptr]);
     }
   }
 

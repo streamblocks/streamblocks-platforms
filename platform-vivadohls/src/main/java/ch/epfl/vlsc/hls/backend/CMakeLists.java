@@ -50,7 +50,7 @@ public interface CMakeLists {
         emitter().emitSharpComment("CMake Options");
         emitter().emit("option(USE_VITIS \"Build an RTL OpenCL Kernel for Vitis\" OFF)");
         emitter().emit("option(USE_SDACCEL \"Build an RTL OpenCL Kernel for SDAccel\" OFF)");
-        emitter().emit("option(OPENCL_HOST \"Build an example OpenCL Host executable for Vitis orSDAccel\" OFF)");
+//        emitter().emit("option(OPENCL_HOST \"Build an example OpenCL Host executable for Vitis orSDAccel\" OFF)");
         emitter().emit("option(USE_SYSTEMC \"Use systemc for simulation of the network\" OFF)");
         emitter().emitNewLine();
 
@@ -475,32 +475,32 @@ public interface CMakeLists {
         emitter().emitNewLine();
 
         // -- Host example
-        emitter().emitSharpComment("Host Example Code");
-        emitter().emit("if (OPENCL_HOST)");
-        {
-            emitter().increaseIndentation();
-            emitter().emit("set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)");
-            emitter().emit("set(host_filenames\n\tcode-gen/host/Host.%s\n\tcode-gen/host/device_handle.%1$s\n)",
-                    backend().context().getConfiguration().get(PlatformSettings.C99Host) ? "c" : "cpp");
-
-            emitter().emit("add_executable(Host ${host_filenames})");
-
-            emitter().emit("target_include_directories(Host PRIVATE code-gen/host)");
-            emitter().emit("target_link_directories(Host PRIVATE ${SDACCEL_LIBRARY_DIR})");
-            if (!backend().context().getConfiguration().get(PlatformSettings.C99Host)) {
-                emitter().emit("set_target_properties(Host PROPERTIES");
-                emitter().emit("\tCXX_STANDARD 11");
-                emitter().emit("\tCXX_STANDARD_REQUIRED YES");
-                emitter().emit("\tCXX_EXTENSIONS NO)");
-
-                emitter().emit("target_link_libraries(Host xilinxopencl pthread rt dl crypt stdc++)");
-            } else {
-                emitter().emit("target_link_libraries(Host xilinxopencl pthread rt dl crypt)");
-            }
-            emitter().decreaseIndentation();
-
-        }
-        emitter().emit("endif()");
+//        emitter().emitSharpComment("Host Example Code");
+//        emitter().emit("if (OPENCL_HOST)");
+//        {
+//            emitter().increaseIndentation();
+//            emitter().emit("set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)");
+//            emitter().emit("set(host_filenames\n\tcode-gen/host/Host.%s\n\tcode-gen/host/device_handle.%1$s\n)",
+//                    backend().context().getConfiguration().get(PlatformSettings.C99Host) ? "c" : "cpp");
+//
+//            emitter().emit("add_executable(Host ${host_filenames})");
+//
+//            emitter().emit("target_include_directories(Host PRIVATE code-gen/host)");
+//            emitter().emit("target_link_directories(Host PRIVATE ${SDACCEL_LIBRARY_DIR})");
+//            if (!backend().context().getConfiguration().get(PlatformSettings.C99Host)) {
+//                emitter().emit("set_target_properties(Host PROPERTIES");
+//                emitter().emit("\tCXX_STANDARD 11");
+//                emitter().emit("\tCXX_STANDARD_REQUIRED YES");
+//                emitter().emit("\tCXX_EXTENSIONS NO)");
+//
+//                emitter().emit("target_link_libraries(Host xilinxopencl pthread rt dl crypt stdc++)");
+//            } else {
+//                emitter().emit("target_link_libraries(Host xilinxopencl pthread rt dl crypt)");
+//            }
+//            emitter().decreaseIndentation();
+//
+//        }
+//        emitter().emit("endif()");
 
 
         // -- systemc simulator

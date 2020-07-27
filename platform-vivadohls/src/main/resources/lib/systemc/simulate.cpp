@@ -6,6 +6,7 @@
 struct Options {
   int trace_level;
   double period;
+  unsigned int queue_capacity;
   std::size_t alloc_size;
   std::size_t report_every;
   std::string profile_dump;
@@ -35,6 +36,10 @@ static void displayUsage(char *binary_name) {
   std::cout << "\t\t--buffer-size       the size of device memory buffers for "
                "network ports, default is 4096 tokens."
             << std::endl;
+  std::cout << "\t\t--queue-depth       the internal fifo capacity, " << std::endl;
+  std::cout << "\t\t                    does not override the 'bufferSize' " << std::endl;
+  std::cout << "\t\t                    attribute from the CAL source files" << std::endl;
+  std::cout << "\t\t                    default value is 512" << std::endl;
   std::cout << "\t\t--report-every      intervals between report before each "
                "simulation call returns"
             << std::endl;
@@ -50,6 +55,7 @@ static Options parseArgs(int argc, char *argv[]) {
   opts.period = 10.0;
   opts.trace_level = 0;
   opts.alloc_size = 4096;
+  opts.queue_capacity = 512;
   opts.report_every = 100000;
   opts.profile_dump = "";
 
@@ -87,6 +93,16 @@ static Options parseArgs(int argc, char *argv[]) {
       const std::string val = argv[arg_ix++];
       string_convert << val;
       string_convert >> opts.alloc_size;
+    } else if (opt == "--queue-depth") {
+       std::stringstream string_convert;
+       if (arg_ix >= argc) {
+         displayUsage(argv[0]);
+         std::cerr << "Missing option value for " << opt << std::endl;
+         std::exit(EXIT_FAILURE);
+       }
+       const std::string val = argv[arg_ix++];
+       string_convert << val;
+       string_convert >> opts.queue_capacity;
     } else if (opt == "--report-every") {
 
       std::stringstream string_convert;

@@ -57,6 +57,7 @@ public interface CMakeLists {
 
         // -- C Standard
         emitter().emit("set(CMAKE_C_STANDARD 11)");
+        emitter().emit("set(CMAKE_CXX_STANDARD 14)");
         emitter().emitNewLine();
 
         // -- ART Node

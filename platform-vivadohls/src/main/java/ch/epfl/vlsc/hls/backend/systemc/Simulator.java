@@ -57,7 +57,7 @@ public interface Simulator {
             emitter().emit("using Network = ap_rtl::NetworkTester;");
             emitter().emit("using PortAddress = Network::PortAddress;");
             // -- create the network object
-            emitter().emit("std::unique_ptr<Network> mut = std::make_unique<Network>(\"network\", period, opts.trace_level);");
+            emitter().emit("std::unique_ptr<Network> mut = std::make_unique<Network>(\"network\", period, opts.queue_capacity, opts.trace_level);");
             emitter().emit("// -- get the file streams");
             // -- get the writers
             network.getInputPorts().forEach(this::getWriter);

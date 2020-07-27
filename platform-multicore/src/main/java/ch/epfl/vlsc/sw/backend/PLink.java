@@ -405,7 +405,7 @@ public interface PLink {
         emitter().emit("sc_time period(10.0, SC_NS);");
         emitter().emit("int trace_level = thisActor->vcd_trace_level;");
         emitter().emit("thisActor->dev = " +
-                "std::make_unique<ap_rtl::NetworkTester>(\"plink\", period, trace_level);");
+                "std::make_unique<ap_rtl::NetworkTester>(\"plink\", period, 512, trace_level);");
 
         emitter().emitNewLine();
         for(PortDecl port: entity.getInputPorts()) {

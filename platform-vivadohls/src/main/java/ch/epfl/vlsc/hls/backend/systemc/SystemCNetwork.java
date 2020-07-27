@@ -12,6 +12,7 @@ import org.multij.Binding;
 import org.multij.Module;
 
 import se.lth.cs.tycho.ir.Annotation;
+import se.lth.cs.tycho.ir.ToolValueAttribute;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
@@ -197,14 +198,20 @@ public interface SystemCNetwork {
 
     }
 
+
     default Queue findQueue(Connection connection) {
         if (queues().containsKey(connection)) {
             return queues().get(connection);
         } else {
             int bitWidth = backend().typeseval().sizeOfBits(getConnectionType(connection));
-
-            int bufferDepth = backend().channelsutils().connectionBufferSize(connection);
-
+            int bufferDepth = 0; // set the buffer depth to zero indicating that it is not provided by the user.
+            Optional<ToolValueAttribute> attribute = connection.getValueAttribute("buffersize");
+            if (!attribute.isPresent()) {
+                attribute = connection.getValueAttribute("bufferSize");
+            }
+            if (attribute.isPresent()) {
+                bufferDepth =  (int) backend().constants().intValue(attribute.get().getValue()).getAsLong();
+            }
 
             Queue queue = new Queue(connection, bitWidth, bufferDepth);
             queues().put(connection, queue);
@@ -453,8 +460,7 @@ public interface SystemCNetwork {
         emitter().emit("// -- Queues");
         for (Queue queue : network.getQueues()) {
 
-            int addressWidth = MathUtils.log2Ceil(queue.getDepth());
-            emitter().emit("std::unique_ptr<Queue<%s, %d>> %s;", queue.getType().getType(), addressWidth, queue.getName());
+            emitter().emit("std::unique_ptr<Queue<%s>> %s;", queue.getType().getType(), queue.getName());
         }
         emitter().emitNewLine();
 
@@ -485,7 +491,7 @@ public interface SystemCNetwork {
         emitter().emit("SC_HAS_PROCESS(%s);", network.getIdentifier());
         emitter().emit("// -- constructor");
 
-        emitter().emit("%s(sc_module_name name):", network.getIdentifier());
+        emitter().emit("%s(sc_module_name name, unsigned int queue_capacity=512):", network.getIdentifier());
         {
             emitter().increaseIndentation();
             {
@@ -535,8 +541,9 @@ public interface SystemCNetwork {
             emitter().emit("// -- queue constructors");
             network.getQueues().stream().forEach(queue -> {
                 int addressWidth = MathUtils.log2Ceil(queue.getDepth());
-                emitter().emit("%s = std::make_unique<Queue<%s, %d>>(\"%1$s\");", queue.getName(),
-                        queue.getType().getType(), addressWidth);
+                String bufferCapacity = queue.getDepth() != 0 ? (queue.getDepth() + "") : "queue_capacity";
+                emitter().emit("%s = std::make_unique<Queue<%s>>(\"%1$s\", %s);", queue.getName(),
+                        queue.getType().getType(), bufferCapacity);
             });
             emitter().emitNewLine();
             // -- connect submodules

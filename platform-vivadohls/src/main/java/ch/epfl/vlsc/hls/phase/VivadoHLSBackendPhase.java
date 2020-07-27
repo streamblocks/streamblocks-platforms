@@ -193,7 +193,7 @@ public class VivadoHLSBackendPhase implements Phase {
         generateGlobals(backend);
 
         // -- Generate devicehandle
-        generateDeviceHandle(backend);
+        // generateDeviceHandle(backend);
 
         // -- Generate Network
         generateNetwork(backend);
