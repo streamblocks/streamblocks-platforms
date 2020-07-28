@@ -12,6 +12,7 @@ import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.entity.am.ActorMachine;
+import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.network.Network;
 import se.lth.cs.tycho.type.AlgebraicType;
@@ -21,6 +22,7 @@ import se.lth.cs.tycho.type.Type;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Module
@@ -132,7 +134,7 @@ public interface TestbenchHLS {
             // -- Write tokens to stream
             if (!entity.getInputPorts().isEmpty()) {
                 emitter().emit("// -- Write tokens to stream");
-                entity.getInputPorts().forEach(this::writeToStream);
+                entity.getInputPorts().forEach(p -> writeToStream(p, null));
             }
 
             if (!entity.getOutputPorts().isEmpty()) {
@@ -185,7 +187,7 @@ public interface TestbenchHLS {
 
                 // -- Output counters
                 if (!entity.getOutputPorts().isEmpty()) {
-                    entity.getOutputPorts().forEach(this::compareOutput);
+                    entity.getOutputPorts().forEach(p -> compareOutput(p, null));
                 }
 
                 emitter().emit("end_of_execution = ret == RETURN_WAIT;");
@@ -194,7 +196,7 @@ public interface TestbenchHLS {
             emitter().emit("}");
             emitter().emitNewLine();
 
-            if(!entity.getOutputPorts().isEmpty()){
+            if (!entity.getOutputPorts().isEmpty()) {
                 entity.getOutputPorts().forEach(this::printProduced);
                 emitter().emitNewLine();
             }
@@ -211,7 +213,7 @@ public interface TestbenchHLS {
         backend().instancebox().clear();
     }
 
-    default void generateNetworkTestbench(){
+    default void generateNetworkTestbench() {
         // -- Network Id
         String identifier = backend().task().getIdentifier().getLast().toString();
 
@@ -227,7 +229,7 @@ public interface TestbenchHLS {
 
         // -- Instance prototypes
         emitter().emit("// -- Instance prototypes");
-        for(Instance instance : network.getInstances()){
+        for (Instance instance : network.getInstances()) {
             GlobalEntityDecl entityDecl = globalnames().entityDecl(instance.getEntityName(), true);
             Entity entity = entityDecl.getEntity();
             backend().entitybox().set(entity);
@@ -249,20 +251,12 @@ public interface TestbenchHLS {
             // -- Output Streams
             network.getOutputPorts().forEach((p -> openStreams(p, identifier)));
 
-            // -- Input channels
-            if (!network.getInputPorts().isEmpty()) {
-                emitter().emit("// -- Input Channels");
-                network.getInputPorts().forEach(this::channels);
+            // -- Queues
+            for (Connection connection : network.getConnections()) {
+                String queueName = backend().vnetwork().getQueueName(connection);
+                Type queueType = backend().vnetwork().getQueueType(connection);
+                emitter().emit("hls::stream< %s > %s = new hls::stream(\"%2$s\");", backend().typeseval().type(queueType), queueName);
             }
-
-            emitter().emitNewLine();
-
-            // -- Output channels
-            if (!network.getOutputPorts().isEmpty()) {
-                emitter().emit("// -- Output Channels");
-                network.getOutputPorts().forEach(this::channels);
-            }
-
             emitter().emitNewLine();
 
             // -- Queue reference
@@ -270,13 +264,18 @@ public interface TestbenchHLS {
                 emitter().emit("// -- Queue reference");
                 network.getOutputPorts().forEach(this::refQueues);
             }
-
             emitter().emitNewLine();
 
             // -- Write tokens to stream
             if (!network.getInputPorts().isEmpty()) {
                 emitter().emit("// -- Write tokens to stream");
-                network.getInputPorts().forEach(this::writeToStream);
+                for (PortDecl port : network.getInputPorts()) {
+                    Connection.End source = new Connection.End(Optional.empty(), port.getName());
+                    Connection connection = network.getConnections().stream()
+                            .filter(conn -> conn.getSource().equals(source))
+                            .findFirst().get();
+                    writeToStream(port, connection);
+                }
             }
 
             if (!network.getOutputPorts().isEmpty()) {
@@ -291,34 +290,44 @@ public interface TestbenchHLS {
                 emitter().emitNewLine();
             }
 
+
             // -- End of execution
             emitter().emit("// -- End of execution");
             emitter().emit("bool end_of_execution = false;");
             emitter().emitNewLine();
 
-        // -- Running
+            // -- Running
             emitter().emit("// -- Execute instance under test");
             emitter().emit("while(!end_of_execution) {");
             {
                 emitter().increaseIndentation();
 
-                emitter().emit("int ret = RETURN_WAIT;");
                 emitter().emitNewLine();
 
-                for(Instance instance : network.getInstances() ){
-                    emitter().emit("IO_%s io;", instance.getInstanceName());
+                for (Instance instance : network.getInstances()) {
+                    emitter().emit("IO_%s io_%1$s;", instance.getInstanceName());
                     emitter().emitNewLine();
 
                     GlobalEntityDecl entityDecl = globalnames().entityDecl(instance.getEntityName(), true);
                     Entity entity = entityDecl.getEntity();
 
                     for (PortDecl port : entity.getInputPorts()) {
-                        emitter().emit("io.%s_count = %1$s.size();", port.getName());
-                        emitter().emit("io.%s_peek = %1$s._data[0];", port.getName());
+                        Connection.End target = new Connection.End(Optional.of(instance.getInstanceName()), port.getName());
+                        Connection connection = backend().task().getNetwork().getConnections().stream()
+                                .filter(c -> c.getTarget().equals(target)).findAny().orElse(null);
+                        String queueName = backend().vnetwork().queueNames().get(connection);
+
+                        emitter().emit("io.%s_count = %s.size();", port.getName(), queueName);
+                        emitter().emit("io.%s_peek = %s._data[0];", port.getName(), queueName);
                     }
                     for (PortDecl port : entity.getOutputPorts()) {
-                        emitter().emit("io.%s_count = 0;", port.getName());
-                        emitter().emit("io.%s_size = 512;", port.getName());
+                        String portName = port.getName();
+                        Connection.End source = new Connection.End(Optional.of(instance.getInstanceName()), portName);
+                        Connection connection = backend().task().getNetwork().getConnections().stream()
+                                .filter(c -> c.getSource().equals(source)).findAny().orElse(null);
+                        String queueName = backend().vnetwork().queueNames().get(connection);
+                        emitter().emit("io.%s_count = %s.size();", port.getName(), queueName);
+                        emitter().emit("io.%s_size = %s;", port.getName(), backend().channelsutils().connectionBufferSize(connection));
                     }
                     emitter().emitNewLine();
 
@@ -329,28 +338,47 @@ public interface TestbenchHLS {
                             backend().externalMemory()
                                     .getExternalMemories(entity).map(v -> backend().externalMemory().name(instance, v)));
 
-                    ports.addAll(entity.getInputPorts().stream().map(PortDecl::getName).collect(Collectors.toList()));
+                    for (PortDecl port : entity.getInputPorts()) {
+                        Connection.End target = new Connection.End(Optional.of(instance.getInstanceName()), port.getName());
+                        Connection connection = backend().task().getNetwork().getConnections().stream()
+                                .filter(c -> c.getTarget().equals(target)).findAny().orElse(null);
+                        String queueName = backend().vnetwork().queueNames().get(connection);
+                        ports.add(queueName);
+                    }
+                    for (PortDecl port : entity.getOutputPorts()) {
+                        String portName = port.getName();
+                        Connection.End source = new Connection.End(Optional.of(instance.getInstanceName()), portName);
+                        Connection connection = backend().task().getNetwork().getConnections().stream()
+                                .filter(c -> c.getSource().equals(source)).findAny().orElse(null);
+                        String queueName = backend().vnetwork().queueNames().get(connection);
+                        ports.add(queueName);
+                    }
+
                     ports.addAll(entity.getOutputPorts().stream().map(PortDecl::getName).collect(Collectors.toList()));
-                    emitter().emit("ret |= %s(%s, io);", instance.getInstanceName(), String.join(", ", ports));
+                    emitter().emit("end_of_execution |= %s(%s, io_%1$s) == RETURN_WAIT;", instance.getInstanceName(), String.join(", ", ports));
                     emitter().emitNewLine();
                 }
 
                 // -- Output counters
                 if (!network.getOutputPorts().isEmpty()) {
-                    network.getOutputPorts().forEach(this::compareOutput);
+                    for (PortDecl port : network.getOutputPorts()) {
+                        Connection.End target = new Connection.End(Optional.empty(), port.getName());
+                        Connection connection = network.getConnections().stream()
+                                .filter(conn -> conn.getTarget().equals(target))
+                                .findFirst().get();
+                        compareOutput(port, connection);
+                    }
                 }
 
-                emitter().emit("end_of_execution = ret == RETURN_WAIT;");
                 emitter().decreaseIndentation();
             }
             emitter().emit("}");
             emitter().emitNewLine();
 
-            if(!network.getOutputPorts().isEmpty()){
+            if (!network.getOutputPorts().isEmpty()) {
                 network.getOutputPorts().forEach(this::printProduced);
                 emitter().emitNewLine();
             }
-
 
 
             emitter().emit("return 0;");
@@ -384,7 +412,7 @@ public interface TestbenchHLS {
         emitter().emit("std::queue< %s > qref_%s;", backend().typeseval().type(backend().types().declaredPortType(port)), port.getName());
     }
 
-    default void writeToStream(PortDecl port) {
+    default void writeToStream(PortDecl port, Connection connection) {
         emitter().emit("std::string %s_line;", port.getName());
         emitter().emit("while(std::getline(%s_file, %1$s_line)){", port.getName());
         {
@@ -393,7 +421,7 @@ public interface TestbenchHLS {
             emitter().emit("std::istringstream iss(%s_line);", port.getName());
             emitter().emit("%s %s_tmp;", backend().typeseval().type(backend().types().declaredPortType(port)), port.getName());
             emitter().emit("iss >> %s_tmp;", port.getName());
-            emitter().emit("%s.write((%s) %1$s_tmp);", port.getName(), backend().typeseval().type(backend().types().declaredPortType(port)));
+            emitter().emit("%s.write((%s) %s_tmp);", connection != null ? backend().vnetwork().queueNames().get(connection) : port.getName(), backend().typeseval().type(backend().types().declaredPortType(port)), port.getName());
 
             emitter().decreaseIndentation();
         }
@@ -422,12 +450,12 @@ public interface TestbenchHLS {
         emitter().emit("uint32_t %s_token_counter = 0;", port.getName());
     }
 
-    default void compareOutput(PortDecl port) {
-        emitter().emit("while(!%s.empty() && !qref_%1$s.empty()) {", port.getName());
+    default void compareOutput(PortDecl port, Connection connection) {
+        emitter().emit("while(!%s.empty() && !qref_%s.empty()) {", connection != null ? backend().vnetwork().queueNames().get(connection) : port.getName(), port.getName());
         {
             emitter().increaseIndentation();
 
-            emitter().emit("%s got_value = %s.read();", backend().typeseval().type(backend().types().declaredPortType(port)), port.getName());
+            emitter().emit("%s got_value = %s.read();", backend().typeseval().type(backend().types().declaredPortType(port)), connection != null ? backend().vnetwork().queueNames().get(connection) : port.getName());
             emitter().emit("%s ref_value = qref_%s.front();", backend().typeseval().type(backend().types().declaredPortType(port)), port.getName());
             emitter().emit("qref_%s.pop();", port.getName());
             emitter().emit("if(got_value != ref_value) {");
@@ -461,7 +489,7 @@ public interface TestbenchHLS {
         emitter().emitNewLine();
     }
 
-    default void printProduced(PortDecl port){
+    default void printProduced(PortDecl port) {
         emitter().emit("std::cout <<  \"Port %s : \" << %1$s_token_counter << \" produced.\" << std::endl;", port.getName());
     }
 
