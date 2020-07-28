@@ -484,19 +484,13 @@ public interface VerilogTestbench {
                         emitter().emit("$display(\"Time: %s ns, Port %s: Error !!! Expected value does not match golden reference, Token Counter: %1$s\", $time, %2$s_token_counter);", "%0d", name);
                         emitter().emit("$display(\"\\tGot      : %s\", %s_dout);", "%0d", name);
                         emitter().emit("$display(\"\\tExpected : %s\", %s_exp_value);", "%0d", name);
+                        emitter().emitNewLine();
 
-                        emitter().decreaseIndentation();
-                    }
-                    emitter().emit("end else begin");
-                    {
-                        emitter().increaseIndentation();
-                        emitter().emit("$display(\"Time: %s ns, Port %s: Expected value matches golden reference, Token Counter: %1$s\", $time, %2$s_token_counter);", "%0d", name);
-                        emitter().emit("$display(\"\\tGot      : %s\", %s_dout);", "%0d", name);
-                        emitter().emit("$display(\"\\tExpected : %s\", %s_exp_value);", "%0d", name);
-
+                        emitter().emit("$finish;");
                         emitter().decreaseIndentation();
                     }
                     emitter().emit("end");
+
                     emitter().emit("%s_token_counter <= %1$s_token_counter + 1;", name);
                     emitter().decreaseIndentation();
                 }

@@ -1,5 +1,6 @@
 package ch.epfl.vlsc.hls.backend;
 
+import ch.epfl.vlsc.settings.PlatformSettings;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
@@ -96,7 +97,7 @@ public interface ChannelsUtils {
         if (attribute.isPresent()) {
             return (int) backend().constants().intValue(attribute.get().getValue()).getAsLong();
         } else {
-            return 512;
+            return backend().context().getConfiguration().get(PlatformSettings.defaultQueueDepth);
         }
     }
 

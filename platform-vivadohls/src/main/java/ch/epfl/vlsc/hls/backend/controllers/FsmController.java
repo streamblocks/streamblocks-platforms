@@ -10,6 +10,7 @@ import se.lth.cs.tycho.attribute.ScopeLiveness;
 import se.lth.cs.tycho.ir.entity.am.ActorMachine;
 import se.lth.cs.tycho.ir.entity.am.PortCondition;
 import se.lth.cs.tycho.ir.entity.am.ctrl.*;
+import se.lth.cs.tycho.reporting.CompilationException;
 import se.lth.cs.tycho.reporting.Diagnostic;
 
 import java.util.*;
@@ -31,6 +32,11 @@ public interface FsmController {
             result.put(s, i++);
         }
         return result;
+    }
+
+    @Binding(BindingKind.LAZY)
+    default Map<Integer, Integer> testState() {
+        return new HashMap<Integer, Integer>();
     }
 
     default Set<State> keepStates(ActorMachine actorMachine) {
@@ -99,10 +105,22 @@ public interface FsmController {
         initialize = liveness::init;
 
         Set<State> keepStates = keepStates(actorMachine);
+        if (!keepStates.contains(actorMachine.controller().getInitialState())) {
+            // keepStates.add(actorMachine.controller().getInitialState());
+        }
 
         emitter().emit("switch (this->program_counter) {");
         emitter().increaseIndentation();
         {
+            for (State s : stateList) {
+                Instruction instruction = s.getInstructions().get(0);
+                if (instruction.getKind() == InstructionKind.TEST && keepStates.contains(s)) {
+                    Integer ns = stateMap.get(s);
+                    if (!testState().containsKey(ns)) {
+                        testState().put(ns, 0);
+                    }
+                }
+            }
             for (State s : stateList) {
                 Instruction instruction = s.getInstructions().get(0);
                 if (instruction.getKind() == InstructionKind.TEST && keepStates.contains(s)) {
@@ -135,7 +153,7 @@ public interface FsmController {
 
             String portName = condition.getPortName().getName();
             io = portName + ", io";
-        }else{
+        } else {
             io = "io";
         }
 
@@ -166,7 +184,7 @@ public interface FsmController {
                 PortCondition condition = (PortCondition) am.getCondition(secondTest.condition());
                 String portName = condition.getPortName().getName();
                 io = portName + ", io";
-            }else{
+            } else {
                 io = "io";
             }
 
@@ -201,6 +219,10 @@ public interface FsmController {
                     emitInstruction(am, name, instruction, stateNumbers);
                 } else {
                     emitter().emit("this->program_counter = %d;", stateNumbers.get(secondTest.targetFalse()));
+                    Integer ns = stateNumbers.get(secondTest.targetFalse());
+                    if (!testState().containsKey(ns)) {
+                        throw new CompilationException(new Diagnostic(Diagnostic.Kind.ERROR,"State : " + ns  + " not included in the controller: " + name));
+                    }
                     emitter().emit("this->__ret = RETURN_TEST;");
                 }
 
@@ -228,6 +250,10 @@ public interface FsmController {
             emitInstruction(am, name, instruction, stateNumbers);
         } else {
             emitter().emit("this->program_counter = %d;", stateNumbers.get(test.targetFalse()));
+            Integer ns = stateNumbers.get(test.targetFalse());
+            if (!testState().containsKey(ns)) {
+                throw new CompilationException(new Diagnostic(Diagnostic.Kind.ERROR,"State : " + ns  + " not included in the controller: " + name));
+            }
             emitter().emit("this->__ret = RETURN_TEST;");
         }
 
@@ -238,6 +264,10 @@ public interface FsmController {
 
     default void emitInstruction(ActorMachine am, String name, Wait wait, Map<State, Integer> stateNumbers) {
         emitter().emit("this->program_counter = %d;", stateNumbers.get(wait.target()));
+        Integer ns =  stateNumbers.get(wait.target());
+        if (!testState().containsKey(ns)) {
+            throw new CompilationException(new Diagnostic(Diagnostic.Kind.ERROR,"State : " + ns  + " not included in the controller: " + name));
+        }
         emitter().emit("this->__ret = RETURN_WAIT;");
     }
 
@@ -250,30 +280,37 @@ public interface FsmController {
             Exec secondCall = (Exec) target.getInstructions().get(0);
             emitter().emit("transition_%d(%s);", secondCall.transition(), backend().instance().transitionIoArguments(am.getTransitions().get(secondCall.transition())));
             emitter().emit("this->program_counter = %d;", stateNumbers.get(secondCall.target()));
+            Integer ns =  stateNumbers.get(secondCall.target());
+            if (!testState().containsKey(ns)) {
+                throw new CompilationException(new Diagnostic(Diagnostic.Kind.ERROR,"State : " + ns  + " not included in the controller: " + name));
+            }
             if (traceEnabled) {
                 backend().context()
                         .getReporter()
                         .report(
                                 new Diagnostic(Diagnostic.Kind.ERROR,
                                         String.format("Error while emitting the FSMController: " +
-                                                "Back to back transitions %d and %d lead to invalid " +
-                                                "profiling information.", exec.transition(),
+                                                        "Back to back transitions %d and %d lead to invalid " +
+                                                        "profiling information.", exec.transition(),
                                                 secondCall.transition())));
             }
 
         } else {
             emitter().emit("this->program_counter = %d;", stateNumbers.get(exec.target()));
-
+            Integer ns =  stateNumbers.get(exec.target());
+            if (!testState().containsKey(ns)) {
+                throw new CompilationException(new Diagnostic(Diagnostic.Kind.ERROR,"State : " + ns  + " not included in the controller: " + name));
+            }
         }
         if (traceEnabled) {
             if (am.getTransitions().size() >= (1 << 15)) {
 
                 backend().context()
-                    .getReporter()
-                    .report(
-                            new Diagnostic(Diagnostic.Kind.ERROR, String.format(
-                                    "The maximum number of supported actions" +
-                                            "while traces are enabled is %d", (1 << 15) - 1)));
+                        .getReporter()
+                        .report(
+                                new Diagnostic(Diagnostic.Kind.ERROR, String.format(
+                                        "The maximum number of supported actions" +
+                                                "while traces are enabled is %d", (1 << 15) - 1)));
 
             }
 

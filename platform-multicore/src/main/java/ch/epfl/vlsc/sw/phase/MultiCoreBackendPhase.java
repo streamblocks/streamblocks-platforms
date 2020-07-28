@@ -84,6 +84,7 @@ public class MultiCoreBackendPhase implements Phase {
                 PlatformSettings.scopeLivenessAnalysis,
                 PlatformSettings.runOnNode,
                 PlatformSettings.defaultBufferDepth,
+                PlatformSettings.defaultQueueDepth,
                 PlatformSettings.enableSystemC);
     }
 

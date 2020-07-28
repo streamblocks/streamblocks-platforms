@@ -5,8 +5,8 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>ch.epfl.vlsc</groupId>
-    <name>StreamBlocks dataflow compiler</name>
-    <artifactId>streamblocks</artifactId>
+    <name>StreamBlocks platforms</name>
+    <artifactId>streamblocks.platforms</artifactId>
     <packaging>pom</packaging>
     <version>1.0-SNAPSHOT</version>
 

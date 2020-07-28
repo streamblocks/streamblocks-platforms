@@ -85,7 +85,8 @@ public class VivadoHLSBackendPhase implements Phase {
                 PlatformSettings.C99Host,
                 PlatformSettings.arbitraryPrecisionIntegers,
                 PlatformSettings.enableActionProfile,
-                PlatformSettings.enableSystemC
+                PlatformSettings.enableSystemC,
+                PlatformSettings.defaultQueueDepth
         );
     }
 
@@ -368,6 +369,9 @@ public class VivadoHLSBackendPhase implements Phase {
 
         // -- Instance Verilog Testbench
         network.getInstances().forEach(backend.testbench()::generateTestbench);
+
+        // -- Network HLS Testbench
+        backend.testbenchHLS().generateNetworkTestbench();
 
         // -- Instance HLS Testbench
         network.getInstances().forEach(backend.testbenchHLS()::generateInstanceTestbench);

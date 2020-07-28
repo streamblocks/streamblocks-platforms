@@ -34,7 +34,7 @@ import java.util.stream.Collectors;
 
 @Module
 public interface Instances {
-    static final int MAX_STATES_FOR_QUICK_JUMP_CONTROLLER = 200;
+    int MAX_STATES_FOR_QUICK_JUMP_CONTROLLER = 200;
 
     @Binding(BindingKind.INJECTED)
     VivadoHLSBackend backend();
@@ -228,7 +228,7 @@ public interface Instances {
         // -- IO Struct
         if (entity instanceof ActorMachine) {
             ActorMachine actor = (ActorMachine) entity;
-            structIO(actor);
+            structIO(instanceName, actor);
         }
 
         // -- Instance State
@@ -266,10 +266,10 @@ public interface Instances {
      * Struct IO
      */
 
-    default void structIO(ActorMachine actor) {
+    default void structIO(String instanceName, ActorMachine actor) {
         // -- Struct IO
         emitter().emit("// -- Struct IO");
-        emitter().emit("struct IO {");
+        emitter().emit("struct IO_%s {", instanceName);
         {
             emitter().increaseIndentation();
 
@@ -530,7 +530,7 @@ public interface Instances {
 
         // -- IO port
         if (withIO) {
-            ports.add("IO io");
+            ports.add(String.format("IO_%s io", instanceName));
         }
 
         return String.join(", ", ports);
@@ -599,7 +599,6 @@ public interface Instances {
                 backend().fsmController().emitController(instanceName, actor);
             } else {
                 backend().quickJumpController().emitController(instanceName, actor);
-
             }
             emitter().emit("return this->__ret;");
             emitter().decreaseIndentation();
@@ -648,14 +647,14 @@ public interface Instances {
     default String scopePrototype(String instanceName, Scope scope, int index, boolean withClassName) {
         // -- Actor Instance Name
         String className = "class_" + instanceName;
-        String io = scopeIO(scope);
+        String io = scopeIO(instanceName, scope);
 
         return String.format("void %sscope_%d(%s)", withClassName ? className + "::" : "", index, io);
     }
 
 
-    default String scopeIO(Scope scope) {
-        return "IO io";
+    default String scopeIO(String instanceName, Scope scope) {
+        return String.format("IO_%s io", instanceName);
     }
 
     default String scopeArguments(Scope scope) {
@@ -683,9 +682,9 @@ public interface Instances {
         String className = "class_" + instanceName;
         String io = conditionIO(condition);
         if (condition instanceof PortCondition) {
-            io = io + ", " + "IO io";
+            io = io + ", " + String.format("IO_%s io", instanceName);
         } else {
-            io = "IO io";
+            io = String.format("IO_%s io", instanceName);
         }
         return String.format("bool %scondition_%d(%s)", withClassName ? className + "::" : "", index, io);
     }

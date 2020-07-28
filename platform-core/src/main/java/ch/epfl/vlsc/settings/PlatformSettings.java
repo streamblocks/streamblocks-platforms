@@ -157,6 +157,23 @@ public class PlatformSettings {
 
         @Override
         public String getDescription() {
+            return "The depth of the PLink fifo queues.";
+        }
+
+        @Override
+        public Integer defaultValue(Configuration configuration) {
+            return 4096;
+        }
+    };
+
+    static public IntegerSetting defaultQueueDepth = new IntegerSetting() {
+        @Override
+        public String getKey() {
+            return "queue-depth";
+        }
+
+        @Override
+        public String getDescription() {
             return "The depth of the fifo queues.";
         }
 
@@ -184,8 +201,6 @@ public class PlatformSettings {
     };
 
     static public StringSetting maxBRAMSize = new StringSetting() {
-
-
         @Override
         public String getKey() {
             return "max-bram";

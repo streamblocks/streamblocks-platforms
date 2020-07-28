@@ -13,6 +13,7 @@ import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.entity.am.ActorMachine;
 import se.lth.cs.tycho.ir.network.Instance;
+import se.lth.cs.tycho.ir.network.Network;
 import se.lth.cs.tycho.type.AlgebraicType;
 import se.lth.cs.tycho.type.IntType;
 import se.lth.cs.tycho.type.Type;
@@ -51,6 +52,25 @@ public interface TestbenchHLS {
         emitter().emitNewLine();
     }
 
+    default void networkIncludes(List<Instance> instances) {
+        backend().includeSystem("fstream");
+        backend().includeSystem("sstream");
+        backend().includeSystem("iostream");
+        backend().includeSystem("string");
+        backend().includeSystem("stdint.h");
+        backend().includeUser("hls_stream.h");
+        if (backend().context().getConfiguration().get(PlatformSettings.arbitraryPrecisionIntegers)) {
+            backend().includeSystem("ap_int.h");
+        }
+        emitter().emitNewLine();
+
+        instances.forEach(i -> {
+            backend().includeUser(i.getInstanceName() + ".h");
+        });
+
+        emitter().emitNewLine();
+    }
+
     default void generateInstanceTestbench(Instance instance) {
         // -- Add instance to box
         backend().instancebox().set(instance);
@@ -80,10 +100,10 @@ public interface TestbenchHLS {
             emitter().increaseIndentation();
             emitter().emit("// -- File Streams");
             // -- Input Streams
-            entity.getInputPorts().forEach(this::openStreams);
+            entity.getInputPorts().forEach(p -> openStreams(p, instance.getInstanceName()));
 
             // -- Output Streams
-            entity.getOutputPorts().forEach(this::openStreams);
+            entity.getOutputPorts().forEach((p -> openStreams(p, instance.getInstanceName())));
 
             // -- Input channels
             if (!entity.getInputPorts().isEmpty()) {
@@ -138,7 +158,7 @@ public interface TestbenchHLS {
             {
                 emitter().increaseIndentation();
 
-                emitter().emit("IO io;");
+                emitter().emit("IO_%s io;", instance.getInstanceName());
                 emitter().emitNewLine();
 
                 for (PortDecl port : entity.getInputPorts()) {
@@ -191,9 +211,160 @@ public interface TestbenchHLS {
         backend().instancebox().clear();
     }
 
-    default void openStreams(PortDecl port) {
-        Instance instance = backend().instancebox().get();
-        emitter().emit("std::ifstream %s_file(\"fifo-traces/%s/%1$s.txt\");", port.getName(), instance.getInstanceName());
+    default void generateNetworkTestbench(){
+        // -- Network Id
+        String identifier = backend().task().getIdentifier().getLast().toString();
+
+        // -- Target file Path
+        Path instanceTarget = PathUtils.getTargetCodeGenSrcTb(backend().context()).resolve("tb_" + identifier + ".cpp");
+        emitter().open(instanceTarget);
+
+        // -- Network
+        Network network = backend().task().getNetwork();
+
+        // -- Includes
+        networkIncludes(network.getInstances());
+
+        // -- Instance prototypes
+        emitter().emit("// -- Instance prototypes");
+        for(Instance instance : network.getInstances()){
+            GlobalEntityDecl entityDecl = globalnames().entityDecl(instance.getEntityName(), true);
+            Entity entity = entityDecl.getEntity();
+            backend().entitybox().set(entity);
+            emitter().emit("int %s(%s);", instance.getInstanceName(), backend().instance().entityPorts(instance.getInstanceName(), entity instanceof ActorMachine, true));
+            backend().entitybox().clear();
+        }
+        emitter().emitNewLine();
+
+        emitter().emit("// -- HLS Network Testbench");
+        emitter().emit("int main(){");
+        {
+            emitter().increaseIndentation();
+
+            emitter().increaseIndentation();
+            emitter().emit("// -- File Streams");
+            // -- Input Streams
+            network.getInputPorts().forEach((p -> openStreams(p, identifier)));
+
+            // -- Output Streams
+            network.getOutputPorts().forEach((p -> openStreams(p, identifier)));
+
+            // -- Input channels
+            if (!network.getInputPorts().isEmpty()) {
+                emitter().emit("// -- Input Channels");
+                network.getInputPorts().forEach(this::channels);
+            }
+
+            emitter().emitNewLine();
+
+            // -- Output channels
+            if (!network.getOutputPorts().isEmpty()) {
+                emitter().emit("// -- Output Channels");
+                network.getOutputPorts().forEach(this::channels);
+            }
+
+            emitter().emitNewLine();
+
+            // -- Queue reference
+            if (!network.getOutputPorts().isEmpty()) {
+                emitter().emit("// -- Queue reference");
+                network.getOutputPorts().forEach(this::refQueues);
+            }
+
+            emitter().emitNewLine();
+
+            // -- Write tokens to stream
+            if (!network.getInputPorts().isEmpty()) {
+                emitter().emit("// -- Write tokens to stream");
+                network.getInputPorts().forEach(this::writeToStream);
+            }
+
+            if (!network.getOutputPorts().isEmpty()) {
+                emitter().emit("// -- Store output tokens to the reference queue");
+                network.getOutputPorts().forEach(this::storeToQueueRef);
+            }
+
+            // -- Output counters
+            if (!network.getOutputPorts().isEmpty()) {
+                emitter().emit("// -- Output Counters");
+                network.getOutputPorts().forEach(this::outputCounters);
+                emitter().emitNewLine();
+            }
+
+            // -- End of execution
+            emitter().emit("// -- End of execution");
+            emitter().emit("bool end_of_execution = false;");
+            emitter().emitNewLine();
+
+        // -- Running
+            emitter().emit("// -- Execute instance under test");
+            emitter().emit("while(!end_of_execution) {");
+            {
+                emitter().increaseIndentation();
+
+                emitter().emit("int ret = RETURN_WAIT;");
+                emitter().emitNewLine();
+
+                for(Instance instance : network.getInstances() ){
+                    emitter().emit("IO_%s io;", instance.getInstanceName());
+                    emitter().emitNewLine();
+
+                    GlobalEntityDecl entityDecl = globalnames().entityDecl(instance.getEntityName(), true);
+                    Entity entity = entityDecl.getEntity();
+
+                    for (PortDecl port : entity.getInputPorts()) {
+                        emitter().emit("io.%s_count = %1$s.size();", port.getName());
+                        emitter().emit("io.%s_peek = %1$s._data[0];", port.getName());
+                    }
+                    for (PortDecl port : entity.getOutputPorts()) {
+                        emitter().emit("io.%s_count = 0;", port.getName());
+                        emitter().emit("io.%s_size = 512;", port.getName());
+                    }
+                    emitter().emitNewLine();
+
+
+                    List<String> ports = new ArrayList<>();
+                    // -- External memories
+                    ports.addAll(
+                            backend().externalMemory()
+                                    .getExternalMemories(entity).map(v -> backend().externalMemory().name(instance, v)));
+
+                    ports.addAll(entity.getInputPorts().stream().map(PortDecl::getName).collect(Collectors.toList()));
+                    ports.addAll(entity.getOutputPorts().stream().map(PortDecl::getName).collect(Collectors.toList()));
+                    emitter().emit("ret |= %s(%s, io);", instance.getInstanceName(), String.join(", ", ports));
+                    emitter().emitNewLine();
+                }
+
+                // -- Output counters
+                if (!network.getOutputPorts().isEmpty()) {
+                    network.getOutputPorts().forEach(this::compareOutput);
+                }
+
+                emitter().emit("end_of_execution = ret == RETURN_WAIT;");
+                emitter().decreaseIndentation();
+            }
+            emitter().emit("}");
+            emitter().emitNewLine();
+
+            if(!network.getOutputPorts().isEmpty()){
+                network.getOutputPorts().forEach(this::printProduced);
+                emitter().emitNewLine();
+            }
+
+
+
+            emitter().emit("return 0;");
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("}");
+
+
+        emitter().close();
+    }
+
+
+    default void openStreams(PortDecl port, String name) {
+        emitter().emit("std::ifstream %s_file(\"fifo-traces/%s/%1$s.txt\");", port.getName(), name);
         emitter().emit("if(%s_file.fail()){", port.getName());
         {
             emitter().increaseIndentation();
