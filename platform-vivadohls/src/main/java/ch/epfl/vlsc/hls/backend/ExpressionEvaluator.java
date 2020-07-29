@@ -203,7 +203,7 @@ public interface ExpressionEvaluator {
     default void evaluateWithLvalue(String lvalue, ExprInput input) {
         if (input.hasRepeat()) {
             if (input.getOffset() == 0) {
-                emitter().emit("pinPeekFront(%s, %s[0]);", channelsutils().definedInputPort(input.getPort()), lvalue);
+                emitter().emit("pinPeekRepeat(%s, %s, %d);", channelsutils().definedInputPort(input.getPort()), lvalue, input.getRepeat());
             } else {
                 throw new RuntimeException("not implemented");
             }
