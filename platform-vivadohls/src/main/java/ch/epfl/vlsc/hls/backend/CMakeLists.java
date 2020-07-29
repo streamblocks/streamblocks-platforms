@@ -92,7 +92,7 @@ public interface CMakeLists {
         emitter().emit("find_package(VivadoHLS REQUIRED)");
         emitter().emit("if (NOT VIVADO_HLS_FOUND)");
         emitter().increaseIndentation();
-        emitter().emit("message(FATAL_ERROR \"Vivado HLS not found, source Vivado settings.sh\")");
+        emitter().emit("message(STATUS \"Vivado HLS not found, source Vivado settings.sh\")");
         emitter().decreaseIndentation();
         emitter().emit("endif()");
         emitter().emitNewLine();
@@ -101,7 +101,7 @@ public interface CMakeLists {
         emitter().emit("find_package(Vivado REQUIRED)");
         emitter().emit("if (NOT VIVADO_FOUND)");
         emitter().increaseIndentation();
-        emitter().emit("message(FATAL_ERROR \"Vivado not found, source Vivado settings.sh\")");
+        emitter().emit("message(STATUS \"Vivado not found, source Vivado settings.sh\")");
         emitter().decreaseIndentation();
         emitter().emit("endif()");
         emitter().emitNewLine();
@@ -421,15 +421,21 @@ public interface CMakeLists {
 
         // -- Instance custom targets
         emitter().emitSharpComment("Instances custom target(s)");
-        for (Instance instance : backend().task().getNetwork().getInstances()) {
-            GlobalEntityDecl entityDecl = backend().globalnames().entityDecl(instance.getEntityName(), true);
-            if (!entityDecl.getExternal()) {
-                String instanceName = instance.getInstanceName();
-                emitter().emit(
-                        "add_custom_target(%s ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/%1$s/solution/syn/verilog/%1$s.v)",
-                        instanceName);
+        emitter().emit("if (VIVADO_HLS_FOUND)");
+        {
+            emitter().increaseIndentation();
+            for (Instance instance : backend().task().getNetwork().getInstances()) {
+                GlobalEntityDecl entityDecl = backend().globalnames().entityDecl(instance.getEntityName(), true);
+                if (!entityDecl.getExternal()) {
+                    String instanceName = instance.getInstanceName();
+                    emitter().emit(
+                            "add_custom_target(%s ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/%1$s/solution/syn/verilog/%1$s.v)",
+                            instanceName);
+                }
             }
+            emitter().decreaseIndentation();
         }
+        emitter().emit("endif()");
         emitter().emitNewLine();
         emitter().emitSharpBlockComment("SystemC Instances custom target(s)");
         verilatorTargets(network);
@@ -471,7 +477,9 @@ public interface CMakeLists {
         emitter().emitSharpComment("Vivado custom target");
         String xprProject = String.format("${PROJECT_SOURCE_DIR}/output/%s/%1$s.xpr", identifier);
 
-        emitter().emit("add_custom_target(%s_project ALL DEPENDS %s)", identifier, xprProject);
+        emitter().emit("if(VIVADO_FOUND)");
+        emitter().emit("\tadd_custom_target(%s_project ALL DEPENDS %s)", identifier, xprProject);
+        emitter().emit("endif()");
         emitter().emitNewLine();
 
         // -- Host example
@@ -506,10 +514,36 @@ public interface CMakeLists {
         // -- systemc simulator
         getSimulator(network);
 
+        getHlsTestbenches(network);
+
         emitter().emitNewLine();
         emitter().close();
 
     }
+
+    default void getHlsTestbenches(Network network){
+        String identifier = backend().task().getIdentifier().getLast().toString();
+
+        emitter().emitSharpComment("HLS TestBenches");
+        for(Instance instance : network.getInstances()){
+            emitter().emit("add_executable(tb_%s code-gen/src/%1$s.cpp code-gen/src-tb/tb_%1$s.cpp)", instance.getInstanceName());
+            emitter().emit("target_include_directories(tb_%s PRIVATE code-gen/include code-gen/include-tb)", instance.getInstanceName());
+            emitter().emitNewLine();
+        }
+
+        emitter().emit("set(tb_%s_src",identifier);
+        {
+            emitter().increaseIndentation();
+            emitter().emit("code-gen/src-tb/tb_%s.cpp", identifier);
+            network.getInstances().forEach(i -> emitter().emit("code-gen/src/%s.cpp", i.getInstanceName()));
+            emitter().decreaseIndentation();
+        }
+        emitter().emit(")");
+        emitter().emitNewLine();
+        emitter().emit("add_executable(tb_%s ${tb_%1$s_src})",identifier);
+        emitter().emit("target_include_directories(tb_%s PRIVATE code-gen/include code-gen/include-tb)", identifier);
+        emitter().emitNewLine();
+    };
 
     default void entityCustomCommand(String topName, String headerName, String filename) {
         emitter().emit("add_custom_command(");

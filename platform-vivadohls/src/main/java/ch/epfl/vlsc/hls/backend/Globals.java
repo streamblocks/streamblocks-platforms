@@ -46,7 +46,7 @@ public interface Globals {
         emitter().emitNewLine();
 
         // -- Types
-        if(backend().algebraicTypes().types().count() != 0){
+        if (backend().algebraicTypes().types().count() != 0) {
             emitter().emit("// -- User Types");
             backend().algebraicTypes().declareAlgebraicTypes();
         }
@@ -57,6 +57,16 @@ public interface Globals {
         // -- PinPeekFront
         emitter().emit("#define pinPeekFront(NAME, value) value = io.NAME ## _peek");
         emitter().emitNewLine();
+
+        // -- PinPeekRepeat
+        emitter().emit("#define pinPeekRepeat(NAME, value, d) \\\n" +
+                " {\\\n" +
+                "    int tmp = __consume_ ## NAME;\\\n" +
+                "    for(int i = tmp; i < d; i++){\\\n" +
+                "        value[i] = NAME.read();\\\n" +
+                "        __consume_ ## NAME++; \\\n" +
+                "    }\\\n" +
+                "}\n");
 
         // -- PinRead
         emitter().emit("#define pinRead(NAME, value) \\");
@@ -71,9 +81,10 @@ public interface Globals {
         // -- PinReadRepeat
         emitter().emitRawLine("#define pinReadRepeat(NAME, value, d) \\\n" +
                 "{\\\n" +
-                "\tfor(int i = 0; i < d; i++){\\\n" +
-                "\t\tNAME.read_nb(value[i]);\\\n" +
-                "\t}\\\n" +
+                "    for(int i = 0; i < d; i++){\\\n" +
+                "        NAME.read_nb(value[i]);\\\n" +
+                "        __consume_ ## NAME++; \\\n" +
+                "    }\\\n" +
                 "}");
         emitter().emitNewLine();
 
@@ -121,19 +132,27 @@ public interface Globals {
         emitter().emitNewLine();
 
         // -- PinConsume
-        emitter().emit("#define pinConsume(NAME) \\");
-        emitter().emit("{\\");
-        emitter().increaseIndentation();
-        emitter().emit("if(__consume_ ## NAME == 0) {\\");
-        emitter().emit("\tNAME.read(); \\");
-        emitter().emit("}\\");
-        emitter().emit("\t__consume_ ## NAME = 0; \\");
-        emitter().decreaseIndentation();
-        emitter().emit("}");
+        emitter().emitRawLine("#define pinConsume(NAME) \\\n" +
+                "{\\\n" +
+                "    if(__consume_ ## NAME == 0) {\\\n" +
+                "        NAME.read(); \\\n" +
+                "    }\\\n" +
+                "    __consume_ ## NAME = 0; \\\n" +
+                "}");
         emitter().emitNewLine();
 
 
-        emitter().emit("#define pinConsumeRepeat(NAME, d)");
+        emitter().emit("#define pinConsumeRepeat(NAME, d) \\\n" +
+                "{\\\n" +
+                "    int tmp = __consume_ ## NAME;\\\n" +
+                "    if(__consume_ ## NAME == 0 ){ \\\n" +
+                "         for(int i = tmp; i < d; i++){\\\n" +
+                "            NAME.read(); \\\n" +
+                "        }\\\n" +
+                "    } else {\\\n" +
+                "        __consume_ ## NAME-=d; \\\n" +
+                "    }\\\n" +
+                "}\n");
         emitter().emitNewLine();
 
 

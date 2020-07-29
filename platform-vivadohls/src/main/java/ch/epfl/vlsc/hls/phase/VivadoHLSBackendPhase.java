@@ -23,8 +23,11 @@ import se.lth.cs.tycho.settings.Configuration;
 import se.lth.cs.tycho.settings.Setting;
 
 import java.io.IOException;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
 
@@ -53,14 +56,21 @@ public class VivadoHLSBackendPhase implements Phase {
      * code gen include directory
      */
     private Path codeGenIncludePath;
+
     /**
      * code gen source directory;
      */
     private Path codeGenSourcePath;
+
     /**
      * cmake path for finding the HLS tools
      */
     private Path cmakePath;
+
+    /**
+     * HLS headers for testbenches
+     */
+    private Path includeTb;
 
     /**
      * Script paths for hls generate by cmake
@@ -127,7 +137,7 @@ public class VivadoHLSBackendPhase implements Phase {
         PathUtils.createDirectory(codeGenPath, "include");
 
         // -- Include testbench path
-        PathUtils.createDirectory(codeGenPath, "include-tb");
+        includeTb = PathUtils.createDirectory(codeGenPath, "include-tb");
 
         // -- Source testbench path
         PathUtils.createDirectory(codeGenPath, "src-tb");
@@ -496,8 +506,17 @@ public class VivadoHLSBackendPhase implements Phase {
                     PathUtils.getTargetCodeGenInclude(backend.context()).resolve("debug_macros.h"),
                     StandardCopyOption.REPLACE_EXISTING);
 
+            // -- HLS Headers
+            URL url = getClass().getResource("/lib/hls/include-tb/");
+            // -- Temporary hack to launch it from command line
+            if (url.toString().contains("jar")) {
+                PathUtils.copyFromJar(getClass().getResource("").toURI(), "/lib/hls/include-tb", includeTb);
+            } else {
+                Path libResourcePath = Paths.get(url.toURI());
+                PathUtils.copyDirTree(libResourcePath, includeTb, StandardCopyOption.REPLACE_EXISTING);
+            }
 
-        } catch (IOException e) {
+        } catch (IOException | URISyntaxException e) {
             throw new CompilationException(new Diagnostic(Diagnostic.Kind.ERROR, "Could not copy backend resources"));
         }
     }

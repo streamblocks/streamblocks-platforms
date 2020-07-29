@@ -164,12 +164,12 @@ public interface TestbenchHLS {
                 emitter().emitNewLine();
 
                 for (PortDecl port : entity.getInputPorts()) {
-                    emitter().emit("io.%s_count = %1$s.size();", port.getName());
-                    emitter().emit("io.%s_peek = %1$s._data[0];", port.getName());
+                    emitter().emit("io_%s.%s_count = %2$s.size();", instance.getInstanceName(), port.getName());
+                    emitter().emit("io_%s.%s_peek = %2$s._data[0];", instance.getInstanceName(), port.getName());
                 }
                 for (PortDecl port : entity.getOutputPorts()) {
-                    emitter().emit("io.%s_count = 0;", port.getName());
-                    emitter().emit("io.%s_size = 512;", port.getName());
+                    emitter().emit("io_%s.%s_count = 0;", instance.getInstanceName(), port.getName());
+                    emitter().emit("io_%s.%s_size = 512;", instance.getInstanceName(), port.getName());
                 }
                 emitter().emitNewLine();
 
@@ -182,7 +182,7 @@ public interface TestbenchHLS {
 
                 ports.addAll(entity.getInputPorts().stream().map(PortDecl::getName).collect(Collectors.toList()));
                 ports.addAll(entity.getOutputPorts().stream().map(PortDecl::getName).collect(Collectors.toList()));
-                emitter().emit("int ret = %s(%s, io);", instance.getInstanceName(), String.join(", ", ports));
+                emitter().emit("int ret = %s(%s, io_%1$s);", instance.getInstanceName(), String.join(", ", ports));
                 emitter().emitNewLine();
 
                 // -- Output counters
@@ -241,15 +241,14 @@ public interface TestbenchHLS {
         emitter().emit("// -- HLS Network Testbench");
         emitter().emit("int main(){");
         {
-            emitter().increaseIndentation();
 
             emitter().increaseIndentation();
             emitter().emit("// -- File Streams");
             // -- Input Streams
-            network.getInputPorts().forEach((p -> openStreams(p, identifier)));
+            network.getInputPorts().forEach((p -> openStreams(p, null)));
 
             // -- Output Streams
-            network.getOutputPorts().forEach((p -> openStreams(p, identifier)));
+            network.getOutputPorts().forEach((p -> openStreams(p, null)));
 
             // -- Queues
             for (Connection connection : network.getConnections()) {
@@ -301,7 +300,7 @@ public interface TestbenchHLS {
             emitter().emit("do {");
             {
                 emitter().increaseIndentation();
-
+                emitter().emit("end_of_execution = RETURN_WAIT;");
                 emitter().emitNewLine();
 
                 for (Instance instance : network.getInstances()) {
@@ -356,7 +355,7 @@ public interface TestbenchHLS {
                         ports.add(queueName);
                     }
 
-                    emitter().emit("end_of_execution = %s(%s, io_%1$s);", instance.getInstanceName(), String.join(", ", ports));
+                    emitter().emit("end_of_execution |= %s(%s, io_%1$s);", instance.getInstanceName(), String.join(", ", ports));
                     emitter().emitNewLine();
                 }
 
@@ -393,7 +392,11 @@ public interface TestbenchHLS {
 
 
     default void openStreams(PortDecl port, String name) {
-        emitter().emit("std::ifstream %s_file(\"fifo-traces/%s/%1$s.txt\");", port.getName(), name);
+        if (name != null) {
+            emitter().emit("std::ifstream %s_file(\"fifo-traces/%s/%1$s.txt\");", port.getName(), name);
+        } else {
+            emitter().emit("std::ifstream %s_file(\"fifo-traces/%1$s.txt\");", port.getName());
+        }
         emitter().emit("if(%s_file.fail()){", port.getName());
         {
             emitter().increaseIndentation();
