@@ -160,7 +160,7 @@ public interface TestbenchHLS {
             {
                 emitter().increaseIndentation();
 
-                emitter().emit("IO_%s io;", instance.getInstanceName());
+                emitter().emit("IO_%s io_%1$s;", instance.getInstanceName());
                 emitter().emitNewLine();
 
                 for (PortDecl port : entity.getInputPorts()) {
@@ -255,7 +255,7 @@ public interface TestbenchHLS {
             for (Connection connection : network.getConnections()) {
                 String queueName = backend().vnetwork().getQueueName(connection);
                 Type queueType = backend().vnetwork().getQueueType(connection);
-                emitter().emit("hls::stream< %s > %s = new hls::stream(\"%2$s\");", backend().typeseval().type(queueType), queueName);
+                emitter().emit("hls::stream< %s > %s(\"%2$s\");", backend().typeseval().type(queueType), queueName);
             }
             emitter().emitNewLine();
 
@@ -293,12 +293,12 @@ public interface TestbenchHLS {
 
             // -- End of execution
             emitter().emit("// -- End of execution");
-            emitter().emit("bool end_of_execution = false;");
+            emitter().emit("int end_of_execution = RETURN_WAIT;");
             emitter().emitNewLine();
 
             // -- Running
             emitter().emit("// -- Execute instance under test");
-            emitter().emit("while(!end_of_execution) {");
+            emitter().emit("do {");
             {
                 emitter().increaseIndentation();
 
@@ -317,8 +317,9 @@ public interface TestbenchHLS {
                                 .filter(c -> c.getTarget().equals(target)).findAny().orElse(null);
                         String queueName = backend().vnetwork().queueNames().get(connection);
 
-                        emitter().emit("io.%s_count = %s.size();", port.getName(), queueName);
-                        emitter().emit("io.%s_peek = %s._data[0];", port.getName(), queueName);
+                        emitter().emit("io_%s.%s_count = %s.size();", instance.getInstanceName(), port.getName(), queueName);
+                        emitter().emit("if(io_%s.%s_count)", instance.getInstanceName(), port.getName());
+                        emitter().emit("\tio_%s.%s_peek = %s._data[0];", instance.getInstanceName(), port.getName(), queueName);
                     }
                     for (PortDecl port : entity.getOutputPorts()) {
                         String portName = port.getName();
@@ -326,8 +327,9 @@ public interface TestbenchHLS {
                         Connection connection = backend().task().getNetwork().getConnections().stream()
                                 .filter(c -> c.getSource().equals(source)).findAny().orElse(null);
                         String queueName = backend().vnetwork().queueNames().get(connection);
-                        emitter().emit("io.%s_count = %s.size();", port.getName(), queueName);
-                        emitter().emit("io.%s_size = %s;", port.getName(), backend().channelsutils().connectionBufferSize(connection));
+
+                        emitter().emit("io_%s.%s_count = %s.size();", instance.getInstanceName(), port.getName(), queueName);
+                        emitter().emit("io_%s.%s_size = %s;", instance.getInstanceName(), port.getName(), backend().channelsutils().connectionBufferSize(connection));
                     }
                     emitter().emitNewLine();
 
@@ -354,8 +356,7 @@ public interface TestbenchHLS {
                         ports.add(queueName);
                     }
 
-                    ports.addAll(entity.getOutputPorts().stream().map(PortDecl::getName).collect(Collectors.toList()));
-                    emitter().emit("end_of_execution |= %s(%s, io_%1$s) == RETURN_WAIT;", instance.getInstanceName(), String.join(", ", ports));
+                    emitter().emit("end_of_execution = %s(%s, io_%1$s);", instance.getInstanceName(), String.join(", ", ports));
                     emitter().emitNewLine();
                 }
 
@@ -372,7 +373,7 @@ public interface TestbenchHLS {
 
                 emitter().decreaseIndentation();
             }
-            emitter().emit("}");
+            emitter().emit("} while(end_of_execution != RETURN_EXECUTED);");
             emitter().emitNewLine();
 
             if (!network.getOutputPorts().isEmpty()) {
