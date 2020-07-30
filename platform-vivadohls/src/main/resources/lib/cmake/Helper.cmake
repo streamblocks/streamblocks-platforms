@@ -246,7 +246,7 @@ if (KERNEL)
 			${CMAKE_CURRENT_BINARY_DIR}/xclbin/${__NETWORK_NAME__}_kernel.${TARGET}.${PLATFORM}.xo
 			> ${__NETWORK_NAME__}_kernel_xclbin.log
 		DEPENDS ${__NETWORK_NAME__}_kernel_xo
-		COMMENT "Generating FPGA binary, if hw is chosent this can take several hours."
+		COMMENT "Generating FPGA binary, if TARGET=hw can take several hours."
 	)
 	add_custom_target(${CMAKE_PROJECT_NAME}_kernel_xclbin ALL
 		DEPENDS ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xclbin
