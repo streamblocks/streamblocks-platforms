@@ -292,7 +292,7 @@ public interface TestbenchHLS {
 
             // -- End of execution
             emitter().emit("// -- End of execution");
-            emitter().emit("int end_of_execution = RETURN_WAIT;");
+            emitter().emit("bool end_of_execution;");
             emitter().emitNewLine();
 
             // -- Running
@@ -300,7 +300,7 @@ public interface TestbenchHLS {
             emitter().emit("do {");
             {
                 emitter().increaseIndentation();
-                emitter().emit("end_of_execution = RETURN_WAIT;");
+                emitter().emit("end_of_execution = false;");
                 emitter().emitNewLine();
 
                 for (Instance instance : network.getInstances()) {
@@ -355,7 +355,7 @@ public interface TestbenchHLS {
                         ports.add(queueName);
                     }
 
-                    emitter().emit("end_of_execution |= %s(%s, io_%1$s);", instance.getInstanceName(), String.join(", ", ports));
+                    emitter().emit("end_of_execution |= %s(%s, io_%1$s) == RETURN_EXECUTED;", instance.getInstanceName(), String.join(", ", ports));
                     emitter().emitNewLine();
                 }
 
@@ -372,7 +372,7 @@ public interface TestbenchHLS {
 
                 emitter().decreaseIndentation();
             }
-            emitter().emit("} while(end_of_execution != RETURN_EXECUTED);");
+            emitter().emit("} while(end_of_execution);");
             emitter().emitNewLine();
 
             if (!network.getOutputPorts().isEmpty()) {

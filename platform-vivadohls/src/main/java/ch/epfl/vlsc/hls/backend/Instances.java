@@ -34,7 +34,7 @@ import java.util.stream.Collectors;
 
 @Module
 public interface Instances {
-    int MAX_STATES_FOR_QUICK_JUMP_CONTROLLER = 200;
+    int MAX_STATES_FOR_QUICK_JUMP_CONTROLLER = 1200;
 
     @Binding(BindingKind.INJECTED)
     VivadoHLSBackend backend();
@@ -654,11 +654,35 @@ public interface Instances {
 
 
     default String scopeIO(String instanceName, Scope scope) {
-        return String.format("IO_%s io", instanceName);
+        List<String> arguments = new ArrayList<>();
+        for(VarDecl decl : scope.getDeclarations()){
+            if(decl.getValue() != null){
+                if(decl.getValue() instanceof ExprInput){
+                    ExprInput input = (ExprInput) decl.getValue();
+                    Port port = input.getPort();
+                    String arg = String.format("hls::stream< %s > &%s", backend().typeseval().type(backend().types().portType(port)), port.getName());
+                    arguments.add(arg);
+                }
+            }
+        }
+        arguments.add(String.format("IO_%s io", instanceName));
+
+
+        return String.join(", ", arguments);
     }
 
     default String scopeArguments(Scope scope) {
-        return "io";
+        List<String> arguments = new ArrayList<>();
+        for(VarDecl decl : scope.getDeclarations()){
+            if(decl.getValue() != null){
+                if(decl.getValue() instanceof ExprInput){
+                    ExprInput input = (ExprInput) decl.getValue();
+                    arguments.add(input.getPort().getName());
+                }
+            }
+        }
+        arguments.add("io");
+        return  String.join(", ", arguments);
     }
 
     // ------------------------------------------------------------------------
