@@ -126,10 +126,14 @@ endif()
 # -- Source and Include folders for the generated code
 # -- --------------------------------------------------------------------------
 
+
 set(HLS_SOURCE_PATH ${PROJECT_SOURCE_DIR}/code-gen/src)
 set(HLS_HEADER_PATH ${PROJECT_SOURCE_DIR}/code-gen/include)
 
 
+# -- --------------------------------------------------------------------------
+# -- Helper macro to synthesize actor using vivado hls
+# -- --------------------------------------------------------------------------
 
 macro(synthesize_actor ACTOR)
 
@@ -148,17 +152,54 @@ macro(synthesize_actor ACTOR)
 		${ACTOR} ALL DEPENDS ${${ACTOR}_VERILOG_SOURCE}
 	)
 
+endmacro()
+
+# -- --------------------------------------------------------------------------
+# -- Helper macro to synthesize io stage actors using vivado hls
+# -- --------------------------------------------------------------------------
+macro(synthesize_io ACTOR)
+
+	# This is visible in the file scope
+	set(${ACTOR}_VERILOG_SOURCE "${VERILOG_GEN_DIR}/${ACTOR}/solution/syn/verilog/${ACTOR}.v")
+
+	add_custom_command(
+		OUTPUT ${${ACTOR}_VERILOG_SOURCE}
+		COMMAND ${VIVADO_HLS_BINARY} -f Synthesis.tcl -tclargs ${ACTOR} ${ACTOR}.cpp > ${ACTOR}.log
+		DEPENDS ${HLS_HEADER_PATH}/iostage.h ${HLS_SOURCE_PATH}/${ACTOR}.cpp
+		COMMENT	"CSynthesizing ${ACTOR}"
+
+	)
+
+	add_custom_target(
+		${ACTOR} ALL DEPENDS ${${ACTOR}_VERILOG_SOURCE}
+	)
 
 endmacro()
 
 
-foreach(__ACTOR__ ${__ACTORS_IN_KERNEL__})
+# -- --------------------------------------------------------------------------
+# -- Synthesis targets for actors
+# -- --------------------------------------------------------------------------
+foreach(__ACTOR__ ${__ACTORS_IN_NETWORK__})
 	synthesize_actor(${__ACTOR__})
 endforeach()
 
 
 
+
 if (KERNEL)
+
+# -- --------------------------------------------------------------------------
+# -- Synthesis targets for input and output stages
+# -- --------------------------------------------------------------------------
+
+	foreach(__ACTOR__ ${__INPUT_STAGE_ACTORS__} ${__OUTPUT_STAGE_ACTORS__})
+		synthesize_io(${__ACTOR__})
+	endforeach()
+
+# -- --------------------------------------------------------------------------
+# -- Emulation config util
+# -- --------------------------------------------------------------------------
 
 	if (USE_VITIS)
 		set(EMCONFIGUTIL ${VITIS_EMCONFIGUTIL})
@@ -168,7 +209,6 @@ if (KERNEL)
 		set(XCLBIN_COMPILER ${SDACCEL_XOCC})
 	endif()
 
-	# Generate EMCONFIG
 	add_custom_command(
 		OUTPUT ${CMAKE_SOURCE_DIR}/bin/emconfig.json
 		COMMAND ${EMCONFIGUTIL} --nd 1 --platform ${PLATFORM} --od ${CMAKE_SOURCE_DIR}/bin > emconfigutil.log
@@ -177,9 +217,9 @@ if (KERNEL)
 	add_custom_target(emconfig ALL DEPENDS ${CMAKE_SOURCE_DIR}/bin/emconfig.json)
 
 
-
-
-	# XO package
+# -- --------------------------------------------------------------------------
+# -- IP package (XO file)
+# -- --------------------------------------------------------------------------
 
 	add_custom_command(
 		OUTPUT  ${CMAKE_CURRENT_BINARY_DIR}/xclbin/${__NETWORK_NAME__}_kernel.${TARGET}.${PLATFORM}.xo
@@ -195,7 +235,9 @@ if (KERNEL)
 		${CMAKE_CURRENT_BINARY_DIR}/xclbin/${__NETWORK_NAME__}_kernel.${TARGET}.${PLATFORM}.xo
 	)
 
-	# XCLBIN
+# -- --------------------------------------------------------------------------
+# -- Kernel binary (XCLBIN file)
+# -- --------------------------------------------------------------------------
 	add_custom_command(
 		OUTPUT  ${CMAKE_SOURCE_DIR}/bin/xclbin/${__NETWORK_NAME__}_kernel.${TARGET}.${PLATFORM}.xclbin
 		COMMAND ${XCLBIN_COMPILER} -g -t ${TARGET} --platform ${PLATFORM} --kernel_frequency ${KERNEL_FREQ}  --save-temps
@@ -213,10 +255,13 @@ if (KERNEL)
 
 endif()
 
+# -- --------------------------------------------------------------------------
+# -- Vivado Project (can be used for RTL simulation)
+# -- --------------------------------------------------------------------------
 add_custom_command(
 	OUTPUT ${PROJECT_SOURCE_DIR}/output/${__NETWORK_NAME__}/${__NETWORK_NAME__}.xpr
 	COMMAND ${VIVADO_BINARY} -mode batch -source ${__NETWORK_NAME__}.tcl  > ${__NETWORK_NAME__}.log
 	DEPENDS ${__ACTORS_IN_NETWORK__}
 	COMMENT "Creating Vivado project for ${__NETWORK_NAME__}"
 )
-add_custom_target(${__NETWORK_NAME__}_project ALL DEPENDS ${PROJECT_SOURCE_DIR}/output/${__NETWORK_NAME__}/${__NETWORK_NAME__}.xpr)
+add_custom_target(${__NETWORK_NAME__}_vivado_project ALL DEPENDS ${PROJECT_SOURCE_DIR}/output/${__NETWORK_NAME__}/${__NETWORK_NAME__}.xpr)
