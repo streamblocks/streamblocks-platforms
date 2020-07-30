@@ -164,6 +164,14 @@ public class VivadoHLSBackendPhase implements Phase {
 
         // -- Kernel path
         PathUtils.createDirectory(outputPath, "kernel");
+
+
+        // -- SystemC simulation
+        Path SystemCPath = PathUtils.createDirectory(targetPath, "systemc");
+        // -- SystemC source path
+        PathUtils.createDirectory(SystemCPath, "src");
+        // -- SystemC header path
+        PathUtils.createDirectory(SystemCPath, "include");
     }
 
     @Override
@@ -463,13 +471,6 @@ public class VivadoHLSBackendPhase implements Phase {
                     PathUtils.getTargetCmake(backend.context()).resolve("FindVitis.cmake"),
                     StandardCopyOption.REPLACE_EXISTING);
 
-            Files.copy(getClass().getResourceAsStream("/lib/cmake/FindSystemCLanguage.cmake"),
-                    PathUtils.getTargetCmake(backend.context()).resolve("FindSystemCLanguage.cmake"),
-                    StandardCopyOption.REPLACE_EXISTING);
-
-            Files.copy(getClass().getResourceAsStream("/lib/cmake/FindVerilator.cmake"),
-                    PathUtils.getTargetCmake(backend.context()).resolve("FindVerilator.cmake"),
-                    StandardCopyOption.REPLACE_EXISTING);
 
             // -- Input and Output Stage mem Header
             Files.copy(getClass().getResourceAsStream("/lib/hls/iostage.h"),
@@ -491,20 +492,31 @@ public class VivadoHLSBackendPhase implements Phase {
                     PathUtils.getTargetScripts(backend.context()).resolve("sdaccel.ini.in"),
                     StandardCopyOption.REPLACE_EXISTING);
 
-            // -- systemc material
-            Files.copy(getClass().getResourceAsStream("/lib/systemc/queue.h"),
-                    PathUtils.getTargetCodeGenInclude(backend.context()).resolve("queue.h"),
-                    StandardCopyOption.REPLACE_EXISTING);
-            Files.copy(getClass().getResourceAsStream("/lib/systemc/trigger.h"),
-                    PathUtils.getTargetCodeGenInclude(backend.context()).resolve("trigger.h"),
-                    StandardCopyOption.REPLACE_EXISTING);
-            Files.copy(getClass().getResourceAsStream("/lib/systemc/sim_iostage.h"),
-                    PathUtils.getTargetCodeGenInclude(backend.context()).resolve("sim_iostage.h"),
+            // -- Cmake herlpers
+            Files.copy(getClass().getResourceAsStream("/lib/cmake/Helper.cmake"),
+                    PathUtils.getTargetScripts(backend.context()).resolve("Helper.cmake.in"),
                     StandardCopyOption.REPLACE_EXISTING);
 
-            Files.copy(getClass().getResourceAsStream("/lib/systemc/debug_macros.h"),
-                    PathUtils.getTargetCodeGenInclude(backend.context()).resolve("debug_macros.h"),
-                    StandardCopyOption.REPLACE_EXISTING);
+            if(backend.context().getConfiguration().get(PlatformSettings.enableSystemC)) {
+                // -- systemc material
+                Files.copy(getClass().getResourceAsStream("/lib/systemc/queue.h"),
+                        PathUtils.getTarget(backend.context()).resolve("systemc/include/queue.h"),
+                        StandardCopyOption.REPLACE_EXISTING);
+                Files.copy(getClass().getResourceAsStream("/lib/systemc/trigger.h"),
+                        PathUtils.getTarget(backend.context()).resolve("systemc/include/trigger.h"),
+                        StandardCopyOption.REPLACE_EXISTING);
+                Files.copy(getClass().getResourceAsStream("/lib/systemc/sim_iostage.h"),
+                        PathUtils.getTarget(backend.context()).resolve("systemc/include/sim_iostage.h"),
+                        StandardCopyOption.REPLACE_EXISTING);
+
+                Files.copy(getClass().getResourceAsStream("/lib/systemc/debug_macros.h"),
+                        PathUtils.getTarget(backend.context()).resolve("systemc/include/debug_macros.h"),
+                        StandardCopyOption.REPLACE_EXISTING);
+                Files.copy(getClass().getResourceAsStream("/lib/systemc/CMakeLists.txt"),
+                        PathUtils.getTarget(backend.context()).resolve("systemc/CMakeLists.txt"),
+                        StandardCopyOption.REPLACE_EXISTING);
+            }
+
 
             // -- HLS Headers
             URL url = getClass().getResource("/lib/hls/include-tb/");

@@ -31,7 +31,7 @@ public interface Simulator {
     default void genrateSimulator(Network network) {
 
 
-        emitter().open(PathUtils.getTargetCodeGenSource(backend().context()).resolve("simulate.cpp"));
+        emitter().open(PathUtils.getTarget(backend().context()).resolve("systemc/src/simulate.cpp"));
         BufferedReader reader;
         try {
 

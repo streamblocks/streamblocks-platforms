@@ -34,7 +34,7 @@ public interface SystemCTestBench {
 
         String identifier = "NetworkTester";
         String fileId = "network_tester";
-        emitter().open(PathUtils.getTargetCodeGenInclude(backend().context()).resolve(fileId + ".h"));
+        emitter().open(PathUtils.getTarget(backend().context()).resolve("systemc/include/" + fileId + ".h"));
         emitter().emit("#ifndef __%s_H__", fileId.toUpperCase());
         emitter().emit("#define __%s_H__", fileId.toUpperCase());
         emitter().emitNewLine();
@@ -138,6 +138,9 @@ public interface SystemCTestBench {
         emitter().emit("#include <memory>");
         emitter().emit("#include <chrono>");
         emitter().emit("#include \"debug_macros.h\"");
+        emitter().emit("#if VM_TRACE");
+        emitter().emit("#include \"verilated_vcd_sc.h\"");
+        emitter().emit("#endif");
         emitter().emit("#include \"%s.h\"", network.getIdentifier());
         emitter().emitNewLine();
         emitter().emitNewLine();
@@ -164,10 +167,16 @@ public interface SystemCTestBench {
         emitter().emit("const sc_time clock_period;");
         emitter().emit("std::size_t total_ticks;");
         // -- vcd trace file
+        emitter().emit("// -- network trace file");
+        emitter().emit("int trace_level;");
         emitter().emit("sc_trace_file *vcd_dump;");
         // -- time tracking
+        emitter().emit("// -- real start time of simulation");
         emitter().emit("std::chrono::time_point<std::chrono::high_resolution_clock> zero_time;");
-
+        //-- internal actor traces
+        emitter().emit("#if VM_TRACE");
+        emitter().emit("VerilatedVcdSc *actor_vcd_trace;");
+        emitter().emit("#endif");
         emitter().emitNewLine();
     }
 
@@ -179,7 +188,31 @@ public interface SystemCTestBench {
         emitter().emit("void reset() {");
         {
             emitter().increaseIndentation();
+            // -- allocate the trace dump file for actors
+            emitter().emit("#if VM_TRACE");
+            emitter().emit("if (trace_level > 0)");
+            emitter().emit("\tVerilated::traceEverOn(true);");
+            emitter().emit("#endif");
+            emitter().emitNewLine();
+            emitter().emit("sc_start(clock_period);");
+            emitter().emit("#ifdef VM_TRACE");
+            emitter().emit("actor_vcd_trace = new VerilatedVcdSc;");
 
+            emitter().emit("// -- register all the actors to be traced");
+            emitter().emit("if(trace_level > 0) {");
+            {
+                emitter().increaseIndentation();
+
+                network.getInstances().forEach(inst ->
+                        emitter().emit("inst_%s->%s->trace(actor_vcd_trace, trace_level);",
+                                network.getIdentifier(), inst.getInstanceName())
+                );
+                emitter().emit("actor_vcd_trace->open(\"vlt_dump.vcd\");");
+                emitter().decreaseIndentation();
+
+            }
+            emitter().emit("}");
+            emitter().emit("#endif");
             emitter().emit("this->zero_time = std::chrono::high_resolution_clock::now();");
             emitter().emit("%s.write(%s);", network.getApControl().getResetSignal().getName(),
                     LogicValue.Value.SC_LOGIC_0);
@@ -279,6 +312,7 @@ public interface SystemCTestBench {
             {
                 emitter().increaseIndentation();
                 emitter().emit("sc_module(name),");
+                emitter().emit("trace_level(trace_level),");
                 emitter().emit("clock_period(clock_period),");
                 emitter().emit("%s(\"%1$s\", clock_period), ", network.getApControl().getClockSignal().getName());
                 emitter().emit("%s(\"%1$s\", %s) {", network.getApControl().getStartSignal().getName(),
@@ -361,6 +395,7 @@ public interface SystemCTestBench {
                 emitter().decreaseIndentation();
             }
             emitter().emit("}");
+
             emitter().emitNewLine();
             emitter().decreaseIndentation();
         }
