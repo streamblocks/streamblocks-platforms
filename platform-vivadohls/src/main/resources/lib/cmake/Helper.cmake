@@ -86,6 +86,7 @@ if (KERNEL)
 	file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/xclbin)
 	set(TARGET "hw" CACHE STRING "Vitis/SDAccel TARGET : hw_emu, hw")
 
+
 	if(USE_VITIS)
 		set(FPGA_NAME "xczu3eg-sbva484-1-e" CACHE STRING "Name of Xilinx FPGA, e.g \"xcku115-flvb2104-2-e\", \"xczu3eg-sbva484-1-e\",..")
 		set(PLATFORM "ultra96_base" CACHE STRING "Supported platform name, e.g \"xilinx_kcu1500_dynamic_5_0\", \"zcu102_base\", \"ultra96_base\",... ")
@@ -237,11 +238,21 @@ if (KERNEL)
 
 # -- --------------------------------------------------------------------------
 # -- Kernel binary (XCLBIN file)
-# -- --------------------------------------------------------------------------
+
+	# -- Get the number of processors
+	include(ProcessorCount)
+	ProcessorCount(__CORE_COUNT__)
+	if(NOT __CORE_COUNT__ EQUAL 0)
+		set(XCLBIN_JOBS_FLAG "-j ${__CORE_COUNT__}" CACHE STRING "Number of parallel jobs to build the FPGA binary")
+		message(STATUS "Detected ${__CORE_COUNT__} cores. ${XCLBIN_COMPILER} will be called with ${XCLBIN_JOBS_FLAG}")
+	else()
+		set(XCLBIN_JOBS_FLAG "" CACHE STRING "Number of parallel jobs to build the FPGA binary")
+	endif()
+
 	add_custom_command(
 		OUTPUT  ${CMAKE_SOURCE_DIR}/bin/xclbin/${__NETWORK_NAME__}_kernel.${TARGET}.${PLATFORM}.xclbin
 		COMMAND ${XCLBIN_COMPILER} -g -t ${TARGET} --platform ${PLATFORM} --kernel_frequency ${KERNEL_FREQ}  --save-temps
-			${XOCC_DEBUG} ${XOCC_PROFILE}
+			${XOCC_DEBUG} ${XOCC_PROFILE} ${XCLBIN_JOBS_FLAG}
 			-lo ${CMAKE_SOURCE_DIR}/bin/xclbin/${__NETWORK_NAME__}_kernel.${TARGET}.${PLATFORM}.xclbin
 			${CMAKE_CURRENT_BINARY_DIR}/xclbin/${__NETWORK_NAME__}_kernel.${TARGET}.${PLATFORM}.xo
 			> ${__NETWORK_NAME__}_kernel_xclbin.log
