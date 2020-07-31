@@ -34,7 +34,7 @@ import java.util.stream.Collectors;
 
 @Module
 public interface Instances {
-    int MAX_STATES_FOR_QUICK_JUMP_CONTROLLER = 1200;
+    int MAX_STATES_FOR_QUICK_JUMP_CONTROLLER = 200;
 
     @Binding(BindingKind.INJECTED)
     VivadoHLSBackend backend();
