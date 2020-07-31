@@ -130,7 +130,8 @@ endif()
 
 set(HLS_SOURCE_PATH ${PROJECT_SOURCE_DIR}/code-gen/src)
 set(HLS_HEADER_PATH ${PROJECT_SOURCE_DIR}/code-gen/include)
-
+set(HLS_TESTER_SOURCE_PATH ${PROJECT_SOURCE_DIR}/code-gen/src-tb)
+set(HLS_TESTER_HEADER_PATH ${PROJECT_SOURCE_DIR}/code-gen/include-tb)
 
 # -- --------------------------------------------------------------------------
 # -- Helper macro to synthesize actor using vivado hls
@@ -177,6 +178,33 @@ macro(synthesize_io ACTOR)
 
 endmacro()
 
+# -- --------------------------------------------------------------------------
+# -- Helper macro to for C++ simulation
+# -- --------------------------------------------------------------------------
+
+function(actor_tester ACTOR)
+
+    add_executable(${ACTOR}_tester ${HLS_SOURCE_PATH}/${ACTOR}.cpp ${HLS_TESTER_SOURCE_PATH}/tb_${ACTOR}.cpp)
+    target_include_directories(${ACTOR}_tester PRIVATE ${HLS_HEADER_PATH} ${HLS_TESTER_HEADER_PATH})
+
+endfunction()
+
+# -- get tester for each actor and then the network
+set(__NETWORK_TESTER_SOURCES__
+        ${HLS_TESTER_SOURCE_PATH}/tb_{__NETWORK_NAME__}.cpp
+)
+foreach(__ACTOR__ ${__ACTORS_IN_NETWORK__})
+    actor_tester(${__ACTOR__})
+
+    set(__NETWORK_TESTER_SOURCES__
+        ${__NETWORK_TESTER_SOURCES__}
+        ${HLS_SOURCE_PATH}/${ACTOR}.cpp
+    )
+endforeach()
+
+add_executable(${__NETWORK_NAME__}_tester ${__NETWORK_TESTER_SOURCES__})
+target_include_directories(${__NETWORK_NAME__}_tester PRIVATE ${HLS_HEADER_PATH} ${HLS_TESTER_HEADER_PATH})
+
 
 # -- --------------------------------------------------------------------------
 # -- Synthesis targets for actors
@@ -184,8 +212,6 @@ endmacro()
 foreach(__ACTOR__ ${__ACTORS_IN_NETWORK__})
 	synthesize_actor(${__ACTOR__})
 endforeach()
-
-
 
 
 if (KERNEL)

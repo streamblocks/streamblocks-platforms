@@ -32,7 +32,9 @@ macro(verilate_actor ACTOR)
   # invisible to the file scope
   set(${ACTOR}_VERILATED_SOURCES
     "${VERILATOR_GEN_DIR}/${ACTOR}_verimodule.cpp"
+    "${VERILATOR_GEN_DIR}/${ACTOR}_verimodule__1.cpp"
     "${VERILATOR_GEN_DIR}/${ACTOR}_verimodule__Slow.cpp"
+    "${VERILATOR_GEN_DIR}/${ACTOR}_verimodule__1__Slow.cpp"
     "${VERILATOR_GEN_DIR}/${ACTOR}_verimodule__Syms.cpp"
   )
 
@@ -58,6 +60,20 @@ macro(verilate_actor ACTOR)
   endif()
 
 
+  # -- Phony target. A hack to get around the fact that we do not know what files verilator is gonna generate
+  add_custom_target(
+    ${ACTOR}_verimodule_phony
+    DEPENDS ${ACTOR}
+    COMMENT "Phony Verilating ${ACTOR} "
+  )
+
+  add_custom_command(
+    TARGET ${ACTOR}_verimodule_phony PRE_BUILD
+    COMMAND touch ${${ACTOR}_VERILATED_SOURCES} ${ACTOR}_phony_file.phony
+    DEPENDS ${ACTOR}
+  )
+
+  # -- Real targets
   add_custom_command(
     OUTPUT ${${ACTOR}_VERILATED_SOURCES} ${${ACTOR}_VERILATED_HEADERS}
     COMMAND ${VERILATOR_BIN}
@@ -66,15 +82,16 @@ macro(verilate_actor ACTOR)
       --prefix ${ACTOR}_verimodule
       -y ${VERILOG_GEN_DIR}/${ACTOR}/solution/syn/verilog
       ${${ACTOR}_VERILOG_SOURCE} 2> ${ACTOR}_verimodule.log
-    DEPENDS ${ACTOR}
+    DEPENDS ${ACTOR} ${ACTOR}_verimodule_phony
     COMMENT "Verilating ${ACTOR}"
     VERBATIM
   )
 
-    add_custom_target(
-      ${ACTOR}_verimodule ALL
-      DEPENDS ${${ACTOR}_VERILATED_SOURCES} ${${ACTOR}_VERILATED_HEADERS}
-    )
+  add_custom_target(
+    ${ACTOR}_verimodule ALL
+    DEPENDS ${${ACTOR}_VERILATED_SOURCES} ${${ACTOR}_VERILATED_HEADERS} ${ACTOR}_verimodule_phony
+  )
+
 
 
 endmacro()
