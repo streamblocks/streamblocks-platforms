@@ -11,7 +11,8 @@ set(art_native_source
     src/art_Sink_8bit_txt.cc
     src/art_Sink_16bit_txt.cc
     src/art_print.cc
-    src/display.cc)
+    src/display.cc
+    src/art_utils.cc)
 
 set(art_native_header
         include/display.h)

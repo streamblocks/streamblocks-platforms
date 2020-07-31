@@ -18,7 +18,7 @@
         <module>platform-vivadohls</module>
         <module>platform-node</module>
         <module>platform-opalkelly</module>
-        <module>platform-partition</module>
+
     </modules>
 
     <properties>
