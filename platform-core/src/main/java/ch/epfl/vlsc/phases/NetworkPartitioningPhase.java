@@ -145,11 +145,11 @@ public class NetworkPartitioningPhase implements Phase {
                                                          Context context) throws CompilationException {
 
         Network network = task.getNetwork();
-        Map<PartitionKind, List<Instance>> partToInst = new HashMap();
-        Map<Instance, PartitionKind> instToPart = new HashMap();
-        Map<PartitionKind, List<Connection>> partToCon = new HashMap();
-        Map<PartitionKind, List<PortDecl>> partToInputs = new HashMap();
-        Map<PartitionKind, List<PortDecl>> partToOutputs = new HashMap();
+        Map<PartitionKind, List<Instance>> partToInst = new HashMap<>();
+        Map<Instance, PartitionKind> instToPart = new HashMap<>();
+        Map<PartitionKind, List<Connection>> partToCon = new HashMap<>();
+        Map<PartitionKind, List<PortDecl>> partToInputs = new HashMap<>();
+        Map<PartitionKind, List<PortDecl>> partToOutputs = new HashMap<>();
 
         List<Connection> connections =
                 network.getConnections()
