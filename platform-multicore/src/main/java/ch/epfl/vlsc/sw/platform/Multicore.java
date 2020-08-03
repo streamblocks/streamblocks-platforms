@@ -26,6 +26,7 @@ public class Multicore implements Platform {
             .addAll(Compiler.frontendPhases())
             .addAll(Compiler.templatePhases())
             .addAll(CommonPhases.networkElaborationPhases)
+            .add(new VerilogNameCheckerPhase())
             .addAll(Compiler.nameAndTypeAnalysis())
             .add(new XcfAnnotationPhase())
             .addAll(CommonPhases.softwarePartitioningPhases)

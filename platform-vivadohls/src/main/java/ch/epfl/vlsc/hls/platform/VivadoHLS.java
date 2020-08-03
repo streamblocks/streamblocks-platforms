@@ -50,19 +50,20 @@ public class VivadoHLS implements Platform {
                 new InternalizeBuffersPhase(),
                 new RemoveUnusedConditionsPhase(),
                 new LiftScopesPhase()
-                //,new LiftExprInputFromScopesPhase()
         );
     }
 
 
     private static final List<Phase> phases = ImmutableList.<Phase>builder()
             .addAll(Compiler.frontendPhases())
+            .addAll(Compiler.templatePhases())
             .add(new RecursiveTypeDetectionPhase())
             .addAll(CommonPhases.networkElaborationPhases)
+            .add(new VerilogNameCheckerPhase())
+            .addAll(Compiler.nameAndTypeAnalysis())
             .add(new XcfAnnotationPhase())
             .addAll(CommonPhases.hardwarePartitioningPhases)
             .addAll(postPartitionNetworkElaborationPhases())
-            .addAll(Compiler.nameAndTypeAnalysis())
             .addAll(actorMachinePhases())
             .add(new RemoveUnusedEntityDeclsPhase())
             .add(new VivadoHLSBackendPhase())
