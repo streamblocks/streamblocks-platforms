@@ -198,7 +198,7 @@ foreach(__ACTOR__ ${__ACTORS_IN_NETWORK__})
 
     set(__NETWORK_TESTER_SOURCES__
         ${__NETWORK_TESTER_SOURCES__}
-        ${HLS_SOURCE_PATH}/${ACTOR}.cpp
+        ${HLS_SOURCE_PATH}/${__ACTOR__}.cpp
     )
 endforeach()
 
