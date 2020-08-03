@@ -191,7 +191,7 @@ endfunction()
 
 # -- get tester for each actor and then the network
 set(__NETWORK_TESTER_SOURCES__
-        ${HLS_TESTER_SOURCE_PATH}/tb_{__NETWORK_NAME__}.cpp
+        ${HLS_TESTER_SOURCE_PATH}/tb_${__NETWORK_NAME__}.cpp
 )
 foreach(__ACTOR__ ${__ACTORS_IN_NETWORK__})
     actor_tester(${__ACTOR__})
