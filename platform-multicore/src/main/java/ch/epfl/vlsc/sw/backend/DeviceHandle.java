@@ -1034,7 +1034,7 @@ public interface DeviceHandle {
             bufferSize = backend().context().getConfiguration().get(PlatformSettings.defaultBufferDepth);
         }
         emitter().emit("#define %s\t\t\t4096", memAlignment());
-        emitter().emit("#define BUFFER_SIZE (%d)", bufferSize);
+
         emitter().emit("#define NUM_INPUTS\t\t\t%d", entity.getInputPorts().size());
         emitter().emit("#define NUM_OUTPUTS\t\t\t%s", entity.getOutputPorts().size());
         emitter().emitNewLine();
