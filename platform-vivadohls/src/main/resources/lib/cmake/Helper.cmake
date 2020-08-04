@@ -297,8 +297,8 @@ if (KERNEL)
 		set(XCLBIN_JOBS_FLAG "" CACHE STRING "Number of parallel jobs to build the FPGA binary")
 	endif()
 
-	add_custom_target(${CMAKE_PROJECT_NAME}_kernel_xclbin ALL
-		DEPENDS ${CMAKE_SOURCE_DIR}/bin/xclbin/${CMAKE_PROJECT_NAME}_kernel.${TARGET}.${PLATFORM}.xclbin
+	add_custom_target(${__NETWORK_NAME__}_kernel_xclbin ALL
+		DEPENDS ${CMAKE_SOURCE_DIR}/bin/xclbin/${__NETWORK_NAME__}_kernel.${TARGET}.${PLATFORM}.xclbin
 	)
 
 

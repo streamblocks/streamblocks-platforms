@@ -10,10 +10,7 @@ import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.cal.CalActor;
-import se.lth.cs.tycho.ir.expr.ExprBinaryOp;
-import se.lth.cs.tycho.ir.expr.ExprInput;
-import se.lth.cs.tycho.ir.expr.ExprLiteral;
-import se.lth.cs.tycho.ir.expr.Expression;
+import se.lth.cs.tycho.ir.expr.*;
 import se.lth.cs.tycho.ir.stmt.*;
 import se.lth.cs.tycho.ir.stmt.lvalue.LValue;
 import se.lth.cs.tycho.ir.stmt.lvalue.LValueVariable;
@@ -175,7 +172,7 @@ public interface Statements {
     default void execute(StmtAssignment assign) {
         Type type = types().type(assign.getLValue());
         String lvalue = lvalues().lvalue(assign.getLValue());
-        if (type instanceof ListType && assign.getLValue() instanceof LValueVariable) {
+        if (assign.getExpression() instanceof ExprComprehension) {
             expressioneval().evaluate(assign.getExpression());
         } else {
             Type t = types().type(assign.getExpression());

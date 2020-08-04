@@ -17,7 +17,7 @@ public class CommonPhases {
 
 
     public static final ImmutableList<Phase> partitioningPhases = ImmutableList.of(
-            new VerilogNameCheckerPhase(),
+           // new VerilogNameCheckerPhase(),
             new NetworkPartitioningPhase(),
             new AnnotateExternalMemories()
     );
