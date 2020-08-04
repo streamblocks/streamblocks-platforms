@@ -1014,10 +1014,12 @@ public interface PLink {
                 String type = typeseval().type(types().declaredPortType(port));
                 emitter().emit("if (thisActor->%s_size[0] > 0) {", port.getName());
                 {
+                    emitter().increaseIndentation();
                     emitter().emit("ART_ACTION_ENTER(CONSUME, 1);");
                     emitter().emit("pinConsumeRepeat_%s(IN%d_%s, thisActor->%3$s_size[0]);",
                             type, entity.getInputPorts().indexOf(port), port.getName());
                     emitter().emit("ART_ACTION_EXIT(CONSUME, 1);");
+                    emitter().decreaseIndentation();
                 }
                 emitter().emit("}");
                 emitter().emit("thisActor->total_consumed += thisActor->%s_size[0];", port.getName());
