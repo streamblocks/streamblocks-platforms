@@ -1012,9 +1012,13 @@ public interface PLink {
             emitter().emit("// -- Consume on behalf of device");
             for (PortDecl port : entity.getInputPorts()) {
                 String type = typeseval().type(types().declaredPortType(port));
-                emitter().emit("if (thisActor->%s_size[0] > 0)", port.getName());
-                emitter().emit("\tpinConsumeRepeat_%s(IN%d_%s, thisActor->%3$s_size[0]);",
-                        type, entity.getInputPorts().indexOf(port), port.getName());
+                emitter().emit("if (thisActor->%s_size[0] > 0) {", port.getName());
+                {
+                    emitter().emit("ART_ACTION_ENTER(CONSUME, 1);");
+                    emitter().emit("pinConsumeRepeat_%s(IN%d_%s, thisActor->%3$s_size[0]);",
+                            type, entity.getInputPorts().indexOf(port), port.getName());
+                    emitter().emit("ART_ACTION_EXIT(CONSUME, 1);");
+                }
                 emitter().emit("thisActor->total_consumed += thisActor->%s_size[0];", port.getName());
                 emitter().emit("thisActor->total_request += thisActor->%s_request_size;", port.getName());
             }
@@ -1029,13 +1033,13 @@ public interface PLink {
             // -- check for potential deadlock
             getDeadlockCheck("thisActor->total_produced", "thisActor->total_consumed", "thisActor->total_request");
 
-            emitter().emit("if (thisActor->total_produced > 0 || thisActor->total_consumed > 0) {");
+            emitter().emit("if (thisActor->total_produced > 0) {");
             {
                 emitter().increaseIndentation();
 
-                emitter().emit("ART_ACTION_ENTER(RX, 1);");
+                emitter().emit("ART_ACTION_ENTER(RX, 2);");
 
-                emitter().emit("ART_ACTION_EXIT(RX, 1);");
+                emitter().emit("ART_ACTION_EXIT(RX, 2);");
                 emitter().emit("thisActor->program_counter = 3;");
                 emitter().emit("goto WRITE;");
 
@@ -1045,7 +1049,8 @@ public interface PLink {
             {
                 emitter().increaseIndentation();
                 emitter().emit("thisActor->program_counter = 0;");
-                emitter().emit("goto YIELD;");
+                emitter().emit("// Check again, maybe there is some data available now,");
+                emitter().emit("goto CHECK;");
                 emitter().decreaseIndentation();
             }
             emitter().emit("}");
@@ -1055,7 +1060,7 @@ public interface PLink {
         emitter().emit("WRITE: {// -- retry reading");
         {
             emitter().increaseIndentation();
-            emitter().emit("ART_ACTION_ENTER(WRITE, 2);");
+
             emitter().emit("// -- wait for read transfer to complete");
             emitter().emit("%s(&thisActor->dev);", getMethod(handle, "waitForReadBuffers"));
             emitter().emit("uint32_t done_reading = 0;");
@@ -1080,12 +1085,12 @@ public interface PLink {
                     emitter().emit("if (%s > 0) {", toWrite);
                     {
                         emitter().increaseIndentation();
-                        emitter().emit("ART_ACTION_ENTER(WRITE, 2);");
+                        emitter().emit("ART_ACTION_ENTER(WRITE, 3);");
 
                         emitter().emit("pinWriteRepeat_%s(%s, %s, %s);", type, outputPort, offsetBuffer,
                                 toWrite);
 
-                        emitter().emit("ART_ACTION_EXIT(WRITE, 2);");
+                        emitter().emit("ART_ACTION_EXIT(WRITE, 3);");
                         emitter().decreaseIndentation();
                     }
                     emitter().emit("}");
@@ -1135,7 +1140,7 @@ public interface PLink {
                 emitter().decreaseIndentation();
             }
             emitter().emit("}");
-            emitter().emit("ART_ACTION_EXIT(WRITE, 2);");
+
             emitter().emit("goto YIELD;");
             emitter().decreaseIndentation();
         }
