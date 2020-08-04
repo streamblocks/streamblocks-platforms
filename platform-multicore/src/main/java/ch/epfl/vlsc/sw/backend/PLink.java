@@ -1019,6 +1019,7 @@ public interface PLink {
                             type, entity.getInputPorts().indexOf(port), port.getName());
                     emitter().emit("ART_ACTION_EXIT(CONSUME, 1);");
                 }
+                emitter().emit("}");
                 emitter().emit("thisActor->total_consumed += thisActor->%s_size[0];", port.getName());
                 emitter().emit("thisActor->total_request += thisActor->%s_request_size;", port.getName());
             }
