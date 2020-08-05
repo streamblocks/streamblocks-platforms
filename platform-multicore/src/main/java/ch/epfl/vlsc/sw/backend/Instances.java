@@ -610,14 +610,7 @@ public interface Instances {
         for (Scope scope : am.getScopes()) {
             if (scope.getDeclarations().size() > 0 || scope.isPersistent()) {
                 if (am.getScopes().indexOf(scope) != 0) {
-                    emitter().emit("#ifndef TRACE_TURNUS");
                     scope(instanceName, am, scope);
-                    emitter().emit("#else");
-                    backend().profilingbox().set(true);
-                    scope(instanceName, am, scope);
-                    backend().profilingbox().clear();
-                    emitter().emit("#endif");
-                    emitter().emitNewLine();
                 }
             }
         }
@@ -638,23 +631,13 @@ public interface Instances {
                 String t = backend().callables().mangle(type).encode();
                 emitter().emit("thisActor->%s = (%s) { *%s, NULL };", variableName, t, wrapperName);
             } else if (var.getValue() != null) {
-                emitter().emit("{");
-                emitter().increaseIndentation();
-                if(!backend().profilingbox().isEmpty()){
-                    emitter().emit("OpCounters *__opCounters = new OpCounters();");
-                }
-
-                if (var.getValue() instanceof ExprInput) {
-                    expressioneval().evaluateWithLvalue("thisActor->" + backend().variables().declarationName(var), (ExprInput) var.getValue());
-                } else {
-                    statements().copy(types().declaredType(var), "thisActor->" + backend().variables().declarationName(var), types().type(var.getValue()), expressioneval().evaluate(var.getValue()));
-                }
-
-                if(!backend().profilingbox().isEmpty()){
-                    emitter().emit("delete __opCounters;");
-                }
-                emitter().decreaseIndentation();
-                emitter().emit("}");
+                emitter().emit("#ifndef TRACE_TURNUS");
+                evaluateVarInit(var);
+                emitter().emit("#else");
+                backend().profilingbox().set(true);
+                evaluateVarInit(var);
+                backend().profilingbox().clear();
+                emitter().emit("#endif");
             }
         }
         emitter().decreaseIndentation();
@@ -664,6 +647,26 @@ public interface Instances {
     /*
      * Conditions
      */
+
+    default void evaluateVarInit(VarDecl var){
+        emitter().emit("{");
+        emitter().increaseIndentation();
+        if (!backend().profilingbox().isEmpty()) {
+            emitter().emit("OpCounters *__opCounters = new OpCounters();");
+        }
+
+        if (var.getValue() instanceof ExprInput) {
+            expressioneval().evaluateWithLvalue("thisActor->" + backend().variables().declarationName(var), (ExprInput) var.getValue());
+        } else {
+            statements().copy(types().declaredType(var), "thisActor->" + backend().variables().declarationName(var), types().type(var.getValue()), expressioneval().evaluate(var.getValue()));
+        }
+
+        if (!backend().profilingbox().isEmpty()) {
+            emitter().emit("delete __opCounters;");
+        }
+        emitter().decreaseIndentation();
+        emitter().emit("}");
+    }
 
     default void conditions(String instanceName, ActorMachine am) {
 
@@ -680,7 +683,8 @@ public interface Instances {
             emitter().emitNewLine();
         }
     }
-    default void condition(String instanceName, ActorMachine am, Condition condition){
+
+    default void condition(String instanceName, ActorMachine am, Condition condition) {
         // -- Actor Instance Name
         String actorInstanceName = "ActorInstance_" + instanceName;
         String conditionName = instanceName + "_condition_" + am.getConditions().indexOf(condition);
@@ -833,20 +837,14 @@ public interface Instances {
                     } else if (var.getValue() != null) {
                         if (var.getValue() instanceof ExprLambda || var.getValue() instanceof ExprProc) {
                             // -- Do nothing
-                        } else if (var.getValue() instanceof ExprInput) {
-                            emitter().emit("{");
-                            emitter().increaseIndentation();
-                            expressioneval().evaluateWithLvalue("thisActor->" + backend().variables().declarationName(var), (ExprInput) var.getValue());
-                            emitter().decreaseIndentation();
-                            emitter().emit("}");
                         } else {
-                            emitter().emit("{");
-                            emitter().increaseIndentation();
-                            backend().memoryStack().enterScope();
-                            statements().copy(types().declaredType(var), "thisActor->" + backend().variables().declarationName(var), types().type(var.getValue()), expressioneval().evaluate(var.getValue()));
-                            backend().memoryStack().exitScope();
-                            emitter().decreaseIndentation();
-                            emitter().emit("}");
+                            emitter().emit("#ifndef TRACE_TURNUS");
+                            evaluateVarInit(var);
+                            emitter().emit("#else");
+                            backend().profilingbox().set(true);
+                            evaluateVarInit(var);
+                            backend().profilingbox().clear();
+                            emitter().emit("#endif");
                         }
                     }
                 }

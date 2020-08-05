@@ -170,7 +170,7 @@ void jsonTraceFiring(gzFile *f, AbstractActorInstance *instance, unsigned int ac
 
         int needsComma = 0;
 
-        for (j = 0; j < numOutputs; ++j) {
+        for (j = 0; j < numStateVariables; ++j) {
             int cns = actions[actionId].uses[j];
             if (cns) {
                 if (needsComma) {
@@ -202,7 +202,7 @@ void jsonTraceFiring(gzFile *f, AbstractActorInstance *instance, unsigned int ac
 
         int needsComma = 0;
 
-        for (j = 0; j < numOutputs; ++j) {
+        for (j = 0; j < numStateVariables; ++j) {
             int cns = actions[actionId].defines[j];
             if (cns) {
                 if (needsComma) {

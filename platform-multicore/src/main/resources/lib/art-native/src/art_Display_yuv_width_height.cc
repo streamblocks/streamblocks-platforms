@@ -208,9 +208,9 @@ ART_ACTION_SCHEDULER(art_Display_yuv_width_height_action_scheduler) {
                 while (ptr < end) {
                     /*** read action ***/
 
-                    ART_ACTION_ENTER(read, 0);
+                    ART_ACTION_ENTER(read, 1);
                     pinReadRepeat_int32_t(IN0_In, ptr, 64);
-                    ART_ACTION_EXIT(read, 0);
+                    ART_ACTION_EXIT(read, 1);
                     ptr += 64;
                 }
 
