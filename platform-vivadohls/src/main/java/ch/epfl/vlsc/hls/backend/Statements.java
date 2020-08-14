@@ -66,13 +66,22 @@ public interface Statements {
      */
 
     default void execute(StmtConsume consume) {
-        if (consume.getNumberOfTokens() > 1) {
-            emitter().emit("pinConsumeRepeat(%s, %d);", consume.getPort().getName(), consume.getNumberOfTokens());
 
+        if (consume.getNumberOfTokens() > 1) {
+            if (backend().complexReadBox().get())
+                emitter().emit("pinConsumeRepeatComplex(%s, %d);", consume.getPort().getName(), consume.getNumberOfTokens());
         } else {
-            emitter().emit("pinConsume(%s);", consume.getPort().getName());
+            if (backend().complexReadBox().get()) {
+                emitter().emit("pinConsumeComplex(%s);", consume.getPort().getName());
+            } else {
+                // -- Check if the consume is needed nevertheless
+                if(!backend().instance().hasRead().get(consume.getPort())){
+                    emitter().emit("pinConsume(%s, %s);", consume.getPort().getName(), backend().channelsutils().inputPortTypeSize(consume.getPort()));
+                }
+            }
         }
     }
+
 
     /*
      * Statement Read
@@ -112,12 +121,20 @@ public interface Statements {
     default void exprInputRead(String lvalue, ExprInput input) {
         if (input.hasRepeat()) {
             if (input.getOffset() == 0) {
-                emitter().emit("pinReadRepeat(%s, %s, %s);", channelsutils().definedInputPort(input.getPort()), lvalue, input.getRepeat());
+                if (backend().complexReadBox().get())
+                    emitter().emit("pinReadRepeatComplex(%s, %s, %s);", channelsutils().definedInputPort(input.getPort()), lvalue, input.getRepeat());
+                else
+                    emitter().emit("pinReadRepeat(%s, %s, %s);", channelsutils().definedInputPort(input.getPort()), lvalue, input.getRepeat());
             } else {
                 throw new RuntimeException("not implemented");
             }
         } else {
-            emitter().emit("pinRead(%s, %s);", channelsutils().definedInputPort(input.getPort()), lvalue);
+            if (backend().complexReadBox().get()) {
+                emitter().emit("pinReadComplex(%s, %s);", channelsutils().definedInputPort(input.getPort()), lvalue);
+            } else {
+                emitter().emit("pinRead(%s, %s);", channelsutils().definedInputPort(input.getPort()), lvalue);
+                backend().instance().hasRead().put(input.getPort(), true);
+            }
             /*
             if (input.getOffset() == 0) {
                 emitter().emit("pinRead(%s, %s);", channelsutils().definedInputPort(input.getPort()), lvalue);

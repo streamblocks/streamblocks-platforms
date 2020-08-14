@@ -8,6 +8,7 @@ import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.GlobalNames;
 import se.lth.cs.tycho.attribute.Types;
+import se.lth.cs.tycho.ir.IRNode;
 import se.lth.cs.tycho.ir.Parameter;
 import se.lth.cs.tycho.ir.Port;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
@@ -29,6 +30,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 
@@ -72,6 +74,13 @@ public interface Instances {
         GlobalEntityDecl entityDecl = globalnames().entityDecl(instance.getEntityName(), true);
         Entity entity = entityDecl.getEntity();
 
+        // -- Check complex read
+        if (entity instanceof ActorMachine) {
+            ActorMachine actor = (ActorMachine) entity;
+            boolean complexRead = checkReadComplexity(actor.getScopes());
+            backend().complexReadBox().set(complexRead);
+        }
+
         // -- Add entity to box
         backend().entitybox().set(entity);
 
@@ -82,6 +91,7 @@ public interface Instances {
         generateHeader(instance);
 
         // -- Clear boxes
+        backend().complexReadBox().clear();
         backend().entitybox().clear();
         backend().instancebox().clear();
     }
@@ -93,6 +103,7 @@ public interface Instances {
 
         // -- Entity
         Entity entity = backend().entitybox().get();
+
 
         // -- Instance Name
         String instanceName = instance.getInstanceName();
@@ -382,12 +393,13 @@ public interface Instances {
             emitter().emit("unsigned int __ret;");
             emitter().emitNewLine();
 
-            if (!actor.getInputPorts().isEmpty()) {
-                emitter().emit("// -- PinConsume");
-                for (PortDecl port : actor.getInputPorts()) {
-                    emitter().emit("uint32_t __consume_%s;", port.getName());
+            if (backend().complexReadBox().get())
+                if (!actor.getInputPorts().isEmpty()) {
+                    emitter().emit("// -- PinConsume");
+                    for (PortDecl port : actor.getInputPorts()) {
+                        emitter().emit("uint32_t __consume_%s;", port.getName());
+                    }
                 }
-            }
 
             if (!actor.getValueParameters().isEmpty()) {
                 emitter().emit("// -- Parameters");
@@ -489,13 +501,13 @@ public interface Instances {
                     throw new RuntimeException(String.format("Could not assign to %s. Candidates: {%s}.", par.getName(), String.join(", ", instance.getValueParameters().map(Parameter::getName))));
                 }
             }
-
-            if (!actor.getInputPorts().isEmpty()) {
-                emitter().emit("// -- PinConsume");
-                for (PortDecl port : actor.getInputPorts()) {
-                    emitter().emit("__consume_%s = 0;", port.getName());
+            if (backend().complexReadBox().get())
+                if (!actor.getInputPorts().isEmpty()) {
+                    emitter().emit("// -- PinConsume");
+                    for (PortDecl port : actor.getInputPorts()) {
+                        emitter().emit("__consume_%s = 0;", port.getName());
+                    }
                 }
-            }
 
 
             emitter().decreaseIndentation();
@@ -655,9 +667,9 @@ public interface Instances {
 
     default String scopeIO(String instanceName, Scope scope) {
         List<String> arguments = new ArrayList<>();
-        for(VarDecl decl : scope.getDeclarations()){
-            if(decl.getValue() != null){
-                if(decl.getValue() instanceof ExprInput){
+        for (VarDecl decl : scope.getDeclarations()) {
+            if (decl.getValue() != null) {
+                if (decl.getValue() instanceof ExprInput) {
                     ExprInput input = (ExprInput) decl.getValue();
                     Port port = input.getPort();
                     String arg = String.format("hls::stream< %s > &%s", backend().typeseval().type(backend().types().portType(port)), port.getName());
@@ -673,16 +685,16 @@ public interface Instances {
 
     default String scopeArguments(Scope scope) {
         List<String> arguments = new ArrayList<>();
-        for(VarDecl decl : scope.getDeclarations()){
-            if(decl.getValue() != null){
-                if(decl.getValue() instanceof ExprInput){
+        for (VarDecl decl : scope.getDeclarations()) {
+            if (decl.getValue() != null) {
+                if (decl.getValue() instanceof ExprInput) {
                     ExprInput input = (ExprInput) decl.getValue();
                     arguments.add(input.getPort().getName());
                 }
             }
         }
         arguments.add("io");
-        return  String.join(", ", arguments);
+        return String.join(", ", arguments);
     }
 
     // ------------------------------------------------------------------------
@@ -757,7 +769,16 @@ public interface Instances {
     // ------------------------------------------------------------------------
     // -- Transitions
 
+    @Binding(BindingKind.LAZY)
+    default Map<Port, Boolean> hasRead() {
+        return new HashMap<>();
+    }
+
     default void transition(String instanceName, Transition transition, int index) {
+        for(Port port : transition.getInputRates().keySet()){
+            hasRead().put(port, false);
+        }
+
         // -- Actor Instance Name
         emitter().emit("%s{", transitionPrototype(instanceName, transition, index, true));
         emitter().emit("#pragma HLS INLINE");
@@ -769,6 +790,7 @@ public interface Instances {
             emitter().decreaseIndentation();
         }
         emitter().emit("}");
+        hasRead().clear();
         emitter().emitNewLine();
     }
 
@@ -847,6 +869,23 @@ public interface Instances {
                 }
             }
         }
+    }
+
+    default boolean checkReadComplexity(List<Scope> scopes) {
+        for (Scope scope : scopes) {
+            for (VarDecl decl : scope.getDeclarations()) {
+                if (decl.getValue() != null) {
+                    if (decl.getValue() instanceof ExprInput) {
+                        ExprInput input = (ExprInput) decl.getValue();
+                        if (input.hasRepeat()) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 
 }

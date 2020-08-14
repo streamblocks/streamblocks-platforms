@@ -69,10 +69,15 @@ public interface Globals {
                 "}\n");
 
         // -- PinRead
-        emitter().emit("#define pinRead(NAME, value) \\");
+        emitter().emit("#define pinReadComplex(NAME, value) \\");
         emitter().emit("\tNAME.read_nb(value);\\");
         emitter().emit("\t__consume_ ## NAME++;\\");
         emitter().emitNewLine();
+
+        emitter().emit("#define pinRead(NAME, value) \\");
+        emitter().emit("\tNAME.read_nb(value);\\");
+        emitter().emitNewLine();
+
 
         // -- PinReadBlocking
         emitter().emit("#define pinReadBlocking(NAME, value) value = NAME.read()");
@@ -80,6 +85,15 @@ public interface Globals {
 
         // -- PinReadRepeat
         emitter().emitRawLine("#define pinReadRepeat(NAME, value, d) \\\n" +
+                "{\\\n" +
+                "    for(int i = 0; i < d; i++){\\\n" +
+                "        NAME.read_nb(value[i]);\\\n" +
+                "    }\\\n" +
+                "}");
+        emitter().emitNewLine();
+
+        // -- PinReadRepeat
+        emitter().emitRawLine("#define pinReadRepeatComplex(NAME, value, d) \\\n" +
                 "{\\\n" +
                 "    for(int i = 0; i < d; i++){\\\n" +
                 "        NAME.read_nb(value[i]);\\\n" +
@@ -132,7 +146,16 @@ public interface Globals {
         emitter().emitNewLine();
 
         // -- PinConsume
-        emitter().emitRawLine("#define pinConsume(NAME) \\\n" +
+        emitter().emitRawLine("#define pinConsume(NAME, TYPE) \\\n" +
+                "{\\\n" +
+                "        TYPE tmp; \\\n" +
+                "        NAME.read_nb(tmp); \\\n" +
+                "}");
+        emitter().emitNewLine();
+
+
+        // -- PinConsume
+        emitter().emitRawLine("#define pinConsumeComplex(NAME) \\\n" +
                 "{\\\n" +
                 "    if(__consume_ ## NAME == 0) {\\\n" +
                 "        NAME.read(); \\\n" +
@@ -142,7 +165,7 @@ public interface Globals {
         emitter().emitNewLine();
 
 
-        emitter().emit("#define pinConsumeRepeat(NAME, d) \\\n" +
+        emitter().emit("#define pinConsumeRepeatComplex(NAME, d) \\\n" +
                 "{\\\n" +
                 "    int tmp = __consume_ ## NAME;\\\n" +
                 "    if(__consume_ ## NAME == 0 ){ \\\n" +

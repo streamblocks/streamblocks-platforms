@@ -76,6 +76,11 @@ public interface VivadoHLSBackend {
         return Box.empty();
     }
 
+    @Binding(LAZY)
+    default Box<Boolean> complexReadBox() {
+        return Box.empty();
+    }
+
     // -- Globals names
     @Binding(LAZY)
     default GlobalNames globalnames() {
