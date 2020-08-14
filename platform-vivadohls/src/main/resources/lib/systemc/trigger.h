@@ -82,7 +82,13 @@ public:
 
   const std::string actor_id;
   std::vector<ProfileStat> stats;
+
+  // Action clock counter (TEST)*(EXEC) cycles
   sc_signal<unsigned long int> clock_counter;
+
+  // Counters to count the number of clocks spent in each state
+  std::array<unsigned long int, State::SYNC_EXEC - State::IDLE_STATE + 1>
+      state_cycles;
 
   sc_signal<uint16_t> action_sig;
   // Trigget state variable
@@ -273,6 +279,8 @@ public:
   void countClocks() {
     while (true) {
       wait();
+      state_cycles[state.read()]++;
+      // Profile an action
       if (state.read() == State::CHECK || state.read() == State::SYNC_CHECK ||
           state.read() == State::LAUNCH || state.read() == State::SYNC_LAUNCH) {
 
@@ -280,8 +288,9 @@ public:
           clock_counter = 0;
         else
           clock_counter = clock_counter + 1;
-      } else
+      } else {
         clock_counter = 0;
+      }
     }
   }
 
@@ -290,6 +299,11 @@ public:
   Trigger(sc_module_name name, std::string actor_id)
       : sc_module(name), actor_id(actor_id), state("state", State::IDLE_STATE),
         next_state("next_state", State::IDLE_STATE) {
+    // initialize the state counters
+    for (auto &counter : state_cycles) {
+      counter = 0;
+    }
+    clock_counter = 0;
 
     SC_METHOD(setNextState);
     sensitive << state << ap_start << external_enqueue << actor_done
@@ -349,9 +363,22 @@ public:
     auto total_actor_firings = this->getTotalFirings();
     double actor_average_ticks =
         double(total_actor_ticks) / double(total_actor_firings);
+    // Log the actor cycle stats
     ofs << indent_str << "<actor id=\"" << this->actor_id << "\" clockcycles=\""
         << actor_average_ticks << "\" clockcycles-total=\"" << total_actor_ticks
         << "\" firings=\"" << total_actor_firings << "\" >" << std::endl;
+    // Log the trigger cycle count
+    ofs << indent_str << "\t<trigger ";
+    ofs << "IDLE_STATE=\"" << this->state_cycles[State::IDLE_STATE] << "\" ";
+    ofs << "LAUNCH=\"" << this->state_cycles[State::LAUNCH] << "\" ";
+    ofs << "CHECK=\"" << this->state_cycles[State::CHECK] << "\" ";
+    ofs << "SLEEP=\"" << this->state_cycles[State::SLEEP] << "\" ";
+    ofs << "SYNC_LAUNCH=\"" << this->state_cycles[State::SYNC_LAUNCH] << "\" ";
+    ofs << "SYNC_CHECK=\"" << this->state_cycles[State::SYNC_CHECK] << "\" ";
+    ofs << "SYNC_WAIT=\"" << this->state_cycles[State::SYNC_WAIT] << "\" ";
+    ofs << "SYNC_EXEC=\"" << this->state_cycles[State::SYNC_EXEC] << "\" />"
+        << std::endl;
+    // Log action cycle
     for (const auto &stat : this->stats) {
       auto total_ticks = stat.getTicks();
       auto min_ticks = stat.getMinTicks() != -1 ? stat.getMinTicks() : 0;
@@ -360,7 +387,6 @@ public:
       double average_ticks =
           firings > 0 ? double(total_ticks) / double(firings) : 0;
       auto action_id = stat.getActionId();
-      // ofs << "hello" << std::endl;
       ofs << indent_str << "\t<action id=\"" << action_id << "\" clockcycles=\""
           << average_ticks << "\" clockcycles-min=\"" << min_ticks
           << "\" clockcycles-max=\"" << max_ticks << "\" clockcycles-total=\""
