@@ -27,13 +27,9 @@ public interface DefaultValues {
         if (t.getSize().isPresent()) {
             StringBuilder builder = new StringBuilder();
             String element = defaultValue(t.getElementType());
+
             builder.append("{");
-            for (int i = 0; i < t.getSize().getAsInt(); i++) {
-                if (i > 0) {
-                    builder.append(", ");
-                }
-                builder.append(element);
-            }
+            builder.append(element);
             builder.append("}");
             return builder.toString();
         } else {

@@ -99,7 +99,7 @@ static const int uses_in_actionAtLine_7[] = {};
 static const int defines_in_actionAtLine_7[] = {};
 
 static const ActionDescription actionDescriptions[] = {
-        {"actionAtLine_7", "actionAtLine_7", portRate_1, 0}
+        {"sink", "sink", portRate_1, 0}
 };
 
 // -- Condition Description

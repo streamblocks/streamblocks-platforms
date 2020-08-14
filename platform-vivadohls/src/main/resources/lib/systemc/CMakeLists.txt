@@ -33,6 +33,8 @@ macro(verilate_actor ACTOR)
   set(${ACTOR}_VERILATED_SOURCES
     "${VERILATOR_GEN_DIR}/${ACTOR}_verimodule.cpp"
     "${VERILATOR_GEN_DIR}/${ACTOR}_verimodule__1.cpp"
+    "${VERILATOR_GEN_DIR}/${ACTOR}_verimodule__2.cpp"
+    "${VERILATOR_GEN_DIR}/${ACTOR}_verimodule__3.cpp"
     "${VERILATOR_GEN_DIR}/${ACTOR}_verimodule__Slow.cpp"
     "${VERILATOR_GEN_DIR}/${ACTOR}_verimodule__1__Slow.cpp"
     "${VERILATOR_GEN_DIR}/${ACTOR}_verimodule__Syms.cpp"

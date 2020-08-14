@@ -288,10 +288,10 @@ public interface FsmController {
                 backend().context()
                         .getReporter()
                         .report(
-                                new Diagnostic(Diagnostic.Kind.ERROR,
-                                        String.format("Error while emitting the FSMController: " +
-                                                        "Back to back transitions %d and %d lead to invalid " +
-                                                        "profiling information.", exec.transition(),
+                                new Diagnostic(Diagnostic.Kind.WARNING,
+                                        String.format(
+                                                        "Transitions %d shadows %d" +
+                                                        " on the profiling information.", exec.transition(),
                                                 secondCall.transition())));
             }
 
