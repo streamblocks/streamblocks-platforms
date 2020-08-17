@@ -82,6 +82,7 @@ public class ConnectivityAnalysisPhase implements Phase {
         @Binding(BindingKind.INJECTED)
         NlNetworks networks();
 
+        void visit(IRNode node);
 
         default void visit(CompilationTask task) {
 
@@ -99,7 +100,7 @@ public class ConnectivityAnalysisPhase implements Phase {
                     context().getReporter().report(new Diagnostic(Diagnostic.Kind.ERROR, msg, sourceUnit(stmt), stmt));
                 }
             });
-            network.getStructure().forEach(stmt -> visit((StructureConnectionStmt) stmt));
+            network.getStructure().forEach(stmt -> visit(stmt));
             network.getEntities().stream()
                     .map(this::getEntityDecl).map(GlobalEntityDecl::getEntity)
                     .filter(entity -> entity instanceof NlNetwork)
@@ -123,6 +124,9 @@ public class ConnectivityAnalysisPhase implements Phase {
             checkNetworkPortExistence(stmt);
 
             checkPortTypes(stmt);
+        }
+
+        default void visit(StructureForeachStmt foreachStmt){
         }
 
         default void checkSourceInstanceExistence(StructureConnectionStmt stmt) {

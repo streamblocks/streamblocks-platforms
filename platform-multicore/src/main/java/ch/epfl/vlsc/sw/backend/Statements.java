@@ -7,14 +7,28 @@ import org.multij.Module;
 import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
-import se.lth.cs.tycho.ir.expr.*;
-import se.lth.cs.tycho.ir.stmt.*;
-import se.lth.cs.tycho.ir.stmt.lvalue.LValueVariable;
+import se.lth.cs.tycho.ir.expr.ExprBinaryOp;
+import se.lth.cs.tycho.ir.expr.ExprComprehension;
+import se.lth.cs.tycho.ir.expr.ExprGlobalVariable;
+import se.lth.cs.tycho.ir.expr.ExprInput;
+import se.lth.cs.tycho.ir.expr.ExprVariable;
+import se.lth.cs.tycho.ir.expr.Expression;
+import se.lth.cs.tycho.ir.stmt.Statement;
+import se.lth.cs.tycho.ir.stmt.StmtAssignment;
+import se.lth.cs.tycho.ir.stmt.StmtBlock;
+import se.lth.cs.tycho.ir.stmt.StmtCall;
+import se.lth.cs.tycho.ir.stmt.StmtConsume;
+import se.lth.cs.tycho.ir.stmt.StmtForeach;
+import se.lth.cs.tycho.ir.stmt.StmtIf;
+import se.lth.cs.tycho.ir.stmt.StmtWhile;
+import se.lth.cs.tycho.ir.stmt.StmtWrite;
 import se.lth.cs.tycho.type.AlgebraicType;
 import se.lth.cs.tycho.type.ListType;
 import se.lth.cs.tycho.type.Type;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Module
@@ -61,7 +75,7 @@ public interface Statements {
     void execute(Statement stmt);
 
     @Binding(BindingKind.LAZY)
-    default List profilingOp(){
+    default List profilingOp() {
         return new ArrayList<String>();
     }
 
@@ -96,7 +110,7 @@ public interface Statements {
             String tmp = variables().generateTemp();
             emitter().emit("%s = %s;", declarartions().declaration(types().portType(write.getPort()), tmp), backend().defaultValues().defaultValue(type));
             for (Expression expr : write.getValues()) {
-                if(expr instanceof ExprVariable){
+                if (expr instanceof ExprVariable) {
                     backend().memoryStack().untrackPointer(expressioneval().evaluate(expr));
                 }
                 emitter().emit("%s = %s;", tmp, expressioneval().evaluate(expr));
@@ -194,8 +208,15 @@ public interface Statements {
             parameters.add(expressioneval().evaluate(parameter));
         }
 
-        if(!backend().profilingbox().isEmpty()){
-            parameters.add("__opCounters");
+        if (!backend().profilingbox().isEmpty()) {
+            boolean isExternal = false;
+            if (call.getProcedure() instanceof ExprGlobalVariable) {
+                VarDecl declaration = backend().varDecls().declaration((ExprGlobalVariable) call.getProcedure());
+                isExternal = declaration.isExternal();
+            }
+
+            if (!isExternal)
+                parameters.add("__opCounters");
         }
         emitter().emit("%s(%s);", proc, String.join(", ", parameters));
         memoryStack().exitScope();
@@ -210,7 +231,7 @@ public interface Statements {
         emitter().increaseIndentation();
         memoryStack().enterScope();
         for (VarDecl decl : block.getVarDecls()) {
-            if(!backend().profilingbox().isEmpty()){
+            if (!backend().profilingbox().isEmpty()) {
                 profilingOp().clear();
             }
             Type t = types().declaredType(decl);
@@ -227,18 +248,18 @@ public interface Statements {
                     copy(t, declarationName, types().type(decl.getValue()), expressioneval().evaluate(decl.getValue()));
                 }
             }
-            if(!backend().profilingbox().isEmpty()){
-                profilingOp().forEach(s-> emitter().emit((String) s));
+            if (!backend().profilingbox().isEmpty()) {
+                profilingOp().forEach(s -> emitter().emit((String) s));
             }
         }
 
-        if(backend().profilingbox().isEmpty()){
+        if (backend().profilingbox().isEmpty()) {
             block.getStatements().forEach(this::execute);
-        }else{
-            for(Statement stmt : block.getStatements()){
+        } else {
+            for (Statement stmt : block.getStatements()) {
                 profilingOp().clear();
                 execute(stmt);
-                profilingOp().forEach(s-> emitter().emit((String) s));
+                profilingOp().forEach(s -> emitter().emit((String) s));
             }
         }
 
@@ -270,7 +291,7 @@ public interface Statements {
             }
         }
         emitter().emit("}");
-        if(!backend().profilingbox().isEmpty()){
+        if (!backend().profilingbox().isEmpty()) {
             profilingOp().add("__opCounters->prof_FLOWCONTROL_IF += 1;");
         }
         memoryStack().exitScope();
@@ -294,7 +315,7 @@ public interface Statements {
                 emitter().emit("}");
             }
         });
-        if(!backend().profilingbox().isEmpty()){
+        if (!backend().profilingbox().isEmpty()) {
             profilingOp().add("__opCounters->prof_FLOWCONTROL_WHILE += 1;");
         }
     }
@@ -312,7 +333,7 @@ public interface Statements {
         memoryStack().exitScope();
         emitter().decreaseIndentation();
         emitter().emit("}");
-        if(!backend().profilingbox().isEmpty()){
+        if (!backend().profilingbox().isEmpty()) {
             profilingOp().add("__opCounters->prof_FLOWCONTROL_WHILE += 1;");
         }
     }
