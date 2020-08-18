@@ -777,6 +777,11 @@ public interface Instances {
 
     default void acttransDefinition(String instanceName, ActorMachine am, Transition transition) {
         String instanceQID = instanceName;
+        Optional<Annotation> annotation = Annotation.getAnnotationWithName("ActionId", transition.getAnnotations());
+        if (annotation.isPresent()) {
+            String actionTag = ((ExprLiteral) annotation.get().getParameters().get(0).getExpression()).getText();
+            emitter().emit("// -- Action Tag : %s", actionTag);
+        }
         emitter().emit("ART_ACTION(%s_transition_%d, ActorInstance_%s){", instanceName, am.getTransitions().indexOf(transition), instanceQID);
         emitter().increaseIndentation();
 

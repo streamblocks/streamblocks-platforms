@@ -11,6 +11,7 @@ import org.multij.Module;
 import org.multij.MultiJ;
 import se.lth.cs.tycho.attribute.GlobalNames;
 import se.lth.cs.tycho.attribute.Types;
+import se.lth.cs.tycho.ir.Annotation;
 import se.lth.cs.tycho.ir.IRNode;
 import se.lth.cs.tycho.ir.Parameter;
 import se.lth.cs.tycho.ir.Port;
@@ -719,6 +720,11 @@ public interface Instances {
         transition.getBody().forEach(s -> collector.accept(s));
         //portVars().putAll(collector.portVars());
 
+        Optional<Annotation> annotation = Annotation.getAnnotationWithName("ActionId", transition.getAnnotations());
+        if (annotation.isPresent()) {
+            String actionTag = ((ExprLiteral) annotation.get().getParameters().get(0).getExpression()).getText();
+            emitter().emit("// -- Action Tag : %s", actionTag);
+        }
         backend().alignedBox().set(isAligned);
         if (isAligned) {
             emitter().emit("static void %s_transition_%d_aligned(){", instanceQidName(), am.getTransitions().indexOf(transition));

@@ -8,6 +8,7 @@ import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.GlobalNames;
 import se.lth.cs.tycho.attribute.Types;
+import se.lth.cs.tycho.ir.Annotation;
 import se.lth.cs.tycho.ir.IRNode;
 import se.lth.cs.tycho.ir.Parameter;
 import se.lth.cs.tycho.ir.Port;
@@ -26,10 +27,7 @@ import se.lth.cs.tycho.type.ListType;
 import se.lth.cs.tycho.type.Type;
 
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
@@ -780,6 +778,11 @@ public interface Instances {
         }
 
         // -- Actor Instance Name
+        Optional<Annotation> annotation = Annotation.getAnnotationWithName("ActionId", transition.getAnnotations());
+        if (annotation.isPresent()) {
+            String actionTag = ((ExprLiteral) annotation.get().getParameters().get(0).getExpression()).getText();
+            emitter().emit("// -- Action Tag : %s", actionTag);
+        }
         emitter().emit("%s{", transitionPrototype(instanceName, transition, index, true));
         emitter().emit("#pragma HLS INLINE");
         emitter().emit("#pragma HLS LOOP_MERGE");
