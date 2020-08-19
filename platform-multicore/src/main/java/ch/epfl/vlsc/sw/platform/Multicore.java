@@ -27,9 +27,9 @@ public class Multicore implements Platform {
             .addAll(Compiler.templatePhases())
             .addAll(CommonPhases.networkElaborationPhases)
             .add(new VerilogNameCheckerPhase())
-            .addAll(Compiler.nameAndTypeAnalysis())
             .add(new XcfAnnotationPhase())
             .addAll(CommonPhases.softwarePartitioningPhases)
+            .addAll(Compiler.nameAndTypeAnalysis())
             .addAll(Compiler.actorMachinePhases())
 //            .add(new RemoveUnusedEntityDeclsPhase()) // This can not happen after network elaboration because the hardware partition entities get removed.
             .add(new CreatePartitionLinkPhase())

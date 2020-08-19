@@ -7,17 +7,17 @@ public class CommonPhases {
 
 
     public static final ImmutableList<Phase> networkElaborationPhases = ImmutableList.of(
-                new CreateNetworkPhase(),
-                new ResolveGlobalEntityNamesPhase(),
-                new ResolveGlobalVariableNamesPhase(),
-                new ConnectivityAnalysisPhase(),
-                new ElaborateNetworkPhase(),
-                new RemoveUnusedGlobalDeclarations()
-        );
+            new CreateNetworkPhase(),
+            new ResolveGlobalEntityNamesPhase(),
+            new ResolveGlobalVariableNamesPhase(),
+            new ConnectivityAnalysisPhase(),
+            new ElaborateNetworkPhase(),
+            new RemoveUnusedGlobalDeclarations()
+    );
 
 
     public static final ImmutableList<Phase> partitioningPhases = ImmutableList.of(
-           // new VerilogNameCheckerPhase(),
+            new VerilogNameCheckerPhase(),
             new NetworkPartitioningPhase(),
             new AnnotateExternalMemories()
     );

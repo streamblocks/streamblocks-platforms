@@ -1,9 +1,11 @@
 package ch.epfl.vlsc.configuration;
 
+import com.google.common.collect.Ordering;
 import se.lth.cs.tycho.ir.QID;
 import se.lth.cs.tycho.ir.network.Network;
 import se.lth.cs.tycho.ir.util.Lists;
 
+import java.text.Collator;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -23,8 +25,9 @@ public class Configurations {
                 .map(instance -> instance.getInstanceName())
                 .collect(Collectors.toList());
 
+
         List<String> partInstances = getAllInstances(configuration);
-        return Lists.equals(instancesNames, partInstances);
+        return Lists.equals(Ordering.natural().sortedCopy(instancesNames), Ordering.natural().sortedCopy(partInstances));
     }
 
     private static List<String> getAllInstances(Configuration configuration) {
@@ -60,9 +63,9 @@ public class Configurations {
         List<String> instances = new ArrayList<>();
 
         for (Configuration.CodeGenerators.CodeGenerator cg : cgPartitions.keySet()) {
-            if(cg.getPlatform().equals(platform)){
-                for(Configuration.Partitioning.Partition p : cgPartitions.get(cg)){
-                    for(Configuration.Partitioning.Partition.Instance i : p.getInstance()){
+            if (cg.getPlatform().equals(platform)) {
+                for (Configuration.Partitioning.Partition p : cgPartitions.get(cg)) {
+                    for (Configuration.Partitioning.Partition.Instance i : p.getInstance()) {
                         instances.add(i.getId());
                     }
                 }
@@ -72,22 +75,22 @@ public class Configurations {
         return instances;
     }
 
-    public static String codeGeneratorName(Configuration configuration, String platform){
+    public static String codeGeneratorName(Configuration configuration, String platform) {
         Map<String, List<String>> platformCodeGenName = new HashMap<>();
         for (Configuration.CodeGenerators.CodeGenerator cg : configuration.codeGenerators.codeGenerator) {
             List<String> codegens;
-            if(platformCodeGenName.containsKey(cg.getPlatform())){
+            if (platformCodeGenName.containsKey(cg.getPlatform())) {
                 codegens = platformCodeGenName.get(cg);
-            }else{
+            } else {
                 codegens = new ArrayList<>();
             }
             codegens.add(cg.id);
             platformCodeGenName.put(cg.getPlatform(), codegens);
         }
 
-        if(platformCodeGenName.containsKey(platform)){
+        if (platformCodeGenName.containsKey(platform)) {
             return platformCodeGenName.get(platform).get(0);
-        }else{
+        } else {
             return "not-defined";
         }
 
