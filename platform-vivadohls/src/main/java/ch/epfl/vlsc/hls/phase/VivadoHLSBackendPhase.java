@@ -476,6 +476,10 @@ public class VivadoHLSBackendPhase implements Phase {
             Files.copy(getClass().getResourceAsStream("/lib/hls/iostage.h"),
                     PathUtils.getTargetCodeGenInclude(backend.context()).resolve("iostage.h"),
                     StandardCopyOption.REPLACE_EXISTING);
+            // -- Input and Output Stage C++ tester
+            Files.copy(getClass().getResourceAsStream("/lib/hls/tb_iostage.cpp"),
+                    PathUtils.getTargetCodeGenSrcTb(backend.context()).resolve("tb_iostage.cpp"),
+                    StandardCopyOption.REPLACE_EXISTING);
 
             // -- Synthesis script for Vivado HLS as an input to CMake
             Files.copy(getClass().getResourceAsStream("/lib/cmake/Synthesis.tcl.in"),
@@ -492,7 +496,7 @@ public class VivadoHLSBackendPhase implements Phase {
                     PathUtils.getTargetScripts(backend.context()).resolve("sdaccel.ini.in"),
                     StandardCopyOption.REPLACE_EXISTING);
 
-            // -- Cmake herlpers
+            // -- Cmake helpers
             Files.copy(getClass().getResourceAsStream("/lib/cmake/Helper.cmake"),
                     PathUtils.getTargetScripts(backend.context()).resolve("Helper.cmake.in"),
                     StandardCopyOption.REPLACE_EXISTING);

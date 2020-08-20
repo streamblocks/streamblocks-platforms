@@ -176,7 +176,15 @@ macro(synthesize_io ACTOR)
 		${ACTOR} ALL DEPENDS ${${ACTOR}_VERILOG_SOURCE}
 	)
 
+
 endmacro()
+# -- --------------------------------------------------------------------------
+# -- C++ testers for io stage actors
+# -- --------------------------------------------------------------------------
+add_executable(tb_iostage ${HLS_TESTER_SOURCE_PATH}/tb_iostage.cpp)
+target_include_directories(tb_iostage PRIVATE ${HLS_HEADER_PATH} ${VIVADO_HLS_INCLUDE_DIRS})
+find_package(Threads)
+target_link_libraries(tb_iostage ${CMAKE_THREAD_LIBS_INIT} )
 
 # -- --------------------------------------------------------------------------
 # -- Helper macro to for C++ simulation
@@ -204,7 +212,6 @@ endforeach()
 
 add_executable(${__NETWORK_NAME__}_tester ${__NETWORK_TESTER_SOURCES__})
 target_include_directories(${__NETWORK_NAME__}_tester PRIVATE ${HLS_HEADER_PATH} ${HLS_TESTER_HEADER_PATH})
-
 
 # -- --------------------------------------------------------------------------
 # -- Synthesis targets for actors
