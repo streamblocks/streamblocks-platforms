@@ -61,7 +61,7 @@ public class VivadoHLS implements Platform {
             .addAll(CommonPhases.networkElaborationPhases)
             .add(new VerilogNameCheckerPhase())
             .addAll(Compiler.nameAndTypeAnalysis())
-            .add(new XcfAnnotationPhase())
+//            .add(new XcfAnnotationPhase())
             .addAll(CommonPhases.hardwarePartitioningPhases)
             .addAll(postPartitionNetworkElaborationPhases())
             .addAll(actorMachinePhases())

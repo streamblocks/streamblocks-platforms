@@ -2,7 +2,9 @@ package ch.epfl.vlsc.configuration;
 
 import com.google.common.collect.Ordering;
 import se.lth.cs.tycho.ir.QID;
+import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Network;
+import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.ir.util.Lists;
 
 import java.text.Collator;
@@ -95,6 +97,31 @@ public class Configurations {
         }
 
 
+    }
+
+    public static Map<String, List<String>> getCodeGenMap(Configuration configuration) {
+
+        Map<String, ImmutableList.Builder<String>> instancesBuilder = new HashMap<>();
+
+        for (Configuration.CodeGenerators.CodeGenerator codeGen: configuration.getCodeGenerators().getCodeGenerator()) {
+            instancesBuilder.put(codeGen.getId(), ImmutableList.builder());
+        }
+        for (Configuration.Partitioning.Partition part : configuration.getPartitioning().getPartition()) {
+
+            String codeGen = part.getCodeGenerator();
+            instancesBuilder.get(codeGen).addAll(
+                    part.getInstance().stream()
+                            .map(Configuration.Partitioning.Partition.Instance::getId)
+                            .collect(ImmutableList.collector()));
+
+
+
+        }
+        Map<String, List<String>> instances = new HashMap<>();
+        for (String codeGen: instancesBuilder.keySet()) {
+            instances.put(codeGen, instancesBuilder.get(codeGen).build());
+        }
+        return instances;
     }
 
 

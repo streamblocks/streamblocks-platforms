@@ -4,13 +4,9 @@ package ch.epfl.vlsc.sw.ir;
 
 import ch.epfl.vlsc.attributes.Memories;
 import se.lth.cs.tycho.ir.entity.PortDecl;
-import se.lth.cs.tycho.ir.type.TypeExpr;
+
 import se.lth.cs.tycho.ir.util.ImmutableList;
-import se.lth.cs.tycho.reporting.CompilationException;
-import se.lth.cs.tycho.reporting.Diagnostic;
 
-
-import javax.swing.text.html.Option;
 import java.util.List;
 import java.util.Optional;
 
