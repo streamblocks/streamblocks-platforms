@@ -12,7 +12,7 @@ public class AxiConstants {
 
 //    public static final int C_M_AXI_DATA_WIDTH = 512;
 
-    public static final int IO_STAGE_BUS_WIDTH = 512;
+    public static final int IO_STAGE_BUS_WIDTH = 128;
 
     public static Optional<Integer> getAxiDataWidth(int bitWidth) {
 
