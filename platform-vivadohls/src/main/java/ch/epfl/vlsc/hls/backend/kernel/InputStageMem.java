@@ -61,7 +61,7 @@ public interface InputStageMem {
         ports.add("uint32_t fifo_size");
         
         ports.add(backend().declarations().portDeclaration(port));
-        ports.add(String.format("hls::stream< uint64_t > %s_offset", port.getName()));
+        ports.add(String.format("hls::stream< uint64_t > &%s_offset", port.getName()));
         return String.join(", ", ports);
     }
 
