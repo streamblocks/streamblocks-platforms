@@ -132,7 +132,7 @@ public class XcfAnnotationPhase implements Phase {
                     allInstancesKept(task, transformedTask);
 
                     // -- make sure all instances have partitions
-                    if (!instancesHaveDefinedPartitions(transformedTask)) {
+                    if (!instancesHaveDefinedPartitions(transformedTask, context)) {
                         throw new CompilationException(
                             new Diagnostic(Diagnostic.Kind.ERROR,
                                     "some instances do not have defined partitions in the XCF file")
@@ -142,6 +142,10 @@ public class XcfAnnotationPhase implements Phase {
                 } catch (JAXBException e) {
                     e.printStackTrace();
                 }
+            } else {
+                context.getReporter().report(
+                        new Diagnostic(Diagnostic.Kind.ERROR, "Could not read xcf config " + xcfPath.toString())
+                );
             }
         }
 
@@ -153,7 +157,7 @@ public class XcfAnnotationPhase implements Phase {
         return Collections.singleton(ElaborateNetworkPhase.class);
     }
 
-    public boolean instancesHaveDefinedPartitions(CompilationTask task) {
+    public boolean instancesHaveDefinedPartitions(CompilationTask task, Context context) {
 
         return task.getNetwork().getInstances().map(
                 inst -> {
@@ -161,7 +165,7 @@ public class XcfAnnotationPhase implements Phase {
                             .anyMatch(attr -> attr.getName().equals("partition"));
 
                     if (!hasPartition) {
-                        throw new CompilationException(new Diagnostic(
+                        context.getReporter().report(new Diagnostic(
                                 Diagnostic.Kind.ERROR,
                                 "instance " + inst.getInstanceName() + " has no partition! Make sure the XCF" +
                                         " configuration defines partitions for all instances"
