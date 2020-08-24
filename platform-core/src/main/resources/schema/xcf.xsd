@@ -1,20 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <xs:schema attributeFormDefault="unqualified" elementFormDefault="qualified" xmlns:xs="http://www.w3.org/2001/XMLSchema">
-    <xs:element name="Configuration">
+    <xs:element name="configuration">
         <xs:complexType>
             <xs:sequence>
-                <xs:element name="Network">
+                <xs:element name="network">
                     <xs:complexType>
                         <xs:attribute name="id" type="xs:string" use="required" />
                     </xs:complexType>
                 </xs:element>
-                <xs:element name="Partitioning">
+                <xs:element name="partitioning">
                     <xs:complexType>
                         <xs:sequence>
-                            <xs:element maxOccurs="unbounded" name="Partition">
+                            <xs:element maxOccurs="unbounded" name="partition">
                                 <xs:complexType>
                                     <xs:sequence>
-                                        <xs:element maxOccurs="unbounded" name="Instance">
+                                        <xs:element maxOccurs="unbounded" name="instance">
                                             <xs:complexType>
                                                 <xs:attribute name="id" type="xs:string" use="required" />
                                             </xs:complexType>
@@ -29,13 +29,13 @@
                         </xs:sequence>
                     </xs:complexType>
                 </xs:element>
-                <xs:element name="Code-Generators">
+                <xs:element name="code-generators">
                     <xs:complexType>
                         <xs:sequence>
-                            <xs:element maxOccurs="unbounded" name="Code-Generator">
+                            <xs:element maxOccurs="unbounded" name="code-generator">
                                 <xs:complexType>
                                     <xs:sequence minOccurs="0">
-                                        <xs:element maxOccurs="unbounded" name="Parameter">
+                                        <xs:element maxOccurs="unbounded" name="parameter">
                                             <xs:complexType>
                                                 <xs:attribute name="key" type="xs:string" use="required" />
                                                 <xs:attribute name="value" type="xs:string" use="required" />
@@ -49,13 +49,13 @@
                         </xs:sequence>
                     </xs:complexType>
                 </xs:element>
-                <xs:element name="Media">
+                <xs:element name="media">
                     <xs:complexType>
                         <xs:sequence>
-                            <xs:element name="Interface">
+                            <xs:element name="interface">
                                 <xs:complexType>
                                     <xs:sequence>
-                                        <xs:element name="Parameter">
+                                        <xs:element name="parameter">
                                             <xs:complexType>
                                                 <xs:attribute name="key" type="xs:string" use="required" />
                                                 <xs:attribute name="value" type="xs:unsignedByte" use="required" />
@@ -67,10 +67,10 @@
                                     <xs:attribute name="external" type="xs:boolean" use="required" />
                                 </xs:complexType>
                             </xs:element>
-                            <xs:element name="Memory">
+                            <xs:element name="memory">
                                 <xs:complexType>
                                     <xs:sequence>
-                                        <xs:element maxOccurs="unbounded" name="Parameter">
+                                        <xs:element maxOccurs="unbounded" name="parameter">
                                             <xs:complexType>
                                                 <xs:attribute name="key" type="xs:string" use="required" />
                                                 <xs:attribute name="value" type="xs:string" use="required" />
@@ -86,10 +86,10 @@
                         </xs:sequence>
                     </xs:complexType>
                 </xs:element>
-                <xs:element name="Connections">
+                <xs:element name="connections">
                     <xs:complexType>
                         <xs:sequence>
-                            <xs:element maxOccurs="unbounded" name="Fifo-Connection">
+                            <xs:element maxOccurs="unbounded" name="fifo-connection">
                                 <xs:complexType>
                                     <xs:attribute name="src" type="xs:string" use="required" />
                                     <xs:attribute name="src-port" type="xs:string" use="required" />
@@ -99,7 +99,7 @@
                                     <xs:attribute name="medium" type="xs:string" use="required" />
                                 </xs:complexType>
                             </xs:element>
-                            <xs:element name="Memory-Connection">
+                            <xs:element name="memory-connection">
                                 <xs:complexType>
                                     <xs:attribute name="instance" type="xs:string" use="required" />
                                     <xs:attribute name="var" type="xs:string" use="required" />
