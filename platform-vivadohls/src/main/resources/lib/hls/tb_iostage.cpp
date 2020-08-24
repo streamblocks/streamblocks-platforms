@@ -377,8 +377,8 @@ public:
       for (; token_index < size_0; token_index++) {
         T token = this->readWord(token_index);
         std::stringstream msg_builder;
-        msg_builder << "Expected " << this->golden_tokens[token_index]
-                    << " but got " << token;
+        msg_builder << "Expected " << (uint64_t) this->golden_tokens[token_index]
+                    << " but got " << (uint64_t) token;
 
         this->assert_check(token == this->golden_tokens[token_index],
                            msg_builder.str());
@@ -389,7 +389,14 @@ public:
       }
       call_index++;
     } while (this->alloc_size != this->size_buffer[0].range(63, 0));
-
+    {
+      std::stringstream msg_builder;
+      msg_builder << "Could not verify all tokens! Produced: "
+                  << this->size_buffer[0].range(63, 0)
+                  << " Verified: " << token_index;
+      this->assert_check(this->size_buffer[0].range(63, 0) == token_index,
+                         msg_builder.str());
+    }
     {
       std::stringstream msg_builder;
       msg_builder << "Test passed afer " << call_index << " calls";
@@ -422,7 +429,8 @@ void runTests(size_t start_id, size_t count, size_t alloc_size) {
     start_id = runTest<uint64_t, 4096>(start_id, alloc_size, "uint64_t");
     double progress = id * 100.0 / count * 1.0;
     if (id % (count / 10) == 0)
-      std::cout << "Thread " << std::this_thread::get_id() << " progress " << progress << "%" << std::endl;
+      std::cout << "Thread " << std::this_thread::get_id() << " progress "
+                << progress << "%" << std::endl;
   }
 }
 
@@ -430,7 +438,7 @@ int main() {
 
   const size_t count = 1000;
   const size_t alloc_size = 1 << 16;
-  const auto thread_count = std::thread::hardware_concurrency();
+  const auto thread_count = std::thread::hardware_concurrency() / 2;
   std::vector<std::thread> threads;
   const size_t count_per_thread = count / thread_count;
 
@@ -443,5 +451,4 @@ int main() {
   for (auto &thread : threads) {
     thread.join();
   }
-
 }
