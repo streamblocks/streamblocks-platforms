@@ -181,7 +181,7 @@ module trigger
 
 	assign actor_start = (state == LAUNCH) | (state == SYNC_LAUNCH);
 	assign ap_idle = (state == IDLE_STATE);
-	assign sleep = (state == SLEEP || state == IDLE_STATE);
+	assign sleep = (state == SLEEP);
 	assign sync_wait = (state == SYNC_WAIT | state == IDLE_STATE);
 	assign sync_exec = (state == SYNC_EXEC);
 	assign ap_done = (next_state == IDLE_STATE);

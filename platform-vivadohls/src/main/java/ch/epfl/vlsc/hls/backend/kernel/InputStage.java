@@ -212,7 +212,7 @@ public interface InputStage {
 
             emitter().emit(".ap_clk(ap_clk),");
             emitter().emit(".ap_rst_n(ap_rst_n),");
-            emitter().emit(".ap_start(ap_start),");
+            emitter().emit(".ap_start(%s_offset_empty_n),", port.getSafeName());
             emitter().emit(".ap_done(ap_done),");
             emitter().emit(".ap_idle(stage_idle),");
             emitter().emit(".ap_ready(ap_ready),");
