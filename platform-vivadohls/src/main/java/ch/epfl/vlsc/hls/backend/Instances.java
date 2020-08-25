@@ -588,6 +588,8 @@ public interface Instances {
         emitter().emit("#pragma HLS INLINE");
         {
             emitter().increaseIndentation();
+            emitter().emit("int _ret = RETURN_WAIT;");
+
             boolean traceEnabled = backend().context().getConfiguration().isDefined(PlatformSettings.enableActionProfile) &&
                     backend().context().getConfiguration().get(PlatformSettings.enableActionProfile);
             if (traceEnabled) {
@@ -610,7 +612,7 @@ public interface Instances {
             } else {
                 backend().quickJumpController().emitController(instanceName, actor);
             }
-            emitter().emit("return this->__ret;");
+            emitter().emit("return _ret;");
             emitter().decreaseIndentation();
         }
         emitter().emit("}");
