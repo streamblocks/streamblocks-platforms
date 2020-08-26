@@ -1,12 +1,14 @@
 # ART PLink sources
 set(art_plink_source
-        device-handle.cc
-        )
+        device-handle.cpp
+        xcl2.cpp
+)
 
-# ART PLink includes
-set(art_plink_header
-        device-handle.h
-        )
+# # ART PLink includes
+# set(art_plink_header
+#         include/device-handle.h
+#         include/xcl2.h
+# )
 
 
 
@@ -22,23 +24,22 @@ else()
     message(FATAL_ERROR "SDAccel is not found, source SDx settings.sh")
 endif()
 
-include_directories(${extra_includes})
-add_definitions(${extra_definitions})
+option(OPENCL_VERBOSE "Diagnostic messages for OpenCL calls and events")
 
 
-option(OPENCL_VERBOSE "Prints messages for OpenCL calls and events")
-add_library(art-plink STATIC ${art_plink_source} ${art_plink_header})
-set_target_properties(art-plink PROPERTIES COMPILE_FLAGS "-Wall -fPIC"
-)
+add_library(art-plink ${art_plink_source})
+target_include_directories(art-plink PUBLIC ${SDACCEL_INCLUDE_DIRS} include)
+target_link_libraries(art-plink ${SDACCEL_LIBRARIES})
+set_target_properties(art-plink PROPERTIES CXX_STANDARD 14)
+
+
+
 if (OPENCL_VERBOSE)
-        target_compile_definitions(art-plink PRIVATE OCL_VERBOSE=1)
+        target_compile_definitions(art-plink PUBLIC OCL_VERBOSE=1)
 else()
-        target_compile_definitions(art-plink PRIVATE OCL_VERBOSE=0)
+        target_compile_definitions(art-plink PUBLIC OCL_VERBOSE=0)
 endif()
+
 
 install(TARGETS art-plink
         ARCHIVE DESTINATION lib)
-
-set(extra_definitions ${extra_definitions} PARENT_SCOPE)
-set(extra_includes ${extra_includes} PARENT_SCOPE)
-set(extra_libraries ${extra_libraries} PARENT_SCOPE)

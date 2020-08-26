@@ -164,7 +164,7 @@ public interface DeviceHandle {
         // -- read the common methods from plink/device-handle.cc in resources
         try {
             reader = new BufferedReader(
-                    new InputStreamReader(getClass().getResourceAsStream("/lib/art-plink/device-handle.cc")));
+                    new InputStreamReader(getClass().getResourceAsStream("/lib/art-plink/src/device-handle.cc")));
             String line = reader.readLine();
             while (line != null) {
                 emitter().emitRawLine(line);
@@ -173,7 +173,7 @@ public interface DeviceHandle {
         } catch (IOException e) {
             throw new CompilationException(
                     new Diagnostic(Diagnostic.Kind.ERROR, "Could not read the resource file " +
-                            "lib/art-plink/device-handle.cc"));
+                            "lib/art-plink/src/device-handle.cc"));
         }
 
 
