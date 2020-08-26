@@ -195,7 +195,7 @@ public class MultiCoreBackendPhase implements Phase {
                             .report(new Diagnostic(Diagnostic.Kind.INFO, "Emitting PartitionLink instance"));
 
                     multicoreBackend.plink().generatePLink(instance);
-                    multicoreBackend.devicehandle().generateDeviceHandle(instance);
+//                    multicoreBackend.devicehandle().generateDeviceHandle(instance);
                 } else
                     multicoreBackend.instance().generateInstance(instance);
 

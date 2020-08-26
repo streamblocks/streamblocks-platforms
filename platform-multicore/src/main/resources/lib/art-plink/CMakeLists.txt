@@ -1,7 +1,7 @@
 # ART PLink sources
 set(art_plink_source
-        device-handle.cpp
-        xcl2.cpp
+        src/device-handle.cc
+        src/xcl2.cc
 )
 
 # # ART PLink includes

@@ -86,15 +86,7 @@ public interface PLink {
         return simulated;
     }
 
-    /**
-     * This method generates an implementation of plink that has two actions, Transmit (TX) and Receive (RX).
-     * The TX actions is initiated whenever there is data available at the inputs ports of the plink instance, and
-     * then the scheduler exits. On the next scheduler, call the RX action is initiated in which the buffers are polled
-     * for availability, if there is data available, the data is output.
-     *
-     * @param instance
-     * @throws CompilationException
-     */
+
     default void generatePLink(Instance instance) throws CompilationException {
 
         // -- Add the instance to instancebox for later use
@@ -166,7 +158,7 @@ public interface PLink {
         conditionDefinitions(instanceName, entity);
 
         // -- Actions
-        actionDefinitions(entity);
+        actionDefinitions(instanceName, entity);
 
         // -- Destructor
         destructorDefinition(instanceName, entity);
@@ -476,7 +468,7 @@ public interface PLink {
             int index = entity.getOutputPorts().indexOf(port);
             int size = outputBufferSize.get(index);
             String type = typeseval().type(types().declaredPortType(port));
-            emitter().emit("thisActor->dev->output_ports.emplace_back(\"%s\", %d * sizeof(%s));",
+            emitter().emit("thisActor->output_ports.emplace_back(\"%s\", %d * sizeof(%s));",
                     port.getName(), size, type);
 
         }
@@ -527,7 +519,7 @@ public interface PLink {
             // -- connect the ports
             emitter().emit("// -- connect and allocate ports");
 
-            emitter().emit("thisActor->dev->buildPorts(input_ports, output_ports);");
+            emitter().emit("thisActor->dev->buildPorts(thisActor->input_ports, thisActor->output_ports);");
         }
 
         emitter().emitNewLine();
@@ -1090,7 +1082,7 @@ public interface PLink {
         getRetryCondition(instanceName, entity);
         emitter().emitNewLine();
 
-        getDeadlockCheck(instanceName, entity);
+        getDeadlockCondition(instanceName, entity);
         emitter().emitNewLine();
 
     }
@@ -1135,8 +1127,8 @@ public interface PLink {
             emitter().increaseIndentation();
             for(PortDecl output: entity.getOutputPorts()) {
                 String type = typeseval().type(types().declaredPortType(output));
-                emitter().emit("thisActor->output_ports[%d].usable = pinAvailOut_%s(IN%1$d_%s);",
-                        entity.getInputPorts().indexOf(output), type, output.getName());
+                emitter().emit("thisActor->output_ports[%d].usable = pinAvailOut_%s(OUT%1$d_%s);",
+                        entity.getOutputPorts().indexOf(output), type, output.getName());
             }
             emitter().emitNewLine();
             emitter().emit("bool cond = false;");
@@ -1174,7 +1166,7 @@ public interface PLink {
         emitter().emit("}");
     }
 
-    default void getDeadlockCheck(String instanceName, Entity entity) {
+    default void getDeadlockCondition(String instanceName, Entity entity) {
         emitter().emit("ART_CONDITION(deadlock_check, ActorInstance_%s) {", instanceName);
         {
             emitter().increaseIndentation();
@@ -1257,7 +1249,9 @@ public interface PLink {
                 int ix = entity.getInputPorts().indexOf(input);
                 String type = typeseval().type(types().declaredPortType(input));
                 emitter().emit("thisActor->input_ports[%d].used = ", ix);
-                emitter().emit("\thisActor->dev->getUsedInput<%s>(thisActor->input_ports[%d].port);", type, ix);
+                emitter().emit("\tthisActor->dev->getUsedInput<%s>(thisActor->input_ports[%d].port);", type, ix);
+                emitter().emit("OCL_MSG(\"Device consumed %%d tokens on port %s\\n\", " +
+                        "thisActor->input_ports[%d].used);", input.getName(), ix);
             }
 
             emitter().emitNewLine();
@@ -1267,6 +1261,8 @@ public interface PLink {
                 String type = typeseval().type(types().declaredPortType(output));
                 emitter().emit("thisActor->output_ports[%d].used = ", ix);
                 emitter().emit("thisActor->dev->getUsedOutput<%s>(thisActor->output_ports[%d].port);", type, ix);
+                emitter().emit("OCL_MSG(\"Device produced %%d tokens on port %s\\n\"" +
+                        ", thisActor->output_ports[%d].used);", output.getName(), ix);
             }
 
             // -- consume
@@ -1285,6 +1281,30 @@ public interface PLink {
                 }
                 emitter().emit("}");
             }
+
+            emitter().emitNewLine();
+
+            emitter().emit("thisActor->total_request = 0;");
+            emitter().emit("thisActor->total_consumed = 0;");
+            emitter().emit("thisActor->total_produced = 0;");
+            emitter().emit("thisActor->should_retry = false;");
+            emitter().emitNewLine();
+
+            emitter().emit("for(auto& output : thisActor->output_ports) {");
+            {
+                emitter().increaseIndentation();
+                emitter().emit("if(output.used == output.usable) {");
+                {
+                    emitter().increaseIndentation();
+                    emitter().emit("thisActor->should_retry = true;");
+                    emitter().emit("OCL_MSG(\"Retry condition set to true\\n\");");
+                    emitter().emit("break;");
+                    emitter().decreaseIndentation();
+                }
+                emitter().emit("}");
+                emitter().decreaseIndentation();
+            }
+            emitter().emit("}");
             emitter().emit("ART_ACTION_ENTER(receive, 1);");
             emitter().decreaseIndentation();
         }
@@ -1298,7 +1318,7 @@ public interface PLink {
             emitter().emit("ART_ACTION_ENTER(write, 2);");
 
             emitter().emit("thisActor->dev->waitForReadBuffers();");
-            emitter().emit("std::array<uint32_t, %d> to_write;", entity.getOutputPorts().size());
+
             emitter().emit("{");
             {
                 emitter().increaseIndentation();
