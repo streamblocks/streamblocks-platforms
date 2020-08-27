@@ -279,10 +279,10 @@ if (KERNEL)
 
 		message(STATUS "Detected ${__CORE_COUNT__} cores. ${XCLBIN_COMPILER} will be called with ${XCLBIN_JOBS_FLAG}")
 		add_custom_command(
-			OUTPUT  ${CMAKE_SOURCE_DIR}/bin/xclbin/${__NETWORK_NAME__}_kernel.${TARGET}.${PLATFORM}.xclbin
+			OUTPUT  ${CMAKE_SOURCE_DIR}/bin/xclbin/${__NETWORK_NAME__}_kernel.${TARGET}.xclbin
 			COMMAND ${XCLBIN_COMPILER} --link -g -t ${TARGET} --platform ${PLATFORM} --kernel_frequency ${KERNEL_FREQ}  --save-temps
 				${XOCC_DEBUG} ${XOCC_PROFILE} -j${__CORE_COUNT__}
-				-o ${CMAKE_SOURCE_DIR}/bin/xclbin/${__NETWORK_NAME__}_kernel.${TARGET}.${PLATFORM}.xclbin
+				-o ${CMAKE_SOURCE_DIR}/bin/xclbin/${__NETWORK_NAME__}_kernel.${TARGET}.xclbin
 				${CMAKE_CURRENT_BINARY_DIR}/xclbin/${__NETWORK_NAME__}_kernel.${TARGET}.${PLATFORM}.xo
 				> ${__NETWORK_NAME__}_kernel_xclbin.log
 			DEPENDS ${__NETWORK_NAME__}_kernel_xo
