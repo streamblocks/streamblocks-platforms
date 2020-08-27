@@ -286,16 +286,16 @@ if (KERNEL)
 				${CMAKE_CURRENT_BINARY_DIR}/xclbin/${__NETWORK_NAME__}_kernel.${TARGET}.${PLATFORM}.xo
 				> ${__NETWORK_NAME__}_kernel_xclbin.log
 			DEPENDS ${__NETWORK_NAME__}_kernel_xo
-			COMMENT "Generating FPGA binary, if TARGET=hw can take several hours. (-j ${__CORE_COUNT__})"
+			COMMENT "Generating FPGA binary, TARGET = ${TARGET}. (-j ${__CORE_COUNT__})"
 		)
 		set(XCLBIN_JOBS_FLAG -j${__CORE_COUNT__} CACHE STRING "Number of parallel jobs to build the FPGA binary")
 	else()
 		message(INFO "Could not detect number of cores, omitting -j option to ${XCLBIN_COMPILER}")
 		add_custom_command(
-			OUTPUT  ${CMAKE_SOURCE_DIR}/bin/xclbin/${__NETWORK_NAME__}_kernel.${TARGET}.${PLATFORM}.xclbin
+			OUTPUT  ${CMAKE_SOURCE_DIR}/bin/xclbin/${__NETWORK_NAME__}_kernel.${TARGET}.xclbin
 			COMMAND ${XCLBIN_COMPILER} --link -g -t ${TARGET} --platform ${PLATFORM} --kernel_frequency ${KERNEL_FREQ}  --save-temps
 				${XOCC_DEBUG} ${XOCC_PROFILE}
-				-o ${CMAKE_SOURCE_DIR}/bin/xclbin/${__NETWORK_NAME__}_kernel.${TARGET}.${PLATFORM}.xclbin
+				-o ${CMAKE_SOURCE_DIR}/bin/xclbin/${__NETWORK_NAME__}_kernel.${TARGET}.xclbin
 				${CMAKE_CURRENT_BINARY_DIR}/xclbin/${__NETWORK_NAME__}_kernel.${TARGET}.${PLATFORM}.xo
 				> ${__NETWORK_NAME__}_kernel_xclbin.log
 			DEPENDS ${__NETWORK_NAME__}_kernel_xo
@@ -305,7 +305,7 @@ if (KERNEL)
 	endif()
 
 	add_custom_target(${__NETWORK_NAME__}_kernel_xclbin ALL
-		DEPENDS ${CMAKE_SOURCE_DIR}/bin/xclbin/${__NETWORK_NAME__}_kernel.${TARGET}.${PLATFORM}.xclbin
+		DEPENDS ${CMAKE_SOURCE_DIR}/bin/xclbin/${__NETWORK_NAME__}_kernel.${TARGET}.xclbin
 	)
 
 

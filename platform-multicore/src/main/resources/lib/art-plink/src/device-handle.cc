@@ -153,8 +153,7 @@ void DevicePort::equeueReadSize(const cl::CommandQueue &q,
  *****************************************************************************/
 
 DeviceHandle::DeviceHandle(int num_inputs, int num_outputs, int num_mems,
-                           const std::string kernel_name, const std::string dir,
-                           const std::string target_device_name)
+                           const std::string kernel_name, const std::string dir)
     : NUM_INPUTS(num_inputs), NUM_OUTPUTS(num_outputs), NUM_MEMS(num_mems),
       request_size(num_inputs), available_size(num_outputs) {
 
@@ -179,15 +178,15 @@ DeviceHandle::DeviceHandle(int num_inputs, int num_outputs, int num_mems,
     builder << dir << "/" << kernel_name;
     auto emu_mode = std::getenv("XCL_EMULATION_MODE");
     if (emu_mode == NULL)
-      builder << ".hw.";
+      builder << ".hw";
     else {
       if (strcmp(emu_mode, "hw_emu") == 0)
-        builder << ".hw_emu.";
+        builder << ".hw_emu";
       else
         OCL_ERR("Unsupported emulation mode %s\n", emu_mode);
     }
 
-    builder << target_device_name << ".xclbin";
+    builder << ".xclbin";
 
     xclbin_name = builder.str();
   }

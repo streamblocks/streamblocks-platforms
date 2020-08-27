@@ -18,22 +18,20 @@ import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.util.ImmutableList;
-import se.lth.cs.tycho.phase.TemplateAnalysisPhase$Analysis$MultiJ;
+
 import se.lth.cs.tycho.reporting.CompilationException;
 import se.lth.cs.tycho.reporting.Diagnostic;
 import se.lth.cs.tycho.type.BoolType;
 import se.lth.cs.tycho.type.IntType;
 import se.lth.cs.tycho.type.Type;
-import sun.reflect.generics.reflectiveObjects.GenericArrayTypeImpl;
+
 
 
 import java.nio.file.Path;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
+
 
 
 /**
@@ -509,9 +507,7 @@ public interface PLink {
                 emitter().emit("%d,  // -- number of outputs", entity.getOutputPorts().size());
                 emitter().emit("%d,  // -- number of external mems", mems.size());
                 emitter().emit("\"%s\",  // -- kernel name", kernelID);
-                emitter().emit("\"%s\",  // -- kernel dir", "xclbin");
-                emitter().emit("\"%s\"  // -- device name", "xilinx_kcu1500_dynamic_5_0");
-
+                emitter().emit("\"%s\"  // -- kernel dir", "xclbin");
                 emitter().decreaseIndentation();
             }
             emitter().emit(");");

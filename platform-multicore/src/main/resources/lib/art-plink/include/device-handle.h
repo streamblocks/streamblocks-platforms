@@ -156,8 +156,7 @@ private:
 class DeviceHandle {
 public:
   DeviceHandle(int num_inputs, int num_outputs, int num_mems,
-               const std::string kernel_name, const std::string dir,
-               const std::string target_device_name = "");
+               const std::string kernel_name, const std::string dir);
 
   void buildPorts(const std::vector<PLinkPort> &inputs,
                   const std::vector<PLinkPort> &outputs) {
