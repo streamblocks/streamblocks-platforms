@@ -95,11 +95,13 @@ void DevicePort::writeToDeviceBuffer(const cl::CommandQueue &q) {
 
   OCL_ASSERT(buffer_event_info.active == false, "Illegal write buffer for %s\n",
              address.toString().c_str());
-  if (getUsableSpace() > 0) {
-    OCL_MSG("Enqueue write buffer %s\n", address.toString().c_str());
-    OCL_CHECK(err, err = q.enqueueWriteBuffer(device_buffer, false, 0, usable,
-                                              host_buffer.data(), NULL,
-                                              &buffer_event));
+  auto usable_space = getUsableSpace();
+  if (usable_space > 0) {
+    OCL_MSG("Enqueue write buffer %s (%lu bytes)\n", address.toString().c_str(),
+            usable_space);
+    OCL_CHECK(err, err = q.enqueueWriteBuffer(device_buffer, false, 0,
+                                              usable_space, host_buffer.data(),
+                                              NULL, &buffer_event));
     buffer_event_info.active = true;
     buffer_event.setCallback(CL_COMPLETE, callback_handler, &buffer_event_info);
   }
@@ -110,10 +112,11 @@ void DevicePort::readFromDeviceBuffer(const cl::CommandQueue &q,
 
   OCL_ASSERT(buffer_event_info.active == false, "Illegal read buffer for %s\n",
              address.toString().c_str());
-  auto usedSpace = getUsedTokens();
+  auto usedSpace = getUsedTokens() * token_size;
   if (usedSpace > 0) {
     cl_int err;
-    OCL_MSG("Enqeeue read buffer %s\n", address.toString().c_str());
+    OCL_MSG("Enqueue read buffer %s (%lu bytes)\n", address.toString().c_str(),
+            usedSpace);
     OCL_CHECK(err, err = q.enqueueReadBuffer(device_buffer, CL_FALSE, 0,
                                              usedSpace, host_buffer.data(),
                                              events, &buffer_event));

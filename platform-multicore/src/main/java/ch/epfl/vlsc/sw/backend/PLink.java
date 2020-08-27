@@ -1323,7 +1323,7 @@ public interface PLink {
             {
                 emitter().increaseIndentation();
 
-                emitter().emit("std::array<uint32_t, 2> avail_space;");
+                emitter().emit("std::array<uint32_t, %d> avail_space;", entity.getOutputPorts().size());
                 for(PortDecl output : entity.getOutputPorts()) {
                     String type = typeseval().type(types().declaredPortType(output));
                     int ix = entity.getOutputPorts().indexOf(output);

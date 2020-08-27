@@ -56,7 +56,7 @@ public:
     OCL_ASSERT(usable_size % sizeof(T) == 0,
                "Usable space %lu is not aligned to tokens size %d\n",
                usable_size, sizeof(T));
-
+    token_size = sizeof(T);
     if (usable_size > host_buffer.size()) {
       OCL_ERR("usable_size (%llu) should be <= capacity (%llu) in %s\n",
               usable_size, host_buffer.size(), address.toString().c_str());
@@ -105,6 +105,8 @@ public:
   }
 
 private:
+  // -- token size
+  cl::size_type token_size;
   // -- usable space of the port buffer
   cl::size_type usable;
   // -- number of usable tokens, depends on type of the port
@@ -159,8 +161,8 @@ public:
 
   void buildPorts(const std::vector<PLinkPort> &inputs,
                   const std::vector<PLinkPort> &outputs) {
-    OCL_ASSERT(inputs.size() == NUM_INPUTS, "Invalid number of input ports!");
-    OCL_ASSERT(outputs.size() == NUM_INPUTS, "Invalid number of output ports!");
+    OCL_ASSERT(inputs.size() == NUM_INPUTS, "Invalid number of input ports!\n");
+    OCL_ASSERT(outputs.size() == NUM_OUTPUTS, "Invalid number of output ports!\n");
     for (auto &input : inputs) {
       OCL_MSG("constructing input port %s (%llu bytes)\n",
               input.port.toString().c_str(), input.capacity);
@@ -177,8 +179,8 @@ public:
   void buildPorts(const std::vector<PortAddress> &inputs,
                   const std::vector<PortAddress> &outputs) {
 
-    OCL_ASSERT(inputs.size() == NUM_INPUTS, "Invalid number of input ports!");
-    OCL_ASSERT(outputs.size() == NUM_INPUTS, "Invalid number of output ports!");
+    OCL_ASSERT(inputs.size() == NUM_INPUTS, "Invalid number of input ports!\n");
+    OCL_ASSERT(outputs.size() == NUM_OUTPUTS, "Invalid number of output ports!\n");
     for (auto &input : inputs) {
       OCL_MSG("Constructing input port %s\n", input.toString().c_str());
       input_ports.emplace_back(input);
