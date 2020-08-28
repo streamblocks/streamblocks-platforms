@@ -505,20 +505,6 @@ public interface PLink {
                 return sizeBytes.toString();
             }).collect(ImmutableList.collector());
 
-            if (memSize.size() > 0) {
-                emitter().emit("// --external memories");
-                emitter().emit("{");
-                {
-                    emitter().increaseIndentation();
-
-                    emitter().emit("std::vector<uint32_t> external_memory_size = {%s};",
-                            String.join(",", memSize));
-                    emitter().emit("thisActor->dev->allocateExternals(external_memory_size);");
-                    emitter().decreaseIndentation();
-                }
-                emitter().emit("}");
-            }
-
             // -- build the device object
             emitter().emit("// -- the device object");
             emitter().emit("thisActor->dev = std::make_unique<ocl_device::DeviceHandle>(");
@@ -538,6 +524,20 @@ public interface PLink {
             emitter().emit("// -- connect and allocate ports");
 
             emitter().emit("thisActor->dev->buildPorts(thisActor->input_ports, thisActor->output_ports);");
+
+            if (memSize.size() > 0) {
+                emitter().emit("// --external memories");
+                emitter().emit("{");
+                {
+                    emitter().increaseIndentation();
+
+                    emitter().emit("std::vector<cl::size_type> external_memory_size = {%s};",
+                            String.join(",", memSize));
+                    emitter().emit("thisActor->dev->allocateExternals(external_memory_size);");
+                    emitter().decreaseIndentation();
+                }
+                emitter().emit("}");
+            }
         }
 
         emitter().emitNewLine();
