@@ -15,6 +15,7 @@ import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
+import se.lth.cs.tycho.ir.entity.nl.EntityInstanceExpr;
 import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.util.ImmutableList;
@@ -24,7 +25,7 @@ import se.lth.cs.tycho.reporting.Diagnostic;
 import se.lth.cs.tycho.type.BoolType;
 import se.lth.cs.tycho.type.IntType;
 import se.lth.cs.tycho.type.Type;
-
+import sun.reflect.generics.reflectiveObjects.GenericArrayTypeImpl;
 
 
 import java.nio.file.Path;
@@ -203,6 +204,16 @@ public interface PLink {
         emitter().emit("// -- simulation handle");
         emitter().emit("std::unique_ptr<ap_rtl::NetworkTester> dev;");
 
+
+        // -- device object
+
+        // -- input ports
+        emitter().emit("std::vector<ap_rtl::PLinkPort> input_ports;");
+
+        // -- output ports
+        emitter().emit("std::vector<ap_rtl::PLinkPort> output_ports;");
+
+
         ImmutableList.concat(entity.getInputPorts(), entity.getOutputPorts()).forEach(port -> {
 
             emitter().emit("// -- host buffer for %s", port.getName());
@@ -213,11 +224,6 @@ public interface PLink {
 
         });
 
-        entity.getOutputPorts().forEach(port -> {
-
-            emitter().emit("// -- output host buffer offset pointers");
-            emitter().emit("std::size_t buffer_offset_%s;", port.getName());
-        });
 
         emitter().emit("// -- options");
         emitter().emit("int vcd_trace_level;");
@@ -267,14 +273,8 @@ public interface PLink {
         // -- output ports
         emitter().emit("std::vector<ocl_device::PLinkPort> output_ports;");
 
-        // -- utility vars
-        emitter().emitNewLine();
-        emitter().emit("uint64_t total_consumed;");
-        emitter().emit("uint64_t total_produced;");
-        emitter().emit("uint64_t total_request;");
 
-        // -- guard variable
-        emitter().emit("bool should_retry;");
+
     }
 
     default void instanceState(String name, Entity entity) {
@@ -290,6 +290,15 @@ public interface PLink {
                 simulationState(name, entity);
             else
                 deviceState(name, entity);
+
+            // -- utility vars
+            emitter().emitNewLine();
+            emitter().emit("uint64_t total_consumed;");
+            emitter().emit("uint64_t total_produced;");
+            emitter().emit("uint64_t total_request;");
+
+            // -- guard variable
+            emitter().emit("bool should_retry;");
 
             emitter().decreaseIndentation();
         }
@@ -406,6 +415,22 @@ public interface PLink {
             emitter().emit("const std::size_t buffer_size_%s = %d;", port.getName(), bufferSize);
         }
 
+        emitter().emit("using PortAddress = ap_rtl::NetworkTester::PortAddress;");
+
+        // -- build the ports
+        emitter().emit("// -- build the input ports");
+        for (PortDecl port : entity.getInputPorts()) {
+
+            emitter().emit("thisActor->input_ports.emplace_back(PortAddress::%s, buffer_size_%1$s);",
+                    port.getName());
+        }
+        // -- build output ports
+        emitter().emit("// -- build the output ports");
+        for (PortDecl port : entity.getOutputPorts()) {
+            emitter().emit("thisActor->output_ports.emplace_back(PortAddress::%s, buffer_size_%1$s);",
+                    port.getName());
+
+        }
 
         emitter().emitNewLine();
         // -- allocate host buffers
@@ -417,13 +442,10 @@ public interface PLink {
         });
 
         emitter().emitNewLine();
-        emitter().emit("// -- reset the output buffer offset pointers");
-        for (PortDecl outputPort : entity.getOutputPorts()) {
-            emitter().emit("thisActor->buffer_offset_%s = 0;", outputPort.getName());
-        }
+
         // -- allocate device buffers
         emitter().emit("// -- allocate simulation buffers");
-        emitter().emit("using PortAddress = ap_rtl::NetworkTester::PortAddress;");
+
         emitter().emitNewLine();
         ImmutableList.concat(entity.getInputPorts(), entity.getOutputPorts()).forEach(port -> {
             emitter().emit("thisActor->dev->allocateMemory(PortAddress::%s, buffer_size_%1$s);", port.getName());
@@ -595,264 +617,6 @@ public interface PLink {
     }
 
 
-    default void simulationScheduler(String name, Entity entity) {
-
-
-        emitter().emitNewLine();
-        emitter().emit("ART_ACTION_SCHEDULER_ENTER(%d, %d)", entity.getInputPorts().size(),
-                entity.getOutputPorts().size());
-        emitter().emitNewLine();
-        emitter().emit("switch (thisActor->program_counter) {");
-        {
-            emitter().increaseIndentation();
-
-            emitter().emit("case 0: goto CHECK;");
-            emitter().emit("case 1: goto SIMULATE;");
-            emitter().emit("case 2: goto WRITE;");
-            emitter().decreaseIndentation();
-        }
-        emitter().emit("}");
-        emitter().emitNewLine();
-
-        emitter().emit("CHECK: {");
-        {
-            emitter().increaseIndentation();
-            // -- count the tokens
-            for (PortDecl port : entity.getInputPorts()) {
-                String type = typeseval().type(types().declaredPortType(port));
-                int portId = entity.getInputPorts().indexOf(port);
-                emitter().emit("uint32_t tokens_count_%s = pinAvailIn_%s(IN%d_%1$s);", port.getName(), type,
-                        portId);
-                emitter().emit("if (tokens_count_%s > 0) {", port.getName());
-                {
-                    emitter().increaseIndentation();
-                    getSimulatorPinPeek(port, entity.getInputPorts().indexOf(port));
-
-                    emitter().decreaseIndentation();
-                }
-                emitter().emit("}");
-
-            }
-            emitter().emitNewLine();
-
-            emitter().emit("thisActor->program_counter = 1;");
-            emitter().emit("goto SIMULATE;");
-            emitter().decreaseIndentation();
-        }
-        emitter().emit("}");
-
-        emitter().emitNewLine();
-        emitter().emit("SIMULATE: {");
-        {
-            emitter().increaseIndentation();
-            emitter().emit("using PortAddress = ap_rtl::NetworkTester::PortAddress;");
-            emitter().emit("std::size_t total_req_sz = 0;");
-            // -- write host buffers to device
-            emitter().emit("// -- write host buffers to device and set the arguments");
-            for (PortDecl inputPort : entity.getInputPorts()) {
-                String type = typeseval().type(types().declaredPortType(inputPort));
-                emitter().emit("std::size_t req_sz_%s = pinAvailIn_%s(IN%d_%1$s);",
-                        inputPort.getName(), type, entity.getInputPorts().indexOf(inputPort));
-                emitter().emit("thisActor->dev->writeDeviceMemory(PortAddress::%s, thisActor->buffer_%1$s, req_sz_%1$s);",
-                        inputPort.getName());
-                emitter().emit("thisActor->dev->setArg(PortAddress::%s, req_sz_%1$s);", inputPort.getName());
-                emitter().emit("total_req_sz += req_sz_%s;", inputPort.getName());
-            }
-            emitter().emitNewLine();
-
-            for (PortDecl outputPort : entity.getOutputPorts()) {
-
-                emitter().emit("thisActor->dev->setArg(PortAddress::%s, thisActor->buffer_%1$s.size());",
-                        outputPort.getName());
-            }
-
-
-
-            // -- simulate
-            emitter().emit("// -- simulate");
-
-            emitter().emit("auto sim_ticks = thisActor->dev->simulate();");
-
-            emitter().emitNewLine();
-
-            // -- check production of tokens
-            emitter().emit("// -- check production");
-            emitter().emit("std::size_t total_produced = 0;");
-
-            // -- read produced tokens back
-            emitter().emit("// -- read produced tokens");
-            for (PortDecl outputPort : entity.getOutputPorts()) {
-                emitter().emit("thisActor->dev->readDeviceMemory(PortAddress::%s, thisActor->buffer_%1$s, thisActor->dev->querySize(PortAddress::%1$s));",
-                        outputPort.getName());
-                emitter().emit("total_produced += thisActor->dev->querySize(PortAddress::%s);",
-                        outputPort.getName());
-                emitter().emit("thisActor->buffer_offset_%s = 0;", outputPort.getName());
-            }
-
-            emitter().emitNewLine();
-            // -- consume
-            emitter().emit("// -- consume");
-            emitter().emit("std::size_t total_consumed = 0;");
-            for (PortDecl inputPort: entity.getInputPorts()) {
-
-                emitter().emit("const std::size_t consumed_%s = thisActor->dev->querySize(PortAddress::%1$s);",
-                        inputPort.getName());
-                String type = typeseval().type(types().declaredPortType(inputPort));
-                emitter().emit("pinConsumeRepeat_%s(IN%d_%s, consumed_%3$s);", type,
-                        entity.getInputPorts().indexOf(inputPort), inputPort.getName());
-                emitter().emit("total_consumed += consumed_%s;", inputPort.getName());
-
-
-            }
-            emitter().emitNewLine();
-            emitter().emit("thisActor->program_counter = 2;");
-            emitter().emitNewLine();
-
-            // -- dump systemc profiling info
-            emitter().emit("// -- dump systemc profiling info");
-            emitter().emit("if (thisActor->enable_profiling == true) {");
-            {
-                emitter().increaseIndentation();
-                emitter().emit("std::ofstream ofs(thisActor->profile_file_name, std::ios::out);", name);
-                emitter().emit("if (ofs.is_open()) {");
-                {
-                    emitter().increaseIndentation();
-                    emitter().emit("thisActor->dev->dumpStats(ofs);");
-                    emitter().emit("ofs.close();");
-                    emitter().decreaseIndentation();
-                }
-                emitter().emit("} else { ");
-                {
-                    emitter().increaseIndentation();
-                    emitter().emit("runtimeError(pBase, \"Could not open %%s to report SystemC " +
-                            "profiling info.\\n\", thisActor->profile_file_name);");
-                    emitter().decreaseIndentation();
-                }
-                emitter().emit("}");
-                emitter().emitNewLine();
-
-                emitter().decreaseIndentation();
-            }
-            emitter().emit("}");
-            emitter().emitNewLine();
-
-            // -- notify the multicore scheduler that something useful happened
-            emitter().emit("// -- notify the multicore scheduler that something has happened");
-
-            // -- check for potential device deadlock
-            getDeadlockCheck("total_produced", "total_consumed", "total_req_sz");
-
-            emitter().emitNewLine();
-            // -- notify the scheduler that an action has been performed
-            emitter().emit("if (total_consumed > 0 || total_produced > 0) {");
-            {
-                emitter().increaseIndentation();
-                emitter().emit("ART_ACTION_ENTER(CONSUME, 0);");
-                emitter().emit("ART_ACTION_EXIT(CONSUME, 0);");
-                emitter().decreaseIndentation();
-            }
-            emitter().emit("}");
-            emitter().emit("goto WRITE;");
-            emitter().decreaseIndentation();
-        }
-        emitter().emit("}");
-
-        emitter().emit("WRITE : {");
-        {
-            emitter().increaseIndentation();
-            emitter().emit("std::size_t tokens_written = 0;");
-            emitter().emit("uint32_t done_writing = 0;");
-            emitter().emit("using PortAddress = ap_rtl::NetworkTester::PortAddress;");
-            // -- try to read from the sim buffers and write to multicore buffers
-            for (PortDecl port : entity.getOutputPorts()) {
-                emitter().emit("// -- reading sim buffer %s", port.getName());
-                emitter().emitNewLine();
-                String type = typeseval().type(types().declaredPortType(port));
-                int portId = entity.getOutputPorts().indexOf(port);
-
-                emitter().emit("std::size_t offset_%s = thisActor->buffer_offset_%1$s;", port.getName());
-                String offset = "thisActor->buffer_offset_" + port.getName();
-                String produced = "thisActor->dev->querySize(PortAddress::" + port.getName() + ")";
-                String outputPort = String.format("OUT%d_%s", portId, port.getName());
-                String remain = "remain_" + port.getName();
-                String pinAvailOut = "pinAvailOut_" + type + "(" + outputPort + ")";
-                String toWrite = "to_write_" + port.getName();
-                emitter().emit("uint32_t %s = %s - %s;", remain, produced, offset);
-                emitter().emit("uint32_t %s = MIN(%s, %s);", toWrite, pinAvailOut, remain);
-
-
-                emitter().emitNewLine();
-                // -- there are tokens
-                emitter().emit("if (%s > 0) {", remain);
-                {
-                    emitter().increaseIndentation();
-                    emitter().emitNewLine();
-                    getSimulatorPinWrite(port, entity.getOutputPorts().indexOf(port));
-
-                    emitter().emit("%s += %s;", offset, toWrite);
-
-                    emitter().emit("tokens_written += %s;", toWrite);
-                    emitter().emit("if (%s == %s) {", offset, produced);
-                    {
-                        emitter().increaseIndentation();
-                        emitter().emit("done_writing ++;");
-                        emitter().decreaseIndentation();
-                    }
-                    emitter().emit("}");
-                    emitter().emitNewLine();
-                    emitter().decreaseIndentation();
-                }
-                emitter().emit("} else {");
-                {
-                    emitter().increaseIndentation();
-                    emitter().emit("done_writing ++;");
-                    emitter().decreaseIndentation();
-                }
-                emitter().emit("}");
-                emitter().emitNewLine();
-            }
-
-            emitter().emitNewLine();
-            emitter().emit("if (done_writing == %d) {", entity.getOutputPorts().size());
-            {
-                emitter().increaseIndentation();
-                emitter().emit("thisActor->program_counter = 0;");
-                emitter().decreaseIndentation();
-            }
-            emitter().emit("} else {");
-            {
-                emitter().increaseIndentation();
-                emitter().emit("thisActor->program_counter = 2;");
-                emitter().decreaseIndentation();
-            }
-            emitter().emit("}");
-
-            emitter().emit("if (tokens_written > 0) {");
-            {
-                emitter().increaseIndentation();
-                emitter().emit("ART_ACTION_ENTER(PRODUCE, 1);");
-                emitter().emit("ART_ACTION_EXIT(PRODUCE, 1);");
-                emitter().decreaseIndentation();
-            }
-            emitter().emit("}");
-            emitter().emit("goto YIELD;");
-            emitter().decreaseIndentation();
-        }
-        emitter().emit("}");
-
-        emitter().emitNewLine();
-
-        emitter().emit("YIELD: {");
-        {
-            emitter().increaseIndentation();
-            emitter().emit("ART_ACTION_SCHEDULER_EXIT(%d, %d);", entity.getInputPorts().size(),
-                    entity.getOutputPorts().size());
-            emitter().emit("return result;");
-            emitter().decreaseIndentation();
-        }
-        emitter().emit("}");
-    }
-
     default void getDeadlockCheck(String produced, String consumed, String request) {
         emitter().emit("if (%s == 0 && %s == 0 && %s > 0)", produced, consumed, request);
         {
@@ -877,7 +641,7 @@ public interface PLink {
             emitter().emit("case 3: goto S3;");
             emitter().emit("case 4: goto S4;");
             emitter().emit("case 5: goto S5;");
-            emitter().emit( "default: OCL_ERR(\"invalid plink state\");");
+            emitter().emit( "default: runtimeError(pBase, \"invalid plink state\");");
             emitter().decreaseIndentation();
         }
         emitter().emit("}");
@@ -924,7 +688,7 @@ public interface PLink {
                 "}\n" +
                 "S6 : // Terminal error, deadlock\n" +
                 "{\n" +
-                "  OCL_ERR(\"Potential device deadlock!\\n\");\n" +
+                "  runtimeError(pBase, \"Potential device deadlock!\\n\");\n" +
                 "}\n" +
                 "S7 : // Has input, no output space, must transmit\n" +
                 "{\n" +
@@ -952,11 +716,11 @@ public interface PLink {
                 "}\n" +
                 "S10 : // retry true, no input, but has output spac, should transmit\n" +
                 "{\n" +
-                "  OCL_MSG(\"Retrying kernel with no inputs\\n\")\n" +
+                "  %s(\"Retrying kernel with no inputs\\n\")\n" +
                 "  thisActor->program_counter = 3;\n" +
                 "  ART_EXEC_TRANSITION(transmit);\n" +
                 "  goto YIELD;\n" +
-                "}");
+                "}", isSimulated() ? "STATUS_REPORT" : "OCL_MSG");
 
         emitter().emit("YIELD: {");
         {
@@ -984,40 +748,15 @@ public interface PLink {
             emitter().emit("%s *thisActor = (%1$s *) pBase;", actorInstanceName);
             emitter().emitNewLine();
 
-            if (isSimulated())
-                simulationScheduler(name, entity);
-            else
-                deviceScheduler(name, entity);
+
+            deviceScheduler(name, entity);
 
             emitter().decreaseIndentation();
         }
         emitter().emit("}");
     }
 
-    default void getSimulatorPinPeek(PortDecl port, int index) {
-        emitter().emit("for (std::size_t i = 0; i < tokens_count_%s; i++)", port.getName());
-        {
-            emitter().increaseIndentation();
-            String type = backend().typesEval().type(backend().types().declaredPortType(port));
-            emitter().emit("thisActor->buffer_%s[i] = pinPeek_%s(IN%d_%1$s, i);", port.getName(), type, index);
-            emitter().decreaseIndentation();
-        }
 
-        emitter().emitNewLine();
-    }
-
-    default void getSimulatorPinWrite(PortDecl port, int index) {
-
-        emitter().emit("for (std::size_t i = thisActor->buffer_offset_%s; i < thisActor->buffer_offset_%1$s + to_write_%1$s; i++)", port.getName());
-        {
-            emitter().increaseIndentation();
-            String type = backend().typesEval().type(backend().types().declaredPortType(port));
-            emitter().emit("pinWrite_%s(OUT%d_%s, thisActor->buffer_%3$s[i]);", type, index, port.getName());
-            emitter().decreaseIndentation();
-        }
-        emitter().emitNewLine();
-
-    }
 
     default void getSetParam(String name, Entity entity) {
 
@@ -1054,6 +793,21 @@ public interface PLink {
 
     default void actionDefinitions(String instanceName, Entity entity) {
 
+        if(isSimulated()) {
+
+            getTransmitActionSim(instanceName, entity);
+            emitter().emitNewLine();
+
+
+            getReceiveActionSim(instanceName, entity);
+            emitter().emitNewLine();
+
+
+            getWriteActionSim(instanceName, entity);
+            emitter().emitNewLine();
+
+        } else {
+
             getTransmitAction(instanceName, entity);
             emitter().emitNewLine();
 
@@ -1064,22 +818,40 @@ public interface PLink {
 
             getWriteAction(instanceName, entity);
             emitter().emitNewLine();
+        }
+
 
     }
 
     default void conditionDefinitions(String instanceName, Entity entity) {
 
-        getInputCondition(instanceName, entity);
-        emitter().emitNewLine();
+        if (isSimulated()) {
+            getInputConditionSim(instanceName, entity);
+            emitter().emitNewLine();
 
-        getOutputCondition(instanceName, entity);
-        emitter().emitNewLine();
+            getOutputConditionSim(instanceName, entity);
+            emitter().emitNewLine();
 
-        getRetryCondition(instanceName, entity);
-        emitter().emitNewLine();
+            getRetryConditionSim(instanceName, entity);
+            emitter().emitNewLine();
 
-        getDeadlockCondition(instanceName, entity);
-        emitter().emitNewLine();
+            getDeadlockConditionSim(instanceName, entity);
+            emitter().emitNewLine();
+
+        } else {
+            getInputCondition(instanceName, entity);
+            emitter().emitNewLine();
+
+            getOutputCondition(instanceName, entity);
+            emitter().emitNewLine();
+
+            getRetryCondition(instanceName, entity);
+            emitter().emitNewLine();
+
+            getDeadlockCondition(instanceName, entity);
+            emitter().emitNewLine();
+        }
+
 
     }
 
@@ -1117,6 +889,11 @@ public interface PLink {
         emitter().emit("}");
     }
 
+    default void getInputConditionSim(String instanceName, Entity entity) {
+
+        getInputCondition(instanceName, entity);
+    }
+
     default void getOutputCondition(String instanceName, Entity entity) {
         emitter().emit("ART_CONDITION(output_condition, ActorInstance_%s) {", instanceName);
         {
@@ -1150,6 +927,10 @@ public interface PLink {
         emitter().emit("}");
     }
 
+    default void getOutputConditionSim(String instanceName, Entity entity) {
+        getOutputCondition(instanceName, entity);
+    }
+
     default void getRetryCondition(String instanceName, Entity entity) {
         emitter().emit("ART_CONDITION(retry_guard, ActorInstance_%s) {", instanceName);
         {
@@ -1160,6 +941,10 @@ public interface PLink {
             emitter().decreaseIndentation();
         }
         emitter().emit("}");
+    }
+
+    default void getRetryConditionSim(String instanceName, Entity entity) {
+        getRetryCondition(instanceName, entity);
     }
 
     default void getDeadlockCondition(String instanceName, Entity entity) {
@@ -1175,6 +960,11 @@ public interface PLink {
         }
         emitter().emit("}");
     }
+
+    default void getDeadlockConditionSim(String instanceName, Entity entity) {
+        getDeadlockCondition(instanceName, entity);
+    }
+
     default void getTransmitAction(String instanceName, Entity entity) {
 
         emitter().emit("ART_ACTION(transmit, ActorInstance_%s) {", instanceName);
@@ -1227,6 +1017,52 @@ public interface PLink {
 
     }
 
+    default void getTransmitActionSim(String instanceName, Entity entity) {
+        emitter().emit("ART_ACTION(transmit, ActorInstance_%s) {", instanceName);
+        {
+            emitter().increaseIndentation();
+
+            emitter().emit("ART_ACTION_ENTER(transmit, 0);");
+            for(PortDecl input : entity.getInputPorts()) {
+                int ix = entity.getInputPorts().indexOf(input);
+                emitter().emit("thisActor->dev->setArg(thisActor->input_ports[%d].port, " +
+                        "thisActor->input_ports[%1$d].usable);", ix);
+                emitter().emit("STATUS_REPORT(\"%s request size %%lu\\n\", thisActor->input_ports[%d].usable);",
+                        input.getName(), ix);
+
+            }
+            emitter().emit("// -- set the available output space for the device");
+            for(PortDecl output : entity.getOutputPorts()) {
+
+                int ix = entity.getOutputPorts().indexOf(output);
+
+                emitter().emit("thisActor->dev->setArg(thisActor->output_ports[%d].port, " +
+                        "thisActor->output_ports[%1$d].usable);", ix);
+                emitter().emit("STATUS_REPORT(\"%s available size %%lu\\n\", thisActor->output_ports[%d].usable);",
+                        output.getName(), ix);
+            }
+
+
+            emitter().emitNewLine();
+
+            for(PortDecl input: entity.getInputPorts()) {
+                int ix = entity.getInputPorts().indexOf(input);
+                getSimulatorPinPeek(input, ix);
+                emitter().emit("thisActor->dev->writeDeviceMemory(thisActor->input_ports[%d].port, " +
+                        "thisActor->buffer_%s," +
+                        "thisActor->input_ports[%1$d].usable);", ix, input.getName());
+            }
+
+            emitter().emit("auto sim = thisActor->dev->simulate();");
+            emitter().emit("STATUS_REPORT(\"Simulation call ended after %%llu cycles\\n\", sim);");
+
+            emitter().emit("ART_ACTION_EXIT(transmit, 0);");
+            emitter().emitNewLine();
+
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("}");
+    }
     default void getReceiveAction(String instanceName, Entity entity) {
 
         emitter().emit("ART_ACTION(receive, ActorInstance_%s) {", instanceName);
@@ -1306,6 +1142,107 @@ public interface PLink {
         }
         emitter().emit("}");
     }
+
+    default void getReceiveActionSim(String instanceName, Entity entity) {
+
+        emitter().emit("ART_ACTION(receive, ActorInstance_%s) {", instanceName);
+        {
+            emitter().increaseIndentation();
+            emitter().emit("ART_ACTION_ENTER(receive, 1);");
+
+            emitter().emit("// -- get the used inputs");
+            for (PortDecl input : entity.getInputPorts()) {
+                int ix = entity.getInputPorts().indexOf(input);
+
+                emitter().emit("thisActor->input_ports[%d].used = ", ix);
+                emitter().emit("\tthisActor->dev->querySize(thisActor->input_ports[%d].port);", ix);
+                emitter().emit("STATUS_REPORT(\"Device consumed %%d tokens on port %s\\n\", " +
+                        "thisActor->input_ports[%d].used);", input.getName(), ix);
+            }
+
+            emitter().emitNewLine();
+            emitter().emit("// -- get the produced output");
+            for (PortDecl output : entity.getOutputPorts()) {
+                int ix = entity.getOutputPorts().indexOf(output);
+
+                emitter().emit("thisActor->output_ports[%d].used = ", ix);
+                emitter().emit("thisActor->dev->querySize(thisActor->output_ports[%d].port);", ix);
+                emitter().emit("STATUS_REPORT(\"Device produced %%d tokens on port %s\\n\"" +
+                        ", thisActor->output_ports[%d].used);", output.getName(), ix);
+            }
+
+            // -- consume
+            emitter().emit("// -- consume on behalf of device");
+            for (PortDecl input : entity.getInputPorts()) {
+                int ix = entity.getInputPorts().indexOf(input);
+                String type = typeseval().type(types().declaredPortType(input));
+                emitter().emit("if (thisActor->input_ports[%d].used > 0) {", ix);
+                {
+                    emitter().increaseIndentation();
+
+                    emitter().emit("pinConsumeRepeat_%s(IN%d_%s,", type, ix, input.getName());
+                    emitter().emit("\tthisActor->input_ports[%d].used);", ix);
+
+                    emitter().decreaseIndentation();
+                }
+                emitter().emit("}");
+            }
+
+            emitter().emitNewLine();
+
+            emitter().emit("thisActor->total_request = 0;");
+            emitter().emit("thisActor->total_consumed = 0;");
+            emitter().emit("thisActor->total_produced = 0;");
+            emitter().emit("thisActor->should_retry = false;");
+            emitter().emitNewLine();
+
+            emitter().emit("for(auto& output : thisActor->output_ports) {");
+            {
+                emitter().increaseIndentation();
+                emitter().emit("if(output.used == output.usable) {");
+                {
+                    emitter().increaseIndentation();
+                    emitter().emit("thisActor->should_retry = true;");
+                    emitter().emit("STATUS_REPORT(\"Retry condition set to true\\n\");");
+                    emitter().emit("break;");
+                    emitter().decreaseIndentation();
+                }
+                emitter().emit("}");
+                emitter().decreaseIndentation();
+            }
+            // -- dump systemc profiling info
+            emitter().emit("// -- dump systemc profiling info");
+            emitter().emit("if (thisActor->enable_profiling == true) {");
+            {
+                emitter().increaseIndentation();
+                emitter().emit("std::ofstream ofs(thisActor->profile_file_name, std::ios::out);");
+                emitter().emit("if (ofs.is_open()) {");
+                {
+                    emitter().increaseIndentation();
+                    emitter().emit("thisActor->dev->dumpStats(ofs);");
+                    emitter().emit("ofs.close();");
+                    emitter().decreaseIndentation();
+                }
+                emitter().emit("} else { ");
+                {
+                    emitter().increaseIndentation();
+                    emitter().emit("PANIC(\"Could not open %%s to report SystemC " +
+                            "profiling info.\\n\", thisActor->profile_file_name);");
+                    emitter().decreaseIndentation();
+                }
+                emitter().emit("}");
+                emitter().emitNewLine();
+
+                emitter().decreaseIndentation();
+            }
+            emitter().emit("}");
+            emitter().emitNewLine();
+            emitter().emit("}");
+            emitter().emit("ART_ACTION_ENTER(receive, 1);");
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("}");
+    }
     default void getWriteAction(String instanceName, Entity entity) {
 
         emitter().emit("ART_ACTION(write, ActorInstance_%s) { ", instanceName);
@@ -1359,6 +1296,74 @@ public interface PLink {
     }
 
 
+    default void getWriteActionSim(String instanceName, Entity entity) {
+
+        emitter().emit("ART_ACTION(write, ActorInstance_%s) { ", instanceName);
+        {
+            emitter().increaseIndentation();
+            emitter().emit("ART_ACTION_ENTER(write, 2);");
+
+
+
+            emitter().emit("{");
+            {
+                emitter().increaseIndentation();
+
+                emitter().emit("std::array<uint32_t, %d> avail_space;", entity.getOutputPorts().size());
+                for(PortDecl output : entity.getOutputPorts()) {
+                    String type = typeseval().type(types().declaredPortType(output));
+                    int ix = entity.getOutputPorts().indexOf(output);
+                    emitter().emit("avail_space[%d] = pinAvailOut_%s(OUT%1$d_%s);",
+                            ix, type, output.getName());
+                    emitter().emit("ASSERT(avail_space[%d] >= thisActor->output_ports[%1$d].used, \"Output %1$d overflow!\\n\");", ix);
+                }
+
+
+
+                emitter().decreaseIndentation();
+            }
+            emitter().emit("}");
+
+            for(PortDecl output : entity.getOutputPorts()) {
+
+                int ix = entity.getOutputPorts().indexOf(output);
+                getSimulatorPinWrite(output, ix);
+
+
+            }
+
+            emitter().emit("ART_ACTION_EXIT(write, 2);");
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("}");
+
+    }
+
+
+    default void getSimulatorPinPeek(PortDecl port, int index) {
+        emitter().emit("for (std::size_t i = 0; i < thisActor->input_ports[%d].usable; i++)", index);
+        {
+            emitter().increaseIndentation();
+            String type = backend().typesEval().type(backend().types().declaredPortType(port));
+            emitter().emit("thisActor->buffer_%s[i] = pinPeek_%s(IN%d_%1$s, i);", port.getName(), type, index);
+            emitter().decreaseIndentation();
+        }
+
+        emitter().emitNewLine();
+    }
+
+    default void getSimulatorPinWrite(PortDecl port, int index) {
+
+        emitter().emit("for (std::size_t i = 0; i < thisActor->output_ports[%d].used; i++)", index);
+        {
+            emitter().increaseIndentation();
+            String type = backend().typesEval().type(backend().types().declaredPortType(port));
+            emitter().emit("pinWrite_%s(OUT%d_%s, thisActor->buffer_%3$s[i]);", type, index, port.getName());
+            emitter().decreaseIndentation();
+        }
+        emitter().emitNewLine();
+
+    }
 
 
 }

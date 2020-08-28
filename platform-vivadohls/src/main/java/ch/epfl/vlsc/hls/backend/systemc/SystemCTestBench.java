@@ -104,6 +104,20 @@ public interface SystemCTestBench {
         }
         emitter().emit("}; // class %s", identifier);
         emitter().emitNewLine();
+        emitter().emit("struct PLinkPort {\n" +
+                "\n" +
+                "  PLinkPort(NetworkTester::PortAddress port_name, uint32_t capacity)\n" +
+                "      : port(port_name), capacity(capacity) {\n" +
+                "    usable = capacity;\n" +
+                "    used = 0;\n" +
+                "  };\n" +
+                "  NetworkTester::PortAddress port;\n" +
+                "  uint32_t usable;\n" +
+                "  uint32_t used;\n" +
+                "  uint32_t capacity;\n" +
+                "};");
+
+        emitter().emitNewLine();
         emitter().emit("} // namespace ap_rtl");
         emitter().emitNewLine();
         emitter().emit("#endif // __%s_H__", fileId.toUpperCase());

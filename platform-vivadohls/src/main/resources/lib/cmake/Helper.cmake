@@ -88,8 +88,8 @@ if (KERNEL)
 
 
 	if(USE_VITIS)
-		set(FPGA_NAME "xczu3eg-sbva484-1-e" CACHE STRING "Name of Xilinx FPGA, e.g \"xcku115-flvb2104-2-e\", \"xczu3eg-sbva484-1-e\",..")
-		set(PLATFORM "ultra96_base" CACHE STRING "Supported platform name, e.g \"xilinx_kcu1500_dynamic_5_0\", \"zcu102_base\", \"ultra96_base\",... ")
+		set(FPGA_NAME "xczu3eg-sbva484-1-e" CACHE STRING "Name of Xilinx FPGA, e.g \"xcku115-flvb2104-2-e\", \"xcu250-figd2104-2L-e\", \"xczu3eg-sbva484-1-e\",..")
+		set(PLATFORM "ultra96_base" CACHE STRING "Supported platform name, e.g \"xilinx_kcu1500_dynamic_5_0\", \"xilinx_u250_xdma_201830_2\", \"zcu102_base\", \"ultra96_base\",... ")
 		set(HLS_CLOCK_PERIOD "6.667" CACHE STRING "Clock period in ns")
 		set(KERNEL_FREQ "150" CACHE STRING "Clock frequency in MHz.")
 	else()

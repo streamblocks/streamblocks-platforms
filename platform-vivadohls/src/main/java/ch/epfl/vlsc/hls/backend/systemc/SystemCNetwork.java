@@ -351,6 +351,12 @@ public interface SystemCNetwork {
         }
         emitter().emit("}; // class %s", identifier);
         emitter().emitNewLine();
+
+        emitter().emitNewLine();
+
+
+        emitter().emitNewLine();
+
         emitter().emit("} // namespace ap_rtl");
         emitter().emitNewLine();
         emitter().emit("#endif // __%s_H__", identifier);
