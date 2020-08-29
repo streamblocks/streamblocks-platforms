@@ -41,8 +41,7 @@ set_clock_uncertainty 12.5%
 ## -- Config RTL
 config_rtl -reset_level low
 config_compile -name_max_length 512 -pipeline_loops 256
-config_array_partition -auto_partition_threshold 64
-config_schedule -verbose
+
 
 ## -- Run synthesis
 csynth_design
