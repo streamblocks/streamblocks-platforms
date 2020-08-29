@@ -296,6 +296,7 @@ public interface PLink {
             emitter().emit("uint64_t total_consumed;");
             emitter().emit("uint64_t total_produced;");
             emitter().emit("uint64_t total_request;");
+            emitter().emit("bool deadlock_notify;");
 
             // -- guard variable
             emitter().emit("bool should_retry;");
@@ -401,7 +402,7 @@ public interface PLink {
         emitter().emit("sc_time period(10.0, SC_NS);");
         emitter().emit("int trace_level = thisActor->vcd_trace_level;");
         emitter().emit("thisActor->dev = " +
-                "std::make_unique<ap_rtl::NetworkTester>(\"plink\", period, 512, trace_level);");
+                "std::make_unique<ap_rtl::NetworkTester>(\"plink\", period, 4096, trace_level);");
 
         emitter().emitNewLine();
         for(PortDecl port: entity.getInputPorts()) {
@@ -562,6 +563,7 @@ public interface PLink {
             emitter().emit("%s *thisActor = (%1$s *) pBase;", actorInstanceName);
 
             emitter().emit("thisActor->program_counter = 0;");
+            emitter().emit("thisActor->deadlock_notify = true;");
 
             if (isSimulated())
                 constructSimulator(name, entity);
@@ -617,16 +619,6 @@ public interface PLink {
     }
 
 
-    default void getDeadlockCheck(String produced, String consumed, String request) {
-        emitter().emit("if (%s == 0 && %s == 0 && %s > 0)", produced, consumed, request);
-        {
-            emitter().increaseIndentation();
-
-            emitter().emit("runtimeError(pBase, \"Potential device deadlock\\n\");");
-            emitter().decreaseIndentation();
-
-        }
-    }
     default void deviceScheduler(String name, Entity entity) {
 
         PartitionHandle handle = ((PartitionLink) entity).getHandle();
@@ -648,6 +640,7 @@ public interface PLink {
 
         emitter().emit("S0 : // Init state\n" +
                 "{\n" +
+                "  thisActor->deadlock_notify = true;\n" +
                 "  if (ART_TEST_CONDITION(input_condition))\n" +
                 "    goto S1;\n" +
                 "  else\n" +
@@ -666,7 +659,7 @@ public interface PLink {
                 "  ART_EXEC_TRANSITION(transmit);\n" +
                 "  goto YIELD;\n" +
                 "}\n" +
-                "S3 : // Transmited, must receive\n" +
+                "S3 : // Transmitted, must receive\n" +
                 "{\n" +
                 "  thisActor->program_counter = 4;\n" +
                 "  ART_EXEC_TRANSITION(receive);\n" +
@@ -860,28 +853,19 @@ public interface PLink {
         emitter().emit("ART_CONDITION(input_condition, ActorInstance_%s) {", instanceName);
         {
             emitter().increaseIndentation();
+            emitter().emit("uint32_t avail_in = 0;");
+            emitter().emit("bool cond = false;");
             for(PortDecl input: entity.getInputPorts()) {
                 String type = typeseval().type(types().declaredPortType(input));
-                emitter().emit("thisActor->input_ports[%d].usable = pinAvailIn_%s(IN%1$d_%s);",
-                        entity.getInputPorts().indexOf(input), type, input.getName());
+                int ix = entity.getInputPorts().indexOf(input);
+                emitter().emit("avail_in = pinAvailIn_%s(IN%d_%s);", type, ix, input.getName());
+                emitter().emit("if (avail_in != thisActor->input_ports[%d]) // check deadlock hint", ix);
+                emitter().emit("\tthisActor->deadlock_notify = false;");
+                emitter().emit("if (avail_in > 0)");
+                emitter().emit("\tcond=true;");
+                emitter().emit("thisActor->input_ports[%d].usable = avail_in;", ix);
             }
             emitter().emitNewLine();
-            emitter().emit("bool cond = false;");
-            emitter().emit("for (auto& p : thisActor->input_ports) {");
-            {
-                emitter().increaseIndentation();
-
-                emitter().emit("if (p.usable > 0)");
-                {
-                    emitter().increaseIndentation();
-                    emitter().emit("cond = true;");
-                    emitter().decreaseIndentation();
-                }
-
-                emitter().decreaseIndentation();
-            }
-            emitter().emit("}");
-
             emitter().emitNewLine();
             emitter().emit("return cond;");
             emitter().decreaseIndentation();
@@ -898,28 +882,19 @@ public interface PLink {
         emitter().emit("ART_CONDITION(output_condition, ActorInstance_%s) {", instanceName);
         {
             emitter().increaseIndentation();
+            emitter().emit("bool cond = false;");
+            emitter().emit("uint32_t avail_out = 0;");
             for(PortDecl output: entity.getOutputPorts()) {
                 String type = typeseval().type(types().declaredPortType(output));
+                int ix = entity.getOutputPorts().indexOf(output);
+                emitter().emit("avail_out = pinAvailOut_%s(OUT%d_%s);", type, ix, output.getName());
+                emitter().emit("if(avail_out != thisActor->output_ports[%d].usable)");
+                emitter().emit("\tthisActor->deadlock_notify = false;");
+                emitter().emit("if(avail_out > 0)");
+                emitter().emit("\tcond = true;");
                 emitter().emit("thisActor->output_ports[%d].usable = pinAvailOut_%s(OUT%1$d_%s);",
                         entity.getOutputPorts().indexOf(output), type, output.getName());
             }
-            emitter().emitNewLine();
-            emitter().emit("bool cond = false;");
-            emitter().emit("for (auto& p : thisActor->output_ports) {");
-            {
-                emitter().increaseIndentation();
-
-                emitter().emit("if (p.usable > 0)");
-                {
-                    emitter().increaseIndentation();
-                    emitter().emit("cond = true;");
-                    emitter().decreaseIndentation();
-                }
-
-                emitter().decreaseIndentation();
-            }
-            emitter().emit("}");
-
             emitter().emitNewLine();
             emitter().emit("return cond;");
             emitter().decreaseIndentation();
@@ -952,11 +927,9 @@ public interface PLink {
         {
             emitter().increaseIndentation();
 
-            emitter().emit("bool all_inputs_have_tokens = true;\n" +
+            emitter().emit(
                     "\tbool has_consumption = false;\n" +
                     "\tfor (auto& input : thisActor->input_ports) {\n" +
-                    "\t\tif (input.usable == 0)\n" +
-                    "\t\t\tall_inputs_have_tokens = false;\n" +
                     "\t\tif (input.used > 0)\n" +
                     "\t\t\thas_consumption = true;\n" +
                     "\t}\n" +
@@ -965,7 +938,7 @@ public interface PLink {
                     "\t\tif (output.used > 0)\n" +
                     "\t\t\thas_production = true;\n" +
                     "\t}");
-            emitter().emit("bool cond = false;");
+            emitter().emit("bool cond =  thisActor->deadlock_notify && (!has_consumption) && (!has_production);");
             emitter().emit("return cond;");
 
             emitter().decreaseIndentation();
@@ -1036,6 +1009,8 @@ public interface PLink {
             emitter().increaseIndentation();
 
             emitter().emit("ART_ACTION_ENTER(transmit, 0);");
+
+            emitter().emitNewLine();
             for(PortDecl input : entity.getInputPorts()) {
                 int ix = entity.getInputPorts().indexOf(input);
                 emitter().emit("thisActor->dev->setArg(thisActor->input_ports[%d].port, " +
@@ -1179,7 +1154,7 @@ public interface PLink {
                 int ix = entity.getOutputPorts().indexOf(output);
 
                 emitter().emit("thisActor->output_ports[%d].used = ", ix);
-                emitter().emit("thisActor->dev->querySize(thisActor->output_ports[%d].port);", ix);
+                emitter().emit("\tthisActor->dev->querySize(thisActor->output_ports[%d].port);", ix);
                 emitter().emit("STATUS_REPORT(\"Device produced %%d tokens on port %s\\n\"" +
                         ", thisActor->output_ports[%d].used);", output.getName(), ix);
             }
@@ -1340,6 +1315,9 @@ public interface PLink {
             for(PortDecl output : entity.getOutputPorts()) {
 
                 int ix = entity.getOutputPorts().indexOf(output);
+                emitter().emit("thisActor->dev->readDeviceMemory(thisActor->output_ports[%d],", ix);
+                emitter().emit("\tthisActor->buffer_%s, ", output.getName());
+                emitter().emit("\tthisActor->output_ports[%d].used);", ix);
                 getSimulatorPinWrite(output, ix);
 
 
