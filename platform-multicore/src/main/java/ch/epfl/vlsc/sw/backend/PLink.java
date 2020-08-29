@@ -586,13 +586,13 @@ public interface PLink {
 
     default void destructSimulator(String name, Entity entity) {
         // automatic destruction using smart pointers
-        emitter().emit("STATUS_REPORT(\"PLink trip count = %%lu\", thisActor->trip_count);");
+        emitter().emit("STATUS_REPORT(\"PLink trip count = %%lu\\n\", thisActor->trip_count);");
     }
 
     default void destructDevice(String name, Entity entity) {
         PartitionHandle handle = ((PartitionLink) entity).getHandle();
         // -- device destructor
-        emitter().emit("printf(\"PLink trip count = %%lu\", thisActor->trip_count);");
+        emitter().emit("printf(\"PLink trip count = %%lu\\n\", thisActor->trip_count);");
     }
 
     default void destructorDefinition(String name, Entity entity) {
