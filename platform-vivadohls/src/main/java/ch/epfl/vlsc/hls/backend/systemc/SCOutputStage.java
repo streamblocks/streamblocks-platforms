@@ -100,4 +100,5 @@ public class SCOutputStage implements SCInputOutputIF {
         return output.getPort();
     }
 
+    public String getType() { return output.getReader().getDout().getSignal().getType(); }
 }
