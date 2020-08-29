@@ -859,7 +859,7 @@ public interface PLink {
                 String type = typeseval().type(types().declaredPortType(input));
                 int ix = entity.getInputPorts().indexOf(input);
                 emitter().emit("avail_in = pinAvailIn_%s(IN%d_%s);", type, ix, input.getName());
-                emitter().emit("if (avail_in != thisActor->input_ports[%d]) // check deadlock hint", ix);
+                emitter().emit("if (avail_in != thisActor->input_ports[%d].usable)", ix);
                 emitter().emit("\tthisActor->deadlock_notify = false;");
                 emitter().emit("if (avail_in > 0)");
                 emitter().emit("\tcond=true;");
@@ -1315,7 +1315,7 @@ public interface PLink {
             for(PortDecl output : entity.getOutputPorts()) {
 
                 int ix = entity.getOutputPorts().indexOf(output);
-                emitter().emit("thisActor->dev->readDeviceMemory(thisActor->output_ports[%d],", ix);
+                emitter().emit("thisActor->dev->readDeviceMemory(thisActor->output_ports[%d].port,", ix);
                 emitter().emit("\tthisActor->buffer_%s, ", output.getName());
                 emitter().emit("\tthisActor->output_ports[%d].used);", ix);
                 getSimulatorPinWrite(output, ix);
