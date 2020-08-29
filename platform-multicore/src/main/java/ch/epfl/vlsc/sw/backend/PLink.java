@@ -952,6 +952,19 @@ public interface PLink {
         {
             emitter().increaseIndentation();
 
+            emitter().emit("bool all_inputs_have_tokens = true;\n" +
+                    "\tbool has_consumption = false;\n" +
+                    "\tfor (auto& input : thisActor->input_ports) {\n" +
+                    "\t\tif (input.usable == 0)\n" +
+                    "\t\t\tall_inputs_have_tokens = false;\n" +
+                    "\t\tif (input.used > 0)\n" +
+                    "\t\t\thas_consumption = true;\n" +
+                    "\t}\n" +
+                    "\tbool has_production = false;\n" +
+                    "\tfor (auto & output: thisActor->output_ports) {\n" +
+                    "\t\tif (output.used > 0)\n" +
+                    "\t\t\thas_production = true;\n" +
+                    "\t}");
             emitter().emit("bool cond = false;");
             emitter().emit("return cond;");
 
