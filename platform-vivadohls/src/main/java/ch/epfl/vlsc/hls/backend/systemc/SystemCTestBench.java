@@ -11,6 +11,7 @@ import se.lth.cs.tycho.ir.util.ImmutableList;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.stream.Stream;
 
 
@@ -497,48 +498,92 @@ public interface SystemCTestBench {
     }
     default void getMemoryWrite(SCNetwork network) {
 
-        String funName = "writeDeviceMemory";
-        ImmutableList<String> args = ImmutableList.of("std::vector<T> &host_buffer", "std::size_t n=0");
+        network.getInputStages()
+                .map(SCInputOutputIF::getType)
+                .stream().distinct()
+                .forEach(t -> getMemoryWriteTyped(network, t));
+
+    }
+
+    default void getMemoryWriteTyped(SCNetwork network, String type) {
+
+        ImmutableList<String> args = ImmutableList.of(
+                "std::vector<" + type + "> &host_buffer",
+                "std::size_t n=0");
         Map<PortDecl, ImmutableList<String>> stmts = new HashMap<>();
 
-        network.getInputStages().forEach(port -> {
-           String writeStmt = String.format("inst_%s->%s->writeDeviceMemory(host_buffer, n)", network.getIdentifier(),
-                   port.getInstanceName());
-           stmts.put(port.getPort(), ImmutableList.of(writeStmt));
+        // -- get the ports of the given type
+        network.getInputStages().stream()
+                .filter(input -> input.getType().equals(type))
+                .forEach(port -> {
+            String writeStmt = String.format("inst_%s->%s->writeDeviceMemory(host_buffer, n)",
+                    network.getIdentifier(),
+                    port.getInstanceName());
+            stmts.put(port.getPort(), ImmutableList.of(writeStmt));
         });
 
+        // -- get the ports of other types
+        network.getInputStages().stream()
+                .filter(input -> !input.getType().equals(type))
+                .forEach(port -> {
+            String invalidTypePanic = String.format("PANIC(\"Invalid write type for %s!\\n\")",
+                        port.getPort().getName());
+            stmts.put(port.getPort(), ImmutableList.of(invalidTypePanic));
+        });
+
+        // -- get the output port panics
         network.getOutputStages().forEach(port -> {
-            String panicStmt = String.format("PANIC(\"Port address %s is read-only!\")", port.getPort().getName());
+            String panicStmt = String.format("PANIC(\"Port address %s is read-only!\\n\")", port.getPort().getName());
             stmts.put(port.getPort(), ImmutableList.of(panicStmt));
         });
 
-        getMemoryOperation(funName, args, stmts, ImmutableList.empty(), "", "void",
-                ImmutableList.of("typename T"));
+        getMemoryOperation("writeDeviceMemory", args, stmts, ImmutableList.empty(), "", "void",
+                ImmutableList.empty());
 
     }
+
 
     default void getMemoryRead(SCNetwork network) {
 
-        String funName = "readDeviceMemory";
-        ImmutableList<String> args = ImmutableList.of("std::vector<T> &host_buffer", "std::size_t n=0");
-        Map<PortDecl, ImmutableList<String>> stmts = new HashMap<>();
-
-        network.getInputStages().forEach(port -> {
-            String panicStmt = String.format("PANIC(\"Port address %s is write-only\")", port.getPort().getName());
-            stmts.put(port.getPort(), ImmutableList.of(panicStmt));
-        });
-
-        network.getOutputStages().forEach(port -> {
-            String readStmt = String.format("inst_%s->%s->readDeviceMemory(host_buffer, n);", network.getIdentifier(),
-                    port.getInstanceName());
-            stmts.put(port.getPort(), ImmutableList.of(readStmt));
-        });
-
-        getMemoryOperation(funName, args, stmts, ImmutableList.empty(), "", "void",
-                ImmutableList.of("typename T"));
+        network.getOutputStages().map(SCInputOutputIF::getType)
+                .stream().distinct().forEach(type -> getMemoryReadTyped(network, type));
 
     }
 
+    default void getMemoryReadTyped(SCNetwork network, String type) {
+
+
+        String funName = "readDeviceMemory";
+        ImmutableList<String> args = ImmutableList.of("std::vector<" + type + "> &host_buffer", "std::size_t n=0");
+        Map<PortDecl, ImmutableList<String>> stmts = new HashMap<>();
+
+        // -- get write only panics
+        network.getInputStages().forEach(port -> {
+            String panicStmt = String.format("PANIC(\"Port address %s is write-only\\n\")", port.getPort().getName());
+            stmts.put(port.getPort(), ImmutableList.of(panicStmt));
+        });
+
+
+        // -- get the ports of given type
+        network.getOutputStages().stream().filter(output -> output.getType().equals(type))
+            .forEach(port -> {
+                String readStmt = String.format("inst_%s->%s->readDeviceMemory(host_buffer, n);", network.getIdentifier(),
+                        port.getInstanceName());
+                stmts.put(port.getPort(), ImmutableList.of(readStmt));
+            });
+        // -- get the ports of other types
+        network.getOutputStages().stream().filter(output -> !output.getType().equals(type))
+                .forEach(port -> {
+                    String invalidTypePanic = String.format("PANIC(\"Invalid read type for %s!\\n\")",
+                            port.getPort().getName());
+                    stmts.put(port.getPort(), ImmutableList.of(invalidTypePanic));
+        });
+
+        getMemoryOperation("readDeviceMemory", args, stmts, ImmutableList.empty(), "", "void",
+                ImmutableList.empty());
+
+
+    }
     default void getQuerySize(SCNetwork network) {
 
         String funName = "querySize";

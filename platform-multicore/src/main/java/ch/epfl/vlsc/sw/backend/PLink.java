@@ -298,6 +298,7 @@ public interface PLink {
             emitter().emit("uint64_t total_request;");
             emitter().emit("bool deadlock_notify;");
 
+            emitter().emit("uint64_t trip_count;");
             // -- guard variable
             emitter().emit("bool should_retry;");
 
@@ -564,7 +565,7 @@ public interface PLink {
 
             emitter().emit("thisActor->program_counter = 0;");
             emitter().emit("thisActor->deadlock_notify = true;");
-
+            emitter().emit("thisActor->trip_count = 0;");
             if (isSimulated())
                 constructSimulator(name, entity);
             else
@@ -585,12 +586,13 @@ public interface PLink {
 
     default void destructSimulator(String name, Entity entity) {
         // automatic destruction using smart pointers
+        emitter().emit("STATUS_REPORT(\"PLink trip count = %%lu\\n\", thisActor->trip_count);");
     }
 
     default void destructDevice(String name, Entity entity) {
         PartitionHandle handle = ((PartitionLink) entity).getHandle();
         // -- device destructor
-
+        emitter().emit("printf(\"PLink trip count = %%lu\\n\", thisActor->trip_count);");
     }
 
     default void destructorDefinition(String name, Entity entity) {
@@ -992,6 +994,7 @@ public interface PLink {
             emitter().emit("thisActor->dev->setArgs();");
             emitter().emit("thisActor->dev->enqueueExecution();");
             emitter().emit("thisActor->dev->enqueueReadSize();");
+            emitter().emit("thisActor->trip_count ++;");
             emitter().emitNewLine();
 
             emitter().emit("ART_ACTION_EXIT(transmit, 0);");
@@ -1042,7 +1045,8 @@ public interface PLink {
             }
 
             emitter().emit("auto sim = thisActor->dev->simulate();");
-            emitter().emit("STATUS_REPORT(\"Simulation call ended after %%llu cycles\\n\", sim);");
+            emitter().emit("thisActor->trip_count ++;");
+            emitter().emit("STATUS_REPORT(\"Simulation call (%%lu) ended after %%llu cycles\\n\", thisActor->trip_count, sim);");
 
             emitter().emit("ART_ACTION_EXIT(transmit, 0);");
             emitter().emitNewLine();
