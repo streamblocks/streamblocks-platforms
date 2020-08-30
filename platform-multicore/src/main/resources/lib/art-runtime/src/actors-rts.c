@@ -557,7 +557,10 @@ static void set_instance_fifo(ActorInstance_1_t **instance, ConnectID *connect, 
 
     for (i = 0; i < numInstances; i++) {
         char instanceName[128];
-        sprintf(instanceName, "%s/%d", instance[i]->actorClass->name, instance[i]->index);
+        // sprintf(instanceName, "%s/%d", instance[i]->actorClass->name, instance[i]->index);
+        AbstractActorInstance* inst = (AbstractActorInstance*) instance[i];
+        sprintf(instanceName, "%s", inst->name);
+
         if (strcmp(instanceName, connect->dst) == 0) {
             for (j = 0; j < instance[i]->actorClass->numInputPorts; j++) {
                 if (strcmp(instance[i]->actorClass->inputPortDescriptions[j].name,
@@ -584,8 +587,10 @@ static ActorInstance_1_t **set_config(ActorInstance_1_t **instances,
                 sort_instances(instances, instanceAfinity, numInstances);
 
         //Set input ports fifo size
-        for (i = 0; i < numConnects; i++)
+        for (i = 0; i < numConnects; i++){
+
             set_instance_fifo(instances, &connects[i], numInstances);
+        }
     }
 
     return sortedInstances;
