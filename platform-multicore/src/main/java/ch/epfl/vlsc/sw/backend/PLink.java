@@ -899,12 +899,11 @@ public interface PLink {
                 String type = typeseval().type(types().declaredPortType(output));
                 int ix = entity.getOutputPorts().indexOf(output);
                 emitter().emit("avail_out = pinAvailOut_%s(OUT%d_%s);", type, ix, output.getName());
-                emitter().emit("if(avail_out != thisActor->output_ports[%d].usable)", ix);
+                emitter().emit("if(avail_out != thisActor->output_ports[%d].usable || avail_out == 0)", ix);
                 emitter().emit("\tthisActor->deadlock_notify = false;");
                 emitter().emit("if(avail_out > 0)");
                 emitter().emit("\tcond = true;");
-                emitter().emit("thisActor->output_ports[%d].usable = pinAvailOut_%s(OUT%1$d_%s);",
-                        entity.getOutputPorts().indexOf(output), type, output.getName());
+                emitter().emit("thisActor->output_ports[%d].usable = avail_out;", ix);
             }
             emitter().emitNewLine();
             emitter().emit("return cond;");
