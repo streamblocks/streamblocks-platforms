@@ -406,16 +406,6 @@ public interface PLink {
                 "std::make_unique<ap_rtl::NetworkTester>(\"plink\", period, 4096, trace_level);");
 
         emitter().emitNewLine();
-        for(PortDecl port: entity.getInputPorts()) {
-            int bufferSize = backend().channelsutils().targetEndSize(
-                    new Connection.End(Optional.of(name),port.getName()));
-            emitter().emit("const std::size_t buffer_size_%s = %d;", port.getName(),bufferSize);
-        }
-        for(PortDecl port: entity.getOutputPorts()) {
-            int bufferSize = backend().channelsutils().sourceEndSize(
-                    new Connection.End(Optional.of(name),port.getName()));
-            emitter().emit("const std::size_t buffer_size_%s = %d;", port.getName(), bufferSize);
-        }
 
         emitter().emit("using PortAddress = ap_rtl::NetworkTester::PortAddress;");
 
@@ -476,13 +466,18 @@ public interface PLink {
                                 outputPort.getName()))).collect(Collectors.toList()));
 
         // -- build the ports
+
+        emitter().emit("// -- get the buffers size");
+
+
+
         emitter().emit("// -- build the input ports");
         for (PortDecl port : entity.getInputPorts()) {
             int index = entity.getInputPorts().indexOf(port);
             int size = inputBufferSize.get(index);
             String type = typeseval().type(types().declaredPortType(port));
-            emitter().emit("thisActor->input_ports.emplace_back(\"%s\", %d * sizeof(%s));",
-                    port.getName(), size, type);
+            emitter().emit("thisActor->input_ports.emplace_back(\"%s\", buffer_size_%1$s * sizeof(%s));",
+                    port.getName(), type);
         }
         // -- build output ports
         emitter().emit("// -- build the output ports");
@@ -490,8 +485,8 @@ public interface PLink {
             int index = entity.getOutputPorts().indexOf(port);
             int size = outputBufferSize.get(index);
             String type = typeseval().type(types().declaredPortType(port));
-            emitter().emit("thisActor->output_ports.emplace_back(\"%s\", %d * sizeof(%s));",
-                    port.getName(), size, type);
+            emitter().emit("thisActor->output_ports.emplace_back(\"%s\", buffer_size_%1$s * sizeof(%s));",
+                    port.getName(), type);
 
         }
 
@@ -566,6 +561,20 @@ public interface PLink {
             emitter().emit("thisActor->program_counter = 0;");
             emitter().emit("thisActor->deadlock_notify = true;");
             emitter().emit("thisActor->trip_count = 0;");
+
+            emitter().emit("// -- buffer size info");
+            for(PortDecl port: entity.getInputPorts()) {
+                int ix = entity.getInputPorts().indexOf(port);
+                emitter().emit("const std::size_t buffer_size_%s = thisActor->base.input[%d].capacity;",
+                        port.getName(), ix);
+            }
+            for(PortDecl port: entity.getOutputPorts()) {
+                int ix = entity.getOutputPorts().indexOf(port);
+
+                emitter().emit("const std::size_t buffer_size_%s = thisActor->base.output[%d].capacity;",
+                        port.getName(), ix);
+            }
+
             if (isSimulated())
                 constructSimulator(name, entity);
             else
