@@ -1210,6 +1210,7 @@ public interface PLink {
                 emitter().emit("}");
                 emitter().decreaseIndentation();
             }
+            emitter().emit("}");
             // -- dump systemc profiling info
             emitter().emit("// -- dump systemc profiling info");
             emitter().emit("if (thisActor->enable_profiling == true) {");
@@ -1237,7 +1238,6 @@ public interface PLink {
             }
             emitter().emit("}");
             emitter().emitNewLine();
-            emitter().emit("}");
             emitter().emit("ART_ACTION_ENTER(receive, 1);");
             emitter().decreaseIndentation();
         }
