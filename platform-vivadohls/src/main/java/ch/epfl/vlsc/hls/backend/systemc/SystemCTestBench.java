@@ -181,6 +181,7 @@ public interface SystemCTestBench {
         emitter().emit("// -- simulation related stuff");
         emitter().emit("const sc_time clock_period;");
         emitter().emit("std::size_t total_ticks;");
+        emitter().emit("std::size_t total_runs;");
         // -- vcd trace file
         emitter().emit("// -- network trace file");
         emitter().emit("int trace_level;");
@@ -308,7 +309,7 @@ public interface SystemCTestBench {
             emitter().emit("}");
             emitter().emit("sc_start(clock_period);");
             emitter().emitNewLine();
-
+            emitter().emit("total_runs ++;");
             emitter().emit("return total_ticks - start_ticks;");
             emitter().decreaseIndentation();
         }
@@ -350,6 +351,7 @@ public interface SystemCTestBench {
             emitter().emitNewLine();
             // -- total simulated ticks
             emitter().emit("total_ticks = 0;");
+            emitter().emit("total_runs = 0;");
             emitter().emitNewLine();
 
             // -- register traces
@@ -451,7 +453,7 @@ public interface SystemCTestBench {
         emitter().emit("void dumpStats(std::ofstream& stats_dump) {");
         {
 
-            emitter().emit("stats_dump << \"<network name=\\\"%s\\\" clockcycles-total=\\\"\" << this->total_ticks << \"\\\">\" << std::endl;", network.getIdentifier());
+            emitter().emit("stats_dump << \"<network name=\\\"%s\\\" clockcycles-total=\\\"\" << this->total_ticks << \"\\\" runs=\\\"\" << this->total_runs << \"\\\" >\" << std::endl;", network.getIdentifier());
 
             for (SCTrigger trigger: network.getInstanceTriggers())
                 dumpInstanceStats(trigger, network);
