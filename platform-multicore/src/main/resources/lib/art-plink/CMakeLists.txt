@@ -14,22 +14,21 @@ set(art_plink_source
 
 # -- Set CMake module path, for finding the necessary tools
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake)
-find_package(Vivado REQUIRED)
-find_package(VivadoHLS REQUIRED)
-find_package(SDAccel REQUIRED)
-if(SDACCEL_FOUND)
-    list(APPEND extra_includes ${SDACCEL_INCLUDE_DIRS})
-    list(APPEND extra_libraries ${SDACCEL_LIBRARIES})
+
+find_package(OpenCL REQUIRED)
+if(OpenCL_FOUND)
+    list(APPEND extra_includes ${OpenCL_INCLUDE_DIRS})
+    list(APPEND extra_libraries ${OpenCL_LIBRARIES})
 else()
-    message(FATAL_ERROR "SDAccel is not found, source SDx settings.sh")
+    message(FATAL_ERROR "OpenCL is not found, source SDx/Vitis settings.sh")
 endif()
 
 option(OPENCL_VERBOSE "Diagnostic messages for OpenCL calls and events")
 
 
 add_library(art-plink ${art_plink_source})
-target_include_directories(art-plink PUBLIC ${SDACCEL_INCLUDE_DIRS} include)
-target_link_libraries(art-plink ${SDACCEL_LIBRARIES})
+target_include_directories(art-plink PUBLIC ${OpenCL_INCLUDE_DIRS} include)
+target_link_libraries(art-plink ${OpenCL_LIBRARIES})
 set_target_properties(art-plink PROPERTIES CXX_STANDARD 14)
 
 
