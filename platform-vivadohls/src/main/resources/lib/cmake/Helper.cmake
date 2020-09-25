@@ -24,8 +24,8 @@ else()
 	set(XOCC_DEBUG "")
 endif()
 # -- CMake Variables
-set(FPGA_NAME "xcku115-flvb2104-2-e" CACHE STRING "Name of Xilinx FPGA, e.g \"xcku115-flvb2104-2-e\", \"xczu3eg-sbva484-1-e\",..")
-set(HLS_CLOCK_PERIOD "10" CACHE STRING "Clock period in ns")
+set(FPGA_NAME "xczu7ev-ffvc1156-2-e" CACHE STRING "Name of Xilinx FPGA, e.g \"xcku115-flvb2104-2-e\", \"xcu250-figd2104-2L-e\", \"xczu7ev-ffvc1156-2-e\", \"xczu3eg-sbva484-1-e\", ...")
+set(HLS_CLOCK_PERIOD "5" CACHE STRING "Clock period in ns")
 set(KERNEL FALSE)
 
 # -- Set CMake module path, for finding the necessary tools
@@ -88,19 +88,20 @@ if (KERNEL)
 
 
 	if(USE_VITIS)
-		set(FPGA_NAME "xczu3eg-sbva484-1-e" CACHE STRING "Name of Xilinx FPGA, e.g \"xcku115-flvb2104-2-e\", \"xcu250-figd2104-2L-e\", \"xczu3eg-sbva484-1-e\",..")
-		set(PLATFORM "ultra96_base" CACHE STRING "Supported platform name, e.g \"xilinx_kcu1500_dynamic_5_0\", \"xilinx_u250_xdma_201830_2\", \"zcu102_base\", \"ultra96_base\",... ")
-		set(HLS_CLOCK_PERIOD "6.667" CACHE STRING "Clock period in ns")
-		set(KERNEL_FREQ "150" CACHE STRING "Clock frequency in MHz.")
+		set(FPGA_NAME "xczu7ev-ffvc1156-2-e")
+		set(PLATFORM "xilinx_zcu106_base_202010_1" CACHE STRING "Supported platform name, e.g \"xilinx_kcu1500_dynamic_5_0\", \"xilinx_u250_xdma_201830_2\", \"zcu102_base\", \"xilinx_zcu106_base_202010_1\", \"ultra96_base\",... ")
+		set(HLS_CLOCK_PERIOD "6.667"  CACHE STRING "Clock period in ns")
+		set(KERNEL_FREQ "150"  CACHE STRING "Clock frequency in MHz.")
+		option(IS_MPSOC "Vitis Embedded Platform" OFF)
 	else()
-		set(FPGA_NAME "xcku115-flvb2104-2-e" CACHE STRING "Name of Xilinx FPGA, e.g \"xcku115-flvb2104-2-e\", \"xczu3eg-sbva484-1-e\",..")
-		set(PLATFORM "xilinx_kcu1500_dynamic_5_0" CACHE STRING "Supported platform name, e.g \"xilinx_kcu1500_dynamic_5_0\", \"zcu102_base\", \"ultra96_base\",... ")
+		set(FPGA_NAME "xczu7ev-ffvc1156-2-e")
+		set(PLATFORM "xilinx_kcu1500_dynamic_5_0" STRING "Supported platform name, e.g \"xilinx_kcu1500_dynamic_5_0\", ... ")
 		set(HLS_CLOCK_PERIOD "4" CACHE STRING "Clock period in ns")
 		set(KERNEL_FREQ "300" CACHE STRING "Clock frequency in MHz.")
 	endif()
 else()
-		set(FPGA_NAME "xcku115-flvb2104-2-e" CACHE STRING "Name of Xilinx FPGA, e.g \"xcku115-flvb2104-2-e\", \"xczu3eg-sbva484-1-e\",..")
-		set(HLS_CLOCK_PERIOD "10" CACHE STRING "Clock period in ns")
+		set(FPGA_NAME "xczu7ev-ffvc1156-2-e")
+		set(HLS_CLOCK_PERIOD "5")
 endif()
 
 # -- --------------------------------------------------------------------------
@@ -126,7 +127,6 @@ endif()
 # -- --------------------------------------------------------------------------
 # -- Source and Include folders for the generated code
 # -- --------------------------------------------------------------------------
-
 
 set(HLS_SOURCE_PATH ${PROJECT_SOURCE_DIR}/code-gen/src)
 set(HLS_HEADER_PATH ${PROJECT_SOURCE_DIR}/code-gen/include)
@@ -178,9 +178,11 @@ macro(synthesize_io ACTOR)
 
 
 endmacro()
+
 # -- --------------------------------------------------------------------------
 # -- C++ testers for io stage actors
 # -- --------------------------------------------------------------------------
+
 add_executable(tb_iostage ${HLS_TESTER_SOURCE_PATH}/tb_iostage.cpp)
 target_include_directories(tb_iostage PRIVATE ${HLS_HEADER_PATH} ${VIVADO_HLS_INCLUDE_DIRS})
 find_package(Threads)
@@ -250,6 +252,16 @@ if (KERNEL)
 	)
 	add_custom_target(emconfig ALL DEPENDS ${CMAKE_SOURCE_DIR}/bin/emconfig.json)
 
+# -- --------------------------------------------------------------------------
+# -- MPSoC Vitis configuration
+# -- --------------------------------------------------------------------------
+
+    if (USE_VITIS)
+        if(IS_MPSOC)
+            set(MPSOC_CLOCK_ID "0" CACHE STRING "PL default clock ID: use platformutils for more information.")
+            option(MPSOC_PACKAGE "SD Card Package" ON)
+        endif()
+    endif()
 
 # -- --------------------------------------------------------------------------
 # -- IP package (XO file)
@@ -271,6 +283,7 @@ if (KERNEL)
 
 # -- --------------------------------------------------------------------------
 # -- Kernel binary (XCLBIN file)
+# -- --------------------------------------------------------------------------
 
 	# -- Get the number of processors
 	include(ProcessorCount)
@@ -278,17 +291,26 @@ if (KERNEL)
 	if(NOT __CORE_COUNT__ EQUAL 0)
 
 		message(STATUS "Detected ${__CORE_COUNT__} cores. ${XCLBIN_COMPILER} will be called with ${XCLBIN_JOBS_FLAG}")
+		set(XCLBIN_JOBS_FLAG -j${__CORE_COUNT__} CACHE STRING "Number of parallel jobs to build the FPGA binary")
+
+		# -- Clock default ID if IS_MPSOC
+		if(IS_MPSOC)
+		    set(XCLBIN_DEFAULT_CLOCK_ID --clock.defaultId ${MPSOC_CLOCK_ID})
+		else()
+		    set(XCLBIN_DEFAULT_CLOCK_ID "")
+		endif()
+
 		add_custom_command(
 			OUTPUT  ${CMAKE_SOURCE_DIR}/bin/xclbin/${__NETWORK_NAME__}_kernel.${TARGET}.xclbin
-			COMMAND ${XCLBIN_COMPILER} --link -g -t ${TARGET} --platform ${PLATFORM} --kernel_frequency ${KERNEL_FREQ}  --save-temps
-				${XOCC_DEBUG} ${XOCC_PROFILE} -j${__CORE_COUNT__}
+			COMMAND ${XCLBIN_COMPILER} --link -g -t ${TARGET} --platform ${PLATFORM} --kernel_frequency ${KERNEL_FREQ} ${XCLBIN_DEFAULT_CLOCK_ID} --save-temps
+				${XOCC_DEBUG} ${XOCC_PROFILE} ${XCLBIN_JOBS_FLAG}
 				-o ${CMAKE_SOURCE_DIR}/bin/xclbin/${__NETWORK_NAME__}_kernel.${TARGET}.xclbin
 				${CMAKE_CURRENT_BINARY_DIR}/xclbin/${__NETWORK_NAME__}_kernel.${TARGET}.${PLATFORM}.xo
 				> ${__NETWORK_NAME__}_kernel_xclbin.log
 			DEPENDS ${__NETWORK_NAME__}_kernel_xo
 			COMMENT "Generating FPGA binary, TARGET = ${TARGET}. (-j ${__CORE_COUNT__})"
 		)
-		set(XCLBIN_JOBS_FLAG -j${__CORE_COUNT__} CACHE STRING "Number of parallel jobs to build the FPGA binary")
+
 	else()
 		message(INFO "Could not detect number of cores, omitting -j option to ${XCLBIN_COMPILER}")
 		add_custom_command(
@@ -307,6 +329,26 @@ if (KERNEL)
 	add_custom_target(${__NETWORK_NAME__}_kernel_xclbin ALL
 		DEPENDS ${CMAKE_SOURCE_DIR}/bin/xclbin/${__NETWORK_NAME__}_kernel.${TARGET}.xclbin
 	)
+
+    # -- --------------------------------------------------------------------------
+    # -- SD Card Package
+    # -- --------------------------------------------------------------------------
+
+    if(MPSOC_PACKAGE)
+        add_custom_command(
+    			OUTPUT  ${CMAKE_SOURCE_DIR}/bin/xclbin/sd_card/BOOT.BIN
+    			COMMAND ${XCLBIN_COMPILER} --package ${CMAKE_SOURCE_DIR}/bin/xclbin/${__NETWORK_NAME__}_kernel.${TARGET}.xclbin
+    			    --package.boot_mode sd --package.no_image --package.out_dir ${CMAKE_SOURCE_DIR}/bin/xclbin
+    			    --platform ${PLATFORM}
+    				> ${__NETWORK_NAME__}_sdcard.log
+    			DEPENDS ${__NETWORK_NAME__}_kernel_xclbin
+    			COMMENT "Generating SD Card Package"
+    		)
+
+        add_custom_target(${__NETWORK_NAME__}_sdcard ALL
+        		DEPENDS ${CMAKE_SOURCE_DIR}/bin/xclbin/sd_card/BOOT.BIN
+        	)
+    endif()
 
 
 endif()
