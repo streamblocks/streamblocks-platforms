@@ -25,7 +25,6 @@ import se.lth.cs.tycho.reporting.Diagnostic;
 import se.lth.cs.tycho.type.BoolType;
 import se.lth.cs.tycho.type.IntType;
 import se.lth.cs.tycho.type.Type;
-import sun.reflect.generics.reflectiveObjects.GenericArrayTypeImpl;
 
 
 import java.nio.file.Path;
