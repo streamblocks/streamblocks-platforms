@@ -105,6 +105,7 @@ typedef struct cpu_runtime_data {
     FILE *traceFile;
     gzFile *traceTurnusFile;
     FILE *infoFile;
+    float profiling_factor;
 } cpu_runtime_data_t;
 
 
@@ -133,6 +134,11 @@ extern int deadlock_report(cpu_runtime_data_t *cpu,
                            int numActors,
                            int reportAllActors);
 
+#if defined(__aarch64__)
+
+int aarch64_estimated_frequency();
+
+#endif
 #ifdef __cplusplus
 }
 #endif

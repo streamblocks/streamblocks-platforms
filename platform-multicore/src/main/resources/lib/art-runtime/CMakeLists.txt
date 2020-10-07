@@ -5,6 +5,7 @@ set(art_runtime_sources
         src/xmlParser.c
         src/xmlTrace.c
         src/jsonTrace.c
+        src/estimated_frequency.c
         )
 
 # ART Runtime includes
@@ -19,7 +20,7 @@ set(art_runtime_header
         include/xmlParser.h
         include/xmlTrace.h
         include/jsonTrace.h
-        )
+        src/estimated_frequency.c)
 
 include_directories(${extra_includes})
 add_definitions(${extra_definitions})

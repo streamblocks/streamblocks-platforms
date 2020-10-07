@@ -75,7 +75,7 @@ void xmlDeclareStateDep(FILE *f,
 /*
  * Generate trace of one action firing
  */
-void xmlTraceAction(FILE *f, unsigned int t,  int actionIndex);
+void xmlTraceAction(FILE *f, unsigned int t,  int actionIndex, int factor);
 
 
 /*

@@ -126,7 +126,6 @@ typedef struct {
     int terminationReport;
     int generate_trace;
     int generate_turnus_trace;
-
     char *hardwareProfileFileName;
     char *vcd_trace_level;
 
@@ -221,6 +220,7 @@ struct AbstractActorInstance {
     gzFile *traceTurnusFile;
     FILE *infoFile;
     int *cpu; // For active actor to wakeup the sleeping thread
+    int profiling_factor;
 };
 
 typedef struct {

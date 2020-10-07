@@ -106,7 +106,7 @@ void actionTrace(AbstractActorInstance *instance,
                  char *actionName) {
     if (instance->traceFile)
         xmlTraceAction(instance->traceFile, timestamp,
-                       instance->firstActionIndex + localActionIndex);
+                       instance->firstActionIndex + localActionIndex, instance->profiling_factor);
 }
 
 void firingTrace(AbstractActorInstance *instance,
@@ -504,7 +504,7 @@ static int set_instance_affinity(ActorInstance_1_t *instance,
                                  int numInstances) {
     int i;
     char instanceName[128];
-    AbstractActorInstance *abstractActorInstance = (AbstractActorInstance*) instance;
+    AbstractActorInstance *abstractActorInstance = (AbstractActorInstance *) instance;
     sprintf(instanceName, "%s", abstractActorInstance->name);
     for (i = 0; i < numInstances; i++) {
         if (!config[i].flag
@@ -532,7 +532,7 @@ static ActorInstance_1_t **sort_instances(ActorInstance_1_t **unsorted,
         int iSorted = set_instance_affinity(unsorted[i], config, numInstances);
 
         if (iSorted < 0 || iSorted >= numInstances) {
-            AbstractActorInstance *instance = (AbstractActorInstance*) unsorted[i];
+            AbstractActorInstance *instance = (AbstractActorInstance *) unsorted[i];
             runtimeError(NULL, "sort_instances: not mentioned in config file: (instance) %s/ (class) %s/%d\n",
                          instance->name,
                          unsorted[i]->actorClass->name,
@@ -558,7 +558,7 @@ static void set_instance_fifo(ActorInstance_1_t **instance, ConnectID *connect, 
     for (i = 0; i < numInstances; i++) {
         char instanceName[128];
         // sprintf(instanceName, "%s/%d", instance[i]->actorClass->name, instance[i]->index);
-        AbstractActorInstance* inst = (AbstractActorInstance*) instance[i];
+        AbstractActorInstance *inst = (AbstractActorInstance *) instance[i];
         sprintf(instanceName, "%s", inst->name);
 
         if (strcmp(instanceName, connect->dst) == 0) {
@@ -587,7 +587,7 @@ static ActorInstance_1_t **set_config(ActorInstance_1_t **instances,
                 sort_instances(instances, instanceAfinity, numInstances);
 
         //Set input ports fifo size
-        for (i = 0; i < numConnects; i++){
+        for (i = 0; i < numConnects; i++) {
 
             set_instance_fifo(instances, &connects[i], numInstances);
         }
@@ -740,6 +740,11 @@ static cpu_runtime_data_t *allocate_network(
     InputPort *input_p, **reader_p;
     OutputPort *output_p;
     int i, j, k;
+    int profiling_factor = 1;
+
+#if defined(__aarch64__)
+    profiling_factor = aarch64_estimated_frequency();
+#endif
 
     //Convert the token sized capacities to byte sizes when a structured token
     for (i = 0; i < numInstances; i++) {
@@ -995,6 +1000,7 @@ static cpu_runtime_data_t *allocate_network(
                     actor->traceFile = 0;
                     actor->traceTurnusFile = 0;
                     actor->infoFile = 0;
+                    actor->profiling_factor = profiling_factor;
 
                     actor->cpu = (int *) &result[cpu];
                     for (k = 0; k < actor->outputs; k++) {

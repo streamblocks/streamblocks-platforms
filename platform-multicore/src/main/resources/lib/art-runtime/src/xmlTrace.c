@@ -252,14 +252,14 @@ void xmlDeclareStateDep(FILE *f,
 
 extern unsigned int timestamp();
 
-void xmlTraceAction(FILE *f, unsigned int t, int actionIndex) {
+void xmlTraceAction(FILE *f, unsigned int t, int actionIndex, int factor) {
     static unsigned int step = 0;
     int localstep;
     pthread_mutex_lock(&xmlMutex);
     localstep = step++;
     pthread_mutex_unlock(&xmlMutex);
     fprintf(f, "\t<trace timestamp=\"%u\" action=\"%d\" exectime=\"%d\" step=\"%u\"/>\n", t, actionIndex,
-            timestamp(0) - t, localstep);
+            (timestamp(0) - t)*factor, localstep);
 }
 
 void xmlTraceCondition(FILE *f, unsigned int t, int conditionIndex) {
