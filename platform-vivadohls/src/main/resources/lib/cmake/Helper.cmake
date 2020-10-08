@@ -308,7 +308,7 @@ if (KERNEL)
 				${CMAKE_CURRENT_BINARY_DIR}/xclbin/${__NETWORK_NAME__}_kernel.${TARGET}.${PLATFORM}.xo
 				> ${__NETWORK_NAME__}_kernel_xclbin.log
 			DEPENDS ${__NETWORK_NAME__}_kernel_xo
-			COMMENT "Generating FPGA binary, TARGET = ${TARGET}. (-j ${__CORE_COUNT__})"
+			COMMENT "Generating FPGA binary, TARGET = ${TARGET}. (${XCLBIN_JOBS_FLAG})"
 		)
 
 	else()
