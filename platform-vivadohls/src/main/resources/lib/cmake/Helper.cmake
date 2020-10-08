@@ -89,7 +89,7 @@ if (KERNEL)
 
 	if(USE_VITIS)
 		set(FPGA_NAME "xczu7ev-ffvc1156-2-e")
-		set(PLATFORM "xilinx_zcu106_base_202010_1" CACHE STRING "Supported platform name, e.g \"xilinx_kcu1500_dynamic_5_0\", \"xilinx_u250_xdma_201830_2\", \"zcu102_base\", \"xilinx_zcu106_base_202010_1\", \"ultra96_base\",... ")
+		set(PLATFORM "xilinx_zcu106_base_dfx_202010_1" CACHE STRING "Supported platform name, e.g \"xilinx_kcu1500_dynamic_5_0\", \"xilinx_u250_xdma_201830_2\", \"zcu102_base\", \"xilinx_zcu106_base_dfx_202010_1\", \"ultra96_base\",... ")
 		set(HLS_CLOCK_PERIOD "6.667"  CACHE STRING "Clock period in ns")
 		set(KERNEL_FREQ "150"  CACHE STRING "Clock frequency in MHz.")
 		option(IS_MPSOC "Vitis Embedded Platform" OFF)
