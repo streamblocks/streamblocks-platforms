@@ -45,17 +45,17 @@
 #include "internal.h"
 
 
-#define CONFIGURATION                       (const xmlChar*)"Configuration"
-#define CONNECTION                          (const xmlChar*)"Connection"
-#define DST                                 (const xmlChar*)"dst"
-#define DST_PORT                            (const xmlChar*)"dst-port"
-#define SRC                                 (const xmlChar*)"src"
-#define SRC_PORT                            (const xmlChar*)"src-port"
+#define CONFIGURATION                       (const xmlChar*)"configuration"
+#define CONNECTION                          (const xmlChar*)"connection"
+#define DST                                 (const xmlChar*)"target"
+#define DST_PORT                            (const xmlChar*)"target-port"
+#define SRC                                 (const xmlChar*)"source"
+#define SRC_PORT                            (const xmlChar*)"source-port"
 #define FIFO_SIZE                           (const xmlChar*)"size"
-#define INSTANCE                            (const xmlChar*)"Instance"
-#define INSTANCE_NAME                       (const xmlChar*)"actor-id"
+#define INSTANCE                            (const xmlChar*)"instance"
+#define INSTANCE_NAME                       (const xmlChar*)"id"
 #define PARTITION_ID                        (const xmlChar*)"id"
-#define SCHEDULING                          (const xmlChar*)"Scheduling"
+#define SCHEDULING                          (const xmlChar*)"scheduling"
 #define SCHEDULING_TYPE                     (const xmlChar*)"type"
 
 
@@ -75,14 +75,14 @@ typedef struct _tagID {
 } TagID;
 
 TagID configTag[] = {
-        {"Partitioning", parseParttioning},
-        {"Scheduling",   parseScheduling},
+        {"partitioning", parseParttioning},
+        {"scheduling",   parseScheduling},
         {0}
 };
 
 TagID partitioningTag[] = {
-        {"Partition",  parsePartition},
-        {"Connection", parseConnection},
+        {"partition",  parsePartition},
+        {"connection", parseConnection},
         {0}
 };
 
@@ -103,7 +103,7 @@ void printout_config() {
     for (i = 0; i < _numInstances; i++)
         printf("%d  %s\n", instanceAfinity[i].affinity,
                instanceAfinity[i].name);
-    printf("src src_port dst dst_port size\n");
+    printf("source source_port target target_port size\n");
     for (i = 0; i < _numConnects; i++)
         printf("%s %s %s %s %d\n", connects[i].src,
                connects[i].src_port,

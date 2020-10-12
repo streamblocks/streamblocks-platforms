@@ -6,6 +6,7 @@
                 <xs:element name="network">
                     <xs:complexType>
                         <xs:attribute name="id" type="xs:string" use="required" />
+                        <xs:attribute name="scheduling" type="xs:string" />
                     </xs:complexType>
                 </xs:element>
                 <xs:element name="partitioning">
@@ -21,9 +22,9 @@
                                         </xs:element>
                                     </xs:sequence>
                                     <xs:attribute name="id" type="xs:unsignedByte" use="required" />
-                                    <xs:attribute name="pe" type="xs:string" use="required" />
-                                    <xs:attribute name="code-generator" type="xs:string" use="required" />
-                                    <xs:attribute name="host" type="xs:boolean" use="optional" />
+                                    <xs:attribute name="pe" type="xs:string"/>
+                                    <xs:attribute name="code-generator" type="xs:string" />
+                                    <xs:attribute name="host" type="xs:boolean" />
                                 </xs:complexType>
                             </xs:element>
                         </xs:sequence>
@@ -91,15 +92,15 @@
                         <xs:sequence>
                             <xs:element maxOccurs="unbounded" name="fifo-connection">
                                 <xs:complexType>
-                                    <xs:attribute name="src" type="xs:string" use="required" />
-                                    <xs:attribute name="src-port" type="xs:string" use="required" />
-                                    <xs:attribute name="dst" type="xs:string" use="required" />
-                                    <xs:attribute name="dst-port" type="xs:string" use="required" />
+                                    <xs:attribute name="source" type="xs:string" use="required" />
+                                    <xs:attribute name="source-port" type="xs:string" use="required" />
+                                    <xs:attribute name="target" type="xs:string" use="required" />
+                                    <xs:attribute name="target-port" type="xs:string" use="required" />
                                     <xs:attribute name="size" type="xs:unsignedShort" use="required" />
-                                    <xs:attribute name="medium" type="xs:string" use="required" />
+                                    <xs:attribute name="medium" type="xs:string" />
                                 </xs:complexType>
                             </xs:element>
-                            <xs:element name="memory-connection">
+                            <xs:element maxOccurs="unbounded" name="memory-connection">
                                 <xs:complexType>
                                     <xs:attribute name="instance" type="xs:string" use="required" />
                                     <xs:attribute name="var" type="xs:string" use="required" />
