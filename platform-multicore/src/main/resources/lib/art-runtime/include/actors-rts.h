@@ -634,6 +634,11 @@ delete __opCounters;
 #include "actors-fifo.h"
 
 #undef FIFO_TYPE
+#define FIFO_TYPE float
+
+#include "actors-fifo.h"
+
+#undef FIFO_TYPE
 #define FIFO_TYPE int8_t
 #define BYTES
 
