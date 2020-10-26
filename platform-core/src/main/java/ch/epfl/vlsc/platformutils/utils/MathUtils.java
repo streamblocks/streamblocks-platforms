@@ -1,5 +1,8 @@
 package ch.epfl.vlsc.platformutils.utils;
 
+import java.util.Collection;
+import java.util.Map;
+
 public class MathUtils {
     public static int nearestPowTwo(Integer num) {
         int n = num > 0 ? num - 1 : 0;
@@ -48,6 +51,30 @@ public class MathUtils {
 
     public static int countBit(int n) {
         return (int) Math.floor(Math.log(n) / Math.log(2)) + 1;
+    }
+
+    /**
+     * Sum the values of a {@link Long} map
+     *
+     * @param data
+     * @return
+     */
+    public static Long sumLong(Map<?, Long> data) {
+        return sumLong(data.values());
+    }
+
+    /**
+     * Sum the values of a {@link Long} collection
+     *
+     * @param data
+     * @return
+     */
+    public static Long sumLong(Collection<Long> data) {
+        long result = 0;
+        for (long v : data) {
+            result += v;
+        }
+        return result;
     }
 
 }

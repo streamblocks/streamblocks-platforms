@@ -13,6 +13,7 @@ import se.lth.cs.tycho.compiler.Compiler;
 import se.lth.cs.tycho.compiler.Context;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
+import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.phase.Phase;
@@ -271,6 +272,7 @@ public class MultiCoreBackendPhase implements Phase {
 
         partition.setId((short) 0);
         partition.setPe("x86_64");
+        partition.setScheduling("ROUND_ROBIN");
         partition.setCodeGenerator("sw");
         partition.setHost(true);
 
@@ -293,6 +295,19 @@ public class MultiCoreBackendPhase implements Phase {
 
         xcf.setCodeGenerators(xcfCodeGenerators);
 
+        // -- Connections
+
+        Configuration.Connections xcfConnections = new Configuration.Connections();
+        for (Connection connection : task.getNetwork().getConnections()) {
+            Configuration.Connections.FifoConnection fifoConnection = new Configuration.Connections.FifoConnection();
+            fifoConnection.setSize(4096);
+            fifoConnection.setSource(connection.getSource().getInstance().get());
+            fifoConnection.setSourcePort(connection.getSource().getPort());
+            fifoConnection.setTarget(connection.getTarget().getInstance().get());
+            fifoConnection.setTargetPort(connection.getTarget().getPort());
+            xcfConnections.getFifoConnection().add(fifoConnection);
+        }
+        xcf.setConnections(xcfConnections);
 
         // -- Write XCF File
         try {

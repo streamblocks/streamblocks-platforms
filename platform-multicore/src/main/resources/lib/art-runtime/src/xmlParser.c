@@ -46,7 +46,7 @@
 
 
 #define CONFIGURATION                       (const xmlChar*)"configuration"
-#define CONNECTION                          (const xmlChar*)"connection"
+#define CONNECTION                          (const xmlChar*)"fifo-connection"
 #define DST                                 (const xmlChar*)"target"
 #define DST_PORT                            (const xmlChar*)"target-port"
 #define SRC                                 (const xmlChar*)"source"

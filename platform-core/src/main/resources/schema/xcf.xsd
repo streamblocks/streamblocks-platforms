@@ -18,11 +18,13 @@
                                         <xs:element maxOccurs="unbounded" name="instance">
                                             <xs:complexType>
                                                 <xs:attribute name="id" type="xs:string" use="required" />
+                                                <xs:attribute name="complexity" type="xs:unsignedLong" />
                                             </xs:complexType>
                                         </xs:element>
                                     </xs:sequence>
                                     <xs:attribute name="id" type="xs:unsignedByte" use="required" />
                                     <xs:attribute name="pe" type="xs:string"/>
+                                    <xs:attribute name="scheduling" type="xs:string"/>
                                     <xs:attribute name="code-generator" type="xs:string" />
                                     <xs:attribute name="host" type="xs:boolean" />
                                 </xs:complexType>
@@ -96,7 +98,8 @@
                                     <xs:attribute name="source-port" type="xs:string" use="required" />
                                     <xs:attribute name="target" type="xs:string" use="required" />
                                     <xs:attribute name="target-port" type="xs:string" use="required" />
-                                    <xs:attribute name="size" type="xs:unsignedShort" use="required" />
+                                    <xs:attribute name="size" type="xs:unsignedInt" use="required" />
+                                    <xs:attribute name="bandwidth" type="xs:unsignedLong" />
                                     <xs:attribute name="medium" type="xs:string" />
                                 </xs:complexType>
                             </xs:element>
