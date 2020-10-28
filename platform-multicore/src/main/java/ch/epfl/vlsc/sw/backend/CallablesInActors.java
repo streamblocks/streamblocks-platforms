@@ -231,6 +231,8 @@ public interface CallablesInActors {
     default void externalCallableDeclaration(IRNode varDecl) {
     }
 
+    String[] mathIgnoreExternals = {"cos", "sin", "sqrt", "fabs"};
+
     default void externalCallableDeclaration(VarDecl varDecl) {
         if (varDecl.isExternal()) {
             Type type = backend().types().declaredType(varDecl);
@@ -240,7 +242,9 @@ public interface CallablesInActors {
             for (int i = 0; i < callable.getParameterTypes().size(); i++) {
                 parameterNames.add("p_" + i);
             }
-            backend().emitter().emit("%s;", externalCallableHeader(varDecl.getOriginalName(), callable, parameterNames));
+            if(!Arrays.stream(mathIgnoreExternals).anyMatch(s->varDecl.getOriginalName().equals(s))){
+                backend().emitter().emit("extern %s;", externalCallableHeader(varDecl.getOriginalName(), callable, parameterNames));
+            }
             String name = externalWrapperFunctionName(varDecl);
             backend().emitter().emit("%s;", externalCallableHeader(name, callable, parameterNames));
         }

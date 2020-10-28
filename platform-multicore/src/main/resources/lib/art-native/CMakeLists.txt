@@ -5,6 +5,7 @@ set(art_native_source
     src/art_Sink_real.cc
     src/art_Sink_txt.cc
     src/art_Source_bin.cc
+    src/art_Source_32bit_bin.cc
     src/art_Source_byte.cc
     src/art_Source_real.cc
     src/art_Source_txt.cc
@@ -12,7 +13,8 @@ set(art_native_source
     src/art_Sink_16bit_txt.cc
     src/art_print.cc
     src/display.cc
-    src/art_utils.cc)
+    src/art_utils.cc
+    src/speaker.cc)
 
 set(art_native_header
         include/display.h)

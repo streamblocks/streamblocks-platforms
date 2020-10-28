@@ -11,6 +11,8 @@ import se.lth.cs.tycho.attribute.GlobalNames;
 import se.lth.cs.tycho.ir.ValueParameter;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.entity.PortDecl;
+import se.lth.cs.tycho.ir.expr.ExprGlobalVariable;
+import se.lth.cs.tycho.ir.expr.ExprVariable;
 import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.network.Network;
@@ -136,6 +138,10 @@ public interface Main {
             emitter().emitNewLine();
         }
 
+        emitter().emit("// -- Initialize Global Variables");
+        emitter().emit("init_global_variables();");
+        emitter().emitNewLine();
+
         emitter().emit("// -- Instances instantiation");
         for (Instance instance : network.getInstances()) {
             GlobalEntityDecl entityDecl = globalnames().entityDecl(instance.getEntityName(), true);
@@ -158,7 +164,11 @@ public interface Main {
             }
             for (ValueParameter parameter : instance.getValueParameters()) {
                 if (entityDecl.getExternal()) {
-                    emitter().emit("setParameter(%s, \"%s\", \"%s\");", joinQID, parameter.getName(), evaluator().evaluate(parameter.getValue()).replaceAll("^\"|\"$", ""));
+                    if(parameter.getValue() instanceof ExprGlobalVariable){
+                        emitter().emit("setParameter(%s, \"%s\", %s);", joinQID, parameter.getName(), evaluator().evaluate(parameter.getValue()));
+                    }else{
+                        emitter().emit("setParameter(%s, \"%s\", \"%s\");", joinQID, parameter.getName(), evaluator().evaluate(parameter.getValue()).replaceAll("^\"|\"$", ""));
+                    }
                 }
             }
 
@@ -202,8 +212,6 @@ public interface Main {
         }
         emitter().emitNewLine();
 
-        emitter().emit("// -- Initialize Global Variables");
-        emitter().emit("init_global_variables();");
 
         emitter().decreaseIndentation();
         emitter().emit("}");
