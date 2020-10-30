@@ -1185,7 +1185,8 @@ static void generate_config(FILE *f,
         }
         fprintf(f, "\t\t</partition>\n");
     }
-    fprintf(f, "\t\t<connections>\n");
+    fprintf(f, "\t</partitioning>\n");
+    fprintf(f, "\t<connections>\n");
     for (i = 0; i < cpu->cpu_count; i++) {
         for (j = 0; j < cpu[i].actors; j++) {
             AbstractActorInstance *producer = cpu[i].actor[j];
@@ -1223,7 +1224,7 @@ static void generate_config(FILE *f,
                         inputBandwidth /= tokenSize;
                     }
 
-                    fprintf(f, "\t\t\t<fifo-connection source=\"%s\" source-port=\"%s\" "
+                    fprintf(f, "\t\t<fifo-connection source=\"%s\" source-port=\"%s\" "
                                "target=\"%s\" target-port=\"%s\" size=\"%u\" "
                                "token-size=\"%u\"",
                             producer->name, outputPortName,
@@ -1239,8 +1240,8 @@ static void generate_config(FILE *f,
             }
         }
     }
-    fprintf(f, "\t\t</connections>\n");
-    fprintf(f, "\t</partitioning>\n");
+    fprintf(f, "\t</connections>\n");
+
     fprintf(f, "</configuration>\n");
 }
 

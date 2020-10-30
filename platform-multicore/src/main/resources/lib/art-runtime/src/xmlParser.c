@@ -55,13 +55,12 @@
 #define INSTANCE                            (const xmlChar*)"instance"
 #define INSTANCE_NAME                       (const xmlChar*)"id"
 #define PARTITION_ID                        (const xmlChar*)"id"
-#define SCHEDULING                          (const xmlChar*)"scheduling"
-#define SCHEDULING_TYPE                     (const xmlChar*)"type"
+#define SCHEDULING_TYPE                     (const xmlChar*)"scheduling"
 
 
 void parseParttioning(xmlNode *node);
 
-void parseScheduling(xmlNode *node);
+void parseConnections(xmlNode *node);
 
 void parsePartition(xmlNode *node);
 
@@ -76,13 +75,17 @@ typedef struct _tagID {
 
 TagID configTag[] = {
         {"partitioning", parseParttioning},
-        {"scheduling",   parseScheduling},
+        {"connections", parseConnections},
         {0}
 };
 
 TagID partitioningTag[] = {
         {"partition",  parsePartition},
-        {"connection", parseConnection},
+        {0}
+};
+
+TagID connectionsTag[] = {
+        {"fifo-connection", parseConnection},
         {0}
 };
 
@@ -162,6 +165,7 @@ void parsePartition(xmlNode *node) {
     char *id;
 
     id = (char *) xmlGetProp(node, PARTITION_ID);
+    schedule.type = (char *) xmlGetProp(node, SCHEDULING_TYPE);
 
     for (child_node = node->children; child_node != NULL; child_node = child_node->next) {
         if (child_node->type == XML_ELEMENT_NODE &&
@@ -184,12 +188,10 @@ void parseParttioning(xmlNode *node) {
     parseNode(node, partitioningTag);
 }
 
-void parseScheduling(xmlNode *node) {
-
-    if (!xmlStrcmp(node->name, (const xmlChar *) SCHEDULING)) {
-        schedule.type = (char *) xmlGetProp(node, SCHEDULING_TYPE);
-    }
+void parseConnections(xmlNode *node) {
+    parseNode(node, connectionsTag);
 }
+
 
 void xmlCleanup(xmlDocPtr doc) {
     /*free the document */
