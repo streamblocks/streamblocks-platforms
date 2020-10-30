@@ -3,26 +3,38 @@ package ch.epfl.vlsc.phases;
 
 import ch.epfl.vlsc.compiler.PartitionedCompilationTask;
 import ch.epfl.vlsc.settings.PlatformSettings;
+import org.multij.Binding;
+import org.multij.BindingKind;
+import org.multij.Module;
+import org.multij.MultiJ;
 import se.lth.cs.tycho.attribute.GlobalNames;
+import se.lth.cs.tycho.attribute.TypeScopes;
+import se.lth.cs.tycho.attribute.VariableDeclarations;
 import se.lth.cs.tycho.compiler.CompilationTask;
 import se.lth.cs.tycho.compiler.Context;
-import se.lth.cs.tycho.ir.Attributable;
-import se.lth.cs.tycho.ir.ToolAttribute;
-import se.lth.cs.tycho.ir.ToolValueAttribute;
+import se.lth.cs.tycho.ir.*;
 
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 
 import se.lth.cs.tycho.ir.expr.ExprLiteral;
+import se.lth.cs.tycho.ir.expr.Expression;
 import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.network.Network;
+import se.lth.cs.tycho.ir.type.NominalTypeExpr;
 import se.lth.cs.tycho.ir.type.TypeExpr;
 import se.lth.cs.tycho.ir.util.ImmutableList;
+import se.lth.cs.tycho.meta.interp.Environment;
+import se.lth.cs.tycho.meta.interp.Interpreter;
+import se.lth.cs.tycho.meta.interp.op.Binary;
+import se.lth.cs.tycho.meta.interp.op.Unary;
+import se.lth.cs.tycho.meta.interp.value.Value;
 import se.lth.cs.tycho.phase.Phase;
 import se.lth.cs.tycho.reporting.CompilationException;
 import se.lth.cs.tycho.reporting.Diagnostic;
 import se.lth.cs.tycho.settings.Setting;
+import se.lth.cs.tycho.meta.interp.value.util.Convert;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -48,13 +60,14 @@ public class NetworkPartitioningPhase implements Phase {
 
         return ImmutableList.of(PlatformSettings.PartitionNetwork, PlatformSettings.defaultPartition);
     }
+
     @Override
     public String getDescription() {
         return "partitions the network based on the given attributes";
     }
 
     @Override
-    public Set<Class <? extends Phase>> dependencies() {
+    public Set<Class<? extends Phase>> dependencies() {
         return Collections.singleton(VerilogNameCheckerPhase.class);
     }
 
@@ -73,7 +86,7 @@ public class NetworkPartitioningPhase implements Phase {
 
         Boolean paritioningEnabled = context.getConfiguration().isDefined(PlatformSettings.PartitionNetwork)
                 && context.getConfiguration().get(PlatformSettings.PartitionNetwork);
-        if(paritioningEnabled) {
+        if (paritioningEnabled) {
             Map<PartitionKind, Network> networks = partitionNetwork(task, context);
             return PartitionedCompilationTask.of(task, networks);
 
@@ -85,6 +98,7 @@ public class NetworkPartitioningPhase implements Phase {
 
     /**
      * Finds the partition of an instance, fails if the provided attribute is wrong
+     *
      * @param instance
      * @param context
      * @return
@@ -136,6 +150,7 @@ public class NetworkPartitioningPhase implements Phase {
 
     /**
      * Partitions the network based on the attributes given in the network file.
+     *
      * @param task
      * @param context
      * @return
@@ -150,6 +165,21 @@ public class NetworkPartitioningPhase implements Phase {
         Map<PartitionKind, List<Connection>> partToCon = new HashMap<>();
         Map<PartitionKind, List<PortDecl>> partToInputs = new HashMap<>();
         Map<PartitionKind, List<PortDecl>> partToOutputs = new HashMap<>();
+
+        Interpreter interpreter = MultiJ.from(Interpreter.class)
+                .bind("variables").to(task.getModule(VariableDeclarations.key))
+                .bind("types").to(task.getModule(TypeScopes.key))
+                .bind("unary").to(MultiJ.from(Unary.class).instance())
+                .bind("binary").to(MultiJ.from(Binary.class).instance())
+                .instance();
+
+        Convert convert = MultiJ.from(Convert.class)
+                .instance();
+
+        EvalNominalTypeExpr evalNominalTypeExpr = MultiJ.from(EvalNominalTypeExpr.class)
+                .bind("interpreter").to(interpreter)
+                .bind("convert").to(convert)
+                .instance();
 
         List<Connection> connections =
                 network.getConnections()
@@ -170,15 +200,14 @@ public class NetworkPartitioningPhase implements Phase {
         }
 
 
-
         List<Connection> fanouts =
                 connections.stream()
                         .filter(c1 ->
-                            connections.stream().anyMatch(c2 ->
-                                c2.getSource().getInstance().get().equals(c1.getSource().getInstance().get()) &&
-                                c2.getSource().getPort().equals(c1.getSource().getPort()) && !c2.equals(c1)
+                                connections.stream().anyMatch(c2 ->
+                                        c2.getSource().getInstance().get().equals(c1.getSource().getInstance().get()) &&
+                                                c2.getSource().getPort().equals(c1.getSource().getPort()) && !c2.equals(c1)
                                 )
-                            ).collect(Collectors.toList());
+                        ).collect(Collectors.toList());
         Map<Connection, Connection.End> fanoutSource = new HashMap<>();
         Map<Connection.End, Boolean> fanoutHasSourcePort = new HashMap<>();
         Map<Connection.End, PortDecl> fanoutPort = new HashMap<>();
@@ -186,7 +215,7 @@ public class NetworkPartitioningPhase implements Phase {
         fanouts.stream().forEach(c -> fanoutSource.put(c, c.getSource()));
         fanoutSource.values().forEach(s -> fanoutHasSourcePort.put(s, false));
         // get internal connections of a sub network
-        for (Connection con: connections) {
+        for (Connection con : connections) {
             Instance source = findInstanceByName(network, con.getSource().getInstance().get()).orElseThrow(
                     () -> new CompilationException(
                             new Diagnostic(Diagnostic.Kind.ERROR,
@@ -223,7 +252,7 @@ public class NetworkPartitioningPhase implements Phase {
                  * should be replaced by an output  port declaration in the source partition
                  * that is named as
                  */
-                Entity srcEntity=
+                Entity srcEntity =
                         task.getModule(GlobalNames.key)
                                 .entityDecl(source.getEntityName(), true).getEntity();
                 Entity tgtEntity =
@@ -262,11 +291,11 @@ public class NetworkPartitioningPhase implements Phase {
                     if (!fanoutHasSourcePort.get(fanoutSource.get(con))) {
                         PortDecl inputFO = new PortDecl(
                                 portName,
-                                (TypeExpr) entityOutput.getType().deepClone());
+                                evalNominalTypeExpr.eval(entityOutput.getType()));
 
-                        PortDecl outputFO= new PortDecl(
+                        PortDecl outputFO = new PortDecl(
                                 portName,
-                                (TypeExpr) entityOutput.getType().deepClone());
+                                evalNominalTypeExpr.eval(entityOutput.getType()));
 
                         fanoutPort.put(fanoutSource.get(con), inputFO);
 
@@ -289,8 +318,8 @@ public class NetworkPartitioningPhase implements Phase {
                                     .withAttributes(con.getAttributes().map(ToolAttribute::deepClone));
                     partToCon.get(targetPartition).add(tgtCon);
                 } else {
-                    PortDecl input = new PortDecl(portName, (TypeExpr) entityInput.getType().deepClone());
-                    PortDecl output = new PortDecl(portName, (TypeExpr) entityOutput.getType().deepClone());
+                    PortDecl input = new PortDecl(portName, evalNominalTypeExpr.eval(entityInput.getType()));
+                    PortDecl output = new PortDecl(portName, evalNominalTypeExpr.eval(entityOutput.getType()));
                     // this is a normal cross-partition conneciton, should become a 2 ports and 2 connection
                     partToOutputs.get(sourcePartition).add(output);
                     partToInputs.get(targetPartition).add(input);
@@ -316,7 +345,7 @@ public class NetworkPartitioningPhase implements Phase {
 
 
         Map<PartitionKind, Network> nets = new HashMap();
-        for (PartitionKind p: partToInst.keySet()) {
+        for (PartitionKind p : partToInst.keySet()) {
             nets.put(p, new Network(ImmutableList.from(network.getAnnotations()),
                     partToInputs.get(p),
                     partToOutputs.get(p),
@@ -326,18 +355,52 @@ public class NetworkPartitioningPhase implements Phase {
 
         return nets;
     }
+
     private String getPortNameFromConnection(Connection connection) {
         return connection.getSource().getInstance().get() + "_" +
                 connection.getSource().getPort() + "_" + connection.getTarget().getInstance().get() + "_" +
                 connection.getTarget().getPort();
     }
+
     private Optional<Instance> findInstanceByName(Network network, String name) {
         Optional<Instance> instance = Optional.empty();
-        for (Instance inst: network.getInstances()) {
+        for (Instance inst : network.getInstances()) {
             if (inst.getInstanceName().equals(name))
                 instance = Optional.of(inst);
         }
         return instance;
+    }
+
+    @Module
+    interface EvalNominalTypeExpr {
+
+        @Binding(BindingKind.INJECTED)
+        Interpreter interpreter();
+
+        @Binding(BindingKind.INJECTED)
+        Convert convert();
+
+        default TypeExpr eval(TypeExpr typeExpr) {
+            return typeExpr;
+        }
+
+        default TypeExpr eval(NominalTypeExpr typeExpr) {
+            ImmutableList.Builder<TypeParameter> typeParameters = ImmutableList.builder();
+            ImmutableList.Builder<ValueParameter> valueParameters = ImmutableList.builder();
+
+            typeParameters.addAll(typeExpr.getTypeParameters());
+
+            for (ValueParameter valueParameter : typeExpr.getValueParameters()) {
+                Expression expression = valueParameter.getValue();
+                Environment env = new Environment();
+                Value value = interpreter().eval(expression, env);
+                ValueParameter newValueParameter = new ValueParameter(valueParameter.getName(), convert().apply(value));
+                valueParameters.add(newValueParameter);
+            }
+
+            return new NominalTypeExpr(typeExpr.getName(), typeParameters.build(), valueParameters.build());
+        }
+
     }
 
 }
