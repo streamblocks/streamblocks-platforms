@@ -53,7 +53,7 @@ public interface Instances {
     }
 
     default TypesEvaluator typesEval() {
-        return backend().typesEval();
+        return backend().typeseval();
     }
 
     default ExpressionEvaluator expressionEval() {
@@ -580,16 +580,18 @@ public interface Instances {
     void evaluateCondition(Condition condition);
 
     default void evaluateCondition(PredicateCondition condition) {
-        backend().memoryStack().enterScope();
         emitter().emit("i32 cond = %s;", expressionEval().evaluate(condition.getExpression()));
-        backend().memoryStack().exitScope();
         emitter().emit("return cond;");
     }
 
     default void evaluateCondition(PortCondition condition) {
         if (condition.isInputCondition()) {
-            emitter().emit("i32 cond = %s;", String.format("numTokens_%s - index_%1$s >= %d", condition.getPortName().getName(), condition.N()));
-            emitter().emit("return cond;");
+            if (backend().channelUtils().isTargetConnected(backend().instancebox().get().getInstanceName(), condition.getPortName().getName())) {
+                emitter().emit("i32 cond = %s;", String.format("numTokens_%s - index_%1$s >= %d", condition.getPortName().getName(), condition.N()));
+                emitter().emit("return cond;");
+            } else {
+                emitter().emit("return true;");
+            }
         } else {
             Instance instance = backend().instancebox().get();
             Connection.End source = new Connection.End(Optional.of(instance.getInstanceName()), condition.getPortName().getName());
@@ -753,9 +755,7 @@ public interface Instances {
                 }
             }
 
-            backend().memoryStack().enterScope();
             transition.getBody().forEach(backend().statements()::execute);
-            backend().memoryStack().exitScope();
 
 
             // -- Traces OUT
@@ -779,19 +779,25 @@ public interface Instances {
 
             // -- I/O Update
             for (Port port : transition.getInputRates().keySet()) {
-                emitter().emit("index_%s += %d;", port.getName(), transition.getInputRates().get(port));
-                if (transition.getInputRates().get(port) > 2) {
-                    emitter().emit("read_end_%s();", port.getName());
+                if (backend().channelUtils().isTargetConnected(backend().instancebox().get().getInstanceName(), port.getName())) {
+                    emitter().emit("index_%s += %d;", port.getName(), transition.getInputRates().get(port));
+                    if (transition.getInputRates().get(port) > 2) {
+                        emitter().emit("read_end_%s();", port.getName());
+                    }
                 }
             }
             for (Port port : transition.getOutputRates().keySet()) {
-                emitter().emit("index_%s += %d;", port.getName(), transition.getOutputRates().get(port));
-                if (transition.getOutputRates().get(port) > 2) {
-                    emitter().emit("write_end_%s();", port.getName());
+                if (backend().channelUtils().isSourceConnected(backend().instancebox().get().getInstanceName(), port.getName())) {
+                    emitter().emit("index_%s += %d;", port.getName(), transition.getOutputRates().get(port));
+                    if (transition.getOutputRates().get(port) > 2) {
+                        emitter().emit("write_end_%s();", port.getName());
+                    }
                 }
             }
             for (Port port : transition.getInputRates().keySet()) {
-                emitter().emit("rate_%s += %d;", port.getName(), transition.getInputRates().get(port));
+                if (backend().channelUtils().isTargetConnected(backend().instancebox().get().getInstanceName(), port.getName())) {
+                    emitter().emit("rate_%s += %d;", port.getName(), transition.getInputRates().get(port));
+                }
             }
 
             emitter().decreaseIndentation();
@@ -816,7 +822,9 @@ public interface Instances {
             emitter().increaseIndentation();
 
             for (PortDecl port : entity.getOutputPorts()) {
-                emitter().emit("write_%s();", port.getName());
+                if (backend().channelUtils().isSourceConnected(backend().instancebox().get().getInstanceName(), port.getName())) {
+                    emitter().emit("write_%s();", port.getName());
+                }
             }
             emitter().emitNewLine();
 
@@ -851,7 +859,9 @@ public interface Instances {
             emitter().emitNewLine();
 
             for (PortDecl port : entity.getOutputPorts()) {
-                emitter().emit("write_end_%s();", port.getName());
+                if (backend().channelUtils().isSourceConnected(backend().instancebox().get().getInstanceName(), port.getName())) {
+                    emitter().emit("write_end_%s();", port.getName());
+                }
             }
 
             emitter().emit("return;");

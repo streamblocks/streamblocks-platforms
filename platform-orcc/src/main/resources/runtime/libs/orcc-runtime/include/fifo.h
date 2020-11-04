@@ -51,6 +51,10 @@ static FIFO_T(type) fifo_##count = {{0}, read_inds_##count, {0}, 0, {0}, array_#
 
 /* Define structure and methods for all types thanks to macro expansion */
 
+#define T bool_t
+#include "generic_fifo.h"
+#undef T
+
 #define T i8
 #include "generic_fifo.h"
 #undef T

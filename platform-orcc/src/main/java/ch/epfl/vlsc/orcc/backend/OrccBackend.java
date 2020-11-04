@@ -111,6 +111,10 @@ public interface OrccBackend {
         return task().getModule(Closures.key);
     }
 
+    @Binding(LAZY) default TupleAnnotations tupleAnnotations() {
+        return task().getModule(TupleAnnotations.key);
+    }
+
     // -- Free variables
     @Binding(LAZY)
     default FreeVariables freeVariables() {
@@ -139,15 +143,9 @@ public interface OrccBackend {
                 .instance();
     }
 
-    // -- Algebraic Types
     @Binding(LAZY)
-    default AlgebraicTypes algebraic() {
-        return MultiJ.from(AlgebraicTypes.class).bind("backend").to(this).instance();
-    }
-
-    @Binding(LAZY)
-    default MemoryStack memoryStack() {
-        return MultiJ.from(MemoryStack.class).bind("backend").to(this).instance();
+    default Trackable memoryStack() {
+        return MultiJ.from(Trackable.class).bind("backend").to(this).instance();
     }
 
     // -- Declarations
@@ -164,7 +162,7 @@ public interface OrccBackend {
 
     // -- Types evaluator
     @Binding(LAZY)
-    default TypesEvaluator typesEval() {
+    default TypesEvaluator typeseval() {
         return MultiJ.from(TypesEvaluator.class).bind("types").to(types()).instance();
     }
 
@@ -211,6 +209,48 @@ public interface OrccBackend {
     @Binding(LAZY)
     default ChannelUtils channelUtils() {
         return MultiJ.from(ChannelUtils.class).bind("backend").to(this).instance();
+    }
+
+    // ------------------------------------------------------------------------
+    // -- Types
+
+    @Binding(LAZY)
+    default Alias alias() {
+        return MultiJ.from(Alias.class).bind("backend").to(this).instance();
+    }
+
+    @Binding(LAZY)
+    default Algebraic algebraic() {
+        return MultiJ.from(Algebraic.class).bind("backend").to(this).instance();
+    }
+
+    @Binding(LAZY)
+    default Tuples tuples() {
+        return MultiJ.from(Tuples.class).bind("backend").to(this).instance();
+    }
+
+
+    @Binding(LAZY)
+    default SizeOf sizeof() {
+        return MultiJ.from(SizeOf.class).bind("typeseval").to(typeseval()).instance();
+    }
+
+    @Binding(LAZY)
+    default Free free() {
+        return MultiJ.from(Free.class).bind("typeseval").to(typeseval()).instance();
+    }
+
+    @Binding(LAZY)
+    default Serialization serialization() {
+        return MultiJ.from(Serialization.class)
+                .bind("typeseval").to(typeseval())
+                .bind("emitter").to(emitter())
+                .bind("sizeof").to(sizeof())
+                .instance();
+    }
+
+    @Binding(LAZY) default Strings strings() {
+        return MultiJ.from(Strings.class).bind("backend").to(this).instance();
     }
 
     // ------------------------------------------------------------------------

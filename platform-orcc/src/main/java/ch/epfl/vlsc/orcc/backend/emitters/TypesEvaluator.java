@@ -57,12 +57,14 @@ public interface TypesEvaluator {
     }
 
     default String type(StringType type) {
-        return "char *";
+        return "string_t";
     }
 
     default String type(BoolType type) {
-        return "i32";
+        return "bool_t";
     }
+
+    default String type(CharType type) { return "char"; }
 
     default String type(CallableType type) {
         return type(type.getReturnType());

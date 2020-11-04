@@ -8,7 +8,6 @@ import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.GlobalNames;
 import se.lth.cs.tycho.ir.network.Connection;
-import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.network.Network;
 
 import java.util.HashMap;
@@ -119,7 +118,7 @@ public interface Main {
 
         for (Connection.End c : connectionId().keySet()) {
             emitter().emit("DECLARE_FIFO(%s, %d, %d, %d)",
-                    backend().typesEval().type(backend().channelUtils().sourceEndType(c)),
+                    backend().typeseval().type(backend().channelUtils().sourceEndType(c)),
                     backend().channelUtils().connectionBufferSize(backend().channelUtils().targetEndConnections(c).get(0)),
                     connectionId().get(c),
                     connectionEndNbrReaders().get(c)
@@ -131,7 +130,7 @@ public interface Main {
 
         for (Connection.End source : connectionId().keySet()) {
             int id = connectionId().get(source);
-            String type = backend().typesEval().type(backend().channelUtils().sourceEndType(source));
+            String type = backend().typeseval().type(backend().channelUtils().sourceEndType(source));
             List<Connection> targetConnections = backend().channelUtils().targetEndConnections(source);
             emitter().emit("fifo_%s_t *%s_%s = &fifo_%d;", type, backend().instaceQID(source.getInstance().get(), "_"), source.getPort(), id);
             for(Connection c : targetConnections){

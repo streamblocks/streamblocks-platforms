@@ -34,7 +34,8 @@ public interface Globals {
         emitter().emitNewLine();
 
         emitter().emit("// -- Type helper function Definitions");
-        backend().algebraic().defineAlgebraicTypeHelperFunctions();
+        //backend().algebraic().defineAlgebraicTypeHelperFunctions();
+        backend().strings().defineString();
 
         emitter().emit("// -- Global variables");
         globalVariableDefinition(getGlobalVarDecls());
@@ -47,8 +48,6 @@ public interface Globals {
         emitter().emit("// -- Glabal Variable Initialization");
         globalCallables(getGlobalVarDecls());
         emitter().close();
-
-
     }
 
     default void globalHeader() {
@@ -62,15 +61,20 @@ public interface Globals {
         emitter().emitNewLine();
 
         // -- Headers
+        backend().includeSystem("stdio.h");
         backend().includeSystem("stdint.h");
         backend().includeSystem("stdbool.h");
         backend().includeSystem("stdlib.h");
         backend().includeSystem("string.h");
         backend().includeUser("types.h");
+        backend().includeUser("native.h");
+
         emitter().emitNewLine();
 
         emitter().emit("// -- Type declarations");
-        backend().algebraic().declareAlgebraicTypes();
+        //backend().algebraic().declareAlgebraicTypes();
+        backend().strings().declareString();
+
 
         emitter().emit("// -- External Callables Declaration");
         backend().task().walk().forEach(backend().callablesInActors()::externalCallableDeclaration);
@@ -103,7 +107,7 @@ public interface Globals {
                     }
                 }
             } else {
-                if (decl.getValue() instanceof ExprList) {
+                if (decl.getValue() instanceof ExprList || decl.getValue() instanceof ExprComprehension) {
                     String d = backend().declarations().declaration(type, backend().variables().declarationName(decl));
                     emitter().emit("extern const %s;", d);
                 } else {

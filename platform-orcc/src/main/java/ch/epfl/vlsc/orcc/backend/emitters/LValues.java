@@ -12,6 +12,8 @@ import se.lth.cs.tycho.ir.expr.ExprIndexer;
 import se.lth.cs.tycho.ir.expr.ExprInput;
 import se.lth.cs.tycho.ir.stmt.lvalue.*;
 import se.lth.cs.tycho.type.ListType;
+import se.lth.cs.tycho.type.RefType;
+import se.lth.cs.tycho.type.Type;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -43,6 +45,15 @@ public interface LValues {
     }
 
     default String lvalue(LValueDeref deref) {
+        LValueVariable lValueVariable = deref.getVariable();
+        Variable var = lValueVariable.getVariable();
+        VarDecl decl = backend().varDecls().declaration(var);
+        Type type = backend().types().declaredType(decl);
+        if (type instanceof ListType) {
+            return lvalue(deref.getVariable());
+        } else if (type instanceof RefType) {
+            return lvalue(deref.getVariable());
+        }
         return "(*" + lvalue(deref.getVariable()) + ")";
     }
 
@@ -52,91 +63,15 @@ public interface LValues {
 
 
     default String lvalue(LValueIndexer indexer) {
-        Variable var = evalLValueIndexerVar(indexer);
-
-        VarDecl decl = backend().varDecls().declaration(var);
-        boolean isIO = false;
-        Port port = null;
-        if (decl.getValue() != null) {
-            if (decl.getValue() instanceof ExprInput) {
-                ExprInput e = (ExprInput) decl.getValue();
-                if (e.hasRepeat()) {
-                    isIO = true;
-                    port = e.getPort();
-                }
-            } else {
-                for (Port p : backend().instance().portVars().keySet()) {
-                    for (VarDecl d : backend().instance().portVars().get(p)) {
-                        if (d == decl) {
-                            port = p;
-                            isIO = true;
-                            break;
-                        }
-                    }
-                }
-            }
-        } else {
-            for (Port p : backend().instance().portVars().keySet()) {
-                for (VarDecl d : backend().instance().portVars().get(p)) {
-                    if (d == decl) {
-                        port = p;
-                        isIO = true;
-                        break;
-                    }
-                }
-            }
-        }
-
-        Optional<String> str = Optional.empty();
-        String ind;
-        if (indexer.getStructure() instanceof LValueIndexer) {
-            VarDecl varDecl = backend().varDecls().declaration(var);
-            ListType type = (ListType) backend().types().declaredType(varDecl);
-
-            List<Integer> sizeByDim = backend().typesEval().sizeByDimension((ListType) type.getElementType());
-            List<String> indexByDim = getListIndexes((LValueIndexer) indexer.getStructure());
-            Collections.reverse(indexByDim);
-
-            List<String> structureIndex = new ArrayList<>();
-            for (int i = 0; i < indexByDim.size(); i++) {
-                List<String> dims = new ArrayList<>();
-                for (int j = i; j < sizeByDim.size(); j++) {
-                    dims.add(Integer.toString(sizeByDim.get(j)));
-                }
-                structureIndex.add(String.format("%s*%s", String.join("*", dims), indexByDim.get(i)));
-            }
-            str = Optional.of(String.join(" + ", structureIndex));
-        }
-
-        if (indexer.getIndex() instanceof ExprIndexer) {
-            ind = String.format("%s", expressioneval().evaluate(indexer.getIndex()));
-        } else {
-            ind = expressioneval().evaluate(indexer.getIndex());
-        }
-
-        boolean aligned = backend().alignedBox().isEmpty() ? false : backend().alignedBox().get();
-        if (str.isPresent()) {
-            if (isIO) {
-                if (aligned) {
-                    return String.format("tokens_%s[(index_%1$s %% SIZE_%1$s) + (%s + %s))]", port.getName(), str.get(), ind);
-                } else {
-                    return String.format("tokens_%s[(index_%1$s + (%s + %s)) %% SIZE_%1$s]", port.getName(), str.get(), ind);
-                }
-            } else {
-                return String.format("%s[%s + %s]", variables().name(var), str.get(), ind);
-            }
-        } else {
-            if (isIO) {
-                if (aligned) {
-                    return String.format("tokens_%s[(index_%1$s %% SIZE_%1$s) + %s]", port.getName(), ind);
-                } else {
-                    return String.format("tokens_%s[(index_%1$s + (%s)) %% SIZE_%1$s]", port.getName(), ind);
-                }
-            } else {
-                return String.format("%s[%s]", variables().name(var), ind);
-            }
-        }
+        return lvalueIndexing(backend().types().type(indexer.getStructure()), indexer);
     }
+
+    String lvalueIndexing(Type type, LValueIndexer indexer);
+
+    default String lvalueIndexing(ListType type, LValueIndexer indexer) {
+        return String.format("%s[%s]", lvalue(indexer.getStructure()), backend().expressionEval().evaluate(indexer.getIndex()));
+    }
+
 
     default List<String> getListIndexes(LValueIndexer expr) {
         List<String> indexByDim = new ArrayList<>();
@@ -148,20 +83,6 @@ public interface LValues {
         }
 
         return indexByDim;
-    }
-
-    Variable evalLValueIndexerVar(LValue lvalue);
-
-    default Variable evalLValueIndexerVar(LValueVariable var) {
-        return var.getVariable();
-    }
-
-    default Variable evalLValueIndexerVar(LValueIndexer indexer) {
-        return evalLValueIndexerVar(indexer.getStructure());
-    }
-
-    default Variable evalLValueIndexerVar(LValueDeref deref) {
-        return evalLValueIndexerVar(deref.getVariable());
     }
 
 }

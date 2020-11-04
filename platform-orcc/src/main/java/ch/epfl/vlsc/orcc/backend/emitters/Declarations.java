@@ -6,8 +6,6 @@ import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.type.*;
 
-import java.util.stream.Collectors;
-
 @Module
 public interface Declarations {
 
@@ -15,16 +13,23 @@ public interface Declarations {
     OrccBackend backend();
 
     default String declaration(Type type, String name) {
-        return backend().typesEval().type(type) + " " + name;
+        return backend().typeseval().type(type) + " " + name;
     }
 
     default String declaration(UnitType type, String name) {
         return "char " + name;
     }
 
-    default String declaration(ListType type, String name){
-        String maxIndex = backend().typesEval().sizeByDimension((ListType) type).stream().map(Object::toString).collect(Collectors.joining("*"));
-        return String.format("%s %s[%s]", backend().typesEval().type(type), name, maxIndex);
+    default String declaration(ListType type, String name) {
+        return String.format("%s %s%s", backend().typeseval().type(type), name, getListDims(type));
+    }
+
+    default String getListDims(ListType type){
+        if(type.getElementType() instanceof ListType){
+            return String.format("[%s]%s", type.getSize().getAsInt(), getListDims((ListType)type.getElementType()));
+        }else{
+            return String.format("[%s]", type.getSize().getAsInt());
+        }
     }
 
     default String declaration(RefType type, String name) {
@@ -53,10 +58,7 @@ public interface Declarations {
         return declaration(type, name);
     }
 
-    default String declarationTemp(ListType type, String name) {
-        String maxIndex = backend().typesEval().sizeByDimension((ListType) type).stream().map(Object::toString).collect(Collectors.joining("*"));
-        return String.format("%s %s[%s]", backend().typesEval().type(type), name, maxIndex);
-    }
+
 
     /*
      * Declaration for parameters

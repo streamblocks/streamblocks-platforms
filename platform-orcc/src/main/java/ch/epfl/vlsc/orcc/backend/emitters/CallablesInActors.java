@@ -5,8 +5,6 @@ import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.ir.IRNode;
-import se.lth.cs.tycho.ir.NamespaceDecl;
-import se.lth.cs.tycho.ir.QID;
 import se.lth.cs.tycho.ir.Variable;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.expr.ExprLambda;
@@ -66,7 +64,7 @@ public interface CallablesInActors {
      */
 
     default void callableDefinition(ExprProc proc) {
-        backend().emitter().emit("static %s {", procHeader(proc));
+        backend().emitter().emit("%s {", procHeader(proc));
         backend().emitter().increaseIndentation();
         proc.getBody().forEach(backend().statements()::execute);
         backend().emitter().decreaseIndentation();
@@ -99,7 +97,7 @@ public interface CallablesInActors {
         for (int i = 0; i < parameterNames.size(); i++) {
             parameters.add(backend().declarations().declarationParameter(type.getParameterTypes().get(i), parameterNames.get(i)));
         }
-        String result = backend().typesEval().type(type.getReturnType());
+        String result = backend().typeseval().type(type.getReturnType());
         result += " ";
         result += name;
         result += "(";
@@ -115,7 +113,7 @@ public interface CallablesInActors {
         for (int i = 0; i < parameterNames.size(); i++) {
             parameters.add(backend().declarations().declarationParameter(type.getParameterTypes().get(i), parameterNames.get(i)));
         }
-        String result = backend().typesEval().type(type.getReturnType());
+        String result = backend().typeseval().type(type.getReturnType());
         result += " ";
         result += name;
         result += "(";

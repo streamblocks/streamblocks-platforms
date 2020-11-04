@@ -58,8 +58,17 @@ public interface Controller {
             emitter().emitNewLine();
         }
 
-        actorMachine.getInputPorts().forEach(p -> emitter().emit("read_%s();", p.getName()));
-        actorMachine.getOutputPorts().forEach(p -> emitter().emit("write_%s();", p.getName()));
+        actorMachine.getInputPorts().forEach(p -> {
+            if (backend().channelUtils().isTargetConnected(backend().instancebox().get().getInstanceName(), p.getName())) {
+                emitter().emit("read_%s();", p.getName());
+            }
+        });
+        actorMachine.getOutputPorts().forEach(p -> {
+                    if (backend().channelUtils().isSourceConnected(backend().instancebox().get().getInstanceName(), p.getName())) {
+                        emitter().emit("write_%s();", p.getName());
+                    }
+                }
+        );
         emitter().emitNewLine();
 
         // -- Controller
@@ -92,7 +101,11 @@ public interface Controller {
             emitter().emitNewLine();
         }
         actorMachine.getInputPorts().forEach(p -> emitter().emit("read_end_%s();", p.getName()));
-        actorMachine.getOutputPorts().forEach(p -> emitter().emit("write_end_%s();", p.getName()));
+        actorMachine.getOutputPorts().forEach(p -> {
+            if (backend().channelUtils().isSourceConnected(backend().instancebox().get().getInstanceName(), p.getName())) {
+                emitter().emit("write_end_%s();", p.getName());
+            }
+        });
 
 
         emitter().decreaseIndentation();
@@ -151,18 +164,22 @@ public interface Controller {
             emitter().emit("i32 isAligned = 1;");
             Transition transition = am.getTransitions().get(exec.transition());
             for (Port port : transition.getInputRates().keySet()) {
-                boolean isAlignable = transition.getInputRates().get(port) >= 2;
+                if (backend().channelUtils().isTargetConnected(backend().instancebox().get().getInstanceName(), port.getName())) {
+                    boolean isAlignable = transition.getInputRates().get(port) >= 2;
 
-                if (isAlignable && !backend().instance().portAlwaysAligned().get(port)) {
-                    emitter().emit("isAligned &= ((index_%1$s %% SIZE_%1$s) < ((index_%1$s + %2$d) %% SIZE_%1$s));", port.getName(), transition.getInputRates().get(port));
+                    if (isAlignable && !backend().instance().portAlwaysAligned().get(port)) {
+                        emitter().emit("isAligned &= ((index_%1$s %% SIZE_%1$s) < ((index_%1$s + %2$d) %% SIZE_%1$s));", port.getName(), transition.getInputRates().get(port));
+                    }
                 }
             }
 
             for (Port port : transition.getOutputRates().keySet()) {
-                boolean isAlignable = transition.getOutputRates().get(port) >= 2;
+                if (backend().channelUtils().isSourceConnected(backend().instancebox().get().getInstanceName(), port.getName())) {
+                    boolean isAlignable = transition.getOutputRates().get(port) >= 2;
 
-                if (isAlignable && !backend().instance().portAlwaysAligned().get(port)) {
-                    emitter().emit("isAligned &= ((index_%1$s %% SIZE_%1$s) < ((index_%1$s + %2$d) %% SIZE_%1$s));", port.getName(), transition.getOutputRates().get(port));
+                    if (isAlignable && !backend().instance().portAlwaysAligned().get(port)) {
+                        emitter().emit("isAligned &= ((index_%1$s %% SIZE_%1$s) < ((index_%1$s + %2$d) %% SIZE_%1$s));", port.getName(), transition.getOutputRates().get(port));
+                    }
                 }
             }
 

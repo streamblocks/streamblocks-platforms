@@ -15,6 +15,10 @@ public interface DefaultValues {
         return "false";
     }
 
+    default String defaultValue(StringType t) {
+        return "";
+    }
+
     default String defaultValue(RealType t) {
         return "0.0";
     }

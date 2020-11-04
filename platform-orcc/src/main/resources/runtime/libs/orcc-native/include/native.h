@@ -30,6 +30,16 @@
 #ifndef _ORCC_NATIVE_H_
 #define _ORCC_NATIVE_H_
 
+#include <stdio.h>
+
 int init_native_context();
+
+static void print(char *text) {
+	fputs(text, stdout);
+}
+
+static void println(char *text) {
+	puts(text);
+}
 
 #endif  /* _ORCC_NATIVE_H_ */

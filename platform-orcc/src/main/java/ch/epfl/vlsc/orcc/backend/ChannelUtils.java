@@ -43,8 +43,8 @@ public interface ChannelUtils {
         List<Connection> connections = network.getConnections().stream()
                 .filter(conn -> conn.getTarget().equals(target))
                 .collect(Collectors.toList());
-        if(connections.isEmpty()){
-         return null;
+        if (connections.isEmpty()) {
+            return null;
         }
         return connections.get(0);
     }
@@ -75,6 +75,15 @@ public interface ChannelUtils {
         return connections;
     }
 
+    default boolean isSourceConnected(String instance, String port) {
+        Connection.End source = new Connection.End(Optional.of(instance), port);
+        return !backend().channelUtils().targetEndConnections(source).isEmpty();
+    }
+
+    default boolean isTargetConnected(String instance, String port){
+        Connection.End target = new Connection.End(Optional.of(instance), port);
+        return backend().channelUtils().sourceEndConnection(target)  != null;
+    }
 
     default Type sourceEndType(Connection.End source) {
         Network network = backend().task().getNetwork();
@@ -99,7 +108,7 @@ public interface ChannelUtils {
         if (type instanceof AlgebraicType) {
             return "ref";
         } else {
-            return backend().typesEval().type(type);
+            return backend().typeseval().type(type);
         }
     }
 
@@ -114,7 +123,7 @@ public interface ChannelUtils {
         if (type instanceof AlgebraicType) {
             return "ref";
         } else {
-            return backend().typesEval().type(type);
+            return backend().typeseval().type(type);
         }
     }
 
