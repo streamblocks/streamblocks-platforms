@@ -15,10 +15,6 @@ public interface DefaultValues {
         return "false";
     }
 
-    default String defaultValue(StringType t) {
-        return "";
-    }
-
     default String defaultValue(RealType t) {
         return "0.0";
     }
@@ -42,6 +38,21 @@ public interface DefaultValues {
     }
 
     default String defaultValue(AlgebraicType t) {
+        return "NULL";
+    }
+    default String defaultValue(AliasType t) {
+        return defaultValue(t.getConcreteType());
+    }
+    default String defaultValue(TupleType t) {
+        return "NULL";
+    }
+    default String defaultValue(SetType t) {
+        return "NULL";
+    }
+    default String defaultValue(MapType t) {
+        return "NULL";
+    }
+    default String defaultValue(StringType t) {
         return "NULL";
     }
 }

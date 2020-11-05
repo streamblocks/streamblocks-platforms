@@ -60,7 +60,9 @@ public interface Controller {
 
         actorMachine.getInputPorts().forEach(p -> {
             if (backend().channelUtils().isTargetConnected(backend().instancebox().get().getInstanceName(), p.getName())) {
-                emitter().emit("read_%s();", p.getName());
+                if (backend().channelUtils().isTargetConnected(backend().instancebox().get().getInstanceName(), p.getName())) {
+                    emitter().emit("read_%s();", p.getName());
+                }
             }
         });
         actorMachine.getOutputPorts().forEach(p -> {
@@ -100,7 +102,12 @@ public interface Controller {
                     emitter().emit("fclose(file_%s);", port.getName()));
             emitter().emitNewLine();
         }
-        actorMachine.getInputPorts().forEach(p -> emitter().emit("read_end_%s();", p.getName()));
+        actorMachine.getInputPorts().forEach(p -> {
+                    if (backend().channelUtils().isTargetConnected(backend().instancebox().get().getInstanceName(), p.getName())) {
+                        emitter().emit("read_end_%s();", p.getName());
+                    }
+                }
+        );
         actorMachine.getOutputPorts().forEach(p -> {
             if (backend().channelUtils().isSourceConnected(backend().instancebox().get().getInstanceName(), p.getName())) {
                 emitter().emit("write_end_%s();", p.getName());

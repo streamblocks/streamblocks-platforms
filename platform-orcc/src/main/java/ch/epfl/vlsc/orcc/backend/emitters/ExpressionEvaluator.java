@@ -6,6 +6,7 @@ import ch.epfl.vlsc.platformutils.Emitter;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
+import org.multij.MultiJ;
 import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.ir.IRNode;
 import se.lth.cs.tycho.ir.Port;
@@ -15,6 +16,9 @@ import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.expr.*;
 import se.lth.cs.tycho.ir.stmt.StmtAssignment;
 import se.lth.cs.tycho.ir.stmt.StmtWrite;
+import se.lth.cs.tycho.ir.stmt.lvalue.LValue;
+import se.lth.cs.tycho.ir.stmt.lvalue.LValueDeref;
+import se.lth.cs.tycho.ir.stmt.lvalue.LValueIndexer;
 import se.lth.cs.tycho.ir.stmt.lvalue.LValueVariable;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.type.*;
@@ -891,6 +895,11 @@ public interface ExpressionEvaluator {
         } else if (parent instanceof StmtWrite) {
             name = ((StmtWrite) parent).getPort().getName();
             isStmtWrite = true;
+        } else if(parent instanceof StmtAssignment){
+            StmtAssignment assignment = (StmtAssignment) parent;
+            LValue lvalue = assignment.getLValue();
+            LValueName lValueName = MultiJ.from(LValueName.class).instance();
+            name = lValueName.name(lvalue);
         } else {
             name = variables().generateTemp();
             String decl = declarations().declarationTemp(t, name);
@@ -906,6 +915,23 @@ public interface ExpressionEvaluator {
 
         backend().writeBox().clear();
         return name;
+    }
+
+    @Module
+    interface LValueName{
+        String name(LValue lValue);
+
+        default String name(LValueVariable var){
+            return var.getVariable().getName();
+        }
+
+        default String name(LValueIndexer indexer){
+            return name(indexer.getStructure());
+        }
+
+        default String name(LValueDeref deref){
+            return name(deref.getVariable());
+        }
     }
 
     void evaluateListComprehension(Expression comprehension, String result, String index);

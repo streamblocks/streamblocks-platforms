@@ -21,6 +21,7 @@ public class Orcc implements Platform {
 
     private static final List<Phase> phases = ImmutableList.<Phase>builder()
             .addAll(frontendPhases())
+            .addAll(Compiler.templatePhases())
             .addAll(Compiler.networkElaborationPhases())
             .addAll(Compiler.nameAndTypeAnalysis())
             .addAll(Compiler.actorMachinePhases())
