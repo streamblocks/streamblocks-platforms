@@ -15,6 +15,10 @@ import se.lth.cs.tycho.compiler.UniqueNumbers;
 import se.lth.cs.tycho.ir.QID;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.network.Instance;
+import se.lth.cs.tycho.meta.interp.Interpreter;
+import se.lth.cs.tycho.meta.interp.op.Binary;
+import se.lth.cs.tycho.meta.interp.op.Unary;
+import se.lth.cs.tycho.meta.interp.value.util.Convert;
 import se.lth.cs.tycho.phase.TreeShadow;
 
 import static org.multij.BindingKind.INJECTED;
@@ -47,6 +51,7 @@ public interface OrccBackend {
     default Box<Boolean> alignedBox() {
         return Box.empty();
     }
+
     @Binding(LAZY)
     default Box<Boolean> alwaysAlignedBox() {
         return Box.empty();
@@ -111,7 +116,8 @@ public interface OrccBackend {
         return task().getModule(Closures.key);
     }
 
-    @Binding(LAZY) default TupleAnnotations tupleAnnotations() {
+    @Binding(LAZY)
+    default TupleAnnotations tupleAnnotations() {
         return task().getModule(TupleAnnotations.key);
     }
 
@@ -249,9 +255,27 @@ public interface OrccBackend {
                 .instance();
     }
 
-    @Binding(LAZY) default Strings strings() {
+    @Binding(LAZY)
+    default Strings strings() {
         return MultiJ.from(Strings.class).bind("backend").to(this).instance();
     }
+
+    @Binding(LAZY)
+    default Interpreter interpreter() {
+        return MultiJ.from(Interpreter.class)
+                .bind("variables").to(task().getModule(VariableDeclarations.key))
+                .bind("types").to(task().getModule(TypeScopes.key))
+                .bind("unary").to(MultiJ.from(Unary.class).instance())
+                .bind("binary").to(MultiJ.from(Binary.class).instance())
+                .instance();
+    }
+
+    @Binding(LAZY)
+    default Convert converter() {
+        return MultiJ.from(Convert.class)
+                .instance();
+    }
+
 
     // ------------------------------------------------------------------------
     // -- Generators

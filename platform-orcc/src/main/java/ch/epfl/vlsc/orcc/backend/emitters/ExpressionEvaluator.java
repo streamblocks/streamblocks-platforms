@@ -188,7 +188,16 @@ public interface ExpressionEvaluator {
 
         if (input.hasRepeat()) {
             if (input.getOffset() == 0) {
-                emitter().emit("pinPeekRepeat_%s(%s, %s, %d);", channelsutils().inputPortTypeSize(input.getPort()), channelsutils().definedInputPort(input.getPort()), tmp, input.getRepeat());
+                emitter().emit("for(int i = 0; i < %s; i++){", input.getRepeat());
+                {
+                    emitter().increaseIndentation();
+
+                    emitter().emit("%s[i] = tokens_%s[(index_%2$s + (i)) %% SIZE_%2$s];", tmp, input.getPort().getName());
+
+                    emitter().decreaseIndentation();
+                }
+                emitter().emit("}");
+
             } else {
                 throw new RuntimeException("not implemented");
             }
@@ -203,7 +212,7 @@ public interface ExpressionEvaluator {
 
     default void evaluateWithLvalue(String lvalue, ExprInput input) {
         // String type = channelsutils().inputPortTypeSize(input.getPort());
-        if(backend().channelUtils().isTargetConnected(backend().instancebox().get().getInstanceName(), input.getPort().getName())){
+        if (backend().channelUtils().isTargetConnected(backend().instancebox().get().getInstanceName(), input.getPort().getName())) {
             if (input.hasRepeat()) {
                 if (input.getOffset() == 0) {
                     String index = variables().generateTemp();
@@ -895,7 +904,7 @@ public interface ExpressionEvaluator {
         } else if (parent instanceof StmtWrite) {
             name = ((StmtWrite) parent).getPort().getName();
             isStmtWrite = true;
-        } else if(parent instanceof StmtAssignment){
+        } else if (parent instanceof StmtAssignment) {
             StmtAssignment assignment = (StmtAssignment) parent;
             LValue lvalue = assignment.getLValue();
             LValueName lValueName = MultiJ.from(LValueName.class).instance();
@@ -918,18 +927,18 @@ public interface ExpressionEvaluator {
     }
 
     @Module
-    interface LValueName{
+    interface LValueName {
         String name(LValue lValue);
 
-        default String name(LValueVariable var){
+        default String name(LValueVariable var) {
             return var.getVariable().getName();
         }
 
-        default String name(LValueIndexer indexer){
+        default String name(LValueIndexer indexer) {
             return name(indexer.getStructure());
         }
 
-        default String name(LValueDeref deref){
+        default String name(LValueDeref deref) {
             return name(deref.getVariable());
         }
     }
@@ -951,7 +960,11 @@ public interface ExpressionEvaluator {
                     if (isStmtWrite) {
                         emitter().emit("tokens_%1$s[(index_%1$s + (%2$s++)) %% SIZE_%1$s] = %3$s;", result, index, evaluate(element));
                     } else {
-                        emitter().emit("%s[%s++] = %s;", result, index, evaluate(element));
+                        if (element instanceof ExprComprehension) {
+                            emitter().emit("memcpy(%1$s[%2$s++], %3$s, sizeof(%1$s[%2$s++]));", result, index, evaluate(element));
+                        } else {
+                            emitter().emit("%s[%s++] = %s;", result, index, evaluate(element));
+                        }
                     }
                 }
         );
@@ -1107,9 +1120,7 @@ public interface ExpressionEvaluator {
             parameters.add(evaluate(parameter));
         }
 
-
         fn = evaluateCall(apply.getFunction());
-        Type type = types().type(apply);
         String result = variables().generateTemp();
         String decl = declarations().declarationTemp(types().type(apply), result);
 
@@ -1175,7 +1186,12 @@ public interface ExpressionEvaluator {
             Type type = types().declaredType(decl);
             String name = variables().declarationName(decl);
             emitter().emit("%s = %s;", declarations().declaration(type, name), backend().defaultValues().defaultValue(type));
-            backend().statements().copy(type, name, types().type(decl.getValue()), evaluate(decl.getValue()));
+            emitter().emit("{");
+            emitter().increaseIndentation();
+            String eval = evaluate(decl.getValue());
+            backend().statements().copy(type, name, types().type(decl.getValue()), eval);
+            emitter().decreaseIndentation();
+            emitter().emit("}");
         }
         return evaluate(let.getBody());
     }
@@ -1204,4 +1220,5 @@ public interface ExpressionEvaluator {
     default String evaluate(ExprField field) {
         return String.format("%s->members.%s", evaluate(field.getStructure()), field.getField().getName());
     }
+
 }

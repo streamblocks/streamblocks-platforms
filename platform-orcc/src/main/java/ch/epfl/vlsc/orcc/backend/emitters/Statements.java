@@ -157,7 +157,8 @@ public interface Statements {
         if (assign.getExpression() instanceof ExprComprehension) {
             emitter().emit("{");
             emitter().increaseIndentation();
-            copy(type, lvalue, types().type(assign.getExpression()), expressioneval().evaluate(assign.getExpression()));
+            //copy(type, lvalue, types().type(assign.getExpression()), expressioneval().evaluate(assign.getExpression()));
+            expressioneval().evaluate(assign.getExpression());
             emitter().decreaseIndentation();
             emitter().emit("}");
         } else {
@@ -256,7 +257,13 @@ public interface Statements {
                 } else {
                     emitter().emit("%s = %s;", d, backend().defaultValues().defaultValue(t));
 
-                    copy(t, declarationName, types().type(decl.getValue()), expressioneval().evaluate(decl.getValue()));
+                    emitter().emit("{");
+                    emitter().increaseIndentation();
+                    String eval = expressioneval().evaluate(decl.getValue());
+                    copy(t, declarationName, types().type(decl.getValue()), eval);
+                    emitter().decreaseIndentation();
+                    emitter().emit("}");
+
                 }
             } else {
                 emitter().emit("%s = %s;", d, backend().defaultValues().defaultValue(t));

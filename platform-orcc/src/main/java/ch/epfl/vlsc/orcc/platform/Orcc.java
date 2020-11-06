@@ -1,5 +1,6 @@
 package ch.epfl.vlsc.orcc.platform;
 
+import ch.epfl.vlsc.orcc.phase.ListComprehensionToStmtWhile;
 import ch.epfl.vlsc.orcc.phase.OrccBackendPhase;
 import se.lth.cs.tycho.compiler.Compiler;
 import se.lth.cs.tycho.ir.util.ImmutableList;
