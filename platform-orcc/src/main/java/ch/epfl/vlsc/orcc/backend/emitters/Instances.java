@@ -590,7 +590,7 @@ public interface Instances {
                 emitter().emit("i32 cond = %s;", String.format("numTokens_%s - index_%1$s >= %d", condition.getPortName().getName(), condition.N()));
                 emitter().emit("return cond;");
             } else {
-                emitter().emit("return true;");
+                emitter().emit("return false;");
             }
         } else {
             Instance instance = backend().instancebox().get();
