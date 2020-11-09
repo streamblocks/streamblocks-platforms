@@ -961,7 +961,9 @@ public interface ExpressionEvaluator {
                         emitter().emit("tokens_%1$s[(index_%1$s + (%2$s++)) %% SIZE_%1$s] = %3$s;", result, index, evaluate(element));
                     } else {
                         if (element instanceof ExprComprehension) {
-                            emitter().emit("memcpy(%1$s[%2$s++], %3$s, sizeof(%1$s[%2$s++]));", result, index, evaluate(element));
+                            String eval = evaluate(element);
+                            emitter().emit("memcpy(%1$s[%2$s], %3$s, sizeof(%1$s[%2$s]));", result, index, eval);
+                            emitter().emit("%s++;", index);
                         } else {
                             emitter().emit("%s[%s++] = %s;", result, index, evaluate(element));
                         }
