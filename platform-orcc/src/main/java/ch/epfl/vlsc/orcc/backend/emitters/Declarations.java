@@ -28,7 +28,11 @@ public interface Declarations {
         if(type.getElementType() instanceof ListType){
             return String.format("[%s]%s", type.getSize().getAsInt(), getListDims((ListType)type.getElementType()));
         }else{
-            return String.format("[%s]", type.getSize().getAsInt());
+            if(type.getSize().isPresent()){
+                return String.format("[%s]", type.getSize().getAsInt());
+            }else{
+                return String.format("[]");
+            }
         }
     }
 

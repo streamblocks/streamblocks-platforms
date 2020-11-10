@@ -878,38 +878,10 @@ public interface ExpressionEvaluator {
         IRNode parent = backend().tree().parent(comprehension);
         String name = null;
         Boolean isStmtWrite = false;
-        if (parent instanceof StmtAssignment) {
-            StmtAssignment stmt = (StmtAssignment) parent;
-            if (stmt.getLValue() instanceof LValueVariable) {
-                boolean isIO = false;
-                LValueVariable lvalue = (LValueVariable) stmt.getLValue();
-                VarDecl decl = backend().varDecls().declaration(lvalue);
-                for (Port port : backend().instance().portVars().keySet()) {
-                    for (VarDecl d : backend().instance().portVars().get(port)) {
-                        if (d == decl) {
-                            isIO = true;
-                            isStmtWrite = true;
-                            name = port.getName();
-                            break;
-                        }
-                    }
-                }
-                if (!isIO)
-                    name = backend().variables().name(lvalue.getVariable());
-            } else {
-                name = variables().generateTemp();
-                String decl = declarations().declarationTemp(t, name);
-                emitter().emit("%s;", decl);
-            }
-        } else if (parent instanceof StmtWrite) {
+        if (parent instanceof StmtWrite) {
             name = ((StmtWrite) parent).getPort().getName();
             isStmtWrite = true;
-        } else if (parent instanceof StmtAssignment) {
-            StmtAssignment assignment = (StmtAssignment) parent;
-            LValue lvalue = assignment.getLValue();
-            LValueName lValueName = MultiJ.from(LValueName.class).instance();
-            name = lValueName.name(lvalue);
-        } else {
+        }  else {
             name = variables().generateTemp();
             String decl = declarations().declarationTemp(t, name);
             emitter().emit("%s;", decl);
@@ -1008,11 +980,18 @@ public interface ExpressionEvaluator {
         ListType t = (ListType) types().type(list);
         if (t.getSize().isPresent()) {
 
+            IRNode parent = backend().tree().parent(list);
+            if(parent instanceof VarDecl){
+                VarDecl decl = (VarDecl) parent;
+                t = (ListType) types().declaredType(decl);
+            }
+
+
             String name = variables().generateTemp();
             String decl = declarations().declarationTemp(t, name);
             String value = evaluateExprList(list);
 
-            String init = "{" + value + " }";
+            String init = value;
             emitter().emit("%s = %s;", decl, init);
             return name;
         } else {
@@ -1028,7 +1007,7 @@ public interface ExpressionEvaluator {
     default String evaluateExprList(ExprList list) {
         String value = list.getElements().stream().sequential()
                 .map(this::evaluateExprList)
-                .collect(Collectors.joining(", "));
+                .collect(Collectors.joining(", ", "{", "}"));
         return value;
     }
 

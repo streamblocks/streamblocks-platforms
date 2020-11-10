@@ -157,8 +157,8 @@ public interface Statements {
         if (assign.getExpression() instanceof ExprComprehension) {
             emitter().emit("{");
             emitter().increaseIndentation();
-            //copy(type, lvalue, types().type(assign.getExpression()), expressioneval().evaluate(assign.getExpression()));
-            expressioneval().evaluate(assign.getExpression());
+            String eval = expressioneval().evaluate(assign.getExpression());
+            copy(type, lvalue, types().type(assign.getExpression()), eval);
             emitter().decreaseIndentation();
             emitter().emit("}");
         } else {

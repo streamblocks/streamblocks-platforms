@@ -142,14 +142,14 @@ public interface Globals {
             if (!(type instanceof CallableType)) {
                 if (decl.getValue() instanceof ExprList) {
                     String d = backend().declarations().declaration(backend().types().declaredType(decl), backend().variables().declarationName(decl));
-                    emitter().emit("const %s = {%s};", d, backend().expressionEval().evaluateExprList(decl.getValue()));
+                    emitter().emit("const %s = %s;", d, backend().expressionEval().evaluateExprList(decl.getValue()));
                 } else if (decl.getValue() instanceof ExprComprehension) {
                     Interpreter interpreter = backend().interpreter();
                     Environment environment = new Environment();
                     Value value = interpreter.eval((ExprComprehension) decl.getValue(), environment);
                     Expression expression = backend().converter().apply(value);
                     String d = backend().declarations().declaration(backend().types().declaredType(decl), backend().variables().declarationName(decl));
-                    emitter().emit("const %s = {%s};", d, backend().expressionEval().evaluateExprList(expression));
+                    emitter().emit("const %s = %s;", d, backend().expressionEval().evaluateExprList(expression));
                 }
             }
         });
