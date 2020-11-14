@@ -11,8 +11,54 @@
     <groupId>ch.epfl.vlsc.streamblocks</groupId>
     <artifactId>platform-multicore</artifactId>
     <version>1.0-SNAPSHOT</version>
-    <name>StreamBlocks platform, for generic multicores </name>
+    <name>StreamBlocks platform, for generic multicores</name>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.graalvm.nativeimage</groupId>
+                <artifactId>native-image-maven-plugin</artifactId>
+                <version>20.2.0</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>native-image</goal>
+                        </goals>
+                        <phase>package</phase>
+                    </execution>
+                </executions>
+                <configuration>
+                    <imageName>art-sbc</imageName>
+                    <mainClass>ch.epfl.vlsc.sw.launcher.MulticoreLauncher</mainClass>
+                    <buildArgs>
+                        --verbose
+                        --no-fallback
+                        --allow-incomplete-classpath
+                        --report-unsupported-elements-at-runtime
+                        --initialize-at-build-time=se.lth.cs.tycho.compiler.CompilationTask,se.lth.cs.tycho.phase,se.lth.cs.tycho.attribute,org.multij.ModuleRepository,ch.epfl.vlsc.sw.platform.Multicore
+                        -H:ReflectionConfigurationResources=reflection-config.json
+                        -H:+TraceClassInitialization
+                        -H:+ReportExceptionStackTraces
+                        -H:-UseServiceLoaderFeature
+                    </buildArgs>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
     <dependencies>
+        <dependency>
+            <groupId>org.graalvm.nativeimage</groupId>
+            <artifactId>svm</artifactId>
+            <version>20.2.0</version>
+            <scope>provided</scope>
+        </dependency>
+
+
+        <dependency>
+            <groupId>org.graalvm.sdk</groupId>
+            <artifactId>graal-sdk</artifactId>
+            <version>20.2.0</version>
+            <scope>provided</scope>
+        </dependency>
         <!-- https://mvnrepository.com/artifact/commons-io/commons-io -->
         <dependency>
             <groupId>commons-io</groupId>
