@@ -682,7 +682,7 @@ public interface PLink {
                 "}\n" +
                 "S5 : // Wrote, check for deadlock?\n" +
                 "{\n" +
-                "  if (ART_TEST_CONDITION(deadlock_check))\n" +
+                "  if (ART_TEST_CONDITION(false))\n" +
                 "    goto S6;\n" +
                 "  else {\n" +
                 "    thisActor->program_counter = 0;\n" +
