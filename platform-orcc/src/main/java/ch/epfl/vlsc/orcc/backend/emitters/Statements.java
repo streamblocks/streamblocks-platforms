@@ -7,9 +7,11 @@ import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.Types;
+import se.lth.cs.tycho.ir.IRNode;
 import se.lth.cs.tycho.ir.Port;
 import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
+import se.lth.cs.tycho.ir.entity.am.Scope;
 import se.lth.cs.tycho.ir.expr.*;
 import se.lth.cs.tycho.ir.stmt.*;
 import se.lth.cs.tycho.type.*;
@@ -17,7 +19,6 @@ import se.lth.cs.tycho.type.*;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Module
 public interface Statements {
@@ -102,13 +103,17 @@ public interface Statements {
                         VarDecl decl = backend().varDecls().declaration(var);
 
                         if (decl.getValue() != null) {
-                            if (decl.getValue() instanceof ExprInput) {
-                                ExprInput e = (ExprInput) decl.getValue();
-                                if (e.hasRepeat()) {
-                                    isInput = true;
-                                    port = e.getPort();
+                            IRNode parent = backend().tree().parent(decl);
+                            if(!(parent instanceof Scope)){
+                                if (decl.getValue() instanceof ExprInput) {
+                                    ExprInput e = (ExprInput) decl.getValue();
+                                    if (e.hasRepeat()) {
+                                        isInput = true;
+                                        port = e.getPort();
+                                    }
                                 }
                             }
+
                         }
                     }
 

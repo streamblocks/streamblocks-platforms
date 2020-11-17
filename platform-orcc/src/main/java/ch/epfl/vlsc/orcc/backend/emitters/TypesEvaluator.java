@@ -28,6 +28,9 @@ public interface TypesEvaluator {
             while (originalSize > targetSize) {
                 targetSize = targetSize * 2;
             }
+            if(targetSize > 64){
+                targetSize = 64;
+            }
             return String.format(type.isSigned() ? "i%d" : "u%d", targetSize);
         } else {
             return type.isSigned() ? "i32" : "u32";
