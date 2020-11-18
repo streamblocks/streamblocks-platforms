@@ -14,7 +14,11 @@ set(art_native_source
     src/art_print.cc
     src/display.cc
     src/art_utils.cc
-    src/speaker.cc)
+    src/speaker.cc
+    src/orcc-display-sdl2.cc
+    src/orcc-framerate-sdl2.cc
+    src/orcc-compareyuv.cc
+    src/orcc-source.cc)
 
 set(art_native_header
         include/display.h)

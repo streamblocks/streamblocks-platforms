@@ -1,5 +1,7 @@
 # ART Runtime sources
 set(art_runtime_sources
+        src/options.c
+        src/util.c
         src/actors-rts
         src/termination-report.c
         src/xmlParser.c
@@ -10,6 +12,8 @@ set(art_runtime_sources
 
 # ART Runtime includes
 set(art_runtime_header
+        include/options.h
+        include/util.h
         include/actors-config.h
         include/actors-fifo.h
         include/actors-rts.h

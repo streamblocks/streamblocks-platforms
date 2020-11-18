@@ -46,12 +46,15 @@
 #include <stdio.h>
 #include <pthread.h>
 #include <zlib.h>
+#include "options.h"
+
 #ifdef __cplusplus
 #include <atomic>
 #else
 #include <stdatomic.h>
 #endif
 #include "cycle.h"
+#include "options.h"
 
 
 #include <assert.h>
@@ -60,6 +63,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
+
 
 // LEGACY
 #define INPUT_PORT(ignore, index) ART_INPUT(index)
@@ -106,30 +110,15 @@ extern "C" {
 #define RANGECHK(X, B) ((unsigned)(X)<(unsigned)(B)?(X):RANGEERR(X,B))
 #define RANGEERR(X, B) (rangeError((X),(B),__FILE__,__LINE__))
 
+#define FLAG_TIMING      0x01
+#define FLAG_SINGLE_CPU  0x02
+
 typedef int32_t bool_t;
 
 typedef struct {
     char *key;
     char *value;
 } ActorParameter;
-
-typedef struct {
-
-    int flags;
-    int show_timing;
-    int show_statistics;
-    int arg_loopmax;
-    char *generateFileName;
-    char *configFilename;
-    int with_complexity;
-    int with_bandwidth;
-    int terminationReport;
-    int generate_trace;
-    int generate_turnus_trace;
-    char *hardwareProfileFileName;
-    char *vcd_trace_level;
-
-} RuntimeOptions;
 
 
 typedef struct ActorClass ActorClass;
@@ -442,7 +431,6 @@ extern InputPort *createInputPort(AbstractActorInstance *pInstance,
                                   int capacity);
 
 extern void connectPorts(OutputPort *outputPort, InputPort *inputPort);
-extern void pre_parse_args(int argc, char *argv[], RuntimeOptions *options);
 extern int executeNetwork(int argc, char *argv[], RuntimeOptions *options, AbstractActorInstance **instances, int numInstances);
 
 extern void setParameter(AbstractActorInstance *pInstance,
