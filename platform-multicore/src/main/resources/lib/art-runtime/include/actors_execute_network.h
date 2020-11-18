@@ -95,6 +95,9 @@ static void *EXECUTE_NETWORK(cpu_runtime_data_t *runtime,
         // above visible on this cpu
         READ_BARRIER();
         ADD_TIMER(&statistics.read_barrier, &t1);
+
+        fired = 0;
+
         for (i = 0; i < actors; i++) {
             if (!actor[i]->terminated) {
                 const int *result;
@@ -109,18 +112,18 @@ static void *EXECUTE_NETWORK(cpu_runtime_data_t *runtime,
                         numActiveActors--;
                 }
             }
-        }
-        ADD_TIMER(&statistics.fire, &t1);
-        // Make all buffer writes that has happened above visible
-        // on other cpus before we make the changes visible
-        WRITE_BARRIER();
-        ADD_TIMER(&statistics.write_barrier, &t1);
-        fired = 0;
-        for (i = 0; i < actors; i++) {
+
+            ADD_TIMER(&statistics.fire, &t1);
+            // Make all buffer writes that has happened above visible
+            // on other cpus before we make the changes visible
+            WRITE_BARRIER();
+            ADD_TIMER(&statistics.write_barrier, &t1);
+
+
             // Tell other cpus how much data has been read/written
             if (actor[i]->fired) {
                 // Only fired actors have changed
-                fired = 1;
+                fired |= 1;
 
                 for (j = 0; j < actor[i]->inputs; j++) {
                     InputPort *input = &actor[i]->input[j];
