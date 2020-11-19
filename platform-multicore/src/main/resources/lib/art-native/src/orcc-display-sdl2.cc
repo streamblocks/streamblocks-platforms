@@ -112,7 +112,7 @@ void displayYUV_init() {
  * @return The
  */
 int displayYUV_getNbFrames() {
-   // return opt->nbFrames;
+    return -1;
 }
 
 void display_close() {

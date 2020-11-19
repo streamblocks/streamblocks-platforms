@@ -78,6 +78,9 @@
 
 /***************************************************************************/
 
+#ifndef _CYCLE_H
+#define _CYCLE_H
+
 #if TIME_WITH_SYS_TIME
 # include <sys/time.h>
 # include <time.h>
@@ -223,7 +226,7 @@ typedef unsigned long long ticks;
 static __inline__ ticks getticks(void)
 {
      unsigned a, d;
-     asm volatile("rdtsc" : "=a" (a), "=d" (d));
+     __asm__ __volatile__ ("rdtsc" : "=a" (a), "=d" (d));
      return ((ticks)a) | (((ticks)d) << 32);
 }
 
@@ -438,7 +441,7 @@ INLINE_ELAPSED(__inline)
 #endif
 /*----------------------------------------------------------------*/
 /* SGI/Irix */
-#if defined(HAVE_CLOCK_GETTIME) && defined(CLOCK_SGI_CYCLE) && !defined(HAVE_TICK_COUNTER)
+#if defined(HAVE_CLOCK_GETTIME) && defined(CLOCK_SGI_CYCLE) && !defined(HAVE_TICK_COUNTER) && !defined(__ANDROID__)
 typedef struct timespec ticks;
 
 static inline ticks getticks(void)
@@ -515,7 +518,8 @@ INLINE_ELAPSED(inline)
 #endif
 #endif /* HAVE_MIPS_ZBUS_TIMER */
 
-#if defined(__ARM_ARCH_7A__) && defined(ARMV7A_HAS_CNTVCT)
+#if defined(HAVE_ARMV7A_CNTVCT)
+#include <stdint.h>
 typedef uint64_t ticks;
 static inline ticks getticks(void)
 {
@@ -527,7 +531,21 @@ INLINE_ELAPSED(inline)
 #define HAVE_TICK_COUNTER
 #endif
 
-#if defined(__aarch64__) && defined(HAVE_ARMV8_CNTVCT_EL0) && !defined(HAVE_ARMV8CC)
+#if defined(HAVE_ARMV7A_PMCCNTR)
+#include <stdint.h>
+typedef uint64_t ticks;
+static inline ticks getticks(void)
+{
+  uint32_t r;
+  asm volatile("mrc p15, 0, %0, c9, c13, 0" : "=r"(r) );
+  return r;
+}
+INLINE_ELAPSED(inline)
+#define HAVE_TICK_COUNTER
+#endif
+
+#if defined(__aarch64__)
+#include <stdint.h>
 typedef uint64_t ticks;
 static inline ticks getticks(void)
 {
@@ -539,7 +557,8 @@ INLINE_ELAPSED(inline)
 #define HAVE_TICK_COUNTER
 #endif
 
-#if defined(__aarch64__) && defined(HAVE_ARMV8CC)
+#if defined(__aarch64__) && defined(HAVE_ARMV8_PMCCNTR_EL0)
+#include <stdint.h>
 typedef uint64_t ticks;
 static inline ticks getticks(void)
 {
@@ -550,3 +569,5 @@ static inline ticks getticks(void)
 INLINE_ELAPSED(inline)
 #define HAVE_TICK_COUNTER
 #endif
+
+#endif //_CYCLE_H

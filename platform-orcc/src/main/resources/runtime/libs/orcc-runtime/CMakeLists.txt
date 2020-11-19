@@ -1,3 +1,5 @@
+# FindM METIS Module
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/libs/cmake/Modules/")
 
 # Orcc library files
 set(orcc_runtime_sources
