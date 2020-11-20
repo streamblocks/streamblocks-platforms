@@ -35,7 +35,7 @@
 #define __USE_GNU 1
 #endif
 
-#define MAX_THREAD_NB 10
+#define MAX_THREAD_NB 128
 
 #ifdef _WIN32
     // ok here is some dark Windows magic

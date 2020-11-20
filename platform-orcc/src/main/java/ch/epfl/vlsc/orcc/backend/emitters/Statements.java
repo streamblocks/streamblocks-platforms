@@ -104,7 +104,7 @@ public interface Statements {
 
                         if (decl.getValue() != null) {
                             IRNode parent = backend().tree().parent(decl);
-                            if(!(parent instanceof Scope)){
+                            if (!(parent instanceof Scope)) {
                                 if (decl.getValue() instanceof ExprInput) {
                                     ExprInput e = (ExprInput) decl.getValue();
                                     if (e.hasRepeat()) {
@@ -116,7 +116,6 @@ public interface Statements {
 
                         }
                     }
-
 
                     String repeat = expressioneval().evaluate(write.getRepeatExpression());
 
@@ -142,7 +141,7 @@ public interface Statements {
                             emitter().emit("}");
                         }
                     } else {
-                        emitter().emit("pinWriteRepeat_%s(%s, %s, %s);", channelsutils().outputPortTypeSize(write.getPort()), channelsutils().definedOutputPort(write.getPort()), value, repeat);
+                        throw new Error("not implemented");
                     }
                 } else {
                     throw new Error("not implemented");
