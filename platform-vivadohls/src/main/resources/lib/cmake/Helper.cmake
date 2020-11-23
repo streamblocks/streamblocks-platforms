@@ -1,6 +1,6 @@
 
 
-set(__NETWORK_NAME__ decoderDemo)
+set(__NETWORK_NAME__ @__NETWORK_TOP_NAME__@)
 set(VERILOG_GEN_DIR ${CMAKE_CURRENT_BINARY_DIR})
 message(STATUS "Top network ${__NETWORK_NAME__}")
 # -- CMake Options
