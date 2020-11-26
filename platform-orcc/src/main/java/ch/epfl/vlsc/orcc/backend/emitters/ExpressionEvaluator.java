@@ -6,15 +6,13 @@ import ch.epfl.vlsc.platformutils.Emitter;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
-import org.multij.MultiJ;
 import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.ir.IRNode;
-import se.lth.cs.tycho.ir.Port;
 import se.lth.cs.tycho.ir.Variable;
 import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
+import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.expr.*;
-import se.lth.cs.tycho.ir.stmt.StmtAssignment;
 import se.lth.cs.tycho.ir.stmt.StmtWrite;
 import se.lth.cs.tycho.ir.stmt.lvalue.LValue;
 import se.lth.cs.tycho.ir.stmt.lvalue.LValueDeref;
@@ -23,7 +21,10 @@ import se.lth.cs.tycho.ir.stmt.lvalue.LValueVariable;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.type.*;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.OptionalInt;
 import java.util.stream.Collectors;
 
 @Module
@@ -92,6 +93,7 @@ public interface ExpressionEvaluator {
         IRNode parent = backend().tree().parent(variable);
         return variables().name(variable.getVariable());
     }
+
 
     /**
      * Evaluate a reference expression
@@ -207,6 +209,29 @@ public interface ExpressionEvaluator {
 
         return tmp;
     }
+
+    default String evaluate(ExprPortIndexer inputIndexer){
+        PortDecl decl = backend().ports().declaration(inputIndexer.getPort());
+        if(backend().ports().isInputPort(decl)){
+            if (!backend().channelUtils().isTargetConnected(backend().instancebox().get().getInstanceName(), inputIndexer.getPort().getName())) {
+                Type type = backend().types().portType(inputIndexer.getPort());
+                return backend().defaultValues().defaultValue(type);
+            }
+        }else{
+            if (!backend().channelUtils().isSourceConnected(backend().instancebox().get().getInstanceName(), inputIndexer.getPort().getName())) {
+                Type type = backend().types().portType(inputIndexer.getPort());
+                return backend().defaultValues().defaultValue(type);
+            }
+        }
+
+        boolean aligned = backend().alignedBox().isEmpty() ? false : backend().alignedBox().get();
+        if (aligned) {
+            return String.format("tokens_%1$s[(index_%1$s %% SIZE_%1$s ) + %2$s]",inputIndexer.getPort().getName(), evaluate(inputIndexer.getIndex()));
+        }else{
+            return String.format("tokens_%1$s[(index_%1$s + (%2$s)) %% SIZE_%1$s]",inputIndexer.getPort().getName(), evaluate(inputIndexer.getIndex()));
+        }
+    }
+
 
     void evaluateWithLvalue(String lvalue, Expression expr);
 

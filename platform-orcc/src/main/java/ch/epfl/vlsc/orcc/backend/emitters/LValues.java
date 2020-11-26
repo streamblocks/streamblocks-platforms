@@ -66,9 +66,17 @@ public interface LValues {
         return lvalueIndexing(backend().types().type(indexer.getStructure()), indexer);
     }
 
-    String lvalueIndexing(Type type, LValueIndexer indexer);
 
-    default String lvalueIndexing(ListType type, LValueIndexer indexer) {
+    default String lvalue(LValuePortIndexer indexer) {
+        boolean aligned = !backend().alignedBox().isEmpty() && backend().alignedBox().get();
+        if (aligned) {
+            return String.format("tokens_%1$s[(index_%1$s  %% SIZE_%1$s) + %2$s]", indexer.getPort().getName(), expressioneval().evaluate(indexer.getIndex()));
+        } else {
+            return String.format("tokens_%1$s[(index_%1$s + (%2$s)) %% SIZE_%1$s]", indexer.getPort().getName(), expressioneval().evaluate(indexer.getIndex()));
+        }
+    }
+
+    default String lvalueIndexing(Type type, LValueIndexer indexer) {
         return String.format("%s[%s]", lvalue(indexer.getStructure()), backend().expressionEval().evaluate(indexer.getIndex()));
     }
 

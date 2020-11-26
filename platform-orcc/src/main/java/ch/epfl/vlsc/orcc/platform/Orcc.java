@@ -1,8 +1,9 @@
 package ch.epfl.vlsc.orcc.platform;
 
 import ch.epfl.vlsc.orcc.phase.OrccBackendPhase;
+import ch.epfl.vlsc.phases.EmbedRepeatIO;
 import ch.epfl.vlsc.phases.ExprOutputToAssignment;
-import ch.epfl.vlsc.phases.ExprToStmt;
+import ch.epfl.vlsc.phases.ExprToStmtAssignment;
 import ch.epfl.vlsc.phases.ListComprehensionToStmtWhile;
 import se.lth.cs.tycho.compiler.Compiler;
 import se.lth.cs.tycho.ir.util.ImmutableList;
@@ -29,8 +30,9 @@ public class Orcc implements Platform {
             .addAll(Compiler.nameAndTypeAnalysis())
             .addAll(Compiler.actorMachinePhases())
             .add(new ExprOutputToAssignment())
-            .add(new ExprToStmt())
+            .add(new ExprToStmtAssignment())
             .add(new ListComprehensionToStmtWhile())
+            .add(new EmbedRepeatIO())
             .add(new RemoveUnusedEntityDeclsPhase())
             .add(new OrccBackendPhase())
             .build();

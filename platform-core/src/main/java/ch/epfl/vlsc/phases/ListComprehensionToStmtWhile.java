@@ -7,6 +7,8 @@ import org.multij.MultiJ;
 import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.compiler.CompilationTask;
 import se.lth.cs.tycho.compiler.Context;
+import se.lth.cs.tycho.compiler.UniqueNumbers;
+import se.lth.cs.tycho.decoration.TypeToTypeExpr;
 import se.lth.cs.tycho.ir.Generator;
 import se.lth.cs.tycho.ir.IRNode;
 import se.lth.cs.tycho.ir.Variable;
@@ -24,6 +26,7 @@ import se.lth.cs.tycho.ir.stmt.lvalue.LValueVariable;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.phase.Phase;
 import se.lth.cs.tycho.reporting.CompilationException;
+import se.lth.cs.tycho.type.IntType;
 import se.lth.cs.tycho.type.ListType;
 import se.lth.cs.tycho.type.Type;
 
@@ -39,6 +42,7 @@ public class ListComprehensionToStmtWhile implements Phase {
     public CompilationTask execute(CompilationTask task, Context context) throws CompilationException {
         Transformation transformation = MultiJ.from(Transformation.class)
                 .bind("types").to(task.getModule(Types.key))
+                .bind("unique").to(context.getUniqueNumbers())
                 .instance();
 
         return task.transformChildren(transformation);
@@ -49,6 +53,9 @@ public class ListComprehensionToStmtWhile implements Phase {
 
         @Binding(BindingKind.INJECTED)
         Types types();
+
+        @Binding(BindingKind.INJECTED)
+        UniqueNumbers unique();
 
         @Override
         default IRNode apply(IRNode node) {
@@ -79,11 +86,11 @@ public class ListComprehensionToStmtWhile implements Phase {
             for (VarDecl decl : declWithComprehensions) {
                 Type type = types().type(decl.getType());
                 if (!(type instanceof ListType)) {
-                    return null;
+                    return visitedBlock;
                 }
                 LValueVariable lValueVariable = new LValueVariable(Variable.variable(decl.getName()));
                 ExprComprehension comprehension = (ExprComprehension) decl.getValue();
-                StmtForeach stmtForeach = comprehensionToStmtForeach(lValueVariable, comprehension);
+                Statement stmtForeach = comprehensionToStmtForeach(type, lValueVariable, comprehension);
                 statements.add(stmtForeach);
             }
 
@@ -122,15 +129,16 @@ public class ListComprehensionToStmtWhile implements Phase {
                     return assignment;
                 }
 
-                return comprehensionToStmtForeach(assignment.getLValue(), (ExprComprehension) assignment.getExpression());
+                return comprehensionToStmtForeach(type, assignment.getLValue(), (ExprComprehension) assignment.getExpression());
             }
 
             return assignment;
         }
 
-        default StmtForeach comprehensionToStmtForeach(LValue lValue, ExprComprehension comprehension) {
+        default Statement comprehensionToStmtForeach(Type type, LValue lValue, ExprComprehension comprehension) {
             List<String> indexes = new ArrayList<>();
             List<Expression> indexStarts = new ArrayList<>();
+            List<Expression> indexEnds = new ArrayList<>();
             ImmutableList.Builder<Statement> statements = ImmutableList.builder();
 
             // -- Collect Generators
@@ -160,6 +168,7 @@ public class ListComprehensionToStmtWhile implements Phase {
                         if (binOp.getOperations().equals(Collections.singletonList(".."))) {
                             indexes.add(decl.getName());
                             indexStarts.add(binOp.getOperands().get(0));
+                            indexEnds.add(binOp.getOperands().get(1));
 
                         } else {
                             return null;
@@ -173,16 +182,29 @@ public class ListComprehensionToStmtWhile implements Phase {
             // -- Reverse the indexes
             List<String> reverseIndexes = new ArrayList<>(indexes);
             Collections.reverse(reverseIndexes);
+
             List<Expression> reverseIndexesStart = new ArrayList<>(indexStarts);
             Collections.reverse(reverseIndexesStart);
 
+            List<Expression> reverseIndexesEnd = new ArrayList<>(indexEnds);
+            Collections.reverse(reverseIndexesEnd);
+
+            boolean singleDimAssignment = getListDimension((ListType) type) == 1 && generators.size() > 1;
+            String singleDimIndex = "idx_" + unique().next();
 
             // -- Create Foreach statement
-            StmtForeach foreach = createStmtForeach(lValue, generators, reverseIndexesStart, generatorFilter, reverseIndexes, lists.get(lists.size() - 1));
+            StmtForeach foreach = createStmtForeach(lValue, generators, reverseIndexesStart, singleDimIndex, generatorFilter, reverseIndexes, lists.get(lists.size() - 1), singleDimAssignment);
             statements.add(foreach);
+
+            if (singleDimAssignment) {
+                LocalVarDecl indexDecl = new LocalVarDecl(ImmutableList.empty(), TypeToTypeExpr.convert(new IntType(OptionalInt.empty(), false)), singleDimIndex, null, false);
+                StmtBlock block = new StmtBlock(ImmutableList.empty(), ImmutableList.of(indexDecl), ImmutableList.of(foreach));
+                return block;
+            }
 
             return foreach;
         }
+
 
 
         /**
@@ -195,7 +217,7 @@ public class ListComprehensionToStmtWhile implements Phase {
          * @param list
          * @return
          */
-        default StmtForeach createStmtForeach(LValue lValue, List<Generator> generators, List<Expression> indexesStart, Map<Generator, List<Expression>> generatorFilters, List<String> indexes, ExprList list) {
+        default StmtForeach createStmtForeach(LValue lValue, List<Generator> generators, List<Expression> indexesStart, String singleDimIndex, Map<Generator, List<Expression>> generatorFilters, List<String> indexes, ExprList list, boolean singleDim) {
             List<Statement> statements = new ArrayList<>();
             Generator generator = generators.get(0);
             if (generators.size() == 1) {
@@ -203,17 +225,35 @@ public class ListComprehensionToStmtWhile implements Phase {
                 for (Expression expression : list.getElements()) {
                     LValue indexer;
 
-                    indexer = createLValueIndexer(lValue, indexes, indexesStart, i);
+                    if (singleDim) {
+                        indexer = new LValueIndexer(lValue, new ExprVariable(Variable.variable(singleDimIndex)));
+                    } else {
+                        indexer = createLValueIndexer(lValue, indexes, indexesStart, i);
+                    }
 
                     StmtAssignment assignment = new StmtAssignment(indexer, expression.deepClone());
                     statements.add(assignment);
+                    if (singleDim) {
+                        ExprBinaryOp plusPlus = new ExprBinaryOp(ImmutableList.of("+"), ImmutableList.of(new ExprVariable(Variable.variable(singleDimIndex)), new ExprLiteral(ExprLiteral.Kind.Integer, "1")));
+                        StmtAssignment indexPlusPlus = new StmtAssignment(new LValueVariable(Variable.variable(singleDimIndex)), plusPlus);
+                        statements.add(indexPlusPlus);
+                    }
+
                     i++;
                 }
             } else {
                 generators.remove(generator);
-                statements.add(createStmtForeach(lValue, generators, indexesStart, generatorFilters, indexes, list));
+                statements.add(createStmtForeach(lValue, generators, indexesStart, singleDimIndex, generatorFilters, indexes, list, singleDim));
             }
             return new StmtForeach(generator, generatorFilters.get(generators.get(0)), statements);
+        }
+
+        default int getListDimension(ListType type) {
+            int n = 1;
+            if (type.getElementType() instanceof ListType) {
+                n = n + getListDimension((ListType) type.getElementType());
+            }
+            return n;
         }
 
         /**
@@ -311,7 +351,9 @@ public class ListComprehensionToStmtWhile implements Phase {
         default List<ExprList> collectExprList(ExprComprehension comprehension) {
             List<ExprList> lists = new ArrayList<>();
 
-            lists.add((ExprList) comprehension.getCollection());
+            if (comprehension.getCollection() instanceof ExprList) {
+                lists.add((ExprList) comprehension.getCollection());
+            }
             lists.addAll(collectExprList(comprehension.getCollection()));
             return lists;
         }

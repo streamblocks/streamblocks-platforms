@@ -14,6 +14,7 @@ import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.am.Scope;
 import se.lth.cs.tycho.ir.expr.*;
 import se.lth.cs.tycho.ir.stmt.*;
+import se.lth.cs.tycho.ir.stmt.lvalue.LValuePortIndexer;
 import se.lth.cs.tycho.type.*;
 
 import java.util.ArrayList;
@@ -158,6 +159,13 @@ public interface Statements {
         Type type = types().type(assign.getLValue());
         String lvalue = lvalues().lvalue(assign.getLValue());
         //if ((type instanceof ListType && assign.getLValue() instanceof LValueVariable) && !(assign.getExpression() instanceof ExprList)) {
+        if (assign.getLValue() instanceof LValuePortIndexer) {
+            LValuePortIndexer indexer = (LValuePortIndexer) assign.getLValue();
+            if (!backend().channelUtils().isSourceConnected(backend().instancebox().get().getInstanceName(), indexer.getPort().getName())) {
+                return;
+            }
+        }
+
         if (assign.getExpression() instanceof ExprComprehension) {
             emitter().emit("{");
             emitter().increaseIndentation();

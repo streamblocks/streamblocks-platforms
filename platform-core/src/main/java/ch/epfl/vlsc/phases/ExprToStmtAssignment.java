@@ -2,19 +2,15 @@ package ch.epfl.vlsc.phases;
 
 import org.multij.Module;
 import org.multij.MultiJ;
-import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.compiler.CompilationTask;
 import se.lth.cs.tycho.compiler.Context;
 import se.lth.cs.tycho.ir.IRNode;
-import se.lth.cs.tycho.ir.Variable;
 import se.lth.cs.tycho.ir.expr.ExprIf;
-import se.lth.cs.tycho.ir.expr.Expression;
 import se.lth.cs.tycho.ir.stmt.Statement;
 import se.lth.cs.tycho.ir.stmt.StmtAssignment;
 import se.lth.cs.tycho.ir.stmt.StmtBlock;
 import se.lth.cs.tycho.ir.stmt.StmtIf;
 import se.lth.cs.tycho.ir.stmt.lvalue.LValue;
-import se.lth.cs.tycho.ir.stmt.lvalue.LValueVariable;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.phase.Phase;
 import se.lth.cs.tycho.reporting.CompilationException;
@@ -22,7 +18,7 @@ import se.lth.cs.tycho.reporting.CompilationException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ExprToStmt implements Phase {
+public class ExprToStmtAssignment implements Phase {
     @Override
     public String getDescription() {
         return "Expressions to Statements";
@@ -45,11 +41,10 @@ public class ExprToStmt implements Phase {
         }
 
         default IRNode apply(StmtBlock block) {
-            StmtBlock vBlock = block.transformChildren(this);
 
-            List<Statement> statements = new ArrayList<>(vBlock.getStatements());
+            List<Statement> statements = new ArrayList<>(block.getStatements());
 
-            for (Statement stmt : vBlock.getStatements()) {
+            for (Statement stmt : block.getStatements()) {
                 if (stmt instanceof StmtAssignment) {
                     StmtAssignment assign = (StmtAssignment) stmt;
                     if (assign.getExpression() instanceof ExprIf) {
@@ -64,7 +59,7 @@ public class ExprToStmt implements Phase {
                 }
             }
 
-            return vBlock.withStatements(ImmutableList.copyOf(statements));
+            return block.transformChildren(this).withStatements(ImmutableList.copyOf(statements));
         }
     }
 

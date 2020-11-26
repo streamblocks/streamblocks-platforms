@@ -13,6 +13,7 @@ import se.lth.cs.tycho.ir.IRNode;
 import se.lth.cs.tycho.ir.Variable;
 import se.lth.cs.tycho.ir.decl.LocalVarDecl;
 import se.lth.cs.tycho.ir.decl.TypeDecl;
+import se.lth.cs.tycho.ir.entity.am.Transition;
 import se.lth.cs.tycho.ir.expr.ExprVariable;
 import se.lth.cs.tycho.ir.expr.Expression;
 import se.lth.cs.tycho.ir.stmt.Statement;
@@ -23,6 +24,7 @@ import se.lth.cs.tycho.ir.stmt.lvalue.LValueVariable;
 import se.lth.cs.tycho.ir.type.TypeExpr;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.phase.Phase;
+import se.lth.cs.tycho.phase.TreeShadow;
 import se.lth.cs.tycho.reporting.CompilationException;
 import se.lth.cs.tycho.type.ListType;
 import se.lth.cs.tycho.type.Type;
@@ -41,6 +43,7 @@ public class ExprOutputToAssignment implements Phase {
         Transformation transformation = MultiJ.from(Transformation.class)
                 .bind("types").to(task.getModule(Types.key))
                 .bind("numbers").to(context.getUniqueNumbers())
+                .bind("tree").to(task.getModule(TreeShadow.key))
                 .instance();
 
         return task.transformChildren(transformation);
@@ -54,6 +57,9 @@ public class ExprOutputToAssignment implements Phase {
         @Binding(BindingKind.INJECTED)
         UniqueNumbers numbers();
 
+        @Binding(BindingKind.INJECTED)
+        TreeShadow tree();
+
         @Override
         default IRNode apply(IRNode node) {
             return node.transformChildren(this);
@@ -61,17 +67,13 @@ public class ExprOutputToAssignment implements Phase {
 
         default IRNode apply(StmtBlock block) {
 
-            StmtBlock vBlock = block.transformChildren(this);
-
             List<StmtWrite> writes = new ArrayList<>();
 
-            List<TypeDecl> typeDeclarations = new ArrayList<>(vBlock.getTypeDecls());
+            List<LocalVarDecl> declarations = new ArrayList<>(block.getVarDecls());
 
-            List<LocalVarDecl> declarations = new ArrayList<>(vBlock.getVarDecls());
+            List<Statement> statements = new ArrayList<>(block.getStatements());
 
-            List<Statement> statements = new ArrayList<>(vBlock.getStatements());
-
-            for (Statement stmt : vBlock.getStatements()) {
+            for (Statement stmt : block.getStatements()) {
                 if (stmt instanceof StmtWrite) {
                     StmtWrite write = (StmtWrite) stmt;
                     writes.add(write);
@@ -79,7 +81,7 @@ public class ExprOutputToAssignment implements Phase {
             }
 
             if (writes.isEmpty()) {
-                return vBlock;
+                return block.transformChildren(this);
             }
 
             for (StmtWrite write : writes) {
@@ -116,9 +118,8 @@ public class ExprOutputToAssignment implements Phase {
                 statements.set(statements.indexOf(write), newWrite);
             }
 
-            return new StmtBlock(ImmutableList.copyOf(typeDeclarations), ImmutableList.copyOf(declarations), ImmutableList.copyOf(statements));
+            return block.transformChildren(this).withVarDecls(ImmutableList.copyOf(declarations)).withStatements(ImmutableList.copyOf(statements));
         }
-
     }
 
 }
