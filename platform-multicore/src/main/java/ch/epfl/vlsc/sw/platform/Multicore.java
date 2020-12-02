@@ -23,18 +23,50 @@ public class Multicore implements Platform {
 
 
     private static final List<Phase> phases = ImmutableList.<Phase>builder()
-            .addAll(Compiler.frontendPhases())
+            .addAll(frontendPhases())
+
             .addAll(Compiler.templatePhases())
             .addAll(CommonPhases.networkElaborationPhases)
             .add(new VerilogNameCheckerPhase())
 //            .add(new XcfAnnotationPhase())
             .addAll(CommonPhases.softwarePartitioningPhases)
             .addAll(Compiler.nameAndTypeAnalysis())
+            .add(new FixListInitialValue())
             .addAll(Compiler.actorMachinePhases())
 //            .add(new RemoveUnusedEntityDeclsPhase()) // This can not happen after network elaboration because the hardware partition entities get removed.
             .add(new CreatePartitionLinkPhase())
+            .add(new ExprOutputToAssignment())
+            .add(new ExprToStmtAssignment())
+            .add(new ListComprehensionToStmtWhile())
             .add(new MultiCoreBackendPhase())
             .build();
+
+
+
+
+    public static ImmutableList<Phase> frontendPhases() {
+        return ImmutableList.of(
+                // Parse
+                new LoadEntityPhase(),
+                new LoadPreludePhase(),
+                new LoadImportsPhase(),
+
+                // For debugging
+                new PrintLoadedSourceUnits(),
+                new PrintTreesPhase(),
+
+                // Post parse
+                new RemoveExternStubPhase(),
+                new OperatorParsingPhase(),
+                new ImportAnalysisPhase(),
+                new ResolvePatternDeconstructionPhase(),
+                new DeclarationAnalysisPhase(),
+                new ResolveTypeConstructionPhase(),
+                // new ConstantVariableImmutabilityPhase(),
+                new ConstantVariableInitializationPhase(),
+                new NameAnalysisPhase()
+        );
+    }
 
     @Override
     public List<Phase> phases() {

@@ -22,9 +22,7 @@ import se.lth.cs.tycho.ir.stmt.StmtForeach;
 import se.lth.cs.tycho.ir.stmt.StmtIf;
 import se.lth.cs.tycho.ir.stmt.StmtWhile;
 import se.lth.cs.tycho.ir.stmt.StmtWrite;
-import se.lth.cs.tycho.type.AlgebraicType;
-import se.lth.cs.tycho.type.ListType;
-import se.lth.cs.tycho.type.Type;
+import se.lth.cs.tycho.type.*;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -61,15 +59,11 @@ public interface Statements {
     }
 
     default TypesEvaluator typeseval() {
-        return backend().typesEval();
+        return backend().typeseval();
     }
 
     default ChannelsUtils channelsutils() {
         return backend().channelsutils();
-    }
-
-    default MemoryStack memoryStack() {
-        return backend().memoryStack();
     }
 
     void execute(Statement stmt);
@@ -85,10 +79,12 @@ public interface Statements {
      */
 
     default void execute(StmtConsume consume) {
-        if (consume.getNumberOfTokens() > 1) {
-            emitter().emit("pinConsumeRepeat_%s(%s, %d);", channelsutils().inputPortTypeSize(consume.getPort()), channelsutils().definedInputPort(consume.getPort()), consume.getNumberOfTokens());
-        } else {
-            emitter().emit("pinConsume_%s(%s);", channelsutils().inputPortTypeSize(consume.getPort()), channelsutils().definedInputPort(consume.getPort()));
+        if (backend().channelsutils().isTargetConnected(backend().instancebox().get().getInstanceName(), consume.getPort().getName())) {
+            if (consume.getNumberOfTokens() > 1) {
+                emitter().emit("pinConsumeRepeat_%s(%s, %d);", channelsutils().inputPortTypeSize(consume.getPort()), channelsutils().definedInputPort(consume.getPort()), consume.getNumberOfTokens());
+            } else {
+                emitter().emit("pinConsume_%s(%s);", channelsutils().inputPortTypeSize(consume.getPort()), channelsutils().definedInputPort(consume.getPort()));
+            }
         }
     }
 
@@ -97,48 +93,47 @@ public interface Statements {
      */
 
     default void execute(StmtWrite write) {
-        if (write.getRepeatExpression() == null) {
-            Type type = types().portType(write.getPort());
-            String portType;
-            if (type instanceof AlgebraicType) {
-                portType = "ref";
+        if (backend().channelsutils().isSourceConnected(backend().instancebox().get().getInstanceName(), write.getPort().getName())) {
+            if (write.getRepeatExpression() == null) {
+                Type type = types().portType(write.getPort());
+                String portType;
+                if (type instanceof AlgebraicType) {
+                    portType = "ref";
 
-            } else {
-                portType = typeseval().type(type);
+                } else {
+                    portType = typeseval().type(type);
 
-            }
-            String tmp = variables().generateTemp();
-            emitter().emit("%s = %s;", declarartions().declaration(types().portType(write.getPort()), tmp), backend().defaultValues().defaultValue(type));
-            for (Expression expr : write.getValues()) {
-                if (expr instanceof ExprVariable) {
-                    backend().memoryStack().untrackPointer(expressioneval().evaluate(expr));
                 }
-                emitter().emit("%s = %s;", tmp, expressioneval().evaluate(expr));
-                emitter().emit("pinWrite_%s(%s, %s);", portType, channelsutils().definedOutputPort(write.getPort()), tmp);
-            }
-        } else if (write.getValues().size() == 1) {
-            Type valueType = types().type(write.getValues().get(0));
-            Type portType = channelsutils().outputPortType(write.getPort());
-            String value = expressioneval().evaluate(write.getValues().get(0));
-            String repeat = expressioneval().evaluate(write.getRepeatExpression());
+                String tmp = variables().generateTemp();
+                emitter().emit("%s = %s;", declarartions().declaration(types().portType(write.getPort()), tmp), backend().defaultValues().defaultValue(type));
+                for (Expression expr : write.getValues()) {
+                    emitter().emit("%s = %s;", tmp, expressioneval().evaluate(expr));
+                    emitter().emit("pinWrite_%s(%s, %s);", portType, channelsutils().definedOutputPort(write.getPort()), tmp);
+                }
+            } else if (write.getValues().size() == 1) {
+                Type valueType = types().type(write.getValues().get(0));
+                Type portType = channelsutils().outputPortType(write.getPort());
+                String value = expressioneval().evaluate(write.getValues().get(0));
+                String repeat = expressioneval().evaluate(write.getRepeatExpression());
 
-            // -- Hack type conversion : to be fixed
-            if (valueType instanceof ListType) {
-                ListType listType = (ListType) valueType;
-                if (!listType.getElementType().equals(portType)) {
-                    String index = variables().generateTemp();
-                    emitter().emit("for (size_t %1$s = 0; %1$s < (%2$s); %1$s++) {", index, repeat);
-                    emitter().emit("\tpinWrite_%s(%s, %s[%s]);", channelsutils().outputPortTypeSize(write.getPort()), channelsutils().definedOutputPort(write.getPort()), value, index);
-                    emitter().emit("}");
+                // -- Hack type conversion : to be fixed
+                if (valueType instanceof ListType) {
+                    ListType listType = (ListType) valueType;
+                    if (!listType.getElementType().equals(portType)) {
+                        String index = variables().generateTemp();
+                        emitter().emit("for (size_t %1$s = 0; %1$s < (%2$s); %1$s++) {", index, repeat);
+                        emitter().emit("\tpinWrite_%s(%s, %s[%s]);", channelsutils().outputPortTypeSize(write.getPort()), channelsutils().definedOutputPort(write.getPort()), value, index);
+                        emitter().emit("}");
+                    } else {
+                        emitter().emit("pinWriteRepeat_%s(%s, %s, %s);", channelsutils().outputPortTypeSize(write.getPort()), channelsutils().definedOutputPort(write.getPort()), value, repeat);
+                    }
                 } else {
                     emitter().emit("pinWriteRepeat_%s(%s, %s, %s);", channelsutils().outputPortTypeSize(write.getPort()), channelsutils().definedOutputPort(write.getPort()), value, repeat);
                 }
-            } else {
-                emitter().emit("pinWriteRepeat_%s(%s, %s, %s);", channelsutils().outputPortTypeSize(write.getPort()), channelsutils().definedOutputPort(write.getPort()), value, repeat);
-            }
 
-        } else {
-            throw new Error("not implemented");
+            } else {
+                throw new Error("not implemented");
+            }
         }
     }
 
@@ -147,7 +142,6 @@ public interface Statements {
      */
 
     default void execute(StmtAssignment assign) {
-        memoryStack().enterScope();
         Type type = types().type(assign.getLValue());
         String lvalue = lvalues().lvalue(assign.getLValue());
         //if ((type instanceof ListType && assign.getLValue() instanceof LValueVariable) && !(assign.getExpression() instanceof ExprList)) {
@@ -156,7 +150,6 @@ public interface Statements {
         } else {
             copy(type, lvalue, types().type(assign.getExpression()), expressioneval().evaluate(assign.getExpression()));
         }
-        memoryStack().exitScope();
         profilingOp().add("__opCounters->prof_DATAHANDLING_ASSIGN += 1;");
     }
 
@@ -176,8 +169,29 @@ public interface Statements {
         //}
     }
 
+
+    default void copy(SetType lvalueType, String lvalue, SetType rvalueType, String rvalue) {
+        emitter().emit("copy_%1$s(&(%2$s), %3$s);", typeseval().type(lvalueType), lvalue, rvalue);
+    }
+
+    default void copy(MapType lvalueType, String lvalue, MapType rvalueType, String rvalue) {
+        emitter().emit("copy_%1$s(&(%2$s), %3$s);", typeseval().type(lvalueType), lvalue, rvalue);
+    }
+
+    default void copy(StringType lvalueType, String lvalue, StringType rvalueType, String rvalue) {
+        emitter().emit("copy_%1$s(&(%2$s), %3$s);", typeseval().type(lvalueType), lvalue, rvalue);
+    }
+
     default void copy(AlgebraicType lvalueType, String lvalue, AlgebraicType rvalueType, String rvalue) {
-        emitter().emit("copyStruct%s(&(%s), %s);", backend().algebraic().type(lvalueType), lvalue, rvalue);
+        emitter().emit("copy_%s(&(%s), %s);", backend().algebraic().utils().name(lvalueType), lvalue, rvalue);
+    }
+
+    default void copy(AliasType lvalueType, String lvalue, AliasType rvalueType, String rvalue) {
+        copy(lvalueType.getType(), lvalue, rvalueType.getType(), rvalue);
+    }
+
+    default void copy(TupleType lvalueType, String lvalue, TupleType rvalueType, String rvalue) {
+        copy(backend().tuples().convert().apply(lvalueType), lvalue, backend().tuples().convert().apply(rvalueType), rvalue);
     }
 
     /*
@@ -185,7 +199,6 @@ public interface Statements {
      */
 
     default void execute(StmtCall call) {
-        memoryStack().enterScope();
         String proc;
         List<String> parameters = new ArrayList<>();
         boolean directlyCallable = backend().callablesInActor().directlyCallable(call.getProcedure());
@@ -219,7 +232,6 @@ public interface Statements {
                 parameters.add("__opCounters");
         }
         emitter().emit("%s(%s);", proc, String.join(", ", parameters));
-        memoryStack().exitScope();
         profilingOp().add("__opCounters->prof_DATAHANDLING_CALL += 1;");
     }
 
@@ -229,21 +241,22 @@ public interface Statements {
     default void execute(StmtBlock block) {
         emitter().emit("{");
         emitter().increaseIndentation();
-        memoryStack().enterScope();
         for (VarDecl decl : block.getVarDecls()) {
             if (!backend().profilingbox().isEmpty()) {
                 profilingOp().clear();
             }
             Type t = types().declaredType(decl);
             String declarationName = variables().declarationName(decl);
-            if (t instanceof AlgebraicType) {
-                memoryStack().trackPointer(declarationName, t);
-            }
             String d = declarartions().declarationTemp(t, declarationName);
             emitter().emit("%s = %s;", d, backend().defaultValues().defaultValue(t));
             if (decl.getValue() != null) {
                 if (decl.getValue() instanceof ExprInput) {
-                    expressioneval().evaluateWithLvalue(backend().variables().declarationName(decl), (ExprInput) decl.getValue());
+                    ExprInput input = (ExprInput) decl.getValue();
+                    if (backend().channelsutils().isTargetConnected(backend().instancebox().get().getInstanceName(), input.getPort().getName())) {
+                        expressioneval().evaluateWithLvalue(backend().variables().declarationName(decl), (ExprInput) decl.getValue());
+                    } else {
+                        copy(t, declarationName, types().type(decl.getValue()), expressioneval().evaluate(decl.getValue()));
+                    }
                 } else {
                     copy(t, declarationName, types().type(decl.getValue()), expressioneval().evaluate(decl.getValue()));
                 }
@@ -263,7 +276,6 @@ public interface Statements {
             }
         }
 
-        memoryStack().exitScope();
         emitter().decreaseIndentation();
         emitter().emit("}");
     }
@@ -273,20 +285,15 @@ public interface Statements {
      */
 
     default void execute(StmtIf stmt) {
-        memoryStack().enterScope();
         emitter().emit("if (%s) {", expressioneval().evaluate(stmt.getCondition()));
         emitter().increaseIndentation();
-        memoryStack().enterScope();
         stmt.getThenBranch().forEach(this::execute);
-        memoryStack().exitScope();
         emitter().decreaseIndentation();
         if (stmt.getElseBranch() != null) {
             if (stmt.getElseBranch().size() > 0) {
                 emitter().emit("} else {");
                 emitter().increaseIndentation();
-                memoryStack().enterScope();
                 stmt.getElseBranch().forEach(this::execute);
-                memoryStack().exitScope();
                 emitter().decreaseIndentation();
             }
         }
@@ -294,7 +301,6 @@ public interface Statements {
         if (!backend().profilingbox().isEmpty()) {
             profilingOp().add("__opCounters->prof_FLOWCONTROL_IF += 1;");
         }
-        memoryStack().exitScope();
     }
 
     /*
@@ -306,11 +312,9 @@ public interface Statements {
             for (Expression filter : foreach.getFilters()) {
                 emitter().emit("if (%s) {", expressioneval().evaluate(filter));
                 emitter().increaseIndentation();
-                memoryStack().enterScope();
             }
             foreach.getBody().forEach(this::execute);
             for (Expression filter : foreach.getFilters()) {
-                memoryStack().exitScope();
                 emitter().decreaseIndentation();
                 emitter().emit("}");
             }
@@ -327,10 +331,8 @@ public interface Statements {
     default void execute(StmtWhile stmt) {
         emitter().emit("while (true) {");
         emitter().increaseIndentation();
-        memoryStack().enterScope();
         emitter().emit("if (!%s) break;", expressioneval().evaluate(stmt.getCondition()));
         stmt.getBody().forEach(this::execute);
-        memoryStack().exitScope();
         emitter().decreaseIndentation();
         emitter().emit("}");
         if (!backend().profilingbox().isEmpty()) {
@@ -343,7 +345,6 @@ public interface Statements {
     default void forEach(ExprBinaryOp binOp, List<GeneratorVarDecl> varDecls, Runnable action) {
         emitter().emit("{");
         emitter().increaseIndentation();
-        memoryStack().enterScope();
         if (binOp.getOperations().equals(Collections.singletonList(".."))) {
             Type type = types().declaredType(varDecls.get(0));
             for (VarDecl d : varDecls) {
@@ -353,18 +354,15 @@ public interface Statements {
             emitter().emit("%s = %s;", declarartions().declaration(type, temp), expressioneval().evaluate(binOp.getOperands().get(0)));
             emitter().emit("while (%s <= %s) {", temp, expressioneval().evaluate(binOp.getOperands().get(1)));
             emitter().increaseIndentation();
-            memoryStack().enterScope();
             for (VarDecl d : varDecls) {
                 emitter().emit("%s = %s++;", variables().declarationName(d), temp);
             }
             action.run();
-            memoryStack().exitScope();
             emitter().decreaseIndentation();
             emitter().emit("}");
         } else {
             throw new UnsupportedOperationException(binOp.getOperations().get(0));
         }
-        memoryStack().exitScope();
         emitter().decreaseIndentation();
         emitter().emit("}");
     }

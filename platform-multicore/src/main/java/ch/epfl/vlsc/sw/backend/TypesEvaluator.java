@@ -21,8 +21,8 @@ public interface TypesEvaluator {
 
     String type(Type type);
 
-    default String type(AlgebraicType type){
-       return type.getName() + "_t*";
+    default String type(AlgebraicType type) {
+        return type.getName() + "_t*";
     }
 
     default String type(IntType type) {
@@ -31,6 +31,9 @@ public interface TypesEvaluator {
             int targetSize = 8;
             while (originalSize > targetSize) {
                 targetSize = targetSize * 2;
+            }
+            if(targetSize > 64){
+                targetSize = 64;
             }
             return String.format(type.isSigned() ? "int%d_t" : "uint%d_t", targetSize);
         } else {
@@ -60,9 +63,26 @@ public interface TypesEvaluator {
         return type(innerType);
     }
 
-    default String type(StringType type) {
-        return "char *";
+    default String pointerType(Type type){
+        return type(type);
     }
+
+    default String pointerType(ListType type){
+        String dims = getPointerDims(type.getElementType());
+        if(dims.equals("")){
+            return type(type);
+        }
+        return String.format("%s %s", type(type), dims );
+    }
+
+    default String type(StringType type) {
+        return "string_t";
+    }
+
+    default String type(CharType type) {
+        return "char";
+    }
+
 
     default String type(BoolType type) {
         return "bool";
@@ -93,23 +113,23 @@ public interface TypesEvaluator {
         return inner;
     }
 
-    default Integer listDimensions(ListType type){
+    default Integer listDimensions(ListType type) {
         Integer dim = 0;
-        if(type.getElementType() instanceof ListType){
+        if (type.getElementType() instanceof ListType) {
             dim += listDimensions(((ListType) type.getElementType()));
-        }else{
+        } else {
             dim = 1;
         }
 
         return dim;
     }
 
-    default List<Integer> sizeByDimension(ListType type){
+    default List<Integer> sizeByDimension(ListType type) {
         List<Integer> sizeByDim = new ArrayList<>();
-        if(type.getElementType() instanceof ListType){
+        if (type.getElementType() instanceof ListType) {
             sizeByDim.add(type.getSize().getAsInt());
             sizeByDimension(((ListType) type.getElementType())).stream().forEachOrdered(sizeByDim::add);
-        }else{
+        } else {
             sizeByDim.add(type.getSize().getAsInt());
         }
 
@@ -123,6 +143,19 @@ public interface TypesEvaluator {
             return false;
         } else {
             return isAlgebraicTypeList((ListType) type.getElementType());
+        }
+    }
+
+
+    default String getPointerDims(Type type){
+        return "";
+    }
+
+    default String getPointerDims(ListType type){
+        if(type.getElementType() instanceof ListType){
+            return String.format("*%s", getPointerDims((ListType)type.getElementType()));
+        }else{
+            return "*";
         }
     }
 

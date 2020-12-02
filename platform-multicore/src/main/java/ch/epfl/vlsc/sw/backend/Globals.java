@@ -43,7 +43,12 @@ public interface Globals {
         emitter().emitNewLine();
 
         emitter().emit("// -- Type helper function Definitions");
-        backend().algebraic().defineAlgebraicTypeHelperFunctions();
+        emitter().emit("");
+        backend().strings().defineString();
+        emitter().emit("");
+        backend().algebraic().defineAlgebraic();
+        emitter().emit("");
+        backend().tuples().defineTuple();
 
         emitter().emit("// -- Global variables" );
         globalVariableDefinition(getGlobalVarDecls());
@@ -77,6 +82,7 @@ public interface Globals {
         emitter().emitNewLine();
 
         // -- Headers
+        backend().includeSystem("stdio.h");
         backend().includeSystem("stdint.h");
         backend().includeSystem("stdbool.h");
         backend().includeSystem("stdlib.h");
@@ -86,7 +92,27 @@ public interface Globals {
         emitter().emitNewLine();
 
         emitter().emit("// -- Type declarations");
-        backend().algebraic().declareAlgebraicTypes();
+        emitter().emit("");
+        backend().algebraic().forwardAlgebraic();
+        //emitter().emit("");
+        //backend().sets().forwardSet();
+        //emitter().emit("");
+        //backend().maps().forwardMap();
+        emitter().emit("");
+        backend().strings().declareString();
+        emitter().emit("");
+        backend().tuples().forwardTuple();
+
+        //emitter().emit("");
+        //backend().sets().declareSet();
+        //emitter().emit("");
+        //backend().maps().declareMap();
+        emitter().emit("");
+        backend().alias().declareAliasTypes();
+        emitter().emit("");
+        backend().algebraic().declareAlgebraic();
+        emitter().emit("");
+        backend().tuples().declareTuple();
 
         emitter().emit("// -- External Callables Declaration");
         backend().task().walk().forEach(backend().callablesInActor()::externalCallableDeclaration);
@@ -281,7 +307,11 @@ public interface Globals {
         varDecls.forEach(decl -> {
             Type type = backend().types().declaredType(decl);
             if (!(type instanceof CallableType)) {
+                emitter().emit("{");
+                emitter().increaseIndentation();
                 backend().statements().copy(type, backend().variables().declarationName(decl), backend().types().type(decl.getValue()), backend().expressionEval().evaluate(decl.getValue()));
+                emitter().decreaseIndentation();
+                emitter().emit("}");
             }
         });
         emitter().decreaseIndentation();

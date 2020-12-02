@@ -14,6 +14,10 @@ import se.lth.cs.tycho.compiler.UniqueNumbers;
 import se.lth.cs.tycho.ir.QID;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.network.Instance;
+import se.lth.cs.tycho.meta.interp.Interpreter;
+import se.lth.cs.tycho.meta.interp.op.Binary;
+import se.lth.cs.tycho.meta.interp.op.Unary;
+import se.lth.cs.tycho.meta.interp.value.util.Convert;
 import se.lth.cs.tycho.phase.TreeShadow;
 
 import static org.multij.BindingKind.INJECTED;
@@ -107,6 +111,12 @@ public interface MulticoreBackend {
         return task().getModule(Closures.key);
     }
 
+    // -- Tuples Annotation
+    @Binding(LAZY)
+    default TupleAnnotations tupleAnnotations() {
+        return task().getModule(TupleAnnotations.key);
+    }
+
     // -- Free variables
     @Binding(LAZY)
     default FreeVariables freeVariables() {
@@ -145,23 +155,13 @@ public interface MulticoreBackend {
 
     // -- TypesEvaluator
     @Binding(LAZY)
-    default TypesEvaluator typesEval() {
+    default TypesEvaluator typeseval() {
         return MultiJ.from(TypesEvaluator.class).bind("backend").to(this).instance();
-    }
-
-    @Binding(LAZY)
-    default AlgebraicTypes algebraic() {
-        return MultiJ.from(AlgebraicTypes.class).bind("backend").to(this).instance();
     }
 
     @Binding(LAZY)
     default DefaultValues defaultValues() {
         return MultiJ.instance(DefaultValues.class);
-    }
-
-    @Binding(LAZY)
-    default MemoryStack memoryStack() {
-        return MultiJ.from(MemoryStack.class).bind("backend").to(this).instance();
     }
 
     // -- LValues
@@ -187,6 +187,67 @@ public interface MulticoreBackend {
     default Controllers controllers() {
         return MultiJ.from(Controllers.class).bind("backend").to(this).bind("ports").to(task().getModule(Ports.key)).instance();
     }
+
+    @Binding(LAZY)
+    default Alias alias() {
+        return MultiJ.from(Alias.class).bind("backend").to(this).instance();
+    }
+
+    @Binding(LAZY)
+    default Algebraic algebraic() {
+        return MultiJ.from(Algebraic.class).bind("backend").to(this).instance();
+    }
+
+    @Binding(LAZY)
+    default Tuples tuples() {
+        return MultiJ.from(Tuples.class).bind("backend").to(this).instance();
+    }
+
+
+    @Binding(LAZY)
+    default SizeOf sizeof() {
+        return MultiJ.from(SizeOf.class).bind("typeseval").to(typeseval()).instance();
+    }
+
+    @Binding(LAZY)
+    default Allocate allocate() {
+        return MultiJ.from(Allocate.class).bind("backend").to(this).instance();
+    }
+
+    @Binding(LAZY)
+    default Free free() {
+        return MultiJ.from(Free.class).bind("backend").to(this).instance();}
+
+    @Binding(LAZY)
+    default Serialization serialization() {
+        return MultiJ.from(Serialization.class)
+                .bind("typeseval").to(typeseval())
+                .bind("emitter").to(emitter())
+                .bind("sizeof").to(sizeof())
+                .instance();
+    }
+
+    @Binding(LAZY)
+    default Strings strings() {
+        return MultiJ.from(Strings.class).bind("backend").to(this).instance();
+    }
+
+    @Binding(LAZY)
+    default Interpreter interpreter() {
+        return MultiJ.from(Interpreter.class)
+                .bind("variables").to(task().getModule(VariableDeclarations.key))
+                .bind("types").to(task().getModule(TypeScopes.key))
+                .bind("unary").to(MultiJ.from(Unary.class).instance())
+                .bind("binary").to(MultiJ.from(Binary.class).instance())
+                .instance();
+    }
+
+    @Binding(LAZY)
+    default Convert converter() {
+        return MultiJ.from(Convert.class)
+                .instance();
+    }
+
 
     // -- Globals
     @Binding(LAZY)

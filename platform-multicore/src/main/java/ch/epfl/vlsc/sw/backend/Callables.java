@@ -113,9 +113,9 @@ public interface Callables {
 
     default void declareCallableFatPointerType(CallableType type) {
         String name = mangle(type).encode();
-        String returnType = backend().typesEval().type(type.getReturnType());
+        String returnType = backend().typeseval().type(type.getReturnType());
         Stream<String> parameterStream = type.getParameterTypes().stream()
-                .map(backend().typesEval()::type);
+                .map(backend().typeseval()::type);
         String parameters = Stream.concat(Stream.of("void *restrict"), parameterStream).collect(Collectors.joining(", "));
         backend().emitter().emit("typedef struct {");
         backend().emitter().increaseIndentation();
@@ -386,7 +386,7 @@ public interface Callables {
         for (int i = 0; i < parameterNames.size(); i++) {
             parameters.add(backend().declarations().declarationParameter(type.getParameterTypes().get(i), parameterNames.get(i)));
         }
-        String result = backend().typesEval().type(type.getReturnType());
+        String result = backend().typeseval().type(type.getReturnType());
         result += " ";
         result += name;
         result += "(";
@@ -398,13 +398,13 @@ public interface Callables {
     String resultFromType(Type type);
 
     default String resultFromType(CallableType type) {
-        return backend().typesEval().type(type.getReturnType());
+        return backend().typeseval().type(type.getReturnType());
     }
 
     Stream<String> parametersFromType(Type type);
 
     default Stream<String> parametersFromType(CallableType type) {
-        return type.getParameterTypes().stream().map(backend().typesEval()::type);
+        return type.getParameterTypes().stream().map(backend().typeseval()::type);
     }
 
     Stream<String> parametersFromValue(Expression expr);

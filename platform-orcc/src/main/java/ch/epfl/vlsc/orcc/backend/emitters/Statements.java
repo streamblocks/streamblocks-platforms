@@ -126,19 +126,20 @@ public interface Statements {
                             String index = variables().generateTemp();
                             emitter().emit("for (size_t %1$s = 0; %1$s < (%2$s); %1$s++) {", index, repeat);
                             boolean aligned = backend().alignedBox().isEmpty() ? false : backend().alignedBox().get();
-                            if (!isInput) {
+                            //if (!isInput) {
                                 if (aligned) {
                                     emitter().emit("\ttokens_%1$s[(index_%1$s %% SIZE_%1$s) + %2$s] = %3$s[%4$s];", write.getPort().getName(), index, value, index);
                                 } else {
                                     emitter().emit("\ttokens_%1$s[(index_%1$s + (%2$s)) %% SIZE_%1$s] = %3$s[%4$s];", write.getPort().getName(), index, value, index);
                                 }
+                              /*
                             } else {
                                 if (aligned) {
                                     emitter().emit("\ttokens_%1$s[(index_%1$s  %% SIZE_%1$s) + %2$s] = tokens_%3$s[(index_%3$s %% SIZE_%3$s ) + %4$s];", write.getPort().getName(), index, port.getName(), index);
                                 } else {
                                     emitter().emit("\ttokens_%1$s[(index_%1$s + (%2$s)) %% SIZE_%1$s] = tokens_%3$s[(index_%3$s + (%4$s)) %% SIZE_%3$s];", write.getPort().getName(), index, port.getName(), index);
                                 }
-                            }
+                            }*/
                             emitter().emit("}");
                         }
                     } else {

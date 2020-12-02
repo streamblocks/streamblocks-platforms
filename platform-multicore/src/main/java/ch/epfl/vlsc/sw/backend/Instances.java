@@ -55,7 +55,7 @@ public interface Instances {
     }
 
     default TypesEvaluator typeseval() {
-        return backend().typesEval();
+        return backend().typeseval();
     }
 
     default Statements statements() {
@@ -186,13 +186,21 @@ public interface Instances {
 
 
         // -- Inputs
+        int nbrIN = 0;
         for (PortDecl inputPort : entity.getInputPorts()) {
-            emitter().emit("#define IN%d_%s ART_INPUT(%1$d)", entity.getInputPorts().indexOf(inputPort), inputPort.getName());
+            if (backend().channelsutils().isTargetConnected(backend().instancebox().get().getInstanceName(), inputPort.getName())) {
+                emitter().emit("#define IN%d_%s ART_INPUT(%1$d)", nbrIN, inputPort.getName());
+                nbrIN++;
+            }
         }
 
         // -- Outputs
+        int nbrOUT = 0;
         for (PortDecl outputPort : entity.getOutputPorts()) {
-            emitter().emit("#define OUT%d_%s ART_OUTPUT(%1$d)", entity.getOutputPorts().indexOf(outputPort), outputPort.getName());
+            if (backend().channelsutils().isSourceConnected(backend().instancebox().get().getInstanceName(), outputPort.getName())) {
+                emitter().emit("#define OUT%d_%s ART_OUTPUT(%1$d)", nbrOUT, outputPort.getName());
+                nbrOUT++;
+            }
         }
         emitter().emitNewLine();
     }
@@ -207,7 +215,20 @@ public interface Instances {
     default void actionContext(String instanceName, ActorMachine am) {
         // -- ART Context
         emitter().emit("// -- Action Context structure");
-        emitter().emit("ART_ACTION_CONTEXT(%d,%d)", am.getInputPorts().size(), am.getOutputPorts().size());
+        int sizeIN = 0;
+        int sizeOUT = 0;
+
+        for (PortDecl inputPort : am.getInputPorts()) {
+            if (backend().channelsutils().isTargetConnected(backend().instancebox().get().getInstanceName(), inputPort.getName())) {
+                sizeIN++;
+            }
+        }
+        for (PortDecl outputPort : am.getOutputPorts()) {
+            if (backend().channelsutils().isSourceConnected(backend().instancebox().get().getInstanceName(), outputPort.getName())) {
+                sizeOUT++;
+            }
+        }
+        emitter().emit("ART_ACTION_CONTEXT(%d,%d)", sizeIN, sizeOUT);
         emitter().emitNewLine();
     }
 
@@ -343,8 +364,10 @@ public interface Instances {
             emitter().increaseIndentation();
 
             for (PortDecl inputPort : entity.getInputPorts()) {
-                Type type = channelutils().targetEndType(new Connection.End(Optional.of(instanceName), inputPort.getName()));
-                portDescriptionByPort(inputPort.getName(), type);
+                if (backend().channelsutils().isTargetConnected(backend().instancebox().get().getInstanceName(), inputPort.getName())) {
+                    Type type = channelutils().targetEndType(new Connection.End(Optional.of(instanceName), inputPort.getName()));
+                    portDescriptionByPort(inputPort.getName(), type);
+                }
             }
 
             emitter().decreaseIndentation();
@@ -357,9 +380,11 @@ public interface Instances {
             emitter().increaseIndentation();
 
             for (PortDecl outputPort : entity.getOutputPorts()) {
-                Connection.End source = new Connection.End(Optional.of(instanceName), outputPort.getName());
-                Type type = channelutils().sourceEndType(source);
-                portDescriptionByPort(outputPort.getName(), type);
+                if (backend().channelsutils().isSourceConnected(backend().instancebox().get().getInstanceName(), outputPort.getName())) {
+                    Connection.End source = new Connection.End(Optional.of(instanceName), outputPort.getName());
+                    Type type = channelutils().sourceEndType(source);
+                    portDescriptionByPort(outputPort.getName(), type);
+                }
             }
 
             emitter().decreaseIndentation();
@@ -374,7 +399,7 @@ public interface Instances {
         if (type instanceof ProductType | type instanceof SumType) {
             evaluatedType = "void*";
         } else {
-            evaluatedType = backend().typesEval().type(type);
+            evaluatedType = backend().typeseval().type(type);
         }
         emitter().emit("{0, \"%s\", (sizeof(%s))", name, evaluatedType);
         emitter().emit("#ifdef CAL_RT_CALVIN");
@@ -648,7 +673,7 @@ public interface Instances {
      * Conditions
      */
 
-    default void evaluateVarInit(VarDecl var){
+    default void evaluateVarInit(VarDecl var) {
         emitter().emit("{");
         emitter().increaseIndentation();
         if (!backend().profilingbox().isEmpty()) {
@@ -691,9 +716,7 @@ public interface Instances {
         emitter().emit("ART_CONDITION(%s, %s){", conditionName, actorInstanceName);
         emitter().increaseIndentation();
         emitter().emit("ART_CONDITION_ENTER(%s, %d)", conditionName, am.getConditions().indexOf(condition));
-        backend().memoryStack().enterScope();
         emitter().emit("bool cond = %s;", evaluateCondition(condition));
-        backend().memoryStack().exitScope();
         emitter().emit("ART_CONDITION_EXIT(%s, %d)", conditionName, am.getConditions().indexOf(condition));
         emitter().emit("return cond;");
         emitter().decreaseIndentation();
@@ -708,9 +731,17 @@ public interface Instances {
 
     default String evaluateCondition(PortCondition condition) {
         if (condition.isInputCondition()) {
-            return String.format("pinAvailIn_%s(%s) >=  %d", channelutils().inputPortTypeSize(condition.getPortName()), channelutils().definedInputPort(condition.getPortName()), condition.N());
+            if (backend().channelsutils().isTargetConnected(backend().instancebox().get().getInstanceName(), condition.getPortName().getName())) {
+                return String.format("pinAvailIn_%s(%s) >=  %d", channelutils().inputPortTypeSize(condition.getPortName()), channelutils().definedInputPort(condition.getPortName()), condition.N());
+            } else {
+                return "false";
+            }
         } else {
-            return String.format("pinAvailOut_%s(%s) >= %d", channelutils().outputPortTypeSize(condition.getPortName()), channelutils().definedOutputPort(condition.getPortName()), condition.N());
+            if (backend().channelsutils().isSourceConnected(backend().instancebox().get().getInstanceName(), condition.getPortName().getName())) {
+                return String.format("pinAvailOut_%s(%s) >= %d", channelutils().outputPortTypeSize(condition.getPortName()), channelutils().definedOutputPort(condition.getPortName()), condition.N());
+            } else {
+                return "true";
+            }
         }
     }
 
@@ -723,6 +754,20 @@ public interface Instances {
 
     default void actorClass(String instanceName, ActorMachine am) {
         String instanceQID = instanceName;
+        int sizeIN = 0;
+        for (PortDecl inputPort : am.getInputPorts()) {
+            if (backend().channelsutils().isTargetConnected(backend().instancebox().get().getInstanceName(), inputPort.getName())) {
+                sizeIN++;
+            }
+        }
+
+        int sizeOUT = 0;
+        for (PortDecl outputPort : am.getOutputPorts()) {
+            if (backend().channelsutils().isSourceConnected(backend().instancebox().get().getInstanceName(), outputPort.getName())) {
+                sizeOUT++;
+            }
+        }
+
         emitter().emit("// -- Actor Class");
 
         emitter().emit("#ifdef CAL_RT_CALVIN");
@@ -741,8 +786,8 @@ public interface Instances {
         emitter().emit("0, // -- setParam not needed anymore (we instantiate with params)");
         emitter().emit("%s_scheduler,", instanceQID);
         emitter().emit("ActorInstance_%s_destructor,", instanceQID);
-        emitter().emit("%d, %s,", am.getInputPorts().size(), am.getInputPorts().size() == 0 ? "0" : "inputPortDescriptions");
-        emitter().emit("%d, %s,", am.getOutputPorts().size(), am.getOutputPorts().size() == 0 ? "0" : "outputPortDescriptions");
+        emitter().emit("%d, %s,", sizeIN, am.getInputPorts().size() == 0 ? "0" : "inputPortDescriptions");
+        emitter().emit("%d, %s,", sizeOUT, am.getOutputPorts().size() == 0 ? "0" : "outputPortDescriptions");
         emitter().emit("%d, actionDescriptions,", am.getTransitions().size());
         emitter().emit("%d, conditionDescription,", am.getConditions().size());
         emitter().emit("%d, stateVariableDescription", stateVariables().size());
@@ -787,9 +832,7 @@ public interface Instances {
 
         emitter().emit("ART_ACTION_ENTER(%s_transition_%d, %2$d);", instanceName, am.getTransitions().indexOf(transition));
 
-        backend().memoryStack().enterScope();
         transition.getBody().forEach(statements()::execute);
-        backend().memoryStack().exitScope();
 
         emitter().emit("ART_ACTION_EXIT(%s_transition_%d, %2$d);", instanceName, am.getTransitions().indexOf(transition));
 
@@ -909,12 +952,14 @@ public interface Instances {
             for (VarDecl decl : scope.getDeclarations()) {
                 Type t = types().declaredType(decl);
                 if (t instanceof ListType) {
-                    String declarationName = backend().variables().declarationName(decl);
-                    emitter().emit("free(thisActor->%s);", declarationName);
+                    String name = String.format("thisActor->%s", backend().variables().declarationName(decl));
+                    //backend().free().apply(t, name);
+                    emitter().emit("free(%s);", name);
                 }
             }
         }
 
+/*
         for (ParameterVarDecl par : am.getValueParameters()) {
             Type type = types().declaredType(par);
             if (type instanceof AlgebraicType) {
@@ -922,7 +967,7 @@ public interface Instances {
                 emitter().emit("%s(thisActor->%s, 1);", backend().algebraic().destructor((AlgebraicType) type), backend().variables().declarationName(par));
             }
         }
-
+*/
         emitter().decreaseIndentation();
         emitter().emit("}");
         emitter().emitNewLine();

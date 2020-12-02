@@ -127,7 +127,7 @@ public interface DeviceHandle {
 
 
     default String portType(PortDecl port) {
-        return backend().typesEval().type(backend().types().declaredPortType(port));
+        return backend().typeseval().type(backend().types().declaredPortType(port));
     }
 
 

@@ -36,6 +36,19 @@ public interface Controllers {
         Map<State, Integer> stateMap = stateMap(stateList);
         Set<State> waitTargets = collectWaitTargets(stateList);
 
+        int sizeIN = 0;
+        for (PortDecl inputPort : actorMachine.getInputPorts()) {
+            if (backend().channelsutils().isTargetConnected(backend().instancebox().get().getInstanceName(), inputPort.getName())) {
+                sizeIN++;
+            }
+        }
+
+        int sizeOUT = 0;
+        for (PortDecl outputPort : actorMachine.getOutputPorts()) {
+            if (backend().channelsutils().isSourceConnected(backend().instancebox().get().getInstanceName(), outputPort.getName())) {
+                sizeOUT++;
+            }
+        }
 
         emitter().emit("// -- Scheduler Definitions");
         emitter().emit("static const int exitcode_block_Any[3] = {1,0,1};");
@@ -49,7 +62,7 @@ public interface Controllers {
         // -- Actor Instance
         String actorInstanceName = "ActorInstance_" + name;
         emitter().emit("%s *thisActor = (%1$s*) pBase;", actorInstanceName);
-        emitter().emit("ART_ACTION_SCHEDULER_ENTER(%d, %d)", actorMachine.getInputPorts().size(), actorMachine.getOutputPorts().size());
+        emitter().emit("ART_ACTION_SCHEDULER_ENTER(%d, %d)", sizeIN, sizeOUT);
 
         // -- Controller
         jumpInto(waitTargets.stream().mapToInt(stateMap::get).collect(BitSet::new, BitSet::set, BitSet::or));
@@ -72,7 +85,7 @@ public interface Controllers {
         }
 
         emitter().emit("out:");
-        emitter().emit("ART_ACTION_SCHEDULER_EXIT(%d, %d)", actorMachine.getInputPorts().size(), actorMachine.getOutputPorts().size());
+        emitter().emit("ART_ACTION_SCHEDULER_EXIT(%d, %d)", sizeIN, sizeOUT);
         emitter().emit("return result;");
         emitter().decreaseIndentation();
         emitter().emit("}");

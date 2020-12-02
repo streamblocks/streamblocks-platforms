@@ -130,10 +130,14 @@ public interface Main {
 
 
             for (PortDecl inputPort : entityDecl.getEntity().getInputPorts()) {
-                emitter().emit("InputPort *%s_%s;", joinQID, inputPort.getName());
+                if (backend().channelsutils().isTargetConnected(instance.getInstanceName(), inputPort.getName())) {
+                    emitter().emit("InputPort *%s_%s;", joinQID, inputPort.getName());
+                }
             }
             for (PortDecl outputPort : entityDecl.getEntity().getOutputPorts()) {
-                emitter().emit("OutputPort *%s_%s;", joinQID, outputPort.getName());
+                if (backend().channelsutils().isSourceConnected(instance.getInstanceName(), outputPort.getName())) {
+                    emitter().emit("OutputPort *%s_%s;", joinQID, outputPort.getName());
+                }
             }
             emitter().emitNewLine();
         }
@@ -148,7 +152,7 @@ public interface Main {
             String joinQID = instanceQIDs.get(instance);
             String actorClass = instanceActorClasses.get(instance);
             emitter().emit("%s = createActorInstance(&ActorClass_%s);", joinQID, actorClass);
-            emitter().emit("%s->name = (char *) calloc(%d, sizeof(char));", joinQID, joinQID.length()+1);
+            emitter().emit("%s->name = (char *) calloc(%d, sizeof(char));", joinQID, joinQID.length() + 1);
             emitter().emit("strcpy(%s->name, \"%1$s\");", joinQID);
             // -- Instantiate Parameters
             if (entityDecl.getEntity() instanceof PartitionLink &&
@@ -164,9 +168,9 @@ public interface Main {
             }
             for (ValueParameter parameter : instance.getValueParameters()) {
                 if (entityDecl.getExternal()) {
-                    if(parameter.getValue() instanceof ExprGlobalVariable){
+                    if (parameter.getValue() instanceof ExprGlobalVariable) {
                         emitter().emit("setParameter(%s, \"%s\", %s);", joinQID, parameter.getName(), evaluator().evaluate(parameter.getValue()));
-                    }else{
+                    } else {
                         emitter().emit("setParameter(%s, \"%s\", \"%s\");", joinQID, parameter.getName(), evaluator().evaluate(parameter.getValue()).replaceAll("^\"|\"$", ""));
                     }
                 }
@@ -174,16 +178,17 @@ public interface Main {
 
             // -- Instantiate instance ports
             for (PortDecl inputPort : entityDecl.getEntity().getInputPorts()) {
-
-
-                int bufferSize = backend().channelsutils().targetEndSize(new Connection.End(Optional.of(instance.getInstanceName()), inputPort.getName()));
-                emitter().emit("%s_%s = createInputPort(%1$s, \"%2$s\", %d);", joinQID, inputPort.getName(), bufferSize);
-
+                if (backend().channelsutils().isTargetConnected(instance.getInstanceName(), inputPort.getName())) {
+                    int bufferSize = backend().channelsutils().targetEndSize(new Connection.End(Optional.of(instance.getInstanceName()), inputPort.getName()));
+                    emitter().emit("%s_%s = createInputPort(%1$s, \"%2$s\", %d);", joinQID, inputPort.getName(), bufferSize);
+                }
             }
             for (PortDecl outputPort : entityDecl.getEntity().getOutputPorts()) {
-                Connection.End end = new Connection.End(Optional.of(instance.getInstanceName()), outputPort.getName());
-                List<Connection.End> outgoing = srcToTgt.getOrDefault(end, Collections.emptyList());
-                emitter().emit("%s_%s = createOutputPort(%1$s, \"%2$s\", %d);", joinQID, outputPort.getName(), outgoing.size());
+                if (backend().channelsutils().isSourceConnected(instance.getInstanceName(), outputPort.getName())) {
+                    Connection.End end = new Connection.End(Optional.of(instance.getInstanceName()), outputPort.getName());
+                    List<Connection.End> outgoing = srcToTgt.getOrDefault(end, Collections.emptyList());
+                    emitter().emit("%s_%s = createOutputPort(%1$s, \"%2$s\", %d);", joinQID, outputPort.getName(), outgoing.size());
+                }
             }
 
             emitter().emit("actorInstances[%s] = %s;", network.getInstances().indexOf(instance), joinQID);
@@ -195,16 +200,10 @@ public interface Main {
         for (Connection connection : connections) {
             // -- Source instance
             String srcInstanceName = connection.getSource().getInstance().get();
-            Instance srcInstance = network.getInstances().stream().
-                    filter(p -> p.getInstanceName().equals(srcInstanceName)).
-                    findAny().orElse(null);
             String srcJoinQID = srcInstanceName;
 
             // -- Target instance
             String tgtInstanceName = connection.getTarget().getInstance().get();
-            Instance tgtInstance = network.getInstances().stream().
-                    filter(p -> p.getInstanceName().equals(tgtInstanceName)).
-                    findAny().orElse(null);
             String tgtJoinQID = tgtInstanceName;
 
 

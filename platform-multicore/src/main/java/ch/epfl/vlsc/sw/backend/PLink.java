@@ -15,7 +15,6 @@ import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
-import se.lth.cs.tycho.ir.entity.nl.EntityInstanceExpr;
 import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.util.ImmutableList;
@@ -59,7 +58,7 @@ public interface PLink {
     }
 
     default TypesEvaluator typeseval() {
-        return backend().typesEval();
+        return backend().typeseval();
     }
 
     default String TxName() {
@@ -1346,7 +1345,7 @@ public interface PLink {
         emitter().emit("for (std::size_t i = 0; i < thisActor->input_ports[%d].usable; i++)", index);
         {
             emitter().increaseIndentation();
-            String type = backend().typesEval().type(backend().types().declaredPortType(port));
+            String type = backend().typeseval().type(backend().types().declaredPortType(port));
             emitter().emit("thisActor->buffer_%s[i] = pinPeek_%s(IN%d_%1$s, i);", port.getName(), type, index);
             emitter().decreaseIndentation();
         }
@@ -1359,7 +1358,7 @@ public interface PLink {
         emitter().emit("for (std::size_t i = 0; i < thisActor->output_ports[%d].used; i++)", index);
         {
             emitter().increaseIndentation();
-            String type = backend().typesEval().type(backend().types().declaredPortType(port));
+            String type = backend().typeseval().type(backend().types().declaredPortType(port));
             emitter().emit("pinWrite_%s(OUT%d_%s, thisActor->buffer_%3$s[i]);", type, index, port.getName());
             emitter().decreaseIndentation();
         }

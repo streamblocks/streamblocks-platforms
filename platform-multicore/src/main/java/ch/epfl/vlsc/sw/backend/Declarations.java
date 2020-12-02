@@ -14,15 +14,48 @@ public interface Declarations {
     MulticoreBackend backend();
 
     default String declaration(Type type, String name) {
-        return backend().typesEval().type(type) + " " + name;
+        return backend().typeseval().type(type) + " " + name;
     }
 
     default String declaration(UnitType type, String name) {
         return "char " + name;
     }
 
+    /*
     default String declaration(ListType type, String name) {
-        return backend().typesEval().type(type) + "* " + name;
+        return String.format("%s %s%s", backend().typeseval().type(type), name, getListDims(type));
+    }*/
+
+    default String declaration(ListType type, String name) {
+        return backend().typeseval().type(type) + "* " + name;
+    }
+
+    default String getListDims(ListType type){
+        if(type.getElementType() instanceof ListType){
+            return String.format("[%s]%s", type.getSize().getAsInt(), getListDims((ListType)type.getElementType()));
+        }else{
+            if(type.getSize().isPresent()){
+                return String.format("[%s]", type.getSize().getAsInt());
+            }else{
+                return String.format("[]");
+            }
+        }
+    }
+
+    default String persistentDeclaration(Type type, String name) {
+        return declaration(type, name);
+    }
+
+    default String persistentDeclaration(ListType type, String name) {
+        return String.format("%s %s%s", backend().typeseval().type(type), getPointerDims(type), name);
+    }
+
+    default String getPointerDims(ListType type){
+        if(type.getElementType() instanceof ListType){
+            return String.format("*%s", getPointerDims((ListType)type.getElementType()));
+        }else{
+            return "*";
+        }
     }
 
     default String declaration(RefType type, String name) {
@@ -52,8 +85,12 @@ public interface Declarations {
     }
 
     default String declarationTemp(ListType type, String name) {
-        String maxIndex = backend().typesEval().sizeByDimension((ListType) type).stream().map(Object::toString).collect(Collectors.joining("*"));
-        return String.format("%s %s[%s]", backend().typesEval().type(type), name, maxIndex);
+        if (type.getSize().isPresent()) {
+            String maxIndex = backend().typeseval().sizeByDimension((ListType) type).stream().map(Object::toString).collect(Collectors.joining("*"));
+            return String.format("%s %s[%s]", backend().typeseval().type(type), name, maxIndex);
+        } else {
+            return String.format("%s %s[]", backend().typeseval().type(type), name);
+        }
     }
 
     /*

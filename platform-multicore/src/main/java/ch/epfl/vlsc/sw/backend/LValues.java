@@ -13,6 +13,7 @@ import se.lth.cs.tycho.ir.entity.am.Scope;
 import se.lth.cs.tycho.ir.expr.ExprIndexer;
 import se.lth.cs.tycho.ir.stmt.lvalue.*;
 import se.lth.cs.tycho.type.ListType;
+import se.lth.cs.tycho.type.RefType;
 import se.lth.cs.tycho.type.Type;
 
 import java.util.ArrayList;
@@ -55,6 +56,15 @@ public interface LValues {
     }
 
     default String lvalue(LValueDeref deref) {
+        LValueVariable lValueVariable = deref.getVariable();
+        Variable var = lValueVariable.getVariable();
+        VarDecl decl = backend().varDecls().declaration(var);
+        Type type = backend().types().declaredType(decl);
+        if (type instanceof ListType) {
+            return lvalue(deref.getVariable());
+        } else if (type instanceof RefType) {
+            return lvalue(deref.getVariable());
+        }
         return "(*" + lvalue(deref.getVariable()) + ")";
     }
 
@@ -62,6 +72,15 @@ public interface LValues {
         return String.format("%s->members.%s", lvalue(field.getStructure()), field.getField().getName());
     }
 
+/*
+    default String lvalue(LValueIndexer indexer) {
+        return lvalueIndexing(backend().types().type(indexer.getStructure()), indexer);
+    }
+
+    default String lvalueIndexing(Type type, LValueIndexer indexer) {
+        return String.format("%s[%s]", lvalue(indexer.getStructure()), backend().expressionEval().evaluate(indexer.getIndex()));
+    }
+*/
 
     default String lvalue(LValueIndexer indexer) {
         Variable var = evalLValueIndexerVar(indexer);
@@ -70,9 +89,15 @@ public interface LValues {
         String ind;
         if (indexer.getStructure() instanceof LValueIndexer) {
             VarDecl varDecl = backend().varDecls().declaration(var);
-            ListType type = (ListType) backend().types().declaredType(varDecl);
+            Type t = backend().types().declaredType(varDecl);
+            ListType listType = null;
+            if(t instanceof ListType){
+                listType = (ListType) t;
+            }else if(t instanceof RefType){
+                listType = (ListType)((RefType) t).getType();
+            }
 
-            List<Integer> sizeByDim = backend().typesEval().sizeByDimension((ListType) type.getElementType());
+            List<Integer> sizeByDim = backend().typeseval().sizeByDimension((ListType) listType.getElementType());
             List<String> indexByDim = getListIndexes((LValueIndexer) indexer.getStructure());
             Collections.reverse(indexByDim);
 

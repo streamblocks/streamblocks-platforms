@@ -48,7 +48,7 @@ public interface ChannelsUtils {
         if (type instanceof AlgebraicType) {
             return "ref";
         } else {
-            return backend().typesEval().type(type);
+            return backend().typeseval().type(type);
         }
     }
 
@@ -58,7 +58,7 @@ public interface ChannelsUtils {
         if (type instanceof AlgebraicType) {
             return "ref";
         } else {
-            return backend().typesEval().type(type);
+            return backend().typeseval().type(type);
         }
     }
 
@@ -111,6 +111,36 @@ public interface ChannelsUtils {
             throw new RuntimeException(e);
         }
 
+    }
+
+    default List<Connection> targetEndConnections(Connection.End source) {
+        Network network = backend().task().getNetwork();
+        List<Connection> connections = network.getConnections().stream()
+                .filter(conn -> conn.getSource().equals(source))
+                .collect(Collectors.toList());
+
+        return connections;
+    }
+
+    default boolean isSourceConnected(String instance, String port) {
+        Connection.End source = new Connection.End(Optional.of(instance), port);
+        return !targetEndConnections(source).isEmpty();
+    }
+
+    default Connection sourceEndConnection(Connection.End target) {
+        Network network = backend().task().getNetwork();
+        List<Connection> connections = network.getConnections().stream()
+                .filter(conn -> conn.getTarget().equals(target))
+                .collect(Collectors.toList());
+        if (connections.isEmpty()) {
+            return null;
+        }
+        return connections.get(0);
+    }
+
+    default boolean isTargetConnected(String instance, String port){
+        Connection.End target = new Connection.End(Optional.of(instance), port);
+        return sourceEndConnection(target)  != null;
     }
 
     default int sourceEndSize(Connection.End source) {

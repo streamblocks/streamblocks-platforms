@@ -134,13 +134,15 @@ public class EmbedRepeatIO implements Phase {
                                         declarationsToRemove().add((LocalVarDecl) decl);
                                     }
 
-                                    // -- Reading from output linked to variable to be removed
-                                    List<ExprIndexer> exprIndexerCandidates = new ArrayList<>();
-                                    transition.forEachChild(child -> exprIndexerCandidates.addAll(collectCandidateExprIndexer(child, (LocalVarDecl) decl)));
+                                    if (!(decl.getValue() instanceof ExprInput)) {
+                                        // -- Reading from output linked to variable to be removed
+                                        List<ExprIndexer> exprIndexerCandidates = new ArrayList<>();
+                                        transition.forEachChild(child -> exprIndexerCandidates.addAll(collectCandidateExprIndexer(child, (LocalVarDecl) decl)));
 
-                                    if (!exprIndexerCandidates.isEmpty()) {
-                                        for (ExprIndexer indexer : exprIndexerCandidates) {
-                                            exprIndexerToReplace().put(indexer, write.getPort());
+                                        if (!exprIndexerCandidates.isEmpty()) {
+                                            for (ExprIndexer indexer : exprIndexerCandidates) {
+                                                exprIndexerToReplace().put(indexer, write.getPort());
+                                            }
                                         }
                                     }
                                 }
@@ -191,6 +193,8 @@ public class EmbedRepeatIO implements Phase {
                         if (parent instanceof StmtWhile) {
                             found = true;
                         } else if (parent instanceof StmtForeach) {
+                            found = true;
+                        } else if (parent instanceof StmtWhile) {
                             found = true;
                         } else if (parent instanceof StmtWrite) {
                             found = true;

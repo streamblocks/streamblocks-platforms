@@ -63,7 +63,7 @@ public interface CallablesInActors {
         if(!backend().profilingbox().isEmpty()){
             backend().statements().profilingOp().clear();
         }
-        backend().emitter().emit("%s __ret = %s;", backend().typesEval().type(type.getReturnType()), backend().expressionEval().evaluate(lambda.getBody()));
+        backend().emitter().emit("%s __ret = %s;", backend().typeseval().type(type.getReturnType()), backend().expressionEval().evaluate(lambda.getBody()));
         if(!backend().profilingbox().isEmpty()){
             backend().statements().profilingOp().forEach(s-> backend().emitter().emit((String) s));
         }
@@ -123,7 +123,7 @@ public interface CallablesInActors {
             parameters.add("OpCounters *__opCounters");
         }
 
-        String result = backend().typesEval().type(type.getReturnType());
+        String result = backend().typeseval().type(type.getReturnType());
         result += " ";
         result += name;
         result += "(";
@@ -139,7 +139,7 @@ public interface CallablesInActors {
         for (int i = 0; i < parameterNames.size(); i++) {
             parameters.add(backend().declarations().declarationParameter(type.getParameterTypes().get(i), parameterNames.get(i)));
         }
-        String result = backend().typesEval().type(type.getReturnType());
+        String result = backend().typeseval().type(type.getReturnType());
         result += " ";
         result += name;
         result += "(";
