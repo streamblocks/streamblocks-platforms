@@ -1,7 +1,6 @@
 package ch.epfl.vlsc.sw.backend;
 
 import ch.epfl.vlsc.attributes.Memories;
-import ch.epfl.vlsc.platformutils.DefaultValues;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.utils.Box;
 import org.multij.Binding;
@@ -161,7 +160,7 @@ public interface MulticoreBackend {
 
     @Binding(LAZY)
     default DefaultValues defaultValues() {
-        return MultiJ.instance(DefaultValues.class);
+        return MultiJ.from(DefaultValues.class).bind("backend").to(this).instance();
     }
 
     // -- LValues

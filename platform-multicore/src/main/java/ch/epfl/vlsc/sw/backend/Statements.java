@@ -5,6 +5,7 @@ import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.Types;
+import se.lth.cs.tycho.ir.Variable;
 import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.expr.ExprBinaryOp;
@@ -22,6 +23,7 @@ import se.lth.cs.tycho.ir.stmt.StmtForeach;
 import se.lth.cs.tycho.ir.stmt.StmtIf;
 import se.lth.cs.tycho.ir.stmt.StmtWhile;
 import se.lth.cs.tycho.ir.stmt.StmtWrite;
+import se.lth.cs.tycho.ir.stmt.lvalue.LValueIndexer;
 import se.lth.cs.tycho.type.*;
 
 import java.util.ArrayList;
@@ -145,11 +147,22 @@ public interface Statements {
         Type type = types().type(assign.getLValue());
         String lvalue = lvalues().lvalue(assign.getLValue());
         //if ((type instanceof ListType && assign.getLValue() instanceof LValueVariable) && !(assign.getExpression() instanceof ExprList)) {
-        if (assign.getExpression() instanceof ExprComprehension) {
-            expressioneval().evaluate(assign.getExpression());
-        } else {
-            copy(type, lvalue, types().type(assign.getExpression()), expressioneval().evaluate(assign.getExpression()));
-        }
+        //if (assign.getExpression() instanceof ExprComprehension) {
+        //    expressioneval().evaluate(assign.getExpression());
+        //} else {
+            if (assign.getLValue() instanceof LValueIndexer) {
+                LValueIndexer indexer = (LValueIndexer) assign.getLValue();
+                if (lvalues().subIndexAccess(indexer)) {
+                    String varName = variables().name(lvalues().evalLValueIndexerVar(indexer));
+                    String index = lvalues().singleDimIndex(indexer);
+                    copySubAccess((ListType) type, varName, (ListType) types().type(assign.getExpression()), expressioneval().evaluate(assign.getExpression()), index);
+                } else {
+                    copy(type, lvalue, types().type(assign.getExpression()), expressioneval().evaluate(assign.getExpression()));
+                }
+            } else {
+                copy(type, lvalue, types().type(assign.getExpression()), expressioneval().evaluate(assign.getExpression()));
+            }
+        //}
         profilingOp().add("__opCounters->prof_DATAHANDLING_ASSIGN += 1;");
     }
 
@@ -164,6 +177,18 @@ public interface Statements {
         emitter().emit("for (size_t %1$s = 0; %1$s < (%2$s); %1$s++) {", index, maxIndex);
         emitter().increaseIndentation();
         emitter().emit("%s[%s] = %s[%2$s];", lvalue, index, rvalue);
+        emitter().decreaseIndentation();
+        emitter().emit("}");
+        //}
+    }
+
+    default void copySubAccess(ListType lvalueType, String lvalue, ListType rvalueType, String rvalue, String singleDimIndex) {
+        //if (!lvalueType.equals(rvalueType)) {
+        String maxIndex = typeseval().sizeByDimension(lvalueType).stream().map(Object::toString).collect(Collectors.joining(" * "));
+        String index = variables().generateTemp();
+        emitter().emit("for (size_t %1$s = 0; %1$s < (%2$s); %1$s++) {", index, maxIndex);
+        emitter().increaseIndentation();
+        emitter().emit("%1$s[%2$s + %3$s] = %4$s[%3$s];", lvalue, singleDimIndex, index, rvalue);
         emitter().decreaseIndentation();
         emitter().emit("}");
         //}

@@ -104,7 +104,7 @@ public interface TypesEvaluator {
      * @return
      */
     default Type innerType(Type type) {
-        Type inner = null;
+        Type inner;
         if (type instanceof ListType) {
             inner = innerType((((ListType) type).getElementType()));
         } else {

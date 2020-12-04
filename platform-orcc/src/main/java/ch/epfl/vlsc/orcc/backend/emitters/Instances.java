@@ -723,8 +723,9 @@ public interface Instances {
         //portVars().putAll(collector.portVars());
 
         Optional<Annotation> annotation = Annotation.getAnnotationWithName("ActionId", transition.getAnnotations());
+        String actionTag = "";
         if (annotation.isPresent()) {
-            String actionTag = ((ExprLiteral) annotation.get().getParameters().get(0).getExpression()).getText();
+            actionTag = ((ExprLiteral) annotation.get().getParameters().get(0).getExpression()).getText();
             emitter().emit("// -- Action Tag : %s", actionTag);
         }
         backend().alignedBox().set(isAligned);
@@ -754,7 +755,7 @@ public interface Instances {
                     emitter().emit("}");
                 }
             }
-
+            //emitter().emit("printf(\"%s\\n\");", actionTag);
             transition.getBody().forEach(backend().statements()::execute);
 
 

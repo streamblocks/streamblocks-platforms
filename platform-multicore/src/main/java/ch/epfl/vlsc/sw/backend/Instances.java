@@ -37,7 +37,6 @@ public interface Instances {
     @Binding(BindingKind.INJECTED)
     MulticoreBackend backend();
 
-
     default Emitter emitter() {
         return backend().emitter();
     }
@@ -285,7 +284,7 @@ public interface Instances {
                 if (var.getValue() instanceof ExprLambda || var.getValue() instanceof ExprProc) {
                     // -- Do nothing
                 } else {
-                    String decl = declarations().declaration(types().declaredType(var), backend().variables().declarationName(var));
+                    String decl = declarations().persistentDeclaration(types().declaredType(var), backend().variables().declarationName(var));
                     emitter().emit("%s;", decl);
                 }
             }
@@ -624,8 +623,6 @@ public interface Instances {
         emitter().emitNewLine();
     }
 
-
-
     /*
      * Scopes
      */
@@ -823,15 +820,16 @@ public interface Instances {
     default void acttransDefinition(String instanceName, ActorMachine am, Transition transition) {
         String instanceQID = instanceName;
         Optional<Annotation> annotation = Annotation.getAnnotationWithName("ActionId", transition.getAnnotations());
+        String actionTag = "";
         if (annotation.isPresent()) {
-            String actionTag = ((ExprLiteral) annotation.get().getParameters().get(0).getExpression()).getText();
+            actionTag = ((ExprLiteral) annotation.get().getParameters().get(0).getExpression()).getText();
             emitter().emit("// -- Action Tag : %s", actionTag);
         }
         emitter().emit("ART_ACTION(%s_transition_%d, ActorInstance_%s){", instanceName, am.getTransitions().indexOf(transition), instanceQID);
         emitter().increaseIndentation();
 
         emitter().emit("ART_ACTION_ENTER(%s_transition_%d, %2$d);", instanceName, am.getTransitions().indexOf(transition));
-
+        //emitter().emit("printf(\"%s\\n\");", actionTag);
         transition.getBody().forEach(statements()::execute);
 
         emitter().emit("ART_ACTION_EXIT(%s_transition_%d, %2$d);", instanceName, am.getTransitions().indexOf(transition));

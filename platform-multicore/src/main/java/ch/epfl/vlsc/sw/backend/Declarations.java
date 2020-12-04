@@ -27,7 +27,12 @@ public interface Declarations {
     }*/
 
     default String declaration(ListType type, String name) {
-        return backend().typeseval().type(type) + "* " + name;
+        if (type.getSize().isPresent()) {
+            String maxIndex = backend().typeseval().sizeByDimension(type).stream().map(Object::toString).collect(Collectors.joining("*"));
+            return String.format("%s %s[%s]", backend().typeseval().type(type), name, maxIndex);
+        } else {
+            return String.format("%s %s[]", backend().typeseval().type(type), name);
+        }
     }
 
     default String getListDims(ListType type){
@@ -47,7 +52,8 @@ public interface Declarations {
     }
 
     default String persistentDeclaration(ListType type, String name) {
-        return String.format("%s %s%s", backend().typeseval().type(type), getPointerDims(type), name);
+        //return String.format("%s %s%s", backend().typeseval().type(type), getPointerDims(type), name);
+        return backend().typeseval().type(type) + " *" + name;
     }
 
     default String getPointerDims(ListType type){
@@ -86,7 +92,7 @@ public interface Declarations {
 
     default String declarationTemp(ListType type, String name) {
         if (type.getSize().isPresent()) {
-            String maxIndex = backend().typeseval().sizeByDimension((ListType) type).stream().map(Object::toString).collect(Collectors.joining("*"));
+            String maxIndex = backend().typeseval().sizeByDimension(type).stream().map(Object::toString).collect(Collectors.joining("*"));
             return String.format("%s %s[%s]", backend().typeseval().type(type), name, maxIndex);
         } else {
             return String.format("%s %s[]", backend().typeseval().type(type), name);

@@ -44,11 +44,11 @@ public interface LValues {
     default String lvalue(LValueVariable var) {
         VarDecl decl = backend().varDecls().declaration(var);
         IRNode parent = backend().tree().parent(decl);
-        if((parent instanceof Scope) || (parent instanceof ActorMachine) || (parent instanceof NamespaceDecl)){
+        if ((parent instanceof Scope) || (parent instanceof ActorMachine) || (parent instanceof NamespaceDecl)) {
             Type type = backend().types().type(decl.getType());
-            if(type instanceof ListType){
+            if (type instanceof ListType) {
                 backend().statements().profilingOp().add("__opCounters->prof_DATAHANDLING_LIST_STORE += 1;");
-            }else{
+            } else {
                 backend().statements().profilingOp().add("__opCounters->prof_DATAHANDLING_STORE += 1;");
             }
         }
@@ -84,33 +84,52 @@ public interface LValues {
 
     default String lvalue(LValueIndexer indexer) {
         Variable var = evalLValueIndexerVar(indexer);
+        return String.format("%s[%s]", variables().name(var), singleDimIndex(indexer));
+    }
+
+
+    default String singleDimIndex(LValueIndexer indexer) {
 
         Optional<String> str = Optional.empty();
-        String ind;
-        if (indexer.getStructure() instanceof LValueIndexer) {
-            VarDecl varDecl = backend().varDecls().declaration(var);
-            Type t = backend().types().declaredType(varDecl);
-            ListType listType = null;
-            if(t instanceof ListType){
-                listType = (ListType) t;
-            }else if(t instanceof RefType){
-                listType = (ListType)((RefType) t).getType();
-            }
+        String ind = "";
 
-            List<Integer> sizeByDim = backend().typeseval().sizeByDimension((ListType) listType.getElementType());
-            List<String> indexByDim = getListIndexes((LValueIndexer) indexer.getStructure());
+        Variable var = evalLValueIndexerVar(indexer);
+        VarDecl varDecl = backend().varDecls().declaration(var);
+        Type t = backend().types().declaredType(varDecl);
+        ListType listType = null;
+        if (t instanceof ListType) {
+            listType = (ListType) t;
+        } else if (t instanceof RefType) {
+            listType = (ListType) ((RefType) t).getType();
+        }
+
+        List<Integer> listSizeDim = backend().typeseval().sizeByDimension(listType);
+
+        List<Integer> elementSizeDim = new ArrayList<>();
+
+        if(listType.getElementType() instanceof ListType) {
+            elementSizeDim = backend().typeseval().sizeByDimension((ListType) listType.getElementType());
+        }
+
+        List<String> indexByDim = new ArrayList<>();
+        if (indexer.getStructure() instanceof LValueIndexer) {
+
+            indexByDim = getListIndexes((LValueIndexer) indexer.getStructure());
+            elementSizeDim = backend().typeseval().sizeByDimension((ListType) listType.getElementType());
             Collections.reverse(indexByDim);
+
 
             List<String> structureIndex = new ArrayList<>();
             for (int i = 0; i < indexByDim.size(); i++) {
                 List<String> dims = new ArrayList<>();
-                for (int j = i; j < sizeByDim.size(); j++) {
-                    dims.add(Integer.toString(sizeByDim.get(j)));
+                for (int j = i; j < elementSizeDim.size(); j++) {
+                    dims.add(Integer.toString(elementSizeDim.get(j)));
                 }
                 structureIndex.add(String.format("%s*%s", String.join("*", dims), indexByDim.get(i)));
             }
             str = Optional.of(String.join(" + ", structureIndex));
         }
+
 
         if (indexer.getIndex() instanceof ExprIndexer) {
             ind = String.format("%s", expressioneval().evaluate(indexer.getIndex()));
@@ -118,12 +137,40 @@ public interface LValues {
             ind = expressioneval().evaluate(indexer.getIndex());
         }
 
+        //if(!indexByDim.isEmpty()) {
+            if (listSizeDim.size() != (indexByDim.size() + 1)) {
+                int lastDim = elementSizeDim.get(elementSizeDim.size() - 1);
+                ind = String.format("%s*%s", lastDim, ind);
+            }
+        //}
+
         if (str.isPresent()) {
-            return String.format("%s[%s + %s]", variables().name(var), str.get(), ind);
+            return String.format("%s + %s",  str.get(), ind);
         } else {
-            return String.format("%s[%s]", variables().name(var), ind);
+            return String.format("%s", ind);
         }
     }
+
+    default boolean subIndexAccess(LValueIndexer indexer){
+        Variable var = evalLValueIndexerVar(indexer);
+        VarDecl varDecl = backend().varDecls().declaration(var);
+        Type t = backend().types().declaredType(varDecl);
+        ListType listType = null;
+        if (t instanceof ListType) {
+            listType = (ListType) t;
+        } else if (t instanceof RefType) {
+            listType = (ListType) ((RefType) t).getType();
+        }
+
+        List<Integer> listSizeDim = backend().typeseval().sizeByDimension(listType);
+
+        List<String> indexByDim = new ArrayList<>();
+        if (indexer.getStructure() instanceof LValueIndexer) {
+            indexByDim = getListIndexes((LValueIndexer) indexer.getStructure());
+        }
+        return listSizeDim.size() != (indexByDim.size() + 1);
+    }
+
 
     default List<String> getListIndexes(LValueIndexer expr) {
         List<String> indexByDim = new ArrayList<>();
