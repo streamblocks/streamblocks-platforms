@@ -139,8 +139,13 @@ public interface LValues {
 
         //if(!indexByDim.isEmpty()) {
             if (listSizeDim.size() != (indexByDim.size() + 1)) {
-                int lastDim = elementSizeDim.get(elementSizeDim.size() - 1);
-                ind = String.format("%s*%s", lastDim, ind);
+                int factor = 1;
+                for(int i = indexByDim.size(); i < elementSizeDim.size(); i++){
+                    factor*=elementSizeDim.get(i);
+                }
+
+                //int lastDim = elementSizeDim.get(elementSizeDim.size() - 1);
+                ind = String.format("%s*%s", factor, ind);
             }
         //}
 

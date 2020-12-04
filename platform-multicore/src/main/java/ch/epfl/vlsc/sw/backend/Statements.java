@@ -155,12 +155,38 @@ public interface Statements {
                 if (lvalues().subIndexAccess(indexer)) {
                     String varName = variables().name(lvalues().evalLValueIndexerVar(indexer));
                     String index = lvalues().singleDimIndex(indexer);
-                    copySubAccess((ListType) type, varName, (ListType) types().type(assign.getExpression()), expressioneval().evaluate(assign.getExpression()), index);
+
+                    emitter().emit("{");
+                    emitter().increaseIndentation();
+                    String eval = expressioneval().evaluate(assign.getExpression());
+                    Type exprType = types().type(assign.getExpression());
+
+                    copySubAccess((ListType) type, varName, (ListType) exprType, eval, index);
+                    emitter().decreaseIndentation();
+                    emitter().emit("}");
+                } else {
+                    if (assign.getExpression() instanceof ExprComprehension) {
+                        emitter().emit("{");
+                        emitter().increaseIndentation();
+                        String eval = expressioneval().evaluate(assign.getExpression());
+                        copy(type, lvalue, types().type(assign.getExpression()), eval);
+                        emitter().decreaseIndentation();
+                        emitter().emit("}");
+                    } else {
+                        copy(type, lvalue, types().type(assign.getExpression()), expressioneval().evaluate(assign.getExpression()));
+                    }
+                }
+            } else {
+                if (assign.getExpression() instanceof ExprComprehension) {
+                    emitter().emit("{");
+                    emitter().increaseIndentation();
+                    String eval = expressioneval().evaluate(assign.getExpression());
+                    copy(type, lvalue, types().type(assign.getExpression()), eval);
+                    emitter().decreaseIndentation();
+                    emitter().emit("}");
                 } else {
                     copy(type, lvalue, types().type(assign.getExpression()), expressioneval().evaluate(assign.getExpression()));
                 }
-            } else {
-                copy(type, lvalue, types().type(assign.getExpression()), expressioneval().evaluate(assign.getExpression()));
             }
         //}
         profilingOp().add("__opCounters->prof_DATAHANDLING_ASSIGN += 1;");
@@ -275,6 +301,8 @@ public interface Statements {
             String d = declarartions().declarationTemp(t, declarationName);
             emitter().emit("%s = %s;", d, backend().defaultValues().defaultValue(t));
             if (decl.getValue() != null) {
+                emitter().emit("{");
+                emitter().increaseIndentation();
                 if (decl.getValue() instanceof ExprInput) {
                     ExprInput input = (ExprInput) decl.getValue();
                     if (backend().channelsutils().isTargetConnected(backend().instancebox().get().getInstanceName(), input.getPort().getName())) {
@@ -285,6 +313,8 @@ public interface Statements {
                 } else {
                     copy(t, declarationName, types().type(decl.getValue()), expressioneval().evaluate(decl.getValue()));
                 }
+                emitter().decreaseIndentation();
+                emitter().emit("}");
             }
             if (!backend().profilingbox().isEmpty()) {
                 profilingOp().forEach(s -> emitter().emit((String) s));
