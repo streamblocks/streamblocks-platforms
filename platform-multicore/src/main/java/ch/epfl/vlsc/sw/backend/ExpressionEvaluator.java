@@ -201,7 +201,7 @@ public interface ExpressionEvaluator {
             // memoryStack().trackPointer(tmp, type);
         }
 
-        if (backend().channelsutils().isSourceConnected(backend().instancebox().get().getInstanceName(), input.getPort().getName())) {
+        if (backend().channelsutils().isTargetConnected(backend().instancebox().get().getInstanceName(), input.getPort().getName())) {
             if (input.hasRepeat()) {
                 if (input.getOffset() == 0) {
                     emitter().emit("pinPeekRepeat_%s(%s, %s, %d);", channelsutils().inputPortTypeSize(input.getPort()), channelsutils().definedInputPort(input.getPort()), tmp, input.getRepeat());

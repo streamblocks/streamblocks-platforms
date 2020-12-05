@@ -31,6 +31,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
+#include <sys/select.h>
 
 #include "util.h"
 
@@ -75,7 +76,7 @@ char getLastUserChar() {
     return retVal;
 }
 
-#elif __linux
+#elif __linux || __APPLE__
 
 int fsize(FILE *fp) {
     int sz;

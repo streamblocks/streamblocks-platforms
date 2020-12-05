@@ -40,7 +40,6 @@ public interface CMakeLists {
         }
 
 
-
     }
 
 
@@ -66,8 +65,16 @@ public interface CMakeLists {
 
         // -- Default C Flags
         emitter().emit("# -- Default C Flags");
-        emitter().emit("set(CMAKE_C_FLAGS \"-Wall -Wno-unused-variable -Wno-missing-braces\")");
+        emitter().emit("set(CMAKE_C_FLAGS \"-Wall -Wno-unused-variable -Wno-missing-braces -fno-common\")");
         emitter().emitNewLine();
+
+        // -- CXX APPLE FLAGS
+
+        emitter().emit("if(CMAKE_CXX_COMPILER_ID STREQUAL Clang OR CMAKE_CXX_COMPILER_ID STREQUAL AppleClang)");
+        emitter().emit("\tstring(APPEND CMAKE_CXX_FLAGS \" -Wno-c++11-narrowing -fno-common\")");
+        emitter().emit(" endif()");
+        emitter().emitNewLine();
+
 
         // -- Binary output folder
         emitter().emit("# -- Configure output Folder for generated binary");
@@ -106,7 +113,7 @@ public interface CMakeLists {
             emitter().increaseIndentation();
             emitter().emit("lib/art-runtime/include");
             emitter().emit("lib/art-native/include");
-            if(hasPlink)
+            if (hasPlink)
                 emitter().emit("lib/art-plink");
             emitter().decreaseIndentation();
             emitter().emit(")");
@@ -206,7 +213,7 @@ public interface CMakeLists {
         }
         emitter().emit("else()");
         {
-           emitter().increaseIndentation();
+            emitter().increaseIndentation();
 
             // -- Add executable
             emitter().emit("# -- Add executable");
