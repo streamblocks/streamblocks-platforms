@@ -290,43 +290,18 @@ if (KERNEL)
 	# -- Get the number of processors
 	include(ProcessorCount)
 	ProcessorCount(__CORE_COUNT__)
-	if(NOT __CORE_COUNT__ EQUAL 0)
 
-		message(STATUS "Detected ${__CORE_COUNT__} cores. ${XCLBIN_COMPILER} will be called with ${XCLBIN_JOBS_FLAG}")
-		set(XCLBIN_JOBS_FLAG -j${__CORE_COUNT__} CACHE STRING "Number of parallel jobs to build the FPGA binary")
+	add_custom_command(
+    			OUTPUT  ${CMAKE_SOURCE_DIR}/bin/xclbin/${__NETWORK_NAME__}_kernel.${TARGET}.xclbin
+    			COMMAND ${XCLBIN_COMPILER} --link -g -t ${TARGET} --platform ${PLATFORM} --kernel_frequency ${KERNEL_FREQ}  --save-temps
+    				${XOCC_DEBUG} ${XOCC_PROFILE} ${__MEMORY_BANK_CONFIGS__}
+    				-o ${CMAKE_SOURCE_DIR}/bin/xclbin/${__NETWORK_NAME__}_kernel.${TARGET}.xclbin
+    				${CMAKE_CURRENT_BINARY_DIR}/xclbin/${__NETWORK_NAME__}_kernel.${TARGET}.${PLATFORM}.xo
+    				> ${__NETWORK_NAME__}_kernel_xclbin.log
+    			DEPENDS ${__NETWORK_NAME__}_kernel_xo
+    			COMMENT "Generating FPGA binary, if TARGET=hw can take several hours.)"
+    )
 
-		# -- Clock default ID if IS_MPSOC
-		if(IS_MPSOC)
-		    set(XCLBIN_DEFAULT_CLOCK_ID --clock.defaultId ${MPSOC_CLOCK_ID})
-		else()
-		    set(XCLBIN_DEFAULT_CLOCK_ID "")
-		endif()
-
-		add_custom_command(
-			OUTPUT  ${CMAKE_SOURCE_DIR}/bin/xclbin/${__NETWORK_NAME__}_kernel.${TARGET}.xclbin
-			COMMAND ${XCLBIN_COMPILER} --link -g -t ${TARGET} --platform ${PLATFORM} --kernel_frequency ${KERNEL_FREQ} ${XCLBIN_DEFAULT_CLOCK_ID} --save-temps
-				${XOCC_DEBUG} ${XOCC_PROFILE} ${XCLBIN_JOBS_FLAG}
-				-o ${CMAKE_SOURCE_DIR}/bin/xclbin/${__NETWORK_NAME__}_kernel.${TARGET}.xclbin
-				${CMAKE_CURRENT_BINARY_DIR}/xclbin/${__NETWORK_NAME__}_kernel.${TARGET}.${PLATFORM}.xo
-				> ${__NETWORK_NAME__}_kernel_xclbin.log
-			DEPENDS ${__NETWORK_NAME__}_kernel_xo
-			COMMENT "Generating FPGA binary, TARGET = ${TARGET}. (${XCLBIN_JOBS_FLAG})"
-		)
-
-	else()
-		message(INFO "Could not detect number of cores, omitting -j option to ${XCLBIN_COMPILER}")
-		add_custom_command(
-			OUTPUT  ${CMAKE_SOURCE_DIR}/bin/xclbin/${__NETWORK_NAME__}_kernel.${TARGET}.xclbin
-			COMMAND ${XCLBIN_COMPILER} --link -g -t ${TARGET} --platform ${PLATFORM} --kernel_frequency ${KERNEL_FREQ}  --save-temps
-				${XOCC_DEBUG} ${XOCC_PROFILE}
-				-o ${CMAKE_SOURCE_DIR}/bin/xclbin/${__NETWORK_NAME__}_kernel.${TARGET}.xclbin
-				${CMAKE_CURRENT_BINARY_DIR}/xclbin/${__NETWORK_NAME__}_kernel.${TARGET}.${PLATFORM}.xo
-				> ${__NETWORK_NAME__}_kernel_xclbin.log
-			DEPENDS ${__NETWORK_NAME__}_kernel_xo
-			COMMENT "Generating FPGA binary, if TARGET=hw can take several hours.)"
-		)
-		set(XCLBIN_JOBS_FLAG "" CACHE STRING "Number of parallel jobs to build the FPGA binary")
-	endif()
 
 	add_custom_target(${__NETWORK_NAME__}_kernel_xclbin ALL
 		DEPENDS ${CMAKE_SOURCE_DIR}/bin/xclbin/${__NETWORK_NAME__}_kernel.${TARGET}.xclbin

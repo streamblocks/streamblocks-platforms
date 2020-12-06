@@ -1,5 +1,6 @@
 package ch.epfl.vlsc.hls.backend;
 
+import ch.epfl.vlsc.compiler.ir.BankedPortDecl;
 import ch.epfl.vlsc.hls.backend.systemc.SCInstance;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.PathUtils;
@@ -12,6 +13,7 @@ import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.network.Network;
+import se.lth.cs.tycho.ir.util.ImmutableList;
 
 import java.util.stream.Collectors;
 
@@ -72,12 +74,32 @@ public interface CMakeLists {
         {
             emitter().increaseIndentation();
             network.getOutputPorts().forEach(
-                    output-> emitter().emit("%s_output_stage_mem", output.getName())
+                    output -> emitter().emit("%s_output_stage_mem", output.getName())
             );
             emitter().decreaseIndentation();
         }
         emitter().emit(")");
         emitter().emitNewLine();
+
+        emitter().emitSharpBlockComment("memory bank configurations");
+        emitter().emit("set(__MEMORY_BANK_CONFIGS__");
+        {
+            emitter().increaseIndentation();
+            int banks = 0;
+            for (PortDecl port : ImmutableList.concat(network.getInputPorts(), network.getOutputPorts())) {
+                int bankId = 0;
+                if (port instanceof BankedPortDecl)
+                    bankId = ((BankedPortDecl) port).getBankId();
+                else {
+                    bankId = banks;
+                    banks = (banks + 1) % 4;
+                }
+
+                emitter().emit("--sp ${__NETWORK_TOP_NAME__}_kernel_1.m_axi_%s:bank%d", port.getName(), bankId);
+            }
+
+        }
+        emitter().emit(")");
 
         emitter().emitSharpComment("all the actors in the kernel");
 

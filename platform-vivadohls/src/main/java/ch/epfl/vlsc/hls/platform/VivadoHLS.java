@@ -1,5 +1,6 @@
 package ch.epfl.vlsc.hls.platform;
 
+import ch.epfl.vlsc.hls.phase.BankedNetworkPortsPhase;
 import ch.epfl.vlsc.hls.phase.VivadoHLSBackendPhase;
 import ch.epfl.vlsc.phases.*;
 import se.lth.cs.tycho.compiler.Compiler;
@@ -23,6 +24,7 @@ public class VivadoHLS implements Platform {
 
     public static List<Phase> postPartitionNetworkElaborationPhases() {
         return ImmutableList.of(
+                new BankedNetworkPortsPhase(),
                 new ResolveGlobalEntityNamesPhase(),
                 new AddFanoutPhase(),
                 new ResolveGlobalEntityNamesPhase(),

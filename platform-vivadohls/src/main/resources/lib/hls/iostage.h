@@ -54,7 +54,7 @@ namespace iostage {
  **/
 using const_t = unsigned int;
 /* Width of the AXI bus in bytes */
-const const_t BUS_BYTE_WIDTH = 16;
+const const_t BUS_BYTE_WIDTH = 8;
 /* Width of the AXI bus in bits */
 const const_t BUS_WIDTH = (BUS_BYTE_WIDTH << 3);
 /* The maximum number of bytes that can be transferred in a single burst, this
