@@ -15,8 +15,6 @@ set(art_native_source
     src/display.cc
     src/art_utils.cc
     src/speaker.cc
-    src/orcc-display-sdl2.cc
-    src/orcc-framerate-sdl2.cc
     src/orcc-compareyuv.cc
     src/orcc-source.cc)
 
@@ -27,6 +25,8 @@ find_package(SDL2 QUIET)
 if(SDL2_FOUND)
     if(DISPLAY)
       list(APPEND art_native_source src/display-sdl.cc)
+      list(APPEND art_native_source src/orcc-display-sdl2.cc)
+      list(APPEND art_native_source src/orcc-framerate-sdl2.cc)
       list(APPEND extra_includes ${SDL2_INCLUDE_DIRS})
       string(STRIP ${SDL2_LIBRARIES} SDL2_LIBRARIES)
       list(APPEND extra_libraries ${SDL2_LIBRARIES})
