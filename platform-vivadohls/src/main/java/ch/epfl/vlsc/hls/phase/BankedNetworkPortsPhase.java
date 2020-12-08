@@ -1,6 +1,7 @@
 package ch.epfl.vlsc.hls.phase;
 
 import ch.epfl.vlsc.compiler.ir.BankedPortDecl;
+import ch.epfl.vlsc.settings.PlatformSettings;
 import se.lth.cs.tycho.compiler.CompilationTask;
 import se.lth.cs.tycho.compiler.Context;
 import se.lth.cs.tycho.ir.Port;
@@ -11,9 +12,14 @@ import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.phase.Phase;
 import se.lth.cs.tycho.reporting.CompilationException;
 import se.lth.cs.tycho.reporting.Diagnostic;
+import se.lth.cs.tycho.settings.Setting;
 
 import javax.tools.JavaCompiler;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class BankedNetworkPortsPhase implements Phase {
 
@@ -26,10 +32,14 @@ public class BankedNetworkPortsPhase implements Phase {
         return "Transforms all PortDecl nodes in the network i/o to BankedPortDecl";
     }
 
+
+
     @Override
     public CompilationTask execute(CompilationTask task, Context context) throws CompilationException {
 
-
+        if (context.getConfiguration().get(PlatformSettings.enableSystemC)) {
+            return task;
+        }
         Network network = task.getNetwork();
 
         ImmutableList.Builder<PortDecl> inputPortsBuilder = ImmutableList.builder();
