@@ -10,7 +10,8 @@
 #include <unistd.h>
 
 #include "xcl2.h"
-
+// #include <CL/cl_ext.h>
+#include <CL/cl_ext_xilinx.h>
 #include "ocl-macros.h"
 
 namespace ocl_device {
@@ -44,9 +45,9 @@ class DevicePort {
 public:
   DevicePort(PortAddress address);
   DevicePort(const cl::Context &context, PortAddress address,
-             cl_mem_flags flags, cl::size_type size);
+             cl_mem_flags flags, cl::size_type size, cl_int bank_id);
   cl_int allocate(const cl::Context &context, cl_mem_flags flags,
-                  cl::size_type size);
+                  cl::size_type size, cl_int bank_id);
 
   /**
    * Set the usable space in bytes
@@ -127,6 +128,8 @@ private:
   cl::Event buffer_size_event;
   EventInfo buffer_event_info;
   EventInfo size_event_info;
+
+  cl_mem_ext_ptr_t extensions;
 };
 
 struct PLinkPort {
@@ -162,17 +165,23 @@ public:
                   const std::vector<PLinkPort> &outputs) {
     OCL_ASSERT(inputs.size() == NUM_INPUTS, "Invalid number of input ports!\n");
     OCL_ASSERT(outputs.size() == NUM_OUTPUTS, "Invalid number of output ports!\n");
+
+    cl_int banks[4] = {XCL_MEM_DDR_BANK0, XCL_MEM_DDR_BANK1, XCL_MEM_DDR_BANK2, XCL_MEM_DDR_BANK3};
+
+    int bank_index = 0;
     for (auto &input : inputs) {
       OCL_MSG("constructing input port %s (%llu bytes)\n",
               input.port.toString().c_str(), input.capacity);
       input_ports.emplace_back(context, input.port, CL_MEM_READ_ONLY,
-                               input.capacity);
+                               input.capacity, banks[bank_index]);
+      bank_index = (bank_index + 1) % 4;
     }
     for (auto &output : outputs) {
       OCL_MSG("constructing output port %s (%llu bytes)\n",
               output.port.toString().c_str(), output.capacity);
       output_ports.emplace_back(context, output.port, CL_MEM_WRITE_ONLY,
-                                output.capacity);
+                                output.capacity, banks[bank_index]);
+      bank_index = (bank_index + 1) % 4;
     }
   }
   void buildPorts(const std::vector<PortAddress> &inputs,
@@ -190,14 +199,14 @@ public:
     }
   }
 
-  /**
-   * allocate input buffer
-   */
-  void allocateInputBuffer(const PortAddress &port, const cl::size_type size);
-  /**
-   * allocate output buffers
-   */
-  void allocateOutputBuffer(const PortAddress &port, const cl::size_type size);
+  // /**
+  //  * allocate input buffer
+  //  */
+  // void allocateInputBuffer(const PortAddress &port, const cl::size_type size);
+  // /**
+  //  * allocate output buffers
+  //  */
+  // void allocateOutputBuffer(const PortAddress &port, const cl::size_type size);
   /**
    * set the usable size of a port buffer
    */

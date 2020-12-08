@@ -23,11 +23,14 @@ else()
     message(FATAL_ERROR "OpenCL is not found, source SDx/Vitis settings.sh")
 endif()
 
+find_package(XRT REQUIRED)
+
+
 option(OPENCL_VERBOSE "Diagnostic messages for OpenCL calls and events")
 
 
 add_library(art-plink ${art_plink_source})
-target_include_directories(art-plink PUBLIC ${OpenCL_INCLUDE_DIRS} include)
+target_include_directories(art-plink PUBLIC ${OpenCL_INCLUDE_DIRS} ${XRT_INCLUDE_DIRS} include)
 target_link_libraries(art-plink ${OpenCL_LIBRARIES})
 set_target_properties(art-plink PROPERTIES CXX_STANDARD 14)
 

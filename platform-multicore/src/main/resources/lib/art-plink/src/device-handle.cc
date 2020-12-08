@@ -64,20 +64,25 @@ DevicePort::DevicePort(PortAddress address) : address(address) {
 }
 
 DevicePort::DevicePort(const cl::Context &context, PortAddress address,
-                       cl_mem_flags flags, cl::size_type size)
+                       cl_mem_flags flags, cl::size_type size, cl_int bank_id)
     : DevicePort(address) {
-  allocate(context, flags, size);
+  allocate(context, flags, size, bank_id);
 }
 
 cl_int DevicePort::allocate(const cl::Context &context, cl_mem_flags flags,
-                            cl::size_type size) {
+                            cl::size_type size, cl_int bank_id) {
   cl_int err;
-  device_buffer = cl::Buffer(context, flags, size, NULL, &err);
+
+  extensions.flags = bank_id;
+  extensions.obj = 0;
+  extensions.param = 0;
+  OCL_MSG("Using bank %d\n", bank_id);
+  device_buffer = cl::Buffer(context, flags | CL_MEM_EXT_PTR_XILINX, size, &extensions, &err);
 
   host_buffer.resize(size);
 
   cl_int err2;
-  device_size_buffer = cl::Buffer(context, CL_MEM_WRITE_ONLY, sizeof(uint32_t));
+  device_size_buffer = cl::Buffer(context, CL_MEM_WRITE_ONLY | CL_MEM_EXT_PTR_XILINX, sizeof(uint32_t), &extensions, &err2);
 
   host_size_buffer.resize(1);
 
@@ -203,34 +208,6 @@ DeviceHandle::DeviceHandle(int num_inputs, int num_outputs, int num_mems,
   kernel_event.emplace_back();
 }
 
-void DeviceHandle::allocateInputBuffer(const PortAddress &port,
-                                       const cl::size_type size) {
-
-  for (auto &input : input_ports)
-    if (port == input.getAddress()) {
-      cl_int err;
-      OCL_MSG("Allocating %s port buffer (%llu bytes) \n",
-              port.toString().c_str(), size);
-      OCL_CHECK(err, input.allocate(context, CL_MEM_READ_ONLY, size));
-      return;
-    }
-  OCL_ERR("Invalid input port %s\n", port.toString());
-}
-
-void DeviceHandle::allocateOutputBuffer(const PortAddress &port,
-                                        const cl::size_type size) {
-
-  for (auto &output : output_ports) {
-    if (port == output.getAddress()) {
-      cl_int err;
-      OCL_MSG("Allocating %s port buffer (%llu bytes)\n",
-              port.toString().c_str(), size);
-      OCL_CHECK(err, output.allocate(context, CL_MEM_WRITE_ONLY, size));
-      return;
-    }
-  }
-  OCL_ERR("Invalid output port %s\n", port.toString());
-}
 
 void DeviceHandle::enqueueWriteBuffers() {
   for (auto &input : input_ports) {
