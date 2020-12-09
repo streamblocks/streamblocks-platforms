@@ -29,20 +29,17 @@ import ch.epfl.vlsc.platformutils.utils.Box;
 import org.multij.Binding;
 import org.multij.Module;
 import org.multij.MultiJ;
-import se.lth.cs.tycho.attribute.ActorMachineScopes;
-import se.lth.cs.tycho.attribute.Closures;
-import se.lth.cs.tycho.attribute.ConstantEvaluator;
-import se.lth.cs.tycho.attribute.FreeVariables;
-import se.lth.cs.tycho.attribute.GlobalNames;
-import se.lth.cs.tycho.attribute.ScopeDependencies;
-import se.lth.cs.tycho.attribute.Types;
-import se.lth.cs.tycho.attribute.VariableDeclarations;
+import se.lth.cs.tycho.attribute.*;
 import se.lth.cs.tycho.compiler.CompilationTask;
 import se.lth.cs.tycho.compiler.Context;
 import se.lth.cs.tycho.compiler.UniqueNumbers;
 import se.lth.cs.tycho.ir.QID;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.network.Instance;
+import se.lth.cs.tycho.meta.interp.Interpreter;
+import se.lth.cs.tycho.meta.interp.op.Binary;
+import se.lth.cs.tycho.meta.interp.op.Unary;
+import se.lth.cs.tycho.meta.interp.value.util.Convert;
 import se.lth.cs.tycho.phase.TreeShadow;
 
 import static org.multij.BindingKind.INJECTED;
@@ -319,6 +316,24 @@ public interface VivadoHLSBackend {
     default VivadoTCL vivadotcl() {
         return MultiJ.from(VivadoTCL.class).bind("backend").to(this).instance();
     }
+
+
+    @Binding(LAZY)
+    default Interpreter interpreter() {
+        return MultiJ.from(Interpreter.class)
+                .bind("variables").to(task().getModule(VariableDeclarations.key))
+                .bind("types").to(task().getModule(TypeScopes.key))
+                .bind("unary").to(MultiJ.from(Unary.class).instance())
+                .bind("binary").to(MultiJ.from(Binary.class).instance())
+                .instance();
+    }
+
+    @Binding(LAZY)
+    default Convert converter() {
+        return MultiJ.from(Convert.class)
+                .instance();
+    }
+
 
     // -----------------------------------
     // -- Kernel Wrapper

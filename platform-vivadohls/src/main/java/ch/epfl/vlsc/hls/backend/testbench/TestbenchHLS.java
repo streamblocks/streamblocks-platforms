@@ -9,6 +9,7 @@ import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.GlobalNames;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
+import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.entity.am.ActorMachine;
@@ -17,6 +18,7 @@ import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.network.Network;
 import se.lth.cs.tycho.type.AlgebraicType;
 import se.lth.cs.tycho.type.IntType;
+import se.lth.cs.tycho.type.ListType;
 import se.lth.cs.tycho.type.Type;
 
 import java.nio.file.Path;
@@ -149,6 +151,19 @@ public interface TestbenchHLS {
                 emitter().emitNewLine();
             }
 
+            // -- External memories
+            for (VarDecl decl : backend().externalMemory().getExternalMemories(entity)) {
+                ListType listType = (ListType) backend().types().declaredType(decl);
+                Long listDepth = backend().externalMemory().memories().listDepth(listType);
+                String mem = String.format("%s* %s", backend().typeseval().type(listType.getElementType()),
+                        backend().externalMemory().memories().name(instance.getInstanceName(), decl));
+                emitter().emit("%s = new %s[%d];", mem, backend().typeseval().type(listType.getElementType()), listDepth);
+            }
+
+            if (!backend().externalMemory().getExternalMemories(entity).isEmpty()) {
+                emitter().emitNewLine();
+            }
+
             // -- End of execution
             emitter().emit("// -- End of execution");
             emitter().emit("bool end_of_execution = false;");
@@ -198,6 +213,15 @@ public interface TestbenchHLS {
 
             if (!entity.getOutputPorts().isEmpty()) {
                 entity.getOutputPorts().forEach(this::printProduced);
+                emitter().emitNewLine();
+            }
+
+            // -- Delete external memories
+            for (VarDecl decl : backend().externalMemory().getExternalMemories(entity)) {
+                emitter().emit("delete %s;", backend().externalMemory().memories().name(instance.getInstanceName(), decl));
+            }
+
+            if (!backend().externalMemory().getExternalMemories(entity).isEmpty()) {
                 emitter().emitNewLine();
             }
 
@@ -289,10 +313,24 @@ public interface TestbenchHLS {
                 emitter().emitNewLine();
             }
 
-
             // -- End of execution
             emitter().emit("// -- End of execution");
             emitter().emit("bool end_of_execution;");
+            emitter().emitNewLine();
+
+
+            // -- External memories
+            for (Instance instance : network.getInstances()) {
+                GlobalEntityDecl entityDecl = globalnames().entityDecl(instance.getEntityName(), true);
+                Entity entity = entityDecl.getEntity();
+                for (VarDecl decl : backend().externalMemory().getExternalMemories(entity)) {
+                    ListType listType = (ListType) backend().types().declaredType(decl);
+                    Long listDepth = backend().externalMemory().memories().listDepth(listType);
+                    String mem = String.format("%s* %s", backend().typeseval().type(listType.getElementType()),
+                            backend().externalMemory().memories().name(instance.getInstanceName(), decl));
+                    emitter().emit("%s = new %s[%d];", mem, backend().typeseval().type(listType.getElementType()), listDepth);
+                }
+            }
             emitter().emitNewLine();
 
             // -- Running
@@ -355,7 +393,7 @@ public interface TestbenchHLS {
                         ports.add(queueName);
                     }
 
-                    emitter().emit("end_of_execution |= %s(%s, io_%1$s) == RETURN_EXECUTED;", instance.getInstanceName(), String.join(", ", ports));
+                    emitter().emit("end_of_execution |= %s(%s, io_%1$s) != RETURN_WAIT;", instance.getInstanceName(), String.join(", ", ports));
                     emitter().emitNewLine();
                 }
 
@@ -380,6 +418,15 @@ public interface TestbenchHLS {
                 emitter().emitNewLine();
             }
 
+            // -- Delete external memories
+            for (Instance instance : network.getInstances()) {
+                GlobalEntityDecl entityDecl = globalnames().entityDecl(instance.getEntityName(), true);
+                Entity entity = entityDecl.getEntity();
+                for (VarDecl decl : backend().externalMemory().getExternalMemories(entity)) {
+                    emitter().emit("delete %s;", backend().externalMemory().memories().name(instance.getInstanceName(), decl));
+                }
+            }
+            emitter().emitNewLine();
 
             emitter().emit("return 0;");
             emitter().decreaseIndentation();
@@ -423,7 +470,7 @@ public interface TestbenchHLS {
             emitter().increaseIndentation();
 
             emitter().emit("std::istringstream iss(%s_line);", port.getName());
-            emitter().emit("%s %s_tmp;", backend().typeseval().type(backend().types().declaredPortType(port)), port.getName());
+            emitter().emit("size_t %s_tmp;", port.getName());
             emitter().emit("iss >> %s_tmp;", port.getName());
             emitter().emit("%s.write((%s) %s_tmp);", connection != null ? backend().vnetwork().queueNames().get(connection) : port.getName(), backend().typeseval().type(backend().types().declaredPortType(port)), port.getName());
 
@@ -440,7 +487,7 @@ public interface TestbenchHLS {
             emitter().increaseIndentation();
 
             emitter().emit("std::istringstream iss(%s_line);", port.getName());
-            emitter().emit("%s %s_tmp;", backend().typeseval().type(backend().types().declaredPortType(port)), port.getName());
+            emitter().emit("size_t %s_tmp;", port.getName());
             emitter().emit("iss >> %s_tmp;", port.getName());
             emitter().emit("qref_%s.push((%s) %1$s_tmp);", port.getName(), backend().typeseval().type(backend().types().declaredPortType(port)));
 

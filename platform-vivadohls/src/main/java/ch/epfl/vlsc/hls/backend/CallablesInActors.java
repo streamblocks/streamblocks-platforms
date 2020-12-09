@@ -1,5 +1,6 @@
 package ch.epfl.vlsc.hls.backend;
 
+import ch.epfl.vlsc.hls.platform.VivadoHLS;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
@@ -62,7 +63,7 @@ public interface CallablesInActors {
      * @param lambda
      */
     default void callableDefinition(String instanceName, ExprLambda lambda) {
-        backend().emitter().emit("inline %s {", lambdaHeader(instanceName, lambda,true));
+        backend().emitter().emit("inline %s {", lambdaHeader(instanceName, lambda, true));
         backend().emitter().emit("#pragma HLS INLINE");
         backend().emitter().increaseIndentation();
         backend().emitter().emit("return %s;", backend().expressioneval().evaluate(lambda.getBody()));
@@ -78,7 +79,7 @@ public interface CallablesInActors {
      */
 
     default void callableDefinition(String instanceName, ExprProc proc) {
-        backend().emitter().emit("inline %s {", procHeader(instanceName, proc,true));
+        backend().emitter().emit("inline %s {", procHeader(instanceName, proc, true));
         backend().emitter().emit("#pragma HLS INLINE");
         backend().emitter().increaseIndentation();
         proc.getBody().forEach(backend().statements()::execute);
@@ -217,16 +218,18 @@ public interface CallablesInActors {
 
     default void externalCallableDeclaration(VarDecl varDecl) {
         if (varDecl.isExternal()) {
-            Type type = backend().types().declaredType(varDecl);
-            assert type instanceof CallableType : "External declaration must be function or procedure";
-            CallableType callable = (CallableType) type;
-            List<String> parameterNames = new ArrayList<>();
-            for (int i = 0; i < callable.getParameterTypes().size(); i++) {
-                parameterNames.add("p_" + i);
+            if (!VivadoHLS.externalsToIgnore.contains(varDecl.getName())) {
+                Type type = backend().types().declaredType(varDecl);
+                assert type instanceof CallableType : "External declaration must be function or procedure";
+                CallableType callable = (CallableType) type;
+                List<String> parameterNames = new ArrayList<>();
+                for (int i = 0; i < callable.getParameterTypes().size(); i++) {
+                    parameterNames.add("p_" + i);
+                }
+                backend().emitter().emit("%s;", externalCallableHeader(varDecl.getOriginalName(), callable, parameterNames));
+                String name = externalWrapperFunctionName(varDecl);
+                backend().emitter().emit("%s;", externalCallableHeader(name, callable, parameterNames));
             }
-            backend().emitter().emit("%s;", externalCallableHeader(varDecl.getOriginalName(), callable, parameterNames));
-            String name = externalWrapperFunctionName(varDecl);
-            backend().emitter().emit("%s;", externalCallableHeader(name, callable, parameterNames));
         }
     }
 
@@ -235,24 +238,26 @@ public interface CallablesInActors {
 
     default void externalCallableDefinition(VarDecl varDecl) {
         if (varDecl.isExternal()) {
-            Type type = backend().types().declaredType(varDecl);
-            assert type instanceof CallableType : "External declaration must be function or procedure";
-            CallableType callable = (CallableType) type;
-            List<String> parameterNames = new ArrayList<>();
-            for (int i = 0; i < callable.getParameterTypes().size(); i++) {
-                parameterNames.add("p_" + i);
+            if (!VivadoHLS.externalsToIgnore.contains(varDecl.getName())) {
+                Type type = backend().types().declaredType(varDecl);
+                assert type instanceof CallableType : "External declaration must be function or procedure";
+                CallableType callable = (CallableType) type;
+                List<String> parameterNames = new ArrayList<>();
+                for (int i = 0; i < callable.getParameterTypes().size(); i++) {
+                    parameterNames.add("p_" + i);
+                }
+                String name = externalWrapperFunctionName(varDecl);
+                backend().emitter().emit("static %s {", externalCallableHeader(name, callable, parameterNames));
+                backend().emitter().increaseIndentation();
+                String call = varDecl.getOriginalName() + "(" + String.join(", ", parameterNames) + ")";
+                if (callable.getReturnType().equals(UnitType.INSTANCE)) {
+                    backend().emitter().emit("%s;", call);
+                } else {
+                    backend().emitter().emit("return %s;", call);
+                }
+                backend().emitter().decreaseIndentation();
+                backend().emitter().emit("}");
             }
-            String name = externalWrapperFunctionName(varDecl);
-            backend().emitter().emit("static %s {", externalCallableHeader(name, callable, parameterNames));
-            backend().emitter().increaseIndentation();
-            String call = varDecl.getOriginalName() + "(" + String.join(", ", parameterNames) + ")";
-            if (callable.getReturnType().equals(UnitType.INSTANCE)) {
-                backend().emitter().emit("%s;", call);
-            } else {
-                backend().emitter().emit("return %s;", call);
-            }
-            backend().emitter().decreaseIndentation();
-            backend().emitter().emit("}");
         }
     }
 

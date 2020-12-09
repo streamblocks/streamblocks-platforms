@@ -197,7 +197,7 @@ public class ListComprehensionToStmtWhile implements Phase {
             statements.add(foreach);
 
             if (singleDimAssignment) {
-                LocalVarDecl indexDecl = new LocalVarDecl(ImmutableList.empty(), TypeToTypeExpr.convert(new IntType(OptionalInt.empty(), false)), singleDimIndex, null, false);
+                LocalVarDecl indexDecl = new LocalVarDecl(ImmutableList.empty(), TypeToTypeExpr.convert(new IntType(OptionalInt.empty(), false)), singleDimIndex, new ExprLiteral(ExprLiteral.Kind.Integer, "0"), false);
                 StmtBlock block = new StmtBlock(ImmutableList.empty(), ImmutableList.of(indexDecl), ImmutableList.of(foreach));
                 return block;
             }

@@ -35,14 +35,14 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake)
 # -- --------------------------------------------------------------------------
 # -- Minimal external tools requirement for the generated code
 # -- --------------------------------------------------------------------------
-find_package(VivadoHLS REQUIRED)
+find_package(VivadoHLS QUIET)
 if (NOT VIVADO_HLS_FOUND)
-	message(FATAL_ERROR "Vivado HLS not found, source Vivado settings.sh")
+	message(WARNING "Vivado HLS not found, source Vivado settings.sh")
 endif()
 
-find_package(Vivado REQUIRED)
+find_package(Vivado QUIET)
 if (NOT VIVADO_FOUND)
-	message(FATAL_ERROR "Vivado not found, source Vivado settings.sh")
+	message(WARNING "Vivado not found, source Vivado settings.sh")
 endif()
 
 # -- Use Vitis

@@ -6,9 +6,10 @@ import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.ir.decl.VarDecl;
-import se.lth.cs.tycho.ir.expr.ExprLambda;
-import se.lth.cs.tycho.ir.expr.ExprProc;
-import se.lth.cs.tycho.ir.expr.Expression;
+import se.lth.cs.tycho.ir.expr.*;
+import se.lth.cs.tycho.meta.interp.Environment;
+import se.lth.cs.tycho.meta.interp.Interpreter;
+import se.lth.cs.tycho.meta.interp.value.Value;
 import se.lth.cs.tycho.type.CallableType;
 import se.lth.cs.tycho.type.Type;
 
@@ -33,6 +34,8 @@ public interface Globals {
         emitter().emitNewLine();
 
         // -- Includes
+        emitter().emit("#include <string>");
+        emitter().emit("#include <iostream>");
         emitter().emit("#include <stdint.h>");
         emitter().emit("#include \"ap_int.h\"");
         emitter().emitNewLine();
@@ -185,12 +188,19 @@ public interface Globals {
         emitter().emitNewLine();
 
         // -- Global Variables Declaration
-        emitter().emit("// -- Global variable declaration");
-        globalVariableDeclarations(getGlobalVarDecls());
+        emitter().emit("// -- External Callables Definition");
+        backend().task().walk().forEach(backend().callables()::externalCallableDeclaration);
+        emitter().emitNewLine();
 
         emitter().emit("// -- External Callables Declaration");
         backend().task().walk().forEach(backend().callables()::externalCallableDefinition);
         emitter().emitNewLine();
+
+        emitter().emit("// -- Global variable prototypes");
+        globalVariableDeclarations(getGlobalVarDecls());
+
+        emitter().emit("// -- Global variable definition");
+        globalVariableDefinition(getGlobalVarDecls());
 
         emitter().emit("#endif // __GLOBALS_%s__", backend().task().getIdentifier().getLast().toString().toUpperCase());
         emitter().emitNewLine();
@@ -207,6 +217,39 @@ public interface Globals {
 
     default void globalVariableDeclarations(Stream<VarDecl> varDecls) {
         varDecls.forEach(decl -> {
+                    Type type = backend().types().declaredType(decl);
+                    if (type instanceof CallableType) {
+                        if (decl.getValue() != null) {
+                            Expression expr = decl.getValue();
+                            if (expr instanceof ExprLambda || expr instanceof ExprProc) {
+                                backend().callables().callablePrototypes(backend().variables().declarationName(decl), expr);
+                                emitter().emitNewLine();
+                            }
+                        }
+                    } else {
+                        if (decl.getValue() instanceof ExprComprehension) {
+                            Interpreter interpreter = backend().interpreter();
+                            Environment environment = new Environment();
+                            Value value = interpreter.eval((ExprComprehension) decl.getValue(), environment);
+                            Expression expression = backend().converter().apply(value);
+                            String d = backend().declarations().declaration(backend().types().declaredType(decl), backend().variables().declarationName(decl));
+                            emitter().emit("const %s = %s;", d, backend().expressioneval().evaluateWithoutTemp((ExprList) expression));
+                        } else if (decl.getValue() instanceof ExprList) {
+                            String d = backend().declarations().declaration(backend().types().declaredType(decl), backend().variables().declarationName(decl));
+                            emitter().emit("const %s = %s;", d, backend().expressioneval().evaluateWithoutTemp((ExprList) decl.getValue()));
+                        } else {
+                            String d = backend().declarations().declaration(backend().types().declaredType(decl), backend().variables().declarationName(decl));
+                            emitter().emit("static %s = %s;", d, backend().expressioneval().evaluate(decl.getValue()));
+                            emitter().emitNewLine();
+                        }
+                    }
+                }
+        );
+    }
+
+
+    default void globalVariableDefinition(Stream<VarDecl> varDecls) {
+        varDecls.forEach(decl -> {
             Type type = backend().types().declaredType(decl);
             if (type instanceof CallableType) {
                 if (decl.getValue() != null) {
@@ -216,10 +259,6 @@ public interface Globals {
                         emitter().emitNewLine();
                     }
                 }
-            } else {
-                String d = backend().declarations().declaration(backend().types().declaredType(decl), backend().variables().declarationName(decl));
-                emitter().emit("static %s = %s;", d, backend().expressioneval().evaluate(decl.getValue()));
-                emitter().emitNewLine();
             }
         });
     }

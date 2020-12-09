@@ -122,6 +122,9 @@ public interface TypesEvaluator {
             while (originalSize > targetSize) {
                 targetSize = targetSize * 2;
             }
+            if(targetSize > 64){
+                targetSize = 64;
+            }
             return String.format(type.isSigned() ? "int%d_t" : "uint%d_t", targetSize);
         } else {
             return type.isSigned() ? "int32_t" : "uint32_t";
@@ -161,7 +164,7 @@ public interface TypesEvaluator {
     }
 
     default String type(StringType type) {
-        return "char *";
+        return "std::string";
     }
 
     default String type(BoolType type) {

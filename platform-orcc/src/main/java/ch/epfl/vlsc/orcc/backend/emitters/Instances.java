@@ -745,10 +745,12 @@ public interface Instances {
                     emitter().increaseIndentation();
 
                     for (Port port : transition.getInputRates().keySet()) {
-                        String index = backend().variables().generateTemp();
-                        emitter().emit("for (size_t %1$s = 0; %1$s < (%2$s); %1$s++) {", index, transition.getInputRates().get(port));
-                        emitter().emit("\tfprintf(file_%1$s, \"%%%3$s\\n\" ,tokens_%1$s[(index_%1$s + (%2$s)) %% SIZE_%1$s]);", port.getName(), index, typesEval().printFormat(backend().channelUtils().inputPortType(port)));
-                        emitter().emit("}");
+                        if (backend().channelUtils().isTargetConnected(backend().instancebox().get().getInstanceName(), port.getName())) {
+                            String index = backend().variables().generateTemp();
+                            emitter().emit("for (size_t %1$s = 0; %1$s < (%2$s); %1$s++) {", index, transition.getInputRates().get(port));
+                            emitter().emit("\tfprintf(file_%1$s, \"%%%3$s\\n\" ,tokens_%1$s[(index_%1$s + (%2$s)) %% SIZE_%1$s]);", port.getName(), index, typesEval().printFormat(backend().channelUtils().inputPortType(port)));
+                            emitter().emit("}");
+                        }
                     }
 
                     emitter().decreaseIndentation();
@@ -767,10 +769,12 @@ public interface Instances {
                     emitter().increaseIndentation();
 
                     for (Port port : transition.getOutputRates().keySet()) {
-                        String index = backend().variables().generateTemp();
-                        emitter().emit("for (size_t %1$s = 0; %1$s < (%2$s); %1$s++) {", index, transition.getOutputRates().get(port));
-                        emitter().emit("\tfprintf(file_%1$s, \"%%%3$s\\n\" ,tokens_%1$s[(index_%1$s + (%2$s)) %% SIZE_%1$s]);", port.getName(), index, typesEval().printFormat(backend().channelUtils().outputPortType(port)));
-                        emitter().emit("}");
+                        if (backend().channelUtils().isSourceConnected(backend().instancebox().get().getInstanceName(), port.getName())) {
+                            String index = backend().variables().generateTemp();
+                            emitter().emit("for (size_t %1$s = 0; %1$s < (%2$s); %1$s++) {", index, transition.getOutputRates().get(port));
+                            emitter().emit("\tfprintf(file_%1$s, \"%%%3$s\\n\" ,tokens_%1$s[(index_%1$s + (%2$s)) %% SIZE_%1$s]);", port.getName(), index, typesEval().printFormat(backend().channelUtils().outputPortType(port)));
+                            emitter().emit("}");
+                        }
                     }
 
                     emitter().decreaseIndentation();

@@ -21,6 +21,23 @@ public class VivadoHLS implements Platform {
         return "StreamBlocks code-generator for VivadoHLS.";
     }
 
+    public static ImmutableList<String> externalsToIgnore = ImmutableList.of(
+            "displayYUV_init",
+            "displayYUV_displayPicture",
+            "displayYUV_getFlags",
+            "displayYUV_getNbFrames",
+            "compareYUV_init",
+            "compareYUV_comparePicture",
+            "fpsPrintInit",
+            "fpsPrintNewPicDecoded",
+            "source_init",
+            "source_readNBytes",
+            "source_sizeOfFile",
+            "source_rewind",
+            "source_decrementNbLoops",
+            "source_isMaxLoopsReached",
+            "source_exit"
+    );
 
     public static List<Phase> postPartitionNetworkElaborationPhases() {
         return ImmutableList.of(
@@ -67,6 +84,9 @@ public class VivadoHLS implements Platform {
             .addAll(CommonPhases.hardwarePartitioningPhases)
             .addAll(postPartitionNetworkElaborationPhases())
             .addAll(actorMachinePhases())
+            .add(new ExprOutputToAssignment())
+            .add(new ExprToStmtAssignment())
+            .add(new ListComprehensionToStmtWhile())
             .add(new RemoveUnusedEntityDeclsPhase())
             .add(new VivadoHLSBackendPhase())
             .build();

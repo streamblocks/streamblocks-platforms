@@ -13,6 +13,7 @@ import se.lth.cs.tycho.ir.entity.cal.CalActor;
 import se.lth.cs.tycho.ir.expr.*;
 import se.lth.cs.tycho.ir.stmt.*;
 import se.lth.cs.tycho.ir.stmt.lvalue.LValue;
+import se.lth.cs.tycho.ir.stmt.lvalue.LValueIndexer;
 import se.lth.cs.tycho.ir.stmt.lvalue.LValueVariable;
 import se.lth.cs.tycho.type.ListType;
 import se.lth.cs.tycho.type.Type;
@@ -189,13 +190,60 @@ public interface Statements {
     default void execute(StmtAssignment assign) {
         Type type = types().type(assign.getLValue());
         String lvalue = lvalues().lvalue(assign.getLValue());
-        if (assign.getExpression() instanceof ExprComprehension) {
-            expressioneval().evaluate(assign.getExpression());
+        //if ((type instanceof ListType && assign.getLValue() instanceof LValueVariable) && !(assign.getExpression() instanceof ExprList)) {
+        //if (assign.getExpression() instanceof ExprComprehension) {
+        //    expressioneval().evaluate(assign.getExpression());
+        //} else {
+        if (assign.getLValue() instanceof LValueIndexer) {
+            LValueIndexer indexer = (LValueIndexer) assign.getLValue();
+            if (lvalues().subIndexAccess(indexer)) {
+                String varName = variables().name(lvalues().evalLValueIndexerVar(indexer));
+                String index = lvalues().singleDimIndex(indexer);
+
+                emitter().emit("{");
+                emitter().increaseIndentation();
+                String eval = expressioneval().evaluate(assign.getExpression());
+                Type exprType = types().type(assign.getExpression());
+
+                copySubAccess((ListType) type, varName, (ListType) exprType, eval, index);
+                emitter().decreaseIndentation();
+                emitter().emit("}");
+            } else {
+                if (assign.getExpression() instanceof ExprComprehension) {
+                    emitter().emit("{");
+                    emitter().increaseIndentation();
+                    String eval = expressioneval().evaluate(assign.getExpression());
+                    copy(type, lvalue, types().type(assign.getExpression()), eval);
+                    emitter().decreaseIndentation();
+                    emitter().emit("}");
+                } else {
+                    copy(type, lvalue, types().type(assign.getExpression()), expressioneval().evaluate(assign.getExpression()));
+                }
+            }
         } else {
-            Type t = types().type(assign.getExpression());
-            String eval = expressioneval().evaluate(assign.getExpression());
-            copy(type, lvalue, t, eval);
+            if (assign.getExpression() instanceof ExprComprehension) {
+                emitter().emit("{");
+                emitter().increaseIndentation();
+                String eval = expressioneval().evaluate(assign.getExpression());
+                copy(type, lvalue, types().type(assign.getExpression()), eval);
+                emitter().decreaseIndentation();
+                emitter().emit("}");
+            } else {
+                copy(type, lvalue, types().type(assign.getExpression()), expressioneval().evaluate(assign.getExpression()));
+            }
         }
+        //}
+    }
+    default void copySubAccess(ListType lvalueType, String lvalue, ListType rvalueType, String rvalue, String singleDimIndex) {
+        //if (!lvalueType.equals(rvalueType)) {
+        String maxIndex = typeseval().sizeByDimension(lvalueType).stream().map(Object::toString).collect(Collectors.joining(" * "));
+        String index = variables().generateTemp();
+        emitter().emit("for (size_t %1$s = 0; %1$s < (%2$s); %1$s++) {", index, maxIndex);
+        emitter().increaseIndentation();
+        emitter().emit("%1$s[%2$s + %3$s] = %4$s[%3$s];", lvalue, singleDimIndex, index, rvalue);
+        emitter().decreaseIndentation();
+        emitter().emit("}");
+        //}
     }
 
     default void copy(Type lvalueType, String lvalue, Type rvalueType, String rvalue) {

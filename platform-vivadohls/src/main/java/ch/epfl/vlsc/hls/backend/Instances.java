@@ -787,7 +787,10 @@ public interface Instances {
         }
         emitter().emit("%s{", transitionPrototype(instanceName, transition, index, true));
         emitter().emit("#pragma HLS INLINE");
-        emitter().emit("#pragma HLS LOOP_MERGE");
+        Optional<Annotation> loopMerge = Annotation.getAnnotationWithName("loop_merge", transition.getAnnotations());
+        if(loopMerge.isPresent()){
+            emitter().emit("#pragma HLS LOOP_MERGE");
+        }
         {
             emitter().increaseIndentation();
 

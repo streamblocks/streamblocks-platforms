@@ -104,9 +104,7 @@ public interface Variables {
     default String name(Variable var) {
         VarDecl decl = backend().varDecls().declaration(var);
         IRNode parent = backend().tree().parent(decl);
-        if (backend().closures().isDeclaredInClosure(var)) {
-            return "this->" + declarationName(decl);
-        } else if (parent instanceof Scope || parent instanceof ActorMachine || parent instanceof CalActor) {
+        if (parent instanceof Scope || parent instanceof ActorMachine || parent instanceof CalActor) {
             return "this->" + declarationName(decl);
         } else {
             return declarationName(decl);

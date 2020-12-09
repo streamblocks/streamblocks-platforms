@@ -44,7 +44,8 @@ public interface LValues {
         return variables().name(var.getVariable());
     }
 
-    default String lvalue(LValueDeref deref) {
+
+   default String lvalue(LValueDeref deref) {
         LValueVariable lValueVariable = deref.getVariable();
         Variable var = lValueVariable.getVariable();
         VarDecl decl = backend().varDecls().declaration(var);

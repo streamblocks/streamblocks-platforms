@@ -6,7 +6,6 @@ import ch.epfl.vlsc.settings.PlatformSettings;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
-import se.lth.cs.tycho.compiler.SourceUnit;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.expr.ExprLambda;
 import se.lth.cs.tycho.ir.expr.ExprProc;
@@ -309,7 +308,14 @@ public interface Globals {
             if (!(type instanceof CallableType)) {
                 emitter().emit("{");
                 emitter().increaseIndentation();
+/*
+                if(type instanceof ListType){
+                    String maxIndex = backend().typeseval().sizeByDimension((ListType) type).stream().map(Object::toString).collect(Collectors.joining("*"));
+                    emitter().emit("%s = (%s*) calloc(%s, sizeof(%2$s));", backend().variables().declarationName(decl), backend().typeseval().type(type), maxIndex);
+                }
+*/
                 backend().statements().copy(type, backend().variables().declarationName(decl), backend().types().type(decl.getValue()), backend().expressionEval().evaluate(decl.getValue()));
+
                 emitter().decreaseIndentation();
                 emitter().emit("}");
             }

@@ -41,7 +41,7 @@ public interface Declarations {
     }
 
     default String declaration(StringType type, String name) {
-        return "char* " + name;
+        return "std::string " + name;
     }
 
     default String declarationTemp(Type type, String name) {

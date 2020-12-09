@@ -17,10 +17,10 @@ open_project $instance_name
 set_top $instance_name
 
 ## -- Add file
-add_files ${PROJECT_SOURCE_DIR}/code-gen/src/$file_name -cflags "-std=c++11 -I${PROJECT_SOURCE_DIR}/code-gen/include"
+add_files ${PROJECT_SOURCE_DIR}/code-gen/src/$file_name -cflags "-std=c++11 -Wno-narrowing -I${PROJECT_SOURCE_DIR}/code-gen/include"
 
 ## -- Add Testbench files
-add_files -tb ${PROJECT_SOURCE_DIR}/code-gen/src-tb/tb_$file_name -cflags "-std=c++11 -I${PROJECT_SOURCE_DIR}/code-gen/include"
+add_files -tb ${PROJECT_SOURCE_DIR}/code-gen/src-tb/tb_$file_name -cflags "-std=c++11 -Wno-narrowing -I${PROJECT_SOURCE_DIR}/code-gen/include"
 add_files -tb ${PROJECT_SOURCE_DIR}/output/fifo-traces
 
 ## -- Create solution
@@ -40,7 +40,7 @@ set_clock_uncertainty 12.5%
 
 ## -- Config RTL
 config_rtl -reset_level low
-config_compile -name_max_length 512 -pipeline_loops 256
+config_compile -name_max_length 512
 
 
 ## -- Run synthesis
