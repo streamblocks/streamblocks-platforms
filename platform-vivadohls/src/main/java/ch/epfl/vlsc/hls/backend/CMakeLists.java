@@ -86,7 +86,7 @@ public interface CMakeLists {
 
         emitter().emit("if(IS_MPSOC)");
         emitter().emit("\tset(BANK \"HP\")");
-        emitter().emit(")");
+        emitter().emit("endif()");
         emitter().emitNewLine();
 
         emitter().emitSharpBlockComment("memory bank configurations");
