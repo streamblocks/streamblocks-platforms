@@ -81,6 +81,14 @@ public interface CMakeLists {
         emitter().emit(")");
         emitter().emitNewLine();
 
+        emitter().emitSharpComment("Set the bank name");
+        emitter().emit("set(BANK \"bank\")");
+
+        emitter().emit("if(IS_MPSOC)");
+        emitter().emit("\tset(BANK \"HP\")");
+        emitter().emit(")");
+        emitter().emitNewLine();
+
         emitter().emitSharpBlockComment("memory bank configurations");
         emitter().emit("set(__MEMORY_BANK_CONFIGS__");
         {
@@ -95,11 +103,11 @@ public interface CMakeLists {
                     banks = (banks + 1) % 4;
                 }
 
-                emitter().emit("--sp ${__NETWORK_TOP_NAME__}_kernel_1.m_axi_%s:bank%d", port.getName(), bankId);
+                emitter().emit("--sp ${__NETWORK_TOP_NAME__}_kernel_1.m_axi_%s:${BANK}%d", port.getName(), bankId);
             }
-
+            emitter().decreaseIndentation();
+            emitter().emit(")");
         }
-        emitter().emit(")");
 
         emitter().emitSharpComment("all the actors in the kernel");
 

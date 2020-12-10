@@ -42,6 +42,8 @@ set_clock_uncertainty 12.5%
 config_rtl -reset_level low
 config_compile -name_max_length 512
 
+## -- Config unroll
+config_unroll -tripcount_threshold 128
 
 ## -- Run synthesis
 csynth_design
