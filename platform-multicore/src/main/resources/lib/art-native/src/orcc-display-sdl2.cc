@@ -45,11 +45,21 @@ char displayYUV_getFlags(){
 static void displayYUV_setSize(int width, int height) {
     printf("set display to %ix%i\n", width, height);
     // allocate window, renderer, texture
+
+#ifdef DISPLAY_ACCELERATED
     pWindow1    = SDL_CreateWindow( "display", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
                                     width, height, SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL);
     pRenderer1  = SDL_CreateRenderer(pWindow1, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     bmpTex1     = SDL_CreateTexture(pRenderer1, SDL_PIXELFORMAT_YV12,
                                     SDL_TEXTUREACCESS_STREAMING, width, height);
+#else
+    pWindow1    = SDL_CreateWindow( "display", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+                                    width, height, SDL_WINDOW_SHOWN);
+    pRenderer1  = SDL_CreateRenderer(pWindow1, -1, SDL_RENDERER_SOFTWARE);
+    bmpTex1     = SDL_CreateTexture(pRenderer1, SDL_PIXELFORMAT_YV12,
+                                    SDL_TEXTUREACCESS_STREAMING, width, height);
+#endif
+
     if(pWindow1==NULL || pRenderer1==NULL || bmpTex1==NULL) {
         fprintf(stderr, "Could not open window1\n");
     }

@@ -4,6 +4,7 @@ project(art-lib)
 
 # -- Options
 option(DISPLAY "Display on the screen." ON)
+option(DISPLAY_ACCELERATED "Display on the screen." OFF)
 option(TRACE "Generate execution trace." OFF)
 option(TRACE_TURNUS "Generate execution trace for TURNUS." OFF)
 
@@ -32,6 +33,9 @@ if(TRACE_TURNUS)
     list(APPEND extra_definitions "-DTRACE_TURNUS")
 endif()
 
+if(DISPLAY_ACCELERATED)
+    list(APPEND extra_definitions "-DDISPLAY_ACCELERATED")
+endif()
 
 if(ART_NODE)
     include_directories(

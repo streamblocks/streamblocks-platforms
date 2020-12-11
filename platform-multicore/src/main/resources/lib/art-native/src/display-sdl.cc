@@ -76,10 +76,15 @@ int allocate_display(int width,
     disp->nb_pictures = 0;
     disp->last_num_picture = 0;
 
-
+#ifdef DISPLAY_ACCELERATED
     disp->window = SDL_CreateWindow("Display", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height,
                                     SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL);
     disp->renderer = SDL_CreateRenderer(disp->window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+#else
+    disp->window = SDL_CreateWindow("Display", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height,
+                                    SDL_WINDOW_SHOWN);
+    disp->renderer = SDL_CreateRenderer(disp->window, -1, SDL_RENDERER_SOFTWARE);
+#endif
 
     disp->image = SDL_CreateRGBSurface(0,
                                        width, height,
