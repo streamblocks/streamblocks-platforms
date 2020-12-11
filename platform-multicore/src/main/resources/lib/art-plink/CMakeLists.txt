@@ -1,15 +1,10 @@
+option(MPSOC "Is MPSoC" OFF)
+
 # ART PLink sources
 set(art_plink_source
         src/device-handle.cc
         src/xcl2.cc
 )
-
-# # ART PLink includes
-# set(art_plink_header
-#         include/device-handle.h
-#         include/xcl2.h
-# )
-
 
 
 # -- Set CMake module path, for finding the necessary tools
@@ -24,14 +19,22 @@ else()
 endif()
 
 find_package(XRT REQUIRED)
-
+if(XRT_FOUND)
+    list(APPEND extra_includes ${XRT_INCLUDE_DIRS})
+    list(APPEND extra_libraries ${XRT_LIBRARIES})
+    if(MPSOC)
+	list(APPEND extra_definitions "-DMPSOC")
+    endif()
+else()
+    message(FATAL_ERROR "XRT is not found, source SDx/Vitis settings.sh")
+endif()
 
 option(OPENCL_VERBOSE "Diagnostic messages for OpenCL calls and events")
 
 
 add_library(art-plink ${art_plink_source})
-target_include_directories(art-plink PUBLIC ${OpenCL_INCLUDE_DIRS} ${XRT_INCLUDE_DIRS} include)
-target_link_libraries(art-plink ${OpenCL_LIBRARIES})
+target_include_directories(art-plink PUBLIC  ${XRT_INCLUDE_DIRS} include)
+target_link_libraries(art-plink ${OpenCL_LIBRARIES} ${XRT_LIBRARIES})
 set_target_properties(art-plink PROPERTIES CXX_STANDARD 14)
 
 
@@ -45,3 +48,7 @@ endif()
 
 install(TARGETS art-plink
         ARCHIVE DESTINATION lib)
+
+set(extra_definitions ${extra_definitions} PARENT_SCOPE)
+set(extra_includes ${extra_includes} PARENT_SCOPE)
+set(extra_libraries ${extra_libraries} PARENT_SCOPE)

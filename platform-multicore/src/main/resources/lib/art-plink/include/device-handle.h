@@ -166,7 +166,11 @@ public:
     OCL_ASSERT(inputs.size() == NUM_INPUTS, "Invalid number of input ports!\n");
     OCL_ASSERT(outputs.size() == NUM_OUTPUTS, "Invalid number of output ports!\n");
 
+#ifndef MPSOC
     cl_int banks[4] = {XCL_MEM_DDR_BANK0, XCL_MEM_DDR_BANK1, XCL_MEM_DDR_BANK2, XCL_MEM_DDR_BANK3};
+#else
+    cl_int banks[4] = {XCL_MEM_DDR_BANK0, XCL_MEM_DDR_BANK0, XCL_MEM_DDR_BANK0, XCL_MEM_DDR_BANK0};
+#endif
 
     int bank_index = 0;
     for (auto &input : inputs) {
