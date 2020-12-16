@@ -20,7 +20,7 @@ else()
     get_filename_component(XRT_ROOT_DIR ${XRT_PATH} DIRECTORY)
 
     set(XRT_FOUND TRUE)
-    set(XRT_INCLUDE_DIRS ${XRT_ROOT_DIR}/include/)
+    set(XRT_INCLUDE_DIRS ${XRT_ROOT_DIR}/include/ ${XRT_ROOT_DIR}/include/xrt)
 
     # Runtime includes
     file(GLOB SUBDIRECTORIES ${XRT_ROOT_DIR}/runtime/include/

@@ -160,6 +160,9 @@ public interface Instances {
         algebraicIO.forEach(io -> emitter().emit("#pragma HLS DATA_PACK variable=%s", io));
         algebraicPeek.forEach(peek -> emitter().emit("#pragma HLS DATA_PACK variable=io.%s_peek", peek));
 
+        // ---------------------------------------------------------
+        // -- Directives
+
         // -- Large state variables to external memories
         for (VarDecl decl : backend().externalMemory().getExternalMemories(entity)) {
             ListType listType = (ListType) types().declaredType(decl);
@@ -167,6 +170,12 @@ public interface Instances {
             Long listDepth = backend().externalMemory().memories().listDepth(listType);
             String memoryName = backend().externalMemory().name(instance, decl);
             emitter().emit("#pragma HLS INTERFACE m_axi depth=%d port=%s offset=direct bundle=%2$s", listDepth, memoryName);
+        }
+
+        // -- Top Directives
+        List<Annotation> annotations = entity.getAnnotations();
+        for(Annotation ann : annotations){
+            backend().annotations().emit(ann);
         }
         emitter().increaseIndentation();
 
@@ -787,9 +796,11 @@ public interface Instances {
         }
         emitter().emit("%s{", transitionPrototype(instanceName, transition, index, true));
         emitter().emit("#pragma HLS INLINE");
-        Optional<Annotation> loopMerge = Annotation.getAnnotationWithName("loop_merge", transition.getAnnotations());
-        if(loopMerge.isPresent()){
-            emitter().emit("#pragma HLS LOOP_MERGE");
+
+        // -- Emit transition annotations
+        List<Annotation> annotations = transition.getAnnotations();
+        for(Annotation ann : annotations){
+            backend().annotations().emit(ann);
         }
         {
             emitter().increaseIndentation();

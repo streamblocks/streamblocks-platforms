@@ -334,6 +334,12 @@ public interface VivadoHLSBackend {
                 .instance();
     }
 
+    // -----------------------------------
+    // -- Annotations
+    @Binding(LAZY)
+    default Annotations annotations() {
+        return MultiJ.from(Annotations.class).bind("backend").to(this).instance();
+    }
 
     // -----------------------------------
     // -- Kernel Wrapper
