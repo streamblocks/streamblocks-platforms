@@ -454,6 +454,9 @@ public class VivadoHLSBackendPhase implements Phase {
                     StandardCopyOption.REPLACE_EXISTING);
 
             // -- Find Vivado hls, vivado & SDAccel for cmake
+            Files.copy(getClass().getResourceAsStream("/lib/cmake/FindVitisHLS.cmake"),
+                    PathUtils.getTargetCmake(backend.context()).resolve("FindVitisHLS.cmake"),
+                    StandardCopyOption.REPLACE_EXISTING);
             Files.copy(getClass().getResourceAsStream("/lib/cmake/FindVivadoHLS.cmake"),
                     PathUtils.getTargetCmake(backend.context()).resolve("FindVivadoHLS.cmake"),
                     StandardCopyOption.REPLACE_EXISTING);
