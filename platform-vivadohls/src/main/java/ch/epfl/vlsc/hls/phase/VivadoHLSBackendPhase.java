@@ -19,7 +19,6 @@ import se.lth.cs.tycho.phase.Phase;
 import se.lth.cs.tycho.reporting.CompilationException;
 import se.lth.cs.tycho.reporting.Diagnostic;
 import se.lth.cs.tycho.reporting.Reporter;
-import se.lth.cs.tycho.settings.Configuration;
 import se.lth.cs.tycho.settings.Setting;
 
 import java.io.IOException;
@@ -482,8 +481,13 @@ public class VivadoHLSBackendPhase implements Phase {
                     StandardCopyOption.REPLACE_EXISTING);
 
             // -- Synthesis script for Vivado HLS as an input to CMake
-            Files.copy(getClass().getResourceAsStream("/lib/cmake/Synthesis.tcl.in"),
-                    PathUtils.getTargetScripts(backend.context()).resolve("Synthesis.tcl.in"),
+            Files.copy(getClass().getResourceAsStream("/lib/cmake/Synthesis_vivado.tcl.in"),
+                    PathUtils.getTargetScripts(backend.context()).resolve("Synthesis_vivado.tcl.in"),
+                    StandardCopyOption.REPLACE_EXISTING);
+
+            // -- Synthesis script for Vivado HLS as an input to CMake
+            Files.copy(getClass().getResourceAsStream("/lib/cmake/Synthesis_vitis.tcl.in"),
+                    PathUtils.getTargetScripts(backend.context()).resolve("Synthesis_vitis.tcl.in"),
                     StandardCopyOption.REPLACE_EXISTING);
 
             // -- Gen XO

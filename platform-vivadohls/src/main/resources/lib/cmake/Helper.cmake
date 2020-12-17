@@ -35,9 +35,18 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake)
 # -- --------------------------------------------------------------------------
 # -- Minimal external tools requirement for the generated code
 # -- --------------------------------------------------------------------------
-find_package(VivadoHLS QUIET)
-if (NOT VIVADO_HLS_FOUND)
-	message(WARNING "Vivado HLS not found, source Vivado settings.sh")
+set(HLS_TOOL "")
+
+find_package(VitisHLS QUIET)
+if (NOT VITIS_HLS_FOUND)
+	find_package(VivadoHLS QUIET)
+	if (NOT VIVADO_HLS_FOUND)
+		message(WARNING "Vitis HLS or Vivado HLS not found, source Vitis/Vivado settings.sh")
+	else()
+		set(HLS_TOOL ${VIVADO_HLS_BINARY})
+	endif()
+else()
+	set(HLS_TOOL ${VITIS_HLS_BINARY})
 endif()
 
 find_package(Vivado QUIET)
@@ -91,7 +100,12 @@ endif()
 # -- --------------------------------------------------------------------------
 # -- Configure files for Vivado HLS
 # -- --------------------------------------------------------------------------
-configure_file(${PROJECT_SOURCE_DIR}/scripts/Synthesis.tcl.in Synthesis.tcl)
+if(VITIS_FOUND)
+	configure_file(${PROJECT_SOURCE_DIR}/scripts/Synthesis_vitis.tcl.in Synthesis.tcl)
+else()
+	configure_file(${PROJECT_SOURCE_DIR}/scripts/Synthesis_vivado.tcl.in Synthesis.tcl)
+endif()
+
 configure_file(${PROJECT_SOURCE_DIR}/scripts/${__NETWORK_NAME__}.tcl.in ${__NETWORK_NAME__}.tcl @ONLY)
 
 # -- --------------------------------------------------------------------------
@@ -128,7 +142,7 @@ macro(synthesize_actor ACTOR)
 
 	add_custom_command(
 		OUTPUT ${${ACTOR}_VERILOG_SOURCE}
-		COMMAND ${VIVADO_HLS_BINARY} -f Synthesis.tcl -tclargs ${ACTOR} ${ACTOR}.cpp > ${ACTOR}.log
+		COMMAND ${HLS_TOOL} -f Synthesis.tcl -tclargs ${ACTOR} ${ACTOR}.cpp > ${ACTOR}.log
 		DEPENDS ${HLS_HEADER_PATH}/${ACTOR}.h ${HLS_SOURCE_PATH}/${ACTOR}.cpp
 		COMMENT	"CSynthesizing ${ACTOR}"
 
@@ -150,7 +164,7 @@ macro(synthesize_io ACTOR)
 
 	add_custom_command(
 		OUTPUT ${${ACTOR}_VERILOG_SOURCE}
-		COMMAND ${VIVADO_HLS_BINARY} -f Synthesis.tcl -tclargs ${ACTOR} ${ACTOR}.cpp > ${ACTOR}.log
+		COMMAND ${HLS_TOOL} -f Synthesis.tcl -tclargs ${ACTOR} ${ACTOR}.cpp > ${ACTOR}.log
 		DEPENDS ${HLS_HEADER_PATH}/iostage.h ${HLS_SOURCE_PATH}/${ACTOR}.cpp
 		COMMENT	"CSynthesizing ${ACTOR}"
 
