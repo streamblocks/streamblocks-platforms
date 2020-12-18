@@ -1,5 +1,3 @@
-
-
 set(__NETWORK_NAME__ @__NETWORK_TOP_NAME__@)
 set(VERILOG_GEN_DIR ${CMAKE_CURRENT_BINARY_DIR})
 message(STATUS "Top network ${__NETWORK_NAME__}")
@@ -100,10 +98,10 @@ endif()
 # -- --------------------------------------------------------------------------
 # -- Configure files for Vivado HLS
 # -- --------------------------------------------------------------------------
-if(VITIS_FOUND)
-	configure_file(${PROJECT_SOURCE_DIR}/scripts/Synthesis_vitis.tcl.in Synthesis.tcl)
-else()
+if(VIVADO_HLS_FOUND)
 	configure_file(${PROJECT_SOURCE_DIR}/scripts/Synthesis_vivado.tcl.in Synthesis.tcl)
+else()
+	configure_file(${PROJECT_SOURCE_DIR}/scripts/Synthesis_vitis.tcl.in Synthesis.tcl)
 endif()
 
 configure_file(${PROJECT_SOURCE_DIR}/scripts/${__NETWORK_NAME__}.tcl.in ${__NETWORK_NAME__}.tcl @ONLY)
