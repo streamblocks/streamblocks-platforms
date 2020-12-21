@@ -87,6 +87,7 @@ public class VivadoHLS implements Platform {
             .add(new ExprOutputToAssignment())
             .add(new ExprToStmtAssignment())
             .add(new ListComprehensionToStmtWhile())
+            .add(new SequentialPortAccess())
             .add(new RemoveUnusedEntityDeclsPhase())
             .add(new VivadoHLSBackendPhase())
             .build();

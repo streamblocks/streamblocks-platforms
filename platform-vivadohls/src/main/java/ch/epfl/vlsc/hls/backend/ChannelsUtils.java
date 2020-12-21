@@ -40,6 +40,36 @@ public interface ChannelsUtils {
         return backend().typeseval().type(type);
     }
 
+    default List<Connection> targetEndConnections(Connection.End source) {
+        Network network = backend().task().getNetwork();
+        List<Connection> connections = network.getConnections().stream()
+                .filter(conn -> conn.getSource().equals(source))
+                .collect(Collectors.toList());
+
+        return connections;
+    }
+
+    default Connection sourceEndConnection(Connection.End target) {
+        Network network = backend().task().getNetwork();
+        List<Connection> connections = network.getConnections().stream()
+                .filter(conn -> conn.getTarget().equals(target))
+                .collect(Collectors.toList());
+        if (connections.isEmpty()) {
+            return null;
+        }
+        return connections.get(0);
+    }
+
+    default boolean isSourceConnected(String instance, String port) {
+        Connection.End source = new Connection.End(Optional.of(instance), port);
+        return !targetEndConnections(source).isEmpty();
+    }
+
+    default boolean isTargetConnected(String instance, String port){
+        Connection.End target = new Connection.End(Optional.of(instance), port);
+        return sourceEndConnection(target)  != null;
+    }
+
 
     default String inputPortTypeSize(Port port) {
         return targetEndTypeSize(new Connection.End(Optional.of(backend().instancebox().get().getInstanceName()), port.getName()));

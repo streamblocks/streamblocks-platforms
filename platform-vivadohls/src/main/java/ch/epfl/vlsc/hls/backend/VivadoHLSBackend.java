@@ -138,6 +138,12 @@ public interface VivadoHLSBackend {
         return task().getModule(ScopeDependencies.key);
     }
 
+    // -- Ports
+    @Binding(LAZY)
+    default Ports ports() {
+        return task().getModule(Ports.key);
+    }
+
     // -- Emitter
     @Binding(LAZY)
     default Emitter emitter() {

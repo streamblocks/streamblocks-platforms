@@ -6,7 +6,9 @@ import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.ir.Variable;
 import se.lth.cs.tycho.ir.decl.VarDecl;
+import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.expr.ExprIndexer;
+import se.lth.cs.tycho.ir.expr.ExprPortIndexer;
 import se.lth.cs.tycho.ir.stmt.lvalue.*;
 import se.lth.cs.tycho.type.ListType;
 import se.lth.cs.tycho.type.RefType;
@@ -52,6 +54,19 @@ public interface LValues {
     default String lvalue(LValueIndexer indexer) {
         Variable var = evalLValueIndexerVar(indexer);
         return String.format("%s[%s]", variables().name(var), singleDimIndex(indexer));
+    }
+
+    default String evaluate(ExprPortIndexer inputIndexer) {
+        PortDecl decl = backend().ports().declaration(inputIndexer.getPort());
+        if (backend().ports().isInputPort(decl)) {
+            if (!backend().channelsutils().isTargetConnected(backend().instancebox().get().getInstanceName(), inputIndexer.getPort().getName())) {
+                Type type = backend().types().portType(inputIndexer.getPort());
+                String tmp = variables().generateTemp();
+                emitter().emit("pinRead(%s, %s);", inputIndexer.getPort().getName(), tmp);
+                return tmp;
+            }
+        }
+        return "0";
     }
 
 

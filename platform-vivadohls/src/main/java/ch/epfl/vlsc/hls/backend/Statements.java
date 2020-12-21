@@ -14,6 +14,7 @@ import se.lth.cs.tycho.ir.expr.*;
 import se.lth.cs.tycho.ir.stmt.*;
 import se.lth.cs.tycho.ir.stmt.lvalue.LValue;
 import se.lth.cs.tycho.ir.stmt.lvalue.LValueIndexer;
+import se.lth.cs.tycho.ir.stmt.lvalue.LValuePortIndexer;
 import se.lth.cs.tycho.ir.stmt.lvalue.LValueVariable;
 import se.lth.cs.tycho.type.ListType;
 import se.lth.cs.tycho.type.Type;
@@ -76,7 +77,7 @@ public interface Statements {
                 emitter().emit("pinConsumeComplex(%s);", consume.getPort().getName());
             } else {
                 // -- Check if the consume is needed nevertheless
-                if(!backend().instance().hasRead().get(consume.getPort())){
+                if (!backend().instance().hasRead().get(consume.getPort())) {
                     emitter().emit("pinConsume(%s, %s);", consume.getPort().getName(), backend().channelsutils().inputPortTypeSize(consume.getPort()));
                 }
             }
@@ -189,25 +190,39 @@ public interface Statements {
 
     default void execute(StmtAssignment assign) {
         Type type = types().type(assign.getLValue());
-        String lvalue = lvalues().lvalue(assign.getLValue());
-        //if ((type instanceof ListType && assign.getLValue() instanceof LValueVariable) && !(assign.getExpression() instanceof ExprList)) {
-        //if (assign.getExpression() instanceof ExprComprehension) {
-        //    expressioneval().evaluate(assign.getExpression());
-        //} else {
-        if (assign.getLValue() instanceof LValueIndexer) {
-            LValueIndexer indexer = (LValueIndexer) assign.getLValue();
-            if (lvalues().subIndexAccess(indexer)) {
-                String varName = variables().name(lvalues().evalLValueIndexerVar(indexer));
-                String index = lvalues().singleDimIndex(indexer);
 
-                emitter().emit("{");
-                emitter().increaseIndentation();
-                String eval = expressioneval().evaluate(assign.getExpression());
-                Type exprType = types().type(assign.getExpression());
+        if (assign.getLValue() instanceof LValuePortIndexer) {
+            LValuePortIndexer indexer = (LValuePortIndexer) assign.getLValue();
+            String eval = expressioneval().evaluate(assign.getExpression());
+            emitter().emit("pinWrite(%s, %s);", indexer.getPort().getName(), eval);
+        } else {
+            String lvalue = lvalues().lvalue(assign.getLValue());
+            if (assign.getLValue() instanceof LValueIndexer) {
+                LValueIndexer indexer = (LValueIndexer) assign.getLValue();
+                if (lvalues().subIndexAccess(indexer)) {
+                    String varName = variables().name(lvalues().evalLValueIndexerVar(indexer));
+                    String index = lvalues().singleDimIndex(indexer);
 
-                copySubAccess((ListType) type, varName, (ListType) exprType, eval, index);
-                emitter().decreaseIndentation();
-                emitter().emit("}");
+                    emitter().emit("{");
+                    emitter().increaseIndentation();
+                    String eval = expressioneval().evaluate(assign.getExpression());
+                    Type exprType = types().type(assign.getExpression());
+
+                    copySubAccess((ListType) type, varName, (ListType) exprType, eval, index);
+                    emitter().decreaseIndentation();
+                    emitter().emit("}");
+                } else {
+                    if (assign.getExpression() instanceof ExprComprehension) {
+                        emitter().emit("{");
+                        emitter().increaseIndentation();
+                        String eval = expressioneval().evaluate(assign.getExpression());
+                        copy(type, lvalue, types().type(assign.getExpression()), eval);
+                        emitter().decreaseIndentation();
+                        emitter().emit("}");
+                    } else {
+                        copy(type, lvalue, types().type(assign.getExpression()), expressioneval().evaluate(assign.getExpression()));
+                    }
+                }
             } else {
                 if (assign.getExpression() instanceof ExprComprehension) {
                     emitter().emit("{");
@@ -220,20 +235,10 @@ public interface Statements {
                     copy(type, lvalue, types().type(assign.getExpression()), expressioneval().evaluate(assign.getExpression()));
                 }
             }
-        } else {
-            if (assign.getExpression() instanceof ExprComprehension) {
-                emitter().emit("{");
-                emitter().increaseIndentation();
-                String eval = expressioneval().evaluate(assign.getExpression());
-                copy(type, lvalue, types().type(assign.getExpression()), eval);
-                emitter().decreaseIndentation();
-                emitter().emit("}");
-            } else {
-                copy(type, lvalue, types().type(assign.getExpression()), expressioneval().evaluate(assign.getExpression()));
-            }
         }
         //}
     }
+
     default void copySubAccess(ListType lvalueType, String lvalue, ListType rvalueType, String rvalue, String singleDimIndex) {
         //if (!lvalueType.equals(rvalueType)) {
         String maxIndex = typeseval().sizeByDimension(lvalueType).stream().map(Object::toString).collect(Collectors.joining(" * "));

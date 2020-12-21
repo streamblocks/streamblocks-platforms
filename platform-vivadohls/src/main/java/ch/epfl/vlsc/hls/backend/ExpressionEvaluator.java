@@ -10,6 +10,7 @@ import se.lth.cs.tycho.ir.Variable;
 import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
 import se.lth.cs.tycho.ir.decl.LocalVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
+import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.expr.*;
 import se.lth.cs.tycho.ir.stmt.StmtAssignment;
 import se.lth.cs.tycho.ir.stmt.StmtCall;
@@ -205,6 +206,20 @@ public interface ExpressionEvaluator {
         return tmp;
     }
 
+    default String evaluate(ExprPortIndexer inputIndexer) {
+        PortDecl decl = backend().ports().declaration(inputIndexer.getPort());
+        if (backend().ports().isInputPort(decl)) {
+            if (backend().channelsutils().isTargetConnected(backend().instancebox().get().getInstanceName(), inputIndexer.getPort().getName())) {
+                Type type = backend().types().portType(inputIndexer.getPort());
+                String tmp = variables().generateTemp();
+                emitter().emit("%s;", declarations().declarationTemp(type, tmp));
+                emitter().emit("pinRead(%s, %s);", inputIndexer.getPort().getName(), tmp);
+                return tmp;
+            }
+        }
+        return "0";
+    }
+
     void evaluateWithLvalue(String lvalue, Expression expr);
 
     default void evaluateWithLvalue(String lvalue, ExprInput input) {
@@ -271,7 +286,6 @@ public interface ExpressionEvaluator {
     default String compare(TupleType lvalueType, String lvalue, TupleType rvalueType, String rvalue) {
         throw new RuntimeException("not implemented");
     }
-
 
 
     /**
@@ -581,7 +595,7 @@ public interface ExpressionEvaluator {
     default String evaluateBinaryNeq(Type lhs, Type rhs, ExprBinaryOp binaryOp) {
         Expression left = binaryOp.getOperands().get(0);
         Expression right = binaryOp.getOperands().get(1);
-        return "!(" + compare(types().type(left), evaluate(left), types().type(right), evaluate(right))+")";
+        return "!(" + compare(types().type(left), evaluate(left), types().type(right), evaluate(right)) + ")";
     }
 
     default String evaluateBinaryLtn(Type lhs, Type rhs, ExprBinaryOp binaryOp) {
@@ -812,7 +826,6 @@ public interface ExpressionEvaluator {
     }
 
 
-
     default String evaluate(ExprComprehension comprehension) {
         return evaluateComprehension(comprehension, types().type(comprehension));
     }
@@ -862,7 +875,7 @@ public interface ExpressionEvaluator {
                         //emitter().emit("%s[%2$s] = %3$s[%2$s++];", result, index, evaluate(element));
                         ListType type = (ListType) backend().types().type(element);
                         String name = evaluate(element);
-                        emitter().emit("memcpy(%s + %s*(%s++), %s, sizeof(%4$s));", result, type.getSize().getAsInt(), index, name );
+                        emitter().emit("memcpy(%s + %s*(%s++), %s, sizeof(%4$s));", result, type.getSize().getAsInt(), index, name);
                     } else {
                         emitter().emit("%s[%s++] = %s;", result, index, evaluate(element));
                     }
@@ -957,8 +970,7 @@ public interface ExpressionEvaluator {
      * @param indexer
      * @return
      */
-    default
-    String evaluate (ExprIndexer indexer){
+    default String evaluate(ExprIndexer indexer) {
         VarDecl varDecl = evalExprIndexVar(indexer);
 
         Optional<String> str = Optional.empty();
@@ -1126,6 +1138,7 @@ public interface ExpressionEvaluator {
 
     /**
      * Evaluate a type assertion (casting)
+     *
      * @param assertion
      * @return
      */

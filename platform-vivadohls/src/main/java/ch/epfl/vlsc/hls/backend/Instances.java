@@ -802,6 +802,9 @@ public interface Instances {
         for(Annotation ann : annotations){
             backend().annotations().emit(ann);
         }
+        if(!annotations.isEmpty()){
+            emitter().emitNewLine();
+        }
         {
             emitter().increaseIndentation();
 
