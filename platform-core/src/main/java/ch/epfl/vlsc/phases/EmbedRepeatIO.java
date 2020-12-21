@@ -26,6 +26,17 @@ import se.lth.cs.tycho.reporting.CompilationException;
 import java.util.*;
 
 public class EmbedRepeatIO implements Phase {
+
+    private final boolean evaluate;
+
+    public EmbedRepeatIO(boolean evaluate) {
+        this.evaluate = evaluate;
+    }
+
+    public EmbedRepeatIO() {
+        this.evaluate = false;
+    }
+
     @Override
     public String getDescription() {
         return "Move sequential read and write to StmtWhile or StmtForEach";
@@ -35,6 +46,7 @@ public class EmbedRepeatIO implements Phase {
     public CompilationTask execute(CompilationTask task, Context context) throws CompilationException {
         Transformation transformation = MultiJ.from(Transformation.class)
                 .bind("declarations").to(task.getModule(VariableDeclarations.key))
+                .bind("evaluate").to(this.evaluate)
                 .bind("tree").to(task.getModule(TreeShadow.key))
                 .instance();
 
@@ -49,6 +61,9 @@ public class EmbedRepeatIO implements Phase {
 
         @Binding(BindingKind.INJECTED)
         TreeShadow tree();
+
+        @Binding(BindingKind.INJECTED)
+        Boolean evaluate();
 
         @Binding(BindingKind.LAZY)
         default List<LocalVarDecl> declarationsToRemove() {
@@ -103,13 +118,14 @@ public class EmbedRepeatIO implements Phase {
                         }
                         declarationsToRemove().add(decl);
                     }
-
-                    // -- Writing to input, authorized in RVC-CAL
-                    List<LValueIndexer> lValueIndexerCandidates = new ArrayList<>();
-                    transition.forEachChild(child -> lValueIndexerCandidates.addAll(collectCandidateLValueIndexer(child, decl)));
-                    if (!lValueIndexerCandidates.isEmpty()) {
-                        for (LValueIndexer indexer : lValueIndexerCandidates) {
-                            lValueIndexerToReplace().put(indexer, read.getPort());
+                    if (!evaluate()) {
+                        // -- Writing to input, authorized in RVC-CAL
+                        List<LValueIndexer> lValueIndexerCandidates = new ArrayList<>();
+                        transition.forEachChild(child -> lValueIndexerCandidates.addAll(collectCandidateLValueIndexer(child, decl)));
+                        if (!lValueIndexerCandidates.isEmpty()) {
+                            for (LValueIndexer indexer : lValueIndexerCandidates) {
+                                lValueIndexerToReplace().put(indexer, read.getPort());
+                            }
                         }
                     }
                 }
