@@ -25,7 +25,7 @@ public class LoopTripCountDirective implements Directive {
     private final int average;
 
     public LoopTripCountDirective(boolean hasMin, int min, boolean hasMax, int max, boolean hasAverage, int average) {
-        this.name = "LATENCY";
+        this.name = "LOOP_TRIPCOUNT";
         this.hasMin = hasMin;
         this.min = min;
         this.hasMax = hasMax;
@@ -69,7 +69,7 @@ public class LoopTripCountDirective implements Directive {
                 }
             }
 
-            if (parameter.getName().equals("average")) {
+            if (parameter.getName().equals("avg")) {
                 Value value = interpreter.eval(parameter.getExpression(), environment);
                 if (value instanceof ValueLong) {
                     hasAverage = true;
@@ -84,6 +84,6 @@ public class LoopTripCountDirective implements Directive {
 
     @Override
     public String toString() {
-        return name + (hasMin ? " min=" + min : "") + (hasMax ? " max=" + max : "");
+        return name + (hasMin ? " min=" + min : "") + (hasMax ? " max=" + max : "") + (hasAverage ? " avg=" + average : "");
     }
 }

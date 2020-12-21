@@ -6,6 +6,7 @@ import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.Types;
+import se.lth.cs.tycho.ir.Annotation;
 import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
@@ -384,6 +385,10 @@ public interface Statements {
 
     default void execute(StmtWhile stmt) {
         emitter().emit("while (true) {");
+        List<Annotation> annotations = stmt.getAnnotations();
+        for(Annotation ann : annotations){
+            backend().annotations().emit(ann);
+        }
         emitter().increaseIndentation();
         emitter().emit("if (!%s) break;", expressioneval().evaluate(stmt.getCondition()));
         stmt.getBody().forEach(this::execute);
