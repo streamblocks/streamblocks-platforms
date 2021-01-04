@@ -21,6 +21,9 @@ import se.lth.cs.tycho.ir.entity.am.*;
 import se.lth.cs.tycho.ir.entity.cal.CalActor;
 import se.lth.cs.tycho.ir.expr.*;
 import se.lth.cs.tycho.ir.network.Instance;
+import se.lth.cs.tycho.meta.interp.Environment;
+import se.lth.cs.tycho.meta.interp.Interpreter;
+import se.lth.cs.tycho.meta.interp.value.Value;
 import se.lth.cs.tycho.type.AlgebraicType;
 import se.lth.cs.tycho.type.CallableType;
 import se.lth.cs.tycho.type.ListType;
@@ -480,7 +483,12 @@ public interface Instances {
                                     emitter().emit("{");
                                     emitter().increaseIndentation();
 
-                                    backend().expressioneval().evaluate(var.getValue());
+                                    Interpreter interpreter = backend().interpreter();
+                                    Environment environment = new Environment();
+                                    Value value = interpreter.eval((ExprComprehension) var.getValue(), environment);
+                                    Expression expression = backend().converter().apply(value);
+
+                                    backend().statements().copy(types().declaredType(var), backend().variables().declarationName(var), types().type(var.getValue()), expressioneval().evaluate(expression));
 
                                     emitter().decreaseIndentation();
                                     emitter().emit("}");
