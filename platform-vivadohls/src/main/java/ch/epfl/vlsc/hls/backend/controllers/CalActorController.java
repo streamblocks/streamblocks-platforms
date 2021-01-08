@@ -34,8 +34,6 @@ public interface CalActorController {
         Schedule schedule = new Schedule(actor);
 
         List<String> ports = new ArrayList<>();
-
-
         // -- External memories
         ports.addAll(
                 backend().externalMemory()

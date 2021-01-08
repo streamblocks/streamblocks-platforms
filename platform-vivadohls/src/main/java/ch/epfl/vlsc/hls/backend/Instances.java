@@ -7,6 +7,7 @@ import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.GlobalNames;
+import se.lth.cs.tycho.attribute.ScopeLiveness;
 import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.ir.Annotation;
 import se.lth.cs.tycho.ir.Parameter;
@@ -18,6 +19,8 @@ import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.entity.am.Transition;
 import se.lth.cs.tycho.ir.entity.am.*;
+import se.lth.cs.tycho.ir.entity.am.ctrl.Instruction;
+import se.lth.cs.tycho.ir.entity.am.ctrl.State;
 import se.lth.cs.tycho.ir.entity.cal.*;
 import se.lth.cs.tycho.ir.expr.*;
 import se.lth.cs.tycho.ir.network.Instance;
@@ -33,6 +36,7 @@ import se.lth.cs.tycho.type.Type;
 
 import java.nio.file.Path;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 
@@ -124,6 +128,23 @@ public interface Instances {
 
         if (entity instanceof ActorMachine) {
             ActorMachine actor = (ActorMachine) entity;
+
+            if (backend().context().getConfiguration().get(PlatformSettings.defaultController) == PlatformSettings.ControllerKind.BC) {
+                // -- State Functions
+                emitter().emit("// -- State Functions");
+
+                List<? extends State> stateList = actor.controller().getStateList();
+                Map<State, Integer> stateMap = backend().branchingController().stateMap(stateList);
+                Function<Instruction, BitSet> initialize;
+                ScopeLiveness liveness = new ScopeLiveness(backend().scopes(), actor, backend().scopeDependencies());
+                initialize = liveness::init;
+
+                backend().branchingController().waitTargetBitSets(actor).stream().forEach(s -> {
+                    State state = stateMap.entrySet().stream().filter(entry -> Objects.equals(entry.getValue(), s)).map(Map.Entry::getKey).findAny().orElse(null);
+                    backend().branchingController().emitStateFunction(instanceName,actor, initialize, stateMap, state);
+                });
+            }
+
             // -- Scopes
             emitter().emit("// -- Scopes");
             actor.getScopes().forEach(s -> scope(instanceName, s, actor.getScopes().indexOf(s)));
@@ -142,7 +163,7 @@ public interface Instances {
             // -- State functions
             Schedule schedule = new Schedule(actor);
             Priorities priorities = new Priorities(actor);
-            for(String state : schedule.getEligible().keySet()){
+            for (String state : schedule.getEligible().keySet()) {
                 backend().calActorController().emitStateFunction(instanceName, actor, schedule, priorities, state);
             }
 
@@ -332,6 +353,14 @@ public interface Instances {
         }
         emitter().emit("};");
         emitter().emitNewLine();
+
+        if (backend().context().getConfiguration().get(PlatformSettings.defaultController) == PlatformSettings.ControllerKind.BC) {
+            emitter().emit("struct StateReturn {");
+            emitter().emit("\tint program_counter;");
+            emitter().emit("\tint return_code;");
+            emitter().emit("};");
+            emitter().emitNewLine();
+        }
     }
 
     /*
@@ -408,7 +437,7 @@ public interface Instances {
             }
             emitter().emit("// -- State functions");
             Schedule schedule = new Schedule(actor);
-            schedule.getEligible().keySet().forEach(s -> emitter().emit("%s;", backend().calActorController().stateFunctionPrototype(instanceName,false,s)));
+            schedule.getEligible().keySet().forEach(s -> emitter().emit("%s;", backend().calActorController().stateFunctionPrototype(instanceName, false, s)));
 
             emitter().emit("// -- Guards");
             actor.getActions().forEach(a -> emitter().emit("%s;", actionGuardPrototype(instanceName, a, false)));
@@ -496,6 +525,16 @@ public interface Instances {
                     String decl = declarations().declaration(types().declaredType(vp), backend().variables().declarationName(vp));
                     emitter().emit("%s;", decl);
                 }
+                emitter().emitNewLine();
+            }
+
+
+            if (backend().context().getConfiguration().get(PlatformSettings.defaultController) == PlatformSettings.ControllerKind.BC) {
+                // -- State Functions
+                emitter().emit("// -- State Functions");
+                backend().branchingController().waitTargetBitSets(actor).stream().forEach(s -> {
+                    emitter().emit("%s;", backend().branchingController().stateFunctionPrototype(instanceName, false, s));
+                });
                 emitter().emitNewLine();
             }
 
@@ -766,14 +805,23 @@ public interface Instances {
         emitter().emit("int %s::operator()(%s) {", className, entityPorts(instanceName, true, true));
         emitter().emit("#pragma HLS INLINE");
         {
-            emitter().increaseIndentation();
-            emitter().emit("int _ret = RETURN_WAIT;");
 
-            boolean traceEnabled = backend().context().getConfiguration().isDefined(PlatformSettings.enableActionProfile) &&
-                    backend().context().getConfiguration().get(PlatformSettings.enableActionProfile);
-            if (traceEnabled) {
-                emitter().emit("unsigned int action_id = 0;");
-                emitter().emit("unsigned int action_size = 0;");
+            PlatformSettings.ControllerKind controller = backend().context().getConfiguration().get(PlatformSettings.defaultController);
+
+            emitter().increaseIndentation();
+            if(controller == PlatformSettings.ControllerKind.QJ) {
+                emitter().emit("int _ret = RETURN_WAIT;");
+            }else{
+                emitter().emit("StateReturn _ret;");
+            }
+
+            if(controller == PlatformSettings.ControllerKind.QJ) {
+                boolean traceEnabled = backend().context().getConfiguration().isDefined(PlatformSettings.enableActionProfile) &&
+                        backend().context().getConfiguration().get(PlatformSettings.enableActionProfile);
+                if (traceEnabled) {
+                    emitter().emit("unsigned int action_id = 0;");
+                    emitter().emit("unsigned int action_size = 0;");
+                }
             }
             // -- External Memories
             if (!backend().externalMemory().getExternalMemories(actor).isEmpty()) {
@@ -786,12 +834,21 @@ public interface Instances {
                 emitter().emitNewLine();
             }
 
-            if (actor.controller().getStateList().size() > MAX_STATES_FOR_QUICK_JUMP_CONTROLLER) {
-                backend().branchingController().emitController(instanceName, actor);
+            if (controller == PlatformSettings.ControllerKind.QJ) {
+                if (actor.controller().getStateList().size() > MAX_STATES_FOR_QUICK_JUMP_CONTROLLER) {
+                    backend().fsmController().emitController(instanceName, actor);
+                } else {
+                    backend().quickJumpController().emitController(instanceName, actor);
+                }
             } else {
-                backend().quickJumpController().emitController(instanceName, actor);
+                backend().branchingController().emitController(instanceName, actor);
             }
-            emitter().emit("return _ret;");
+            if(controller == PlatformSettings.ControllerKind.QJ) {
+                emitter().emit("return _ret;");
+            }else{
+                emitter().emit("this->program_counter = _ret.program_counter;");
+                emitter().emit("return _ret.return_code;");
+            }
             emitter().decreaseIndentation();
         }
         emitter().emit("}");

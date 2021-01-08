@@ -98,6 +98,41 @@ public class PlatformSettings {
     };
 
 
+    public enum ControllerKind {
+        BC, QJ;
+
+        @Override
+        public String toString() {
+            String ret;
+            switch (this) {
+                case BC:
+                    return "branching-controller";
+                case QJ:
+                    return "quick-jump-controller";
+                default:
+                    return "ERROR";
+            }
+        }
+    };
+
+    static public EnumSetting<ControllerKind> defaultController = new EnumSetting<ControllerKind>(ControllerKind.class) {
+        @Override
+        public String getKey() {
+            return "default-controller";
+        }
+
+        @Override
+        public String getDescription() {
+            return "default controller of instances";
+        }
+
+        @Override
+        public ControllerKind defaultValue(Configuration configuration) {
+            return ControllerKind.BC;
+        }
+    };
+
+
     static public OnOffSetting arbitraryPrecisionIntegers = new OnOffSetting() {
         @Override
         public String getKey() {
