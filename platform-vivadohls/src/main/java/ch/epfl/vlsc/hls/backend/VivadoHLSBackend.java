@@ -1,10 +1,7 @@
 package ch.epfl.vlsc.hls.backend;
 
 import ch.epfl.vlsc.attributes.Memories;
-import ch.epfl.vlsc.hls.backend.controllers.BranchingController;
-import ch.epfl.vlsc.hls.backend.controllers.FsmController;
-import ch.epfl.vlsc.hls.backend.controllers.QuickJumpController;
-import ch.epfl.vlsc.hls.backend.controllers.StrawManController;
+import ch.epfl.vlsc.hls.backend.controllers.*;
 import ch.epfl.vlsc.hls.backend.host.DeviceHandle;
 import ch.epfl.vlsc.hls.backend.kernel.AxiLiteControl;
 import ch.epfl.vlsc.hls.backend.kernel.InputStage;
@@ -106,6 +103,12 @@ public interface VivadoHLSBackend {
     @Binding(LAZY)
     default VariableDeclarations varDecls() {
         return task().getModule(VariableDeclarations.key);
+    }
+
+    // -- Variable Declarations
+    @Binding(LAZY)
+    default VariableScopes varScopes() {
+        return task().getModule(VariableScopes.key);
     }
 
     // -- IR Tree Shadow
@@ -226,6 +229,11 @@ public interface VivadoHLSBackend {
     @Binding(LAZY)
     default QuickJumpController quickJumpController() {
         return MultiJ.from(QuickJumpController.class).bind("backend").to(this).instance();
+    }
+
+    @Binding(LAZY)
+    default CalActorController calActorController() {
+        return MultiJ.from(CalActorController.class).bind("backend").to(this).instance();
     }
 
     @Binding(LAZY)

@@ -9,7 +9,6 @@ import org.multij.Module;
 import se.lth.cs.tycho.attribute.GlobalNames;
 import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.ir.Annotation;
-import se.lth.cs.tycho.ir.IRNode;
 import se.lth.cs.tycho.ir.Parameter;
 import se.lth.cs.tycho.ir.Port;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
@@ -17,13 +16,16 @@ import se.lth.cs.tycho.ir.decl.ParameterVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
+import se.lth.cs.tycho.ir.entity.am.Transition;
 import se.lth.cs.tycho.ir.entity.am.*;
-import se.lth.cs.tycho.ir.entity.cal.CalActor;
+import se.lth.cs.tycho.ir.entity.cal.*;
 import se.lth.cs.tycho.ir.expr.*;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.meta.interp.Environment;
 import se.lth.cs.tycho.meta.interp.Interpreter;
 import se.lth.cs.tycho.meta.interp.value.Value;
+import se.lth.cs.tycho.transformation.cal2am.Priorities;
+import se.lth.cs.tycho.transformation.cal2am.Schedule;
 import se.lth.cs.tycho.type.AlgebraicType;
 import se.lth.cs.tycho.type.CallableType;
 import se.lth.cs.tycho.type.ListType;
@@ -31,7 +33,6 @@ import se.lth.cs.tycho.type.Type;
 
 import java.nio.file.Path;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 
@@ -134,6 +135,19 @@ public interface Instances {
             // -- Transitions
             emitter().emit("// -- Transitions");
             actor.getTransitions().forEach(t -> transition(instanceName, t, actor.getTransitions().indexOf(t)));
+        } else {
+            CalActor actor = (CalActor) entity;
+            // -- Declarations
+
+            // -- State functions
+            Schedule schedule = new Schedule(actor);
+            Priorities priorities = new Priorities(actor);
+            for(String state : schedule.getEligible().keySet()){
+                backend().calActorController().emitStateFunction(instanceName, actor, schedule, priorities, state);
+            }
+
+            // -- Actions
+            actor.getActions().forEach(a -> action(instanceName, a));
         }
 
         // -- Callables
@@ -145,9 +159,9 @@ public interface Instances {
 
     default void staticCallofInstance(Instance instance) {
         Entity entity = backend().entitybox().get();
-        boolean withIO = false;
-        if (entity instanceof ActorMachine) {
-            withIO = true;
+        boolean withIO = true;
+        if (entity instanceof CalActor) {
+            withIO = ((CalActor) entity).getProcessDescription() == null;
         }
 
         String name = instance.getInstanceName();
@@ -177,10 +191,10 @@ public interface Instances {
 
         // -- Top Directives
         List<Annotation> annotations = entity.getAnnotations();
-        for(Annotation ann : annotations){
+        for (Annotation ann : annotations) {
             backend().annotations().emit(ann);
         }
-        if(!annotations.isEmpty()){
+        if (!annotations.isEmpty()) {
             emitter().emitNewLine();
         }
         emitter().increaseIndentation();
@@ -219,7 +233,7 @@ public interface Instances {
                     emitter().emit("}");
                 }
             } else {
-                //throw new UnsupportedOperationException("Actors is not a Process.");
+                emitter().emit("return i_%s(%s, io);", name, String.join(", ", ports));
             }
         } else {
             emitter().emit("return i_%s(%s, io);", name, String.join(", ", ports));
@@ -250,10 +264,16 @@ public interface Instances {
         defineIncludes(true);
 
         // -- IO Struct
-        if (entity instanceof ActorMachine) {
-            ActorMachine actor = (ActorMachine) entity;
-            structIO(instanceName, actor);
+
+        structIO(instanceName, entity);
+
+        // -- Enum State
+        if (entity instanceof CalActor) {
+            CalActor actor = (CalActor) entity;
+            if (actor.getProcessDescription() == null)
+                enumStates(actor);
         }
+
 
         // -- Instance State
         instanceClass(instanceName, entity);
@@ -290,7 +310,7 @@ public interface Instances {
      * Struct IO
      */
 
-    default void structIO(String instanceName, ActorMachine actor) {
+    default void structIO(String instanceName, Entity actor) {
         // -- Struct IO
         emitter().emit("// -- Struct IO");
         emitter().emit("struct IO_%s {", instanceName);
@@ -314,6 +334,34 @@ public interface Instances {
         emitter().emitNewLine();
     }
 
+    /*
+     * Enum States
+     */
+
+    default void enumStates(CalActor actor) {
+        Schedule schedule = new Schedule(actor);
+
+        Map<String, List<Action>> eligibleStates = schedule.getEligible();
+
+        emitter().emit("enum states{");
+        emitter().increaseIndentation();
+
+        List<String> states = new ArrayList<>(eligibleStates.keySet());
+        for (String state : states) {
+            emitter().emit("s_%s%s", state, states.indexOf(states) == states.size() - 1 ? "" : ",");
+        }
+
+        emitter().decreaseIndentation();
+        emitter().emit("};");
+        emitter().emitNewLine();
+
+        // -- StateReturn
+        emitter().emit("struct StateReturn {");
+        emitter().emit("\tstates fsmState;");
+        emitter().emit("\tint returnCode;");
+        emitter().emit("};");
+        emitter().emitNewLine();
+    }
 
     /*
      * Instance class
@@ -333,18 +381,44 @@ public interface Instances {
             emitter().emit("private:");
             emitter().increaseIndentation();
 
+            emitter().emit("states _FSM_state;");
+
             for (VarDecl var : actor.getVarDecls()) {
                 if (var.getValue() instanceof ExprLambda || var.getValue() instanceof ExprProc) {
                     backend().callables().callablePrototypes(instanceName, var.getValue());
                 } else {
-                    String decl = declarations().declaration(types().declaredType(var), backend().variables().declarationName(var));
-                    if (var.getValue() != null) {
-                        emitter().emit("%s = %s;", decl, backend().expressioneval().evaluate(var.getValue()));
+                    Type type = backend().types().declaredType(var);
+                    if (type instanceof ListType) {
+                        if (backend().externalMemory().isStoredExternally(var)) {
+                            ListType listType = (ListType) type;
+                            emitter().emit("%s* %s;",
+                                    backend().typeseval().type(
+                                            listType.getElementType()),
+                                    backend().variables().declarationName(var));
+                        } else {
+                            String decl = declarations().declaration(types().declaredType(var),
+                                    backend().variables().declarationName(var));
+                            emitter().emit("%s;", decl);
+                        }
                     } else {
+                        String decl = declarations().declaration(types().declaredType(var), backend().variables().declarationName(var));
                         emitter().emit("%s;", decl);
                     }
                 }
             }
+            emitter().emit("// -- State functions");
+            Schedule schedule = new Schedule(actor);
+            schedule.getEligible().keySet().forEach(s -> emitter().emit("%s;", backend().calActorController().stateFunctionPrototype(instanceName,false,s)));
+
+            emitter().emit("// -- Guards");
+            actor.getActions().forEach(a -> emitter().emit("%s;", actionGuardPrototype(instanceName, a, false)));
+            emitter().emitNewLine();
+
+            emitter().emit("// -- Actions");
+            actor.getActions().forEach(a -> emitter().emit("%s;", actionBodyPrototype(instanceName, a, false)));
+            emitter().emitNewLine();
+
+
         }
         emitter().decreaseIndentation();
         emitter().emitNewLine();
@@ -353,7 +427,9 @@ public interface Instances {
         emitter().emit("public:");
         emitter().increaseIndentation();
 
-        emitter().emit("int operator()(%s);", entityPorts(instanceName, false, false));
+        instanceConstructor(instanceName, actor);
+
+        emitter().emit("int operator()(%s);", entityPorts(instanceName, actor.getProcessDescription() == null, actor.getProcessDescription() == null));
 
         emitter().decreaseIndentation();
 
@@ -534,6 +610,74 @@ public interface Instances {
         emitter().emitNewLine();
     }
 
+
+    default void instanceConstructor(String instanceName, CalActor actor) {
+        // -- External memories
+
+        String className = "class_" + instanceName;
+        emitter().emit("%s(){", className);
+        {
+            emitter().increaseIndentation();
+
+            emitter().emit("_FSM_state = s_%s; ", actor.getScheduleFSM().getInitialState());
+
+            for (VarDecl var : actor.getVarDecls()) {
+                String decl = backend().variables().declarationName(var);
+                if (var.getValue() != null && !(var.getValue() instanceof ExprInput)) {
+                    if (var.getValue() instanceof ExprList) {
+                        emitter().emit("{");
+                        emitter().increaseIndentation();
+
+                        backend().statements().copy(types().declaredType(var), backend().variables().declarationName(var), types().type(var.getValue()), expressioneval().evaluate(var.getValue()));
+
+                        emitter().decreaseIndentation();
+                        emitter().emit("}");
+                    } else if (var.getValue() instanceof ExprComprehension) {
+                        emitter().emit("{");
+                        emitter().increaseIndentation();
+
+                        Interpreter interpreter = backend().interpreter();
+                        Environment environment = new Environment();
+                        Value value = interpreter.eval((ExprComprehension) var.getValue(), environment);
+                        Expression expression = backend().converter().apply(value);
+
+                        backend().statements().copy(types().declaredType(var), backend().variables().declarationName(var), types().type(var.getValue()), expressioneval().evaluate(expression));
+
+                        emitter().decreaseIndentation();
+                        emitter().emit("}");
+                    } else if (var.getValue() instanceof ExprLambda || var.getValue() instanceof ExprProc) {
+                        // -- Do nothing
+                    } else {
+                        emitter().emit("%s = %s;", decl, backend().expressioneval().evaluate(var.getValue()));
+                    }
+                }
+
+            }
+
+
+            // -- Parameters
+            Instance instance = backend().instancebox().get();
+
+            for (ParameterVarDecl par : actor.getValueParameters()) {
+                boolean assigned = false;
+                for (Parameter<Expression, ?> assignment : instance.getValueParameters()) {
+                    if (par.getName().equals(assignment.getName())) {
+                        emitter().emit("this->%s = %s;", backend().variables().declarationName(par), expressioneval().evaluate(assignment.getValue()));
+                        assigned = true;
+                    }
+                }
+                if (!assigned) {
+                    throw new RuntimeException(String.format("Could not assign to %s. Candidates: {%s}.", par.getName(), String.join(", ", instance.getValueParameters().map(Parameter::getName))));
+                }
+            }
+
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("}");
+        emitter().emitNewLine();
+    }
+
+
     default String entityPorts(String instanceName, boolean withIO, boolean withExternalMemories) {
         Entity entity = backend().entitybox().get();
         List<String> ports = new ArrayList<>();
@@ -574,32 +718,47 @@ public interface Instances {
     void topOfInstance(String instanceName, Entity entity);
 
     default void topOfInstance(String instanceName, CalActor actor) {
-        if (actor.getProcessDescription() != null) {
-            String className = "class_" + instanceName;
-            emitter().emit("int %s::operator()(%s) {", className, entityPorts(instanceName, false, true));
-            emitter().emit("#pragma HLS INLINE");
-            {
-                emitter().increaseIndentation();
+        String className = "class_" + instanceName;
+        emitter().emit("int %s::operator()(%s) {", className, entityPorts(instanceName, actor.getProcessDescription() == null, true));
+        emitter().emit("#pragma HLS INLINE");
+        {
+            emitter().increaseIndentation();
 
-                // -- External Memories
+
+            boolean traceEnabled = backend().context().getConfiguration().isDefined(PlatformSettings.enableActionProfile) &&
+                    backend().context().getConfiguration().get(PlatformSettings.enableActionProfile);
+            if (traceEnabled) {
+                emitter().emit("unsigned int action_id = 0;");
+                emitter().emit("unsigned int action_size = 0;");
+            }
+            // -- External Memories
+            if (!backend().externalMemory().getExternalMemories(actor).isEmpty()) {
+                emitter().emit("// -- Initialize large memory pointers");
                 for (VarDecl var : backend().externalMemory().getExternalMemories(actor)) {
                     String decl = backend().variables().declarationName(var);
                     String portName = backend().externalMemory().name(instanceName, var);
                     emitter().emit("%s = %s;", decl, portName);
                 }
-
-                actor.getProcessDescription().getStatements().forEach(backend().statements()::execute);
-
-                emitter().emit("return RETURN_EXECUTED;");
-
-                emitter().decreaseIndentation();
+                emitter().emitNewLine();
             }
 
-            emitter().emit("}");
+            if (actor.getProcessDescription() != null) {
+                actor.getProcessDescription().getStatements().forEach(backend().statements()::execute);
+            } else {
+                emitter().emit("StateReturn _ret;");
+                emitter().emitNewLine();
 
-        } else {
-            //throw new UnsupportedOperationException("Actors is not a Process.");
+                backend().calActorController().emitController(instanceName, actor);
+
+                emitter().emitNewLine();
+                emitter().emit("_FSM_state = _ret.fsmState;");
+                emitter().emit("return _ret.returnCode;");
+            }
+            emitter().decreaseIndentation();
         }
+
+        emitter().emit("}");
+        emitter().emitNewLine();
     }
 
     default void topOfInstance(String instanceName, ActorMachine actor) {
@@ -628,7 +787,7 @@ public interface Instances {
             }
 
             if (actor.controller().getStateList().size() > MAX_STATES_FOR_QUICK_JUMP_CONTROLLER) {
-                backend().fsmController().emitController(instanceName, actor);
+                backend().branchingController().emitController(instanceName, actor);
             } else {
                 backend().quickJumpController().emitController(instanceName, actor);
             }
@@ -795,7 +954,7 @@ public interface Instances {
     }
 
     default void transition(String instanceName, Transition transition, int index) {
-        for(Port port : transition.getInputRates().keySet()){
+        for (Port port : transition.getInputRates().keySet()) {
             hasRead().put(port, false);
         }
 
@@ -810,7 +969,7 @@ public interface Instances {
 
         // -- Emit transition annotations
         List<Annotation> annotations = transition.getAnnotations();
-        for(Annotation ann : annotations){
+        for (Annotation ann : annotations) {
             backend().annotations().emit(ann);
         }
         {
@@ -874,12 +1033,11 @@ public interface Instances {
 
     default void callables(String instanceName, CalActor actor) {
         emitter().emit("// -- Callables");
-        String className = "class_" + instanceName;
         for (VarDecl decl : actor.getVarDecls()) {
             if (decl.getValue() != null) {
                 Expression expr = decl.getValue();
                 if (expr instanceof ExprLambda || expr instanceof ExprProc) {
-                    backend().callables().callableDefinition(className, expr);
+                    backend().callables().callableDefinition(instanceName, expr);
                 }
             }
         }
@@ -918,5 +1076,194 @@ public interface Instances {
 
         return false;
     }
+
+    // ------------------------------------------------------------------------
+    // -- CAL Actor
+
+    default String actionIO(Action action) {
+        Entity entity = backend().entitybox().get();
+
+        List<String> ports = new ArrayList<>();
+        for (InputPattern input : action.getInputPatterns()) {
+            PortDecl portDecl = entity.getInputPorts().stream().filter(p -> p.getName().equals(input.getPort().getName())).findAny().orElse(null);
+            ports.add(backend().declarations().portDeclaration(portDecl));
+        }
+
+        for (OutputExpression output : action.getOutputExpressions()) {
+            PortDecl portDecl = entity.getOutputPorts().stream().filter(p -> p.getName().equals(output.getPort().getName())).findAny().orElse(null);
+            ports.add(backend().declarations().portDeclaration(portDecl));
+        }
+
+        return String.join(", ", ports);
+    }
+
+
+    default String actionGuardPrototype(String instanceName, Action action, boolean withClassName) {
+        // -- Actor Instance Name
+        String className = "class_" + instanceName;
+
+        return String.format("bool %sguard_%s(IO_%s io)", withClassName ? className + "::" : "", action.getTag().nameWithUnderscore(), instanceName);
+    }
+
+
+    default String actionBodyPrototype(String instanceName, Action action, boolean withClassName) {
+        // -- Actor Instance Name
+        String className = "class_" + instanceName;
+
+        String io = actionIO(action);
+        return String.format("void %s%s(%s)", withClassName ? className + "::" : "", action.getTag().nameWithUnderscore(), io);
+    }
+
+
+    default void action(String instanceName, Action action) {
+        actionGuard(instanceName, action);
+        emitter().emitNewLine();
+        actionBody(instanceName, action);
+    }
+
+    default void actionGuard(String instanceName, Action action) {
+        emitter().emit("%s{", actionGuardPrototype(instanceName, action, true));
+        emitter().emit("#pragma HLS INLINE");
+
+        // -- Emit transition annotations
+        List<Annotation> annotations = action.getAnnotations();
+        for (Annotation ann : annotations) {
+            backend().annotations().emit(ann);
+        }
+        {
+            emitter().increaseIndentation();
+
+            if (action.getGuards().isEmpty()) {
+                emitter().emit("return true;");
+            } else {
+                List<String> guards = new ArrayList<>();
+
+                Set<VarDecl> declsUsedInGuards = new HashSet<>();
+                for (Expression expression : action.getGuards()) {
+                    declsUsedInGuards.addAll(backend().varDecls().declarations(expression));
+                }
+
+                for (VarDecl var : declsUsedInGuards) {
+                    String decl = backend().variables().declarationName(var);
+                    Type type = types().declaredType(var);
+                    emitter().emit("%s;", backend().declarations().declaration(type, decl));
+
+
+                    for (InputPattern pattern : action.getInputPatterns()) {
+                        for (Match match : pattern.getMatches()) {
+                            if (match.getDeclaration().equals(var)) {
+                                if (pattern.getMatches().indexOf(match) == 0) {
+                                    if (pattern.getRepeatExpr() != null) {
+                                        emitter().emit("pinPeekFront(%s, %s[0]);", backend().channelsutils().definedInputPort(pattern.getPort()), decl);
+                                    } else {
+                                        emitter().emit("pinPeekFront(%s, %s);", backend().channelsutils().definedInputPort(pattern.getPort()), decl);
+                                    }
+                                } else {
+                                    throw new UnsupportedOperationException("Peek supported only on the head of the queue.");
+                                }
+                            }
+                        }
+                    }
+                }
+
+                action.getGuards().forEach(g -> {
+                    guards.add(expressioneval().evaluate(g));
+                });
+                emitter().emit("return %s;", String.join(" && ", guards));
+            }
+
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("}");
+        emitter().emitNewLine();
+    }
+
+    default void actionBody(String instanceName, Action action) {
+        for (InputPattern input : action.getInputPatterns()) {
+            hasRead().put(input.getPort(), false);
+        }
+
+        emitter().emit("%s{", actionBodyPrototype(instanceName, action, true));
+        emitter().emit("#pragma HLS INLINE");
+
+        // -- Emit transition annotations
+        List<Annotation> annotations = action.getAnnotations();
+        for (Annotation ann : annotations) {
+            backend().annotations().emit(ann);
+        }
+        {
+            emitter().increaseIndentation();
+
+            // -- Consume
+            for (InputPattern pattern : action.getInputPatterns()) {
+                for (Match match : pattern.getMatches()) {
+                    VarDecl var = match.getDeclaration();
+                    String decl = backend().variables().declarationName(var);
+                    Type type = types().declaredType(var);
+                    emitter().emit("%s;", backend().declarations().declaration(type, decl));
+                }
+            }
+
+            for (VarDecl decl : action.getVarDecls()) {
+
+                Type t = types().declaredType(decl);
+                String declarationName = backend().variables().declarationName(decl);
+                String d = backend().declarations().declarationTemp(t, declarationName);
+                emitter().emit("%s;", d);
+                if (decl.getValue() != null) {
+
+                    if (backend().context().getConfiguration().get(PlatformSettings.arbitraryPrecisionIntegers)) {
+                        if (decl.getValue() instanceof ExprLiteral) {
+                            ExprLiteral literal = (ExprLiteral) decl.getValue();
+                            if (literal.getKind() == ExprLiteral.Kind.Integer) {
+                                int radix = literal.intRadix().getAsInt();
+                                String value = radix != 8 ? expressioneval().evaluate(decl.getValue()) : expressioneval().evaluate(decl.getValue()).substring(1);
+                                emitter().emit("%s = %s(\"%s\", %d);", declarationName, backend().typeseval().type(t), value, radix);
+                            } else {
+                                backend().statements().copy(t, declarationName, types().type(decl.getValue()), expressioneval().evaluate(decl.getValue()));
+                            }
+                        } else {
+                            backend().statements().copy(t, declarationName, types().type(decl.getValue()), expressioneval().evaluate(decl.getValue()));
+                        }
+                    } else {
+                        backend().statements().copy(t, declarationName, types().type(decl.getValue()), expressioneval().evaluate(decl.getValue()));
+                    }
+                }
+            }
+
+            for (InputPattern pattern : action.getInputPatterns()) {
+                for (Match match : pattern.getMatches()) {
+                    VarDecl var = match.getDeclaration();
+                    String decl = backend().variables().declarationName(var);
+
+                    if (pattern.getRepeatExpr() == null) {
+                        emitter().emit("pinRead(%s, %s);", pattern.getPort().getName(), decl);
+                    } else {
+                        emitter().emit("pinReadRepeat(%s, %s, %s);", pattern.getPort().getName(), decl, expressioneval().evaluate(pattern.getRepeatExpr()));
+                    }
+                }
+            }
+
+            action.getBody().forEach(backend().statements()::execute);
+
+            // -- Produce
+            for (OutputExpression output : action.getOutputExpressions()) {
+                for (Expression expr : output.getExpressions()) {
+                    if (output.getRepeatExpr() == null) {
+                        emitter().emit("pinWrite(%s, %s);", output.getPort().getName(), expressioneval().evaluate(expr));
+                    } else {
+                        emitter().emit("pinWriteRepeat(%s, %s, %s);", backend().channelsutils().definedOutputPort(output.getPort()), expressioneval().evaluate(expr), expressioneval().evaluate(output.getRepeatExpr()));
+
+                    }
+                }
+            }
+
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("}");
+        hasRead().clear();
+        emitter().emitNewLine();
+    }
+
 
 }
