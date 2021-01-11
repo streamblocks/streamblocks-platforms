@@ -123,9 +123,7 @@ public interface BranchingController {
         }
 
         Instruction instruction = s.getInstructions().get(0);
-        initialize.apply(instruction).stream().forEach(scope ->
-                emitter().emit("scope_%d(%s);", scope, backend().instance().scopeArguments(actorMachine.getScopes().get(scope)))
-        );
+
         emitInstruction(actorMachine, name, instruction, stateMap, initialize, null);
 
         emitter().emitNewLine();
@@ -147,6 +145,9 @@ public interface BranchingController {
         }else{
             io = "io";
         }
+        initialize.apply(test).stream().forEach(scope ->
+                emitter().emit("scope_%d(%s);", scope, backend().instance().scopeArguments(am.getScopes().get(scope)))
+        );
         emitter().emit("if (condition_%d(%s)) {", test.condition(), io);
         emitter().increaseIndentation();
         emitter().emit("//goto S%d;", stateNumbers.get(test.targetTrue()));
