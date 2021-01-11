@@ -107,6 +107,7 @@ public interface BranchingController {
     default void emitStateFunction(String name, ActorMachine actorMachine, Function<Instruction, BitSet> initialize, Map<State, Integer> stateMap, State s){
         emitter().emit("%s{", stateFunctionPrototype(name, true, stateMap.get(s)));
         emitter().emit("#pragma HLS INLINE off");
+        emitter().emit("#pragma HLS INTERFACE ap_hs port=io");
         emitter().increaseIndentation();
 
         emitter().emit("StateReturn _ret;");
