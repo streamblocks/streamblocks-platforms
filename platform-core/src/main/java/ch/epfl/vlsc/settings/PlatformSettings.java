@@ -128,7 +128,7 @@ public class PlatformSettings {
 
         @Override
         public ControllerKind defaultValue(Configuration configuration) {
-            return ControllerKind.BC;
+            return ControllerKind.QJ;
         }
     };
 

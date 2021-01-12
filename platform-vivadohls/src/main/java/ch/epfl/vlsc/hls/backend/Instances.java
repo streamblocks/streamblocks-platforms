@@ -129,7 +129,7 @@ public interface Instances {
         if (entity instanceof ActorMachine) {
             ActorMachine actor = (ActorMachine) entity;
 
-            if (backend().context().getConfiguration().get(PlatformSettings.defaultController) == PlatformSettings.ControllerKind.BC) {
+            if (backend().context().getConfiguration().get(PlatformSettings.defaultController) == PlatformSettings.ControllerKind.BC || actor.controller().getStateList().size() > MAX_STATES_FOR_QUICK_JUMP_CONTROLLER) {
                 // -- State Functions
                 emitter().emit("// -- State Functions");
 
@@ -353,14 +353,16 @@ public interface Instances {
         }
         emitter().emit("};");
         emitter().emitNewLine();
+        if(actor instanceof ActorMachine){
+            ActorMachine am = (ActorMachine) actor;
 
-        if (backend().context().getConfiguration().get(PlatformSettings.defaultController) == PlatformSettings.ControllerKind.BC) {
+        if (backend().context().getConfiguration().get(PlatformSettings.defaultController) == PlatformSettings.ControllerKind.BC || am.controller().getStateList().size() > MAX_STATES_FOR_QUICK_JUMP_CONTROLLER) {
             emitter().emit("struct StateReturn {");
             emitter().emit("\tint program_counter;");
             emitter().emit("\tint return_code;");
             emitter().emit("};");
             emitter().emitNewLine();
-        }
+        }}
     }
 
     /*
@@ -529,7 +531,7 @@ public interface Instances {
             }
 
 
-            if (backend().context().getConfiguration().get(PlatformSettings.defaultController) == PlatformSettings.ControllerKind.BC) {
+            if (backend().context().getConfiguration().get(PlatformSettings.defaultController) == PlatformSettings.ControllerKind.BC || actor.controller().getStateList().size() > MAX_STATES_FOR_QUICK_JUMP_CONTROLLER) {
                 // -- State Functions
                 emitter().emit("// -- State Functions");
                 backend().branchingController().waitTargetBitSets(actor).stream().forEach(s -> {
@@ -809,7 +811,7 @@ public interface Instances {
             PlatformSettings.ControllerKind controller = backend().context().getConfiguration().get(PlatformSettings.defaultController);
 
             emitter().increaseIndentation();
-            if(controller == PlatformSettings.ControllerKind.QJ) {
+            if(controller == PlatformSettings.ControllerKind.QJ && actor.controller().getStateList().size() < MAX_STATES_FOR_QUICK_JUMP_CONTROLLER) {
                 emitter().emit("int _ret = RETURN_WAIT;");
             }else{
                 emitter().emit("StateReturn _ret;");
@@ -836,14 +838,14 @@ public interface Instances {
 
             if (controller == PlatformSettings.ControllerKind.QJ) {
                 if (actor.controller().getStateList().size() > MAX_STATES_FOR_QUICK_JUMP_CONTROLLER) {
-                    backend().fsmController().emitController(instanceName, actor);
+                    backend().branchingController().emitController(instanceName, actor);
                 } else {
                     backend().quickJumpController().emitController(instanceName, actor);
                 }
             } else {
                 backend().branchingController().emitController(instanceName, actor);
             }
-            if(controller == PlatformSettings.ControllerKind.QJ) {
+            if(controller == PlatformSettings.ControllerKind.QJ && actor.controller().getStateList().size() < MAX_STATES_FOR_QUICK_JUMP_CONTROLLER) {
                 emitter().emit("return _ret;");
             }else{
                 emitter().emit("this->program_counter = _ret.program_counter;");
