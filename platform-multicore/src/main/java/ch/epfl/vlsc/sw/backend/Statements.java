@@ -84,8 +84,10 @@ public interface Statements {
         if (backend().channelsutils().isTargetConnected(backend().instancebox().get().getInstanceName(), consume.getPort().getName())) {
             if (consume.getNumberOfTokens() > 1) {
                 emitter().emit("pinConsumeRepeat_%s(%s, %d);", channelsutils().inputPortTypeSize(consume.getPort()), channelsutils().definedInputPort(consume.getPort()), consume.getNumberOfTokens());
+                backend().statements().profilingOp().add("__opCounters->prof_DATAHANDLING_LIST_LOAD += 1;");
             } else {
                 emitter().emit("pinConsume_%s(%s);", channelsutils().inputPortTypeSize(consume.getPort()), channelsutils().definedInputPort(consume.getPort()));
+                backend().statements().profilingOp().add("__opCounters->prof_DATAHANDLING_LOAD += 1;");
             }
         }
     }
@@ -111,6 +113,7 @@ public interface Statements {
                 for (Expression expr : write.getValues()) {
                     emitter().emit("%s = %s;", tmp, expressioneval().evaluate(expr));
                     emitter().emit("pinWrite_%s(%s, %s);", portType, channelsutils().definedOutputPort(write.getPort()), tmp);
+                    profilingOp().add("__opCounters->prof_DATAHANDLING_STORE += 1;");
                 }
             } else if (write.getValues().size() == 1) {
                 Type valueType = types().type(write.getValues().get(0));
@@ -125,12 +128,15 @@ public interface Statements {
                         String index = variables().generateTemp();
                         emitter().emit("for (size_t %1$s = 0; %1$s < (%2$s); %1$s++) {", index, repeat);
                         emitter().emit("\tpinWrite_%s(%s, %s[%s]);", channelsutils().outputPortTypeSize(write.getPort()), channelsutils().definedOutputPort(write.getPort()), value, index);
+                        profilingOp().add("__opCounters->prof_DATAHANDLING_STORE += 1;");
                         emitter().emit("}");
                     } else {
                         emitter().emit("pinWriteRepeat_%s(%s, %s, %s);", channelsutils().outputPortTypeSize(write.getPort()), channelsutils().definedOutputPort(write.getPort()), value, repeat);
+                        profilingOp().add("__opCounters->prof_DATAHANDLING_LIST_STORE += 1;");
                     }
                 } else {
                     emitter().emit("pinWriteRepeat_%s(%s, %s, %s);", channelsutils().outputPortTypeSize(write.getPort()), channelsutils().definedOutputPort(write.getPort()), value, repeat);
+                    profilingOp().add("__opCounters->prof_DATAHANDLING_LIST_STORE += 1;");
                 }
 
             } else {

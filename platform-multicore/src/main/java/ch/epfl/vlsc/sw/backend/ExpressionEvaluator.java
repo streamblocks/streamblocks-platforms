@@ -981,7 +981,7 @@ public interface ExpressionEvaluator {
                         //emitter().emit("%s[%2$s] = %3$s[%2$s++];", result, index, evaluate(element));
                         ListType type = (ListType) backend().types().type(element);
                         String name = evaluate(element);
-                        emitter().emit("memcpy(%s + %s*(%s++), %s, sizeof(%4$s));", result, type.getSize().getAsInt(), index, name );
+                        emitter().emit("memcpy(%s + %s*(%s++), %s, sizeof(%4$s));", result, type.getSize().getAsInt(), index, name);
                     } else {
                         emitter().emit("%s[%s++] = %s;", result, index, evaluate(element));
                     }
@@ -1016,69 +1016,65 @@ public interface ExpressionEvaluator {
     */
 
 
-        void withGenerator (Expression collection, ImmutableList < GeneratorVarDecl > varDecls, Runnable body);
+    void withGenerator(Expression collection, ImmutableList<GeneratorVarDecl> varDecls, Runnable body);
 
-        default
-        void withGenerator (ExprBinaryOp binOp, ImmutableList < GeneratorVarDecl > varDecls, Runnable action){
-            if (binOp.getOperations().equals(Collections.singletonList(".."))) {
-                String from = evaluate(binOp.getOperands().get(0));
-                String to = evaluate(binOp.getOperands().get(1));
-                for (VarDecl d : varDecls) {
-                    Type type = types().declaredType(d);
-                    String name = variables().declarationName(d);
-                    emitter().emit("%s = %s;", declarations().declaration(type, name), from);
-                    emitter().emit("while (%s <= %s) {", name, to);
-                    emitter().increaseIndentation();
-                }
-                action.run();
-                List<VarDecl> reversed = new ArrayList<>(varDecls);
-                Collections.reverse(reversed);
-                for (VarDecl d : reversed) {
-                    emitter().emit("%s++;", variables().declarationName(d));
-                    emitter().decreaseIndentation();
-                    emitter().emit("}");
-                }
-            } else {
-                throw new UnsupportedOperationException(binOp.getOperations().get(0));
+    default void withGenerator(ExprBinaryOp binOp, ImmutableList<GeneratorVarDecl> varDecls, Runnable action) {
+        if (binOp.getOperations().equals(Collections.singletonList(".."))) {
+            String from = evaluate(binOp.getOperands().get(0));
+            String to = evaluate(binOp.getOperands().get(1));
+            for (VarDecl d : varDecls) {
+                Type type = types().declaredType(d);
+                String name = variables().declarationName(d);
+                emitter().emit("%s = %s;", declarations().declaration(type, name), from);
+                emitter().emit("while (%s <= %s) {", name, to);
+                emitter().increaseIndentation();
             }
-        }
-
-        /**
-         * Evaluate list expression
-         *
-         * @param list
-         * @return
-         */
-        default
-        String evaluate (ExprList list){
-            ListType t = (ListType) types().type(list);
-            if (t.getSize().isPresent()) {
-
-                String name = variables().generateTemp();
-                String decl = declarations().declarationTemp(t, name);
-                String value = evaluateExprList(list);
-
-                String init = "{" + value + " }";
-                emitter().emit("%s = %s;", decl, init);
-                return name;
-            } else {
-                return "NULL /* TODO: implement dynamically sized lists */";
+            action.run();
+            List<VarDecl> reversed = new ArrayList<>(varDecls);
+            Collections.reverse(reversed);
+            for (VarDecl d : reversed) {
+                emitter().emit("%s++;", variables().declarationName(d));
+                emitter().decreaseIndentation();
+                emitter().emit("}");
             }
+        } else {
+            throw new UnsupportedOperationException(binOp.getOperations().get(0));
         }
+    }
+
+    /**
+     * Evaluate list expression
+     *
+     * @param list
+     * @return
+     */
+    default String evaluate(ExprList list) {
+        ListType t = (ListType) types().type(list);
+        if (t.getSize().isPresent()) {
+
+            String name = variables().generateTemp();
+            String decl = declarations().declarationTemp(t, name);
+            String value = evaluateExprList(list);
+
+            String init = "{" + value + " }";
+            emitter().emit("%s = %s;", decl, init);
+            return name;
+        } else {
+            return "NULL /* TODO: implement dynamically sized lists */";
+        }
+    }
 
 
-        default
-        String evaluateExprList (Expression expr){
-            return evaluate(expr);
-        }
+    default String evaluateExprList(Expression expr) {
+        return evaluate(expr);
+    }
 
-        default
-        String evaluateExprList (ExprList list){
-            String value = list.getElements().stream().sequential()
-                    .map(this::evaluateExprList)
-                    .collect(Collectors.joining(", "));
-            return value;
-        }
+    default String evaluateExprList(ExprList list) {
+        String value = list.getElements().stream().sequential()
+                .map(this::evaluateExprList)
+                .collect(Collectors.joining(", "));
+        return value;
+    }
 
 
     /*
@@ -1093,248 +1089,241 @@ public interface ExpressionEvaluator {
    }
 */
 
-        default
-        String evaluate (ExprIndexer indexer){
-            VarDecl varDecl = evalExprIndexVar(indexer);
+    default String evaluate(ExprIndexer indexer) {
+        VarDecl varDecl = evalExprIndexVar(indexer);
 
-            Optional<String> str = Optional.empty();
-            String ind;
-            if (indexer.getStructure() instanceof ExprIndexer) {
+        Optional<String> str = Optional.empty();
+        String ind;
+        if (indexer.getStructure() instanceof ExprIndexer) {
 
-                Type t = backend().types().declaredType(varDecl);
-                ListType listType = null;
-                if (t instanceof ListType) {
-                    listType = (ListType) t;
-                } else if (t instanceof RefType) {
-                    listType = (ListType) ((RefType) t).getType();
+            Type t = backend().types().declaredType(varDecl);
+            ListType listType = null;
+            if (t instanceof ListType) {
+                listType = (ListType) t;
+            } else if (t instanceof RefType) {
+                listType = (ListType) ((RefType) t).getType();
+            }
+
+            List<Integer> sizeByDim = typeseval().sizeByDimension((ListType) listType.getElementType());
+            List<String> indexByDim = getListIndexes((ExprIndexer) indexer.getStructure());
+            Collections.reverse(indexByDim);
+
+            List<String> structureIndex = new ArrayList<>();
+            for (int i = 0; i < indexByDim.size(); i++) {
+                List<String> dims = new ArrayList<>();
+                for (int j = i; j < sizeByDim.size(); j++) {
+                    dims.add(Integer.toString(sizeByDim.get(j)));
                 }
+                structureIndex.add(String.format("%s*%s", String.join("*", dims), indexByDim.get(i)));
+            }
+            str = Optional.of(String.join(" + ", structureIndex));
+        }
 
-                List<Integer> sizeByDim = typeseval().sizeByDimension((ListType) listType.getElementType());
-                List<String> indexByDim = getListIndexes((ExprIndexer) indexer.getStructure());
-                Collections.reverse(indexByDim);
+        if (indexer.getIndex() instanceof ExprIndexer) {
+            ind = String.format("%s", evaluate(indexer.getIndex()));
+        } else {
+            ind = evaluate(indexer.getIndex());
+        }
 
-                List<String> structureIndex = new ArrayList<>();
-                for (int i = 0; i < indexByDim.size(); i++) {
-                    List<String> dims = new ArrayList<>();
-                    for (int j = i; j < sizeByDim.size(); j++) {
-                        dims.add(Integer.toString(sizeByDim.get(j)));
-                    }
-                    structureIndex.add(String.format("%s*%s", String.join("*", dims), indexByDim.get(i)));
-                }
-                str = Optional.of(String.join(" + ", structureIndex));
+        if (str.isPresent()) {
+            return String.format("%s[%s + %s]", variables().name(varDecl), str.get(), ind);
+        } else {
+            return String.format("%s[%s]", variables().name(varDecl), ind);
+        }
+    }
+
+    VarDecl evalExprIndexVar(Expression expr);
+
+
+    default VarDecl evalExprIndexVar(ExprVariable expr) {
+        return backend().varDecls().declaration(expr);
+    }
+
+    default VarDecl evalExprIndexVar(ExprGlobalVariable expr) {
+        return backend().varDecls().declaration(expr);
+    }
+
+    default VarDecl evalExprIndexVar(ExprDeref expr) {
+        if (expr.getReference() instanceof ExprVariable) {
+            return backend().varDecls().declaration((ExprVariable) expr.getReference());
+        }
+
+        throw new UnsupportedOperationException();
+    }
+
+    default VarDecl evalExprIndexVar(ExprIndexer expr) {
+        return evalExprIndexVar(expr.getStructure());
+    }
+
+    default List<String> getListIndexes(ExprIndexer expr) {
+        List<String> indexByDim = new ArrayList<>();
+        if (expr.getStructure() instanceof ExprIndexer) {
+            indexByDim.add(evaluate(expr.getIndex()));
+            getListIndexes((ExprIndexer) expr.getStructure()).stream().forEachOrdered(indexByDim::add);
+        } else {
+            indexByDim.add(evaluate(expr.getIndex()));
+        }
+
+        return indexByDim;
+    }
+
+    /**
+     * Evaluate expression if
+     *
+     * @param expr
+     * @return
+     */
+    default String evaluate(ExprIf expr) {
+        Type type = types().type(expr);
+        String temp = variables().generateTemp();
+        String decl = declarations().declarationTemp(type, temp);
+        emitter().emit("%s = %s;", decl, backend().defaultValues().defaultValue(type));
+        emitter().emit("if (%s) {", evaluate(expr.getCondition()));
+        emitter().increaseIndentation();
+        Type thenType = types().type(expr.getThenExpr());
+        String thenValue = evaluate(expr.getThenExpr());
+        backend().statements().copy(type, temp, thenType, thenValue);
+        emitter().decreaseIndentation();
+        emitter().emit("} else {");
+        emitter().increaseIndentation();
+        Type elseType = types().type(expr.getElseExpr());
+        String elseValue = evaluate(expr.getElseExpr());
+        backend().statements().copy(type, temp, elseType, elseValue);
+        emitter().decreaseIndentation();
+        emitter().emit("}");
+        return temp;
+    }
+
+
+    /**
+     * Evaluate application expression
+     *
+     * @param apply
+     * @return
+     */
+    default String evaluate(ExprApplication apply) {
+        boolean directlyCallable = backend().callablesInActor().directlyCallable(apply.getFunction());
+        String fn;
+        List<String> parameters = new ArrayList<>();
+
+        if (!directlyCallable) {
+            parameters.add("thisActor");
+        }
+        for (Expression parameter : apply.getArgs()) {
+            parameters.add(evaluate(parameter));
+        }
+
+        if (!backend().profilingbox().isEmpty()) {
+            boolean isExternal = false;
+            if (apply.getFunction() instanceof ExprGlobalVariable) {
+                VarDecl declaration = backend().varDecls().declaration((ExprGlobalVariable) apply.getFunction());
+                isExternal = declaration.isExternal();
             }
 
-            if (indexer.getIndex() instanceof ExprIndexer) {
-                ind = String.format("%s", evaluate(indexer.getIndex()));
-            } else {
-                ind = evaluate(indexer.getIndex());
-            }
-
-            if (str.isPresent()) {
-                return String.format("%s[%s + %s]", variables().name(varDecl), str.get(), ind);
-            } else {
-                return String.format("%s[%s]", variables().name(varDecl), ind);
-            }
+            if (!isExternal)
+                parameters.add("__opCounters");
         }
 
-        VarDecl evalExprIndexVar (Expression expr);
+        fn = evaluateCall(apply.getFunction());
+        Type type = types().type(apply);
+        String result = variables().generateTemp();
+        String decl = declarations().declarationTemp(types().type(apply), result);
+        emitter().emit("%s = %s(%s);", decl, fn, String.join(", ", parameters));
+        backend().statements().profilingOp().add("__opCounters->prof_DATAHANDLING_CALL += 1;");
+        return result;
+    }
 
-
-        default
-        VarDecl evalExprIndexVar (ExprVariable expr){
-            return backend().varDecls().declaration(expr);
+    /**
+     * Evaluate expression lambda
+     *
+     * @param lambda
+     * @return
+     */
+    default String evaluate(ExprLambda lambda) {
+        backend().emitter().emit("// begin evaluate(ExprLambda)");
+        String functionName = backend().callables().functionName(lambda);
+        String env = backend().callables().environmentName(lambda);
+        for (VarDecl var : backend().callables().closure(lambda)) {
+            emitter().emit("%s.%s = %s;", env, variables().declarationName(var), variables().reference(var));
         }
 
-        default
-        VarDecl evalExprIndexVar (ExprGlobalVariable expr){
-            return backend().varDecls().declaration(expr);
+        Type type = backend().types().type(lambda);
+        String typeName = backend().callables().mangle(type).encode();
+        String funPtr = backend().variables().generateTemp();
+        backend().emitter().emit("%s %s = { &%s, &%s };", typeName, funPtr, functionName, env);
+
+        backend().emitter().emit("// end evaluate(ExprLambda)");
+        return funPtr;
+    }
+
+    /**
+     * Evaluate expression proc
+     *
+     * @param proc
+     * @return
+     */
+    default String evaluate(ExprProc proc) {
+        backend().emitter().emit("// begin evaluate(ExprProc)");
+        String functionName = backend().callables().functionName(proc);
+        String env = backend().callables().environmentName(proc);
+        for (VarDecl var : backend().callables().closure(proc)) {
+            emitter().emit("%s.%s = %s;", env, variables().declarationName(var), variables().reference(var));
         }
 
-        default
-        VarDecl evalExprIndexVar (ExprDeref expr){
-            if (expr.getReference() instanceof ExprVariable) {
-                return backend().varDecls().declaration((ExprVariable) expr.getReference());
-            }
+        Type type = backend().types().type(proc);
+        String typeName = backend().callables().mangle(type).encode();
+        String funPtr = backend().variables().generateTemp();
+        backend().emitter().emit("%s %s = { &%s, &%s };", typeName, funPtr, functionName, env);
 
-            throw new UnsupportedOperationException();
-        }
+        backend().emitter().emit("// end evaluate(ExprProc)");
+        return funPtr;
+    }
 
-        default
-        VarDecl evalExprIndexVar (ExprIndexer expr){
-            return evalExprIndexVar(expr.getStructure());
-        }
-
-        default
-        List<String> getListIndexes (ExprIndexer expr){
-            List<String> indexByDim = new ArrayList<>();
-            if (expr.getStructure() instanceof ExprIndexer) {
-                indexByDim.add(evaluate(expr.getIndex()));
-                getListIndexes((ExprIndexer) expr.getStructure()).stream().forEachOrdered(indexByDim::add);
-            } else {
-                indexByDim.add(evaluate(expr.getIndex()));
-            }
-
-            return indexByDim;
-        }
-
-        /**
-         * Evaluate expression if
-         *
-         * @param expr
-         * @return
-         */
-        default
-        String evaluate (ExprIf expr){
-            Type type = types().type(expr);
-            String temp = variables().generateTemp();
-            String decl = declarations().declarationTemp(type, temp);
-            emitter().emit("%s = %s;", decl, backend().defaultValues().defaultValue(type));
-            emitter().emit("if (%s) {", evaluate(expr.getCondition()));
+    /**
+     * Evaluate expression let
+     *
+     * @param let
+     * @return
+     */
+    default String evaluate(ExprLet let) {
+        let.forEachChild(backend().callables()::declareEnvironmentForCallablesInScope);
+        for (VarDecl decl : let.getVarDecls()) {
+            Type type = types().declaredType(decl);
+            String name = variables().declarationName(decl);
+            emitter().emit("%s = %s;", declarations().declaration(type, name), backend().defaultValues().defaultValue(type));
+            emitter().emit("{");
             emitter().increaseIndentation();
-            Type thenType = types().type(expr.getThenExpr());
-            String thenValue = evaluate(expr.getThenExpr());
-            backend().statements().copy(type, temp, thenType, thenValue);
-            emitter().decreaseIndentation();
-            emitter().emit("} else {");
-            emitter().increaseIndentation();
-            Type elseType = types().type(expr.getElseExpr());
-            String elseValue = evaluate(expr.getElseExpr());
-            backend().statements().copy(type, temp, elseType, elseValue);
+            String eval = evaluate(decl.getValue());
+            backend().statements().copy(type, name, types().type(decl.getValue()), eval);
             emitter().decreaseIndentation();
             emitter().emit("}");
-            return temp;
         }
+        return evaluate(let.getBody());
+    }
 
-
-        /**
-         * Evaluate application expression
-         *
-         * @param apply
-         * @return
-         */
-        default
-        String evaluate (ExprApplication apply){
-            boolean directlyCallable = backend().callablesInActor().directlyCallable(apply.getFunction());
-            String fn;
-            List<String> parameters = new ArrayList<>();
-
-            if (!directlyCallable) {
-                parameters.add("thisActor");
-            }
-            for (Expression parameter : apply.getArgs()) {
-                parameters.add(evaluate(parameter));
-            }
-
-            if (!backend().profilingbox().isEmpty()) {
-                parameters.add("__opCounters");
-            }
-
-            fn = evaluateCall(apply.getFunction());
-            Type type = types().type(apply);
-            String result = variables().generateTemp();
-            String decl = declarations().declarationTemp(types().type(apply), result);
-            emitter().emit("%s = %s(%s);", decl, fn, String.join(", ", parameters));
-            backend().statements().profilingOp().add("__opCounters->prof_DATAHANDLING_CALL += 1;");
-            return result;
+    default String evaluate(ExprTypeConstruction construction) {
+        String fn = backend().algebraic().utils().constructor(construction.getConstructor());
+        List<String> parameters = new ArrayList<>();
+        for (Expression parameter : construction.getArgs()) {
+            parameters.add(evaluate(parameter));
         }
+        String result = variables().generateTemp();
+        String decl = backend().declarations().declaration(types().type(construction), result);
+        emitter().emit("%s = %s(%s);", decl, fn, String.join(", ", parameters));
+        return result;
+    }
 
-        /**
-         * Evaluate expression lambda
-         *
-         * @param lambda
-         * @return
-         */
-        default
-        String evaluate (ExprLambda lambda){
-            backend().emitter().emit("// begin evaluate(ExprLambda)");
-            String functionName = backend().callables().functionName(lambda);
-            String env = backend().callables().environmentName(lambda);
-            for (VarDecl var : backend().callables().closure(lambda)) {
-                emitter().emit("%s.%s = %s;", env, variables().declarationName(var), variables().reference(var));
-            }
-
-            Type type = backend().types().type(lambda);
-            String typeName = backend().callables().mangle(type).encode();
-            String funPtr = backend().variables().generateTemp();
-            backend().emitter().emit("%s %s = { &%s, &%s };", typeName, funPtr, functionName, env);
-
-            backend().emitter().emit("// end evaluate(ExprLambda)");
-            return funPtr;
-        }
-
-        /**
-         * Evaluate expression proc
-         *
-         * @param proc
-         * @return
-         */
-        default
-        String evaluate (ExprProc proc){
-            backend().emitter().emit("// begin evaluate(ExprProc)");
-            String functionName = backend().callables().functionName(proc);
-            String env = backend().callables().environmentName(proc);
-            for (VarDecl var : backend().callables().closure(proc)) {
-                emitter().emit("%s.%s = %s;", env, variables().declarationName(var), variables().reference(var));
-            }
-
-            Type type = backend().types().type(proc);
-            String typeName = backend().callables().mangle(type).encode();
-            String funPtr = backend().variables().generateTemp();
-            backend().emitter().emit("%s %s = { &%s, &%s };", typeName, funPtr, functionName, env);
-
-            backend().emitter().emit("// end evaluate(ExprProc)");
-            return funPtr;
-        }
-
-        /**
-         * Evaluate expression let
-         *
-         * @param let
-         * @return
-         */
-        default
-        String evaluate (ExprLet let){
-            let.forEachChild(backend().callables()::declareEnvironmentForCallablesInScope);
-            for (VarDecl decl : let.getVarDecls()) {
-                Type type = types().declaredType(decl);
-                String name = variables().declarationName(decl);
-                emitter().emit("%s = %s;", declarations().declaration(type, name), backend().defaultValues().defaultValue(type));
-                emitter().emit("{");
-                emitter().increaseIndentation();
-                String eval = evaluate(decl.getValue());
-                backend().statements().copy(type, name, types().type(decl.getValue()), eval);
-                emitter().decreaseIndentation();
-                emitter().emit("}");
-            }
-            return evaluate(let.getBody());
-        }
-
-        default
-        String evaluate (ExprTypeConstruction construction){
-            String fn = backend().algebraic().utils().constructor(construction.getConstructor());
-            List<String> parameters = new ArrayList<>();
-            for (Expression parameter : construction.getArgs()) {
-                parameters.add(evaluate(parameter));
-            }
-            String result = variables().generateTemp();
-            String decl = backend().declarations().declaration(types().type(construction), result);
-            emitter().emit("%s = %s(%s);", decl, fn, String.join(", ", parameters));
-            return result;
-        }
-
-        default
-        String evaluate (ExprTypeAssertion assertion){
-            Type type = types().type(assertion.getType());
-            String result = variables().generateTemp();
-            String decl = declarations().declaration(type, result);
-            emitter().emit("%s = (%s)(%s);", decl, typeseval().type(type) + (type instanceof AlgebraicType ? "*" : ""), evaluate(assertion.getExpression()));
-            return result;
-
-        }
-
-        default
-        String evaluate (ExprField field){
-            return String.format("%s->members.%s", evaluate(field.getStructure()), field.getField().getName());
-        }
+    default String evaluate(ExprTypeAssertion assertion) {
+        Type type = types().type(assertion.getType());
+        String result = variables().generateTemp();
+        String decl = declarations().declaration(type, result);
+        emitter().emit("%s = (%s)(%s);", decl, typeseval().type(type) + (type instanceof AlgebraicType ? "*" : ""), evaluate(assertion.getExpression()));
+        return result;
 
     }
+
+    default String evaluate(ExprField field) {
+        return String.format("%s->members.%s", evaluate(field.getStructure()), field.getField().getName());
+    }
+
+}
