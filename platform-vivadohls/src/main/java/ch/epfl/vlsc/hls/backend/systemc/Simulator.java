@@ -194,17 +194,24 @@ public interface Simulator {
             emitter().emit("total_ticks += ticks;");
 
             emitter().emitNewLine();
-
-            emitter().emit("bool no_input_tokens = %s;",
-                    String.join(" && ",
-                            network.getInputPorts().map(port -> String.format("req_sz_%s == 0", port.getName()))));
-            emitter().emit("bool no_consumption = %s;",
-                    String.join(" && ",
-                            network.getInputPorts().map(port -> String.format("size_%s == 0", port.getName()))));
-            emitter().emit("bool no_production = %s;",
-                    String.join(" && ",
-                            network.getOutputPorts().map(port -> String.format("size_%s == 0", port.getName()))));
-
+            if(network.getInputPorts().isEmpty()){
+                emitter().emit("bool no_input_tokens = true;");
+                emitter().emit("bool no_consumption = true;");
+            }else {
+                emitter().emit("bool no_input_tokens = %s;",
+                        String.join(" && ",
+                                network.getInputPorts().map(port -> String.format("req_sz_%s == 0", port.getName()))));
+                emitter().emit("bool no_consumption = %s;",
+                        String.join(" && ",
+                                network.getInputPorts().map(port -> String.format("size_%s == 0", port.getName()))));
+            }
+            if(network.getOutputPorts().isEmpty()){
+                emitter().emit("bool no_production = true;");
+            }else {
+                emitter().emit("bool no_production = %s;",
+                        String.join(" && ",
+                                network.getOutputPorts().map(port -> String.format("size_%s == 0", port.getName()))));
+            }
             emitter().emitNewLine();
             emitter().emit("if (no_consumption && no_production) {");
             {

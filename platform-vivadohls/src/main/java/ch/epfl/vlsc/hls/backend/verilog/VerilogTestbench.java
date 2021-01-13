@@ -91,8 +91,7 @@ public interface VerilogTestbench {
 
             getDut(instance);
 
-            if (entity.getOutputPorts().size() > 0)
-                endOfSimulation(entity.getOutputPorts());
+            endOfSimulation(entity.getOutputPorts());
         }
         emitter().decreaseIndentation();
         emitter().emit("endmodule");
@@ -150,8 +149,7 @@ public interface VerilogTestbench {
             }
 
             getDut(network);
-            if (network.getOutputPorts().size() > 0)
-                endOfSimulation(network.getOutputPorts());
+            endOfSimulation(network.getOutputPorts());
         }
         emitter().decreaseIndentation();
         emitter().emit("endmodule");
@@ -183,6 +181,7 @@ public interface VerilogTestbench {
 
         emitter().emit("reg start;");
         emitter().emit("reg ap_start;");
+        emitter().emit("reg check_idle;");
         emitter().emit("wire idle;");
         emitter().emit("wire done;");
         emitter().emitNewLine();
@@ -291,6 +290,7 @@ public interface VerilogTestbench {
             emitter().emit("clock = 1'b0;");
             emitter().emit("reset_n = 1'b0;");
             emitter().emit("start = 1'b0;");
+            emitter().emit("check_idle = 1'b0;");
             emitter().emitNewLine();
 
             emitter().emit("// -- Initialize input port registers");
@@ -323,6 +323,7 @@ public interface VerilogTestbench {
 
             emitter().emit("#55 reset_n = 1'b1;");
             emitter().emit("#10 start = 1'b1;");
+            emitter().emit("#20 check_idle = 1'b1;");
         }
         emitter().decreaseIndentation();
         emitter().emit("end");
@@ -586,10 +587,10 @@ public interface VerilogTestbench {
         emitter().increaseIndentation();
         {
             // -- Inputs
-            entity.getInputPorts().forEach(p -> getDutIO(identifier, p, false));
+            entity.getInputPorts().forEach(p -> getDutIO(identifier, p, false, false));
 
             // -- Outputs
-            entity.getOutputPorts().forEach(p -> getDutIO(identifier, p, true));
+            entity.getOutputPorts().forEach(p -> getDutIO(identifier, p, true, false));
 
             // -- IO interface
             if (entity instanceof ActorMachine) {
@@ -629,10 +630,10 @@ public interface VerilogTestbench {
         emitter().increaseIndentation();
         {
             // -- Inputs
-            network.getInputPorts().forEach(p -> getDutIO("", p, true));
+            network.getInputPorts().forEach(p -> getDutIO("", p, true, true));
 
             // -- Outputs
-            network.getOutputPorts().forEach(p -> getDutIO("", p, false));
+            network.getOutputPorts().forEach(p -> getDutIO("", p, false, true));
 
             emitter().emit(".ap_clk(clock),");
             emitter().emit(".ap_rst_n(reset_n),");
@@ -646,7 +647,7 @@ public interface VerilogTestbench {
         emitter().emitNewLine();
     }
 
-    default void getDutIO(String name, PortDecl port, boolean isInput) {
+    default void getDutIO(String name, PortDecl port, boolean isInput, boolean isNetwork) {
         String wireName = name.isEmpty() ? port.getName() : String.format("q_%s_%s", name, port.getName());
         String portName = name.isEmpty() ? port.getSafeName() : port.getSafeName() + getPortExtension();
         if (isInput) {
@@ -659,15 +660,17 @@ public interface VerilogTestbench {
             emitter().emit(".%s_empty_n(%s_empty_n),", portName, wireName);
             emitter().emit(".%s_read(%s_read),", portName, wireName);
         }
-        emitter().emit(".%s_fifo_count(), // unused", portName);
-        emitter().emit(".%s_fifo_size(), // unused", portName);
+        if (isNetwork) {
+            emitter().emit(".%s_fifo_count(), // unused", portName);
+            emitter().emit(".%s_fifo_size(), // unused", portName);
 
-        emitter().emit("// -- trigger constants");
-        emitter().emit(".%s_sleep(1'b1),", portName);
-        emitter().emit(".%s_sync_wait(1'b1),", portName);
-        emitter().emit(".%s_sync_exec(1'b0),", portName);
-        emitter().emit(".%s_waited(1'b1),", portName);
-        emitter().emit(".%s_all_waited(), // unused", portName);
+            emitter().emit("// -- trigger constants");
+            emitter().emit(".%s_sleep(1'b1),", portName);
+            emitter().emit(".%s_sync_wait(1'b1),", portName);
+            emitter().emit(".%s_sync_exec(1'b0),", portName);
+            emitter().emit(".%s_waited(1'b1),", portName);
+            emitter().emit(".%s_all_waited(), // unused", portName);
+        }
         emitter().emitNewLine();
     }
 
@@ -702,10 +705,14 @@ public interface VerilogTestbench {
         {
             emitter().increaseIndentation();
 
-            emitter().emit("if (done || %s) begin", String.join(" & ", outputs
-                    .stream()
-                    .map(p -> p.getName() + "_end_of_file")
-                    .collect(Collectors.toList())));
+            if (outputs.isEmpty()) {
+                emitter().emit("if (idle && check_idle) begin");
+            } else {
+                emitter().emit("if (idle && check_idle || %s) begin", String.join(" & ", outputs
+                        .stream()
+                        .map(p -> p.getName() + "_end_of_file")
+                        .collect(Collectors.toList())));
+            }
             {
                 emitter().increaseIndentation();
 
