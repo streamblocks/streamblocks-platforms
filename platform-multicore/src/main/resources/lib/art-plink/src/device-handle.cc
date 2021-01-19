@@ -66,6 +66,7 @@ DevicePort::DevicePort(PortAddress address) : address(address) {
 DevicePort::DevicePort(const cl::Context &context, PortAddress address,
                        cl_mem_flags flags, cl::size_type size, cl_int bank_id)
     : DevicePort(address) {
+
   allocate(context, flags, size, bank_id);
 }
 
@@ -104,6 +105,7 @@ void DevicePort::writeToDeviceBuffer(const cl::CommandQueue &q) {
   if (usable_space > 0) {
     OCL_MSG("Enqueue write buffer %s (%lu bytes)\n", address.toString().c_str(),
             usable_space);
+
     OCL_CHECK(err, err = q.enqueueWriteBuffer(device_buffer, false, 0,
                                               usable_space, host_buffer.data(),
                                               NULL, &buffer_event));
@@ -151,6 +153,47 @@ void DevicePort::equeueReadSize(const cl::CommandQueue &q,
                                 &size_event_info);
 }
 
+
+
+void DevicePort::registerStat(const std::size_t call_index) {
+
+  const auto bytes_usable = getUsableSpace();
+  const auto bytes_used = getUsedTokens() * this->token_size;
+
+  this->stats.emplace_back(call_index, bytes_usable, bytes_used, buffer_event);
+
+}
+
+std::string DevicePort::serializeStats(const int indent) {
+  std::stringstream ss;
+  std::string outer_indent = "";
+  for (int i = 0; i < indent; i++)
+    outer_indent += "\t";
+
+  std::string inner_indent = outer_indent + "\t";
+
+  ss << outer_indent << "{" << std::endl;
+  {
+    ss << inner_indent << "\"name\": \"" << this->address.toString() << "\"," << std::endl;
+    ss << inner_indent << "\"token_size\": \"" << this->token_size << "\"," << std::endl;
+    ss << inner_indent << "\"buffer_size\":" << this->host_buffer.size() << "," << std::endl;
+    ss << inner_indent << "\"logged_transfers\":" << this->stats.size() << "," << std::endl;
+    ss << inner_indent << "\"stats\": [" << std::endl;
+    {
+      for(auto it = this->stats.begin(); it != this->stats.end(); it++) {
+        ss << it->serialize(indent + 2);
+        if (it != this->stats.end() - 1) {
+          ss << ",";
+        }
+        ss << std::endl;
+      }
+    }
+    ss << inner_indent << "]" << std::endl;
+  }
+  ss << outer_indent << "}";
+
+  return ss.str();
+}
 /*****************************************************************************
  *
  *                                Device Handle
@@ -158,9 +201,9 @@ void DevicePort::equeueReadSize(const cl::CommandQueue &q,
  *****************************************************************************/
 
 DeviceHandle::DeviceHandle(int num_inputs, int num_outputs, int num_mems,
-                           const std::string kernel_name, const std::string dir)
+                           const std::string kernel_name, const std::string dir, const bool enable_stats)
     : NUM_INPUTS(num_inputs), NUM_OUTPUTS(num_outputs), NUM_MEMS(num_mems),
-      request_size(num_inputs), available_size(num_outputs) {
+      request_size(num_inputs), available_size(num_outputs), enable_stats(enable_stats), call_index(0) {
 
   cl_int error;
   OCL_MSG("Initializing the device\n");
@@ -250,17 +293,36 @@ void DeviceHandle::waitForReadBuffers() {
 void DeviceHandle::waitForSize() {
   std::vector<cl::Event> activeEvents;
   for (auto &input : input_ports) {
-    if (input.getSizeEventInfo().active)
+    if (input.getSizeEventInfo().active) {
       activeEvents.push_back(input.getSizeEvent());
+
+    }
   }
   for (auto &output : output_ports) {
-    if (output.getSizeEventInfo().active)
+    if (output.getSizeEventInfo().active) {
       activeEvents.push_back(output.getSizeEvent());
+
+    }
   }
+
   if (activeEvents.size() > 0) {
     OCL_MSG("Waiting on %d size events\n", activeEvents.size());
     cl::WaitForEvents(activeEvents);
   }
+
+  if (this->enable_stats) {
+    for(auto& input : input_ports) {
+      if (input.getSizeEventInfo().active) {
+        input.registerStat(call_index);
+      }
+    }
+    for(auto& output : output_ports) {
+      if (output.getSizeEventInfo().active)
+        output.registerStat(call_index);
+    }
+
+  }
+
 }
 
 void DeviceHandle::setArgs() {
@@ -330,6 +392,7 @@ void DeviceHandle::enqueueExecution() {
                      &kernel_wait_events, // events to wait on
                      &kernel_event[0]     // generated event
                      ));
+  call_index ++;
 }
 
 char *DeviceHandle::getInputHostBuffer(const PortAddress &port) {
@@ -354,7 +417,46 @@ char *DeviceHandle::getOutputHostBuffer(const PortAddress &port) {
   return nullptr;
 }
 
-void DeviceHandle::terminate() {}
+void DeviceHandle::terminate() {
+
+
+}
+
+
+void DeviceHandle::dumpStats(const std::string& file_name) {
+
+  std::ofstream ofs(file_name, std::ios::out);
+  std::stringstream ss;
+
+  ss << "{" << std::endl;
+  {
+    ss << "\t" << "\"inputs\": [" << std::endl;
+    {
+      for (auto input_it = input_ports.begin(); input_it != input_ports.end(); input_it ++) {
+        ss << input_it->serializeStats(2);
+        if (input_it != input_ports.end() - 1)
+          ss << ",";
+        ss << std::endl;
+      }
+    }
+    ss << "\t" << "]," << std::endl;
+
+    ss << "\t" << "\"outputs\": [" << std::endl;
+    {
+      for (auto output_it = output_ports.begin(); output_it != output_ports.end(); output_it ++) {
+        ss << output_it->serializeStats(2);
+        if (output_it != output_ports.end() - 1)
+          ss << ",";
+        ss << std::endl;
+      }
+    }
+    ss << "\t" << "]" << std::endl;
+  }
+  ss << "}";
+
+  ofs << ss.str();
+  ofs.close();
+}
 
 void DeviceHandle::allocateExternals(std::vector<cl::size_type> size_bytes) {
 
@@ -366,4 +468,38 @@ void DeviceHandle::allocateExternals(std::vector<cl::size_type> size_bytes) {
     external_memories.emplace_back(context, CL_MEM_READ_WRITE, sz);
   }
 }
+
+
+void DeviceHandle::allocateInputBuffer(const PortAddress &port,
+                                       const cl::size_type size,
+                                       const cl_int bank_id) {
+
+  for (auto &input : input_ports)
+    if (port == input.getAddress()) {
+      cl_int err;
+      OCL_MSG("Allocating %s port buffer (%llu bytes) \n",
+              port.toString().c_str(), size);
+      OCL_CHECK(err, err = input.allocate(context, CL_MEM_READ_ONLY, size, bank_id));
+      return;
+    }
+  OCL_ERR("Invalid input port %s\n", port.toString());
+}
+
+void DeviceHandle::allocateOutputBuffer(const PortAddress &port,
+                                        const cl::size_type size,
+                                        const cl_int bank_id) {
+
+  for (auto &output : output_ports) {
+    if (port == output.getAddress()) {
+      cl_int err;
+      OCL_MSG("Allocating %s port buffer (%llu bytes)\n",
+              port.toString().c_str(), size);
+      OCL_CHECK(err, err = output.allocate(context, CL_MEM_WRITE_ONLY, size, bank_id));
+      return;
+    }
+  }
+  OCL_ERR("Invalid output port %s\n", port.toString());
+}
+
 };
+

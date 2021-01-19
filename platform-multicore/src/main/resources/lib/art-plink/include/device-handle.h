@@ -16,6 +16,20 @@
 
 namespace ocl_device {
 
+struct TimePoints{
+  cl_ulong queued;
+  cl_ulong submit;
+  cl_ulong start;
+  cl_ulong end;
+  TimePoints(cl::Event& event) {
+    event.getProfilingInfo<cl_ulong>(CL_PROFILING_COMMAND_QUEUED, &queued);
+    event.getProfilingInfo<cl_ulong>(CL_PROFILING_COMMAND_SUBMIT, &submit);
+    event.getProfilingInfo<cl_ulong>(CL_PROFILING_COMMAND_START, &start);
+    event.getProfilingInfo<cl_ulong>(CL_PROFILING_COMMAND_END, &end);
+  }
+};
+
+
 struct EventInfo {
   std::size_t counter;
   bool active;
@@ -100,12 +114,56 @@ public:
   cl::Buffer &getBufferRef() { return device_buffer; }
   cl::Buffer &getSizeRef() { return device_size_buffer; }
 
+  void updateConsumption();
+
+  void report();
+
   void releaseEvents() {
     buffer_event_info.active = false;
     size_event_info.active = false;
   }
 
+  void registerStat(const std::size_t call_index);
+
+  std::string serializeStats(const int indent);
+
+
+
 private:
+  struct Stats{
+
+    const std::size_t bytes_usable;
+    const std::size_t bytes_used;
+    const TimePoints time_log;
+    const std::size_t index;
+    Stats(const std::size_t index,
+          const std::size_t bytes_usable,
+          const std::size_t bytes_used, cl::Event& event):
+          bytes_usable(bytes_usable),
+          bytes_used(bytes_used), index(index),
+          time_log(event) {
+    }
+
+    std::string serialize(const int indent) {
+      std::stringstream ss;
+      std::string indent_str = "";
+      for (int i = 0; i < indent; i++)
+        indent_str = indent_str + "\t";
+      ss << indent_str << "{" << std::endl;
+      {
+        auto inner_indent = indent_str + "\t";
+        ss << inner_indent << "\"call_index\":" << index << "," << std::endl;
+        ss << inner_indent << "\"queue\":" << time_log.queued << "," << std::endl;
+        ss << inner_indent << "\"submit\":" << time_log.submit << "," << std::endl;
+        ss << inner_indent << "\"start\":"  << time_log.start << "," << std::endl;
+        ss << inner_indent << "\"end\":" << time_log.end << "," << std::endl;
+        ss << inner_indent << "\"bytes_usable\":" << bytes_usable << "," << std::endl;
+        ss << inner_indent << "\"bytes_used\":" << bytes_used << "" << std::endl;
+      }
+      ss << indent_str << "}";
+      return ss.str();
+    }
+  };
   // -- token size
   cl::size_type token_size;
   // -- usable space of the port buffer
@@ -130,6 +188,11 @@ private:
   EventInfo size_event_info;
 
   cl_mem_ext_ptr_t extensions;
+
+
+  std::vector<Stats> stats;
+
+
 };
 
 struct PLinkPort {
@@ -159,18 +222,14 @@ private:
 class DeviceHandle {
 public:
   DeviceHandle(int num_inputs, int num_outputs, int num_mems,
-               const std::string kernel_name, const std::string dir);
+               const std::string kernel_name, const std::string dir, const bool enable_stats = false);
 
   void buildPorts(const std::vector<PLinkPort> &inputs,
                   const std::vector<PLinkPort> &outputs) {
     OCL_ASSERT(inputs.size() == NUM_INPUTS, "Invalid number of input ports!\n");
     OCL_ASSERT(outputs.size() == NUM_OUTPUTS, "Invalid number of output ports!\n");
 
-#ifndef MPSOC
     cl_int banks[4] = {XCL_MEM_DDR_BANK0, XCL_MEM_DDR_BANK1, XCL_MEM_DDR_BANK2, XCL_MEM_DDR_BANK3};
-#else
-    cl_int banks[4] = {XCL_MEM_DDR_BANK0, XCL_MEM_DDR_BANK0, XCL_MEM_DDR_BANK0, XCL_MEM_DDR_BANK0};
-#endif
 
     int bank_index = 0;
     for (auto &input : inputs) {
@@ -295,6 +354,15 @@ public:
 
   void allocateExternals(std::vector<cl::size_type> size_bytes);
 
+  void dumpStats(const std::string& file_name);
+
+  void allocateInputBuffer(const PortAddress &port,
+                                       const cl::size_type size,
+                                       const cl_int bank_id);
+  void allocateOutputBuffer(const PortAddress &port,
+                                       const cl::size_type size,
+                                       const cl_int bank_id);
+
 private:
   const int NUM_INPUTS;
   const int NUM_OUTPUTS;
@@ -324,6 +392,17 @@ private:
   std::vector<uint32_t> available_size;
 
   std::vector<cl::Buffer> external_memories;
+
+  const bool enable_stats;
+
+  std::size_t call_index;
+
+  // struct KernelStat {
+  //   const std::size_t index;
+  //   const TimePoints time_log;
+  //   KernelStat()
+  // };
+  // std::vector<TimePoints> kernel_stats;
 };
 };
 
