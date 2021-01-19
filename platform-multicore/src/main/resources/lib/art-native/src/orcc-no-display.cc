@@ -50,7 +50,7 @@ void displayYUV_init() {
 }
 
 int displayYUV_getNbFrames() {
-    return -1;
+    return opt->nbr_frames;
 }
 
 void display_close() {

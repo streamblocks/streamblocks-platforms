@@ -193,12 +193,12 @@ unsigned int source_getNbLoop(void) {
 }
 
 void source_exit(int exitCode) {
-    if (exitCode != 0) {
+    //if (exitCode != 0) {
         exit(exitCode);
-    } else {
+    //} else {
         // compareErrors' default value is 0
         //exit(compareErrors);
-    }
+    //}
 }
 
 unsigned int source_sizeOfFile() {

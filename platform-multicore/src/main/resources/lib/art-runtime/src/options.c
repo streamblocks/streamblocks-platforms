@@ -45,6 +45,9 @@ void show_usage(char *name) {
            "                           3: + trigger state machines\n"
            "                        the vcd dump is saved to: \n"
            "                        ./network_tester.vcd\n"
+           "--i=FILE                Optional input file\n"
+           "--l=N                   Set the number of loops of the previous input file\n"
+           "--f=B                   Restricts the number of displayed frame and then exits\n"
     );
 }
 
@@ -52,6 +55,7 @@ void pre_parse_args(int argc, char *argv[], RuntimeOptions *options) {
 
     options->enable_display = 1;
     options->nbr_loops=-1;
+    options->nbr_frames = -1;
 
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--timing") == 0) {
@@ -86,6 +90,8 @@ void pre_parse_args(int argc, char *argv[], RuntimeOptions *options) {
             options->enable_display = 0;
         } else if (strncmp(argv[i], "--l=", 4) == 0) {
             options->nbr_loops = atoi(&argv[i][4]);
+        } else if (strncmp(argv[i], "--f=", 4) == 0) {
+            options->nbr_frames = atoi(&argv[i][4]);
         } else if (strcmp(argv[i], "--help") == 0) {
             show_usage(argv[0]);
             exit(0);

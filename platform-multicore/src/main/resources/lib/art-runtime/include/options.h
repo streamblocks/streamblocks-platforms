@@ -27,6 +27,7 @@ typedef struct{
     char *yuv_file;
     int enable_display;
     int nbr_loops;
+    int nbr_frames;
 } RuntimeOptions;
 
 void show_usage(char *name);
