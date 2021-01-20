@@ -81,7 +81,7 @@ public interface Controllers {
             initialize.apply(instruction).stream().forEach(scope ->
                     emitter().emit("%s_init_scope_%d(context, thisActor);", name, scope)
             );
-            emitInstruction(actorMachine, name, instruction, stateMap);
+            emitInstruction(actorMachine, name, instruction, s, stateMap);
         }
 
         emitter().emit("out:");
@@ -101,9 +101,9 @@ public interface Controllers {
         return result;
     }
 
-    void emitInstruction(ActorMachine am, String name, Instruction instruction, Map<State, Integer> stateNumbers);
+    void emitInstruction(ActorMachine am, String name, Instruction instruction, State from, Map<State, Integer> stateNumbers);
 
-    default void emitInstruction(ActorMachine am, String name, Test test, Map<State, Integer> stateNumbers) {
+    default void emitInstruction(ActorMachine am, String name, Test test, State from, Map<State, Integer> stateNumbers) {
         String exitCode = "";
         if (am.getCondition(test.condition()) instanceof PortCondition) {
             PortCondition condition = (PortCondition) am.getCondition(test.condition());
@@ -130,13 +130,17 @@ public interface Controllers {
         emitter().emit("");
     }
 
-    default void emitInstruction(ActorMachine am, String name, Wait wait, Map<State, Integer> stateNumbers) {
+    default void emitInstruction(ActorMachine am, String name, Wait wait, State from, Map<State, Integer> stateNumbers) {
         emitter().emit("thisActor->program_counter = %d;", stateNumbers.get(wait.target()));
+        State to = wait.target();
+        if (from == to) {
+            emitter().emit("result = EXITCODE_TERMINATE;");
+        }
         emitter().emit("goto out;");
         emitter().emit("");
     }
 
-    default void emitInstruction(ActorMachine am, String name, Exec exec, Map<State, Integer> stateNumbers) {
+    default void emitInstruction(ActorMachine am, String name, Exec exec, State from, Map<State, Integer> stateNumbers) {
         emitter().emit("ART_EXEC_TRANSITION(%s_transition_%d);", name, exec.transition());
         emitter().emit("goto S%d;", stateNumbers.get(exec.target()));
         emitter().emit("");
