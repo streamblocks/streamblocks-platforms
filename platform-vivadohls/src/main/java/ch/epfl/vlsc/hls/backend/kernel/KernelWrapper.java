@@ -199,7 +199,7 @@ public interface KernelWrapper {
         for (PortDecl port : ImmutableList.concat(network.getInputPorts(), network.getOutputPorts())) {
             emitter().emit("input  wire    [64 - 1 : 0] %s_data_buffer,", port.getName());
             emitter().emit("input  wire    [64 - 1 : 0] %s_meta_buffer,", port.getName());
-            emitter().emit("input  wire    [32 - 1 : 0] %s_alloc,", port.getName());
+            emitter().emit("input  wire    [32 - 1 : 0] %s_alloc_size,", port.getName());
             emitter().emit("input  wire    [32 - 1 : 0] %s_head,", port.getName());
             emitter().emit("input  wire    [32 - 1 : 0] %s_tail,", port.getName());
 

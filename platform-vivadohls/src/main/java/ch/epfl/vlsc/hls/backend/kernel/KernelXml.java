@@ -91,9 +91,9 @@ public interface KernelXml {
 
                     for (PortDecl port : ImmutableList.concat(network.getInputPorts(), network.getOutputPorts())) {
                         String type = backend().typeseval().KernelXmlType(backend().types().declaredPortType(port));
-                        xmlArg(idCounter++, port.getName() + "_data_buffer", 0, "s_axi_control", "0x0", "0x8", String.format("0x%X", offset), "0x8", "unsigned int*");
+                        xmlArg(idCounter++, port.getName() + "_data_buffer", 1, "s_axi_control", "0x0", "0x8", String.format("0x%X", offset), "0x8", "unsigned int*");
                         offset += 12;
-                        xmlArg(idCounter++, port.getName() + "_meta_buffer", 0, "s_axi_control", "0x0", "0x8", String.format("0x%X", offset), "0x8", "unsigned int*");
+                        xmlArg(idCounter++, port.getName() + "_meta_buffer", 1, "s_axi_control", "0x0", "0x8", String.format("0x%X", offset), "0x8", "unsigned int*");
                         offset += 12;
                         xmlArg(idCounter++, port.getName() + "_alloc_size", 0, "s_axi_control", "0x0", "0x4", String.format("0x%X", offset), "0x4", "unsigned int");
                         offset += 8;
