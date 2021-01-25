@@ -653,7 +653,7 @@ public interface SystemCNetwork {
 
     default void bindInstnacePorts(SCInstanceIF instance) {
 
-        emitter().emit("// --port bindings for %s", instance.getName());
+        emitter().emit("// -- port bindings for %s", instance.getName());
         instance.stream().forEach(port ->
                 emitter().emit("%s->%s.bind(%s);", instance.getInstanceName(),
                         port.getName(), port.getSignal().getName()));

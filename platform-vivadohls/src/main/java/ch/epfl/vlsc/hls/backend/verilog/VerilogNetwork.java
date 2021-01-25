@@ -1,9 +1,7 @@
 package ch.epfl.vlsc.hls.backend.verilog;
 
 import ch.epfl.vlsc.attributes.Memories;
-import ch.epfl.vlsc.hls.backend.ExternalMemory;
 import ch.epfl.vlsc.hls.backend.VivadoHLSBackend;
-import ch.epfl.vlsc.hls.backend.kernel.AxiConstants;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.PathUtils;
 import ch.epfl.vlsc.platformutils.utils.MathUtils;
@@ -20,11 +18,7 @@ import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.network.Network;
 import se.lth.cs.tycho.ir.util.ImmutableList;
-import se.lth.cs.tycho.reporting.CompilationException;
-import se.lth.cs.tycho.reporting.Diagnostic;
-import se.lth.cs.tycho.type.IntType;
-import se.lth.cs.tycho.type.ListType;
-import se.lth.cs.tycho.type.Type;
+import se.lth.cs.tycho.type.*;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -179,7 +173,7 @@ public interface VerilogNetwork {
             }
         }
 
-        for (Memories.InstanceVarDeclPair pair: backend().externalMemory().getExternalMemories(network)) {
+        for (Memories.InstanceVarDeclPair pair : backend().externalMemory().getExternalMemories(network)) {
             String memName = backend().externalMemory().namePair(pair);
             emitter().emit("input  wire    [64 - 1 : 0]    %s_offset,", memName);
         }
@@ -499,10 +493,7 @@ public interface VerilogNetwork {
         emitter().emit("// -- Instances");
         emitter().emitNewLine();
 
-        for (Instance instance : instances) {
-            String qidName = getInstance(instance);
-        }
-
+        instances.forEach(i -> getInstance(i));
     }
 
     default String getInstance(Instance instance) {
@@ -631,6 +622,8 @@ public interface VerilogNetwork {
             }
 
             if (entity instanceof ActorMachine) {
+
+                List<String> io = new ArrayList<>();
                 // -- IO for Inputs
                 for (PortDecl port : entity.getInputPorts()) {
                     String portName = port.getName();
@@ -638,19 +631,27 @@ public interface VerilogNetwork {
                     Connection connection = backend().task().getNetwork().getConnections().stream()
                             .filter(c -> c.getTarget().equals(target)).findAny().orElse(null);
                     String queueName = queueNames().get(connection);
+                    Type type = backend().types().declaredPortType(port);
+                    /*
                     if (backend().context().getConfiguration().get(PlatformSettings.arbitraryPrecisionIntegers)) {
-                        Type type = backend().types().declaredPortType(port);
                         if (type instanceof IntType) {
-                            emitter().emit(".io_%s_peek_V(%s),", portName, String.format("%s_peek", queueName));
+                            //emitter().emit(".io_%s_peek_V(%s),", portName, String.format("%s_peek", queueName));
+                            io.add(String.format("%s_peek", queueName));
                         } else {
-                            emitter().emit(".io_%s_peek(%s),", portName, String.format("%s_peek", queueName));
+                            //emitter().emit(".io_%s_peek(%s),", portName, String.format("%s_peek", queueName));
+                            io.add(String.format("%s_peek", queueName));
                         }
                     } else {
-                        emitter().emit(".io_%s_peek(%s),", portName, String.format("%s_peek", queueName));
+                        //emitter().emit(".io_%s_peek(%s),", portName, String.format("%s_peek", queueName));
+                        io.add(String.format("%s_peek", queueName));
                     }
-                    emitter().emit(".io_%s_count(%s),", portName, String.format("%s_count", queueName));
+                    */
+                    io.add(peekValueByType(type, String.format("%s_peek", queueName)));
 
-                    emitter().emitNewLine();
+                    //emitter().emit(".io_%s_count(%s),", portName, String.format("%s_count", queueName));
+                    io.add(String.format("%s_count", queueName));
+
+                    //emitter().emitNewLine();
                 }
 
                 // -- IO for Outputs
@@ -661,11 +662,15 @@ public interface VerilogNetwork {
                             .filter(c -> c.getSource().equals(source)).findAny().orElse(null);
                     String queueName = queueNames().get(connection);
 
-                    emitter().emit(".io_%s_size(%s),", portName, String.format("%s_size", queueName));
-                    emitter().emit(".io_%s_count(%s),", portName, String.format("%s_count", queueName));
-
-                    emitter().emitNewLine();
+                    //emitter().emit(".io_%s_size(%s),", portName, String.format("%s_size", queueName));
+                    //emitter().emit(".io_%s_count(%s),", portName, String.format("%s_count", queueName));
+                    io.add(String.format("%s_size", queueName));
+                    io.add(String.format("%s_count", queueName));
+                    //emitter().emitNewLine();
                 }
+
+                Collections.reverse(io);
+                emitter().emit(".io({%s}),", String.join(", ", io));
             }
 
             // -- Vivado HLS control signals
@@ -682,6 +687,34 @@ public interface VerilogNetwork {
         }
         emitter().emit(");");
         emitter().emitNewLine();
+        return name;
+    }
+
+    default String peekValueByType(Type type, String name) {
+        if (type instanceof IntType) {
+            if (backend().context().getConfiguration().get(PlatformSettings.arbitraryPrecisionIntegers)) {
+                if (((IntType) type).getSize().isPresent()) {
+                    int size = ((IntType) type).getSize().getAsInt();
+                    if (size < 32) {
+                        return String.format("{%s'b0, %s}", 32 - size, name);
+                    } else {
+                        return name;
+                    }
+                } else {
+                    return name;
+                }
+            } else {
+                int size = backend().typeseval().bitPerType(type);
+                if (size < 32) {
+                    return String.format("{%s'b0, %s}", 32 - size, name);
+                } else {
+                    return name;
+                }
+            }
+        } else if (type instanceof BoolType) {
+            return String.format("{31'b0, %s}", name);
+        } // -- TODO : missing algebraic type
+
         return name;
     }
 
@@ -1151,10 +1184,10 @@ public interface VerilogNetwork {
 
         ImmutableList<Memories.InstanceVarDeclPair> mems = backend()
                 .externalMemory().getExternalMemories(network);
-        for (Memories.InstanceVarDeclPair pair: mems) {
+        for (Memories.InstanceVarDeclPair pair : mems) {
 
-            ImmutableList<String> params =  backend().externalMemory().getAxiParams(pair);
-            for (String param: params) {
+            ImmutableList<String> params = backend().externalMemory().getAxiParams(pair);
+            for (String param : params) {
                 boolean last = (mems.indexOf(pair) == mems.size() - 1) && (params.indexOf(param) == params.size() - 1);
                 emitter().emit("%s%s", param, last ? lastDelim : ",");
             }

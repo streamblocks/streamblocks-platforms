@@ -31,21 +31,17 @@ public interface OutputStageMem {
         emitter().emitNewLine();
         emitter().emit("using namespace iostage;");
         emitter().emitNewLine();
+
+        emitter().emit("static class_output_stage_mem< %s > i_%s_output_stage_mem;", backend().declarations().declaration(backend().types().declaredPortType(port), ""), port.getName());
+        emitter().emitNewLine();
+
         emitter().emit("uint32_t %s_output_stage_mem(%s) {", port.getName(), entityPorts(port));
         emitter().emit("#pragma HLS INTERFACE m_axi port=%s_size offset=direct bundle=%1$s", port.getName());
         emitter().emit("#pragma HLS INTERFACE m_axi port=%s_buffer offset=direct bundle=%1$s", port.getName());
-        emitter().emit("#pragma HLS INTERFACE ap_fifo port=%s", port.getName());
-        emitter().emit("#pragma HLS INTERFACE ap_fifo port=%s_offset", port.getName());
         emitter().emit("#pragma HLS INTERFACE ap_ctrl_hs register port=return");
         {
             emitter().increaseIndentation();
-
-            emitter().emit("static class_output_stage_mem< %s > i_%s_output_stage_mem;", backend().declarations().declaration(backend().types().declaredPortType(port), ""), port.getName());
-            emitter().emitNewLine();
-
             emitter().emit("return i_%s_output_stage_mem(%1$s_available_size, %1$s_size, %1$s_buffer, fifo_count, %1$s, %1$s_offset);", port.getName());
-
-
             emitter().decreaseIndentation();
         }
         emitter().emit("}");

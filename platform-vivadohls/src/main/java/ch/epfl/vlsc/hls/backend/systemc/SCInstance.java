@@ -10,6 +10,25 @@ public class SCInstance implements SCInstanceIF {
     public static String makeName(String instanceName) {
         return instanceName + "_verimodule";
     }
+
+    public static class IoIF implements SCIF {
+        private final PortIF io;
+
+        public IoIF(ImmutableList<InputIF> readers, ImmutableList<OutputIF> writers){
+            io = new PortIF("io", Signal.of("io", new LogicVector(128)));
+        }
+
+        @Override
+        public Stream<PortIF> stream() {
+            return Stream.of(io);
+        }
+
+        public PortIF getIo(){
+            return io;
+        }
+    }
+
+
     public static class OutputIF implements SCIF {
         private final Queue.WriterIF writer;
         private final PortIF capacity;
@@ -126,7 +145,11 @@ public class SCInstance implements SCInstanceIF {
         return actionsIds.size();
     }
 
-    public ImmutableList<String> getActionsIds() { return actionsIds; }
+    public ImmutableList<String> getActionsIds() {
+        return actionsIds;
+    }
 
-    public String getOriginalName() { return this.originalName; }
+    public String getOriginalName() {
+        return this.originalName;
+    }
 }

@@ -187,6 +187,13 @@ public interface Instances {
 
         String name = instance.getInstanceName();
         emitter().emitClikeBlockComment("HLS Top Function");
+        emitter().emitNewLine();
+
+        // -- Static call
+        String className = "class_" + instance.getInstanceName();
+        emitter().emit("static %s i_%s;", className, name);
+        emitter().emitNewLine();
+
         emitter().emit("int %s(%s) {", name, entityPorts(name, withIO, true));
 
         // -- Data pack I/O with algebraic types
@@ -220,10 +227,6 @@ public interface Instances {
         }
         emitter().increaseIndentation();
 
-        // -- Static call
-        String className = "class_" + instance.getInstanceName();
-        emitter().emit("static %s i_%s;", className, name);
-        emitter().emitNewLine();
 
         List<String> ports = new ArrayList<>();
 
