@@ -155,10 +155,12 @@ endmacro()
 # -- --------------------------------------------------------------------------
 # -- Helper macro to synthesize io stage actors using vivado hls
 # -- --------------------------------------------------------------------------
-macro(synthesize_io ACTOR)
+macro(synthesize_io ACTOR TYPE)
 
 	# This is visible in the file scope
 	set(${ACTOR}_VERILOG_SOURCE "${VERILOG_GEN_DIR}/${ACTOR}/solution/syn/verilog/${ACTOR}.v")
+
+  configure_io(${ACTOR} ${TYPE})
 
 	add_custom_command(
 		OUTPUT ${${ACTOR}_VERILOG_SOURCE}
@@ -174,6 +176,13 @@ macro(synthesize_io ACTOR)
 
 
 endmacro()
+
+function(configure_io ACTOR TYPE)
+	set(THIS_ACTOR ${ACTOR})
+	# Configure the triggred instantiation
+  configure_file(${PROJECT_SOURCE_DIR}/scripts/${TYPE}_triggered.sv.in ${PROJECT_SOURCE_DIR}/code-gen/rtl/${ACTOR}_triggered.sv)
+endfunction()
+
 
 # -- --------------------------------------------------------------------------
 # -- C++ testers for io stage actors
@@ -225,9 +234,14 @@ if (KERNEL)
 # -- Synthesis targets for input and output stages
 # -- --------------------------------------------------------------------------
 
-	foreach(__ACTOR__ ${__INPUT_STAGE_ACTORS__} ${__OUTPUT_STAGE_ACTORS__})
-		synthesize_io(${__ACTOR__})
+	foreach(__ACTOR__ ${__INPUT_STAGE_ACTORS__})
+
+	    synthesize_io(${__ACTOR__} input_stage)
 	endforeach()
+	foreach(__ACTOR__ ${__OUTPUT_STAGE_ACTORS__})
+			synthesize_io(${__ACTOR__} output_stage)
+	endforeach()
+
 
 # -- --------------------------------------------------------------------------
 # -- Emulation config util

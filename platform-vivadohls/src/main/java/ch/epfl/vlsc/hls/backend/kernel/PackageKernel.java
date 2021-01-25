@@ -11,6 +11,7 @@ import org.multij.Module;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.network.Network;
+import se.lth.cs.tycho.ir.util.ImmutableList;
 
 import java.util.Map;
 
@@ -49,10 +50,10 @@ public interface PackageKernel {
 
         emitter().emitSharpBlockComment("Import Input/Output stages");
         for (PortDecl port : network.getInputPorts()) {
-            importVivadoHLSIOStage(port, "input_stage_mem");
+            importVivadoHLSIOStage(port, "input_stage");
         }
         for (PortDecl port : network.getOutputPorts()) {
-            importVivadoHLSIOStage(port, "output_stage_mem");
+            importVivadoHLSIOStage(port, "output_stage");
         }
 /*
         // -- ILA
@@ -94,30 +95,15 @@ public interface PackageKernel {
 
         for (Memories.InstanceVarDeclPair mem : backend().externalMemory().getExternalMemories(network)) {
             String memName = backend().externalMemory().namePair(mem);
-            emitter().emit("ipx::associate_bus_interfaces -busif m_axi_%s -clock ap_clk [ipx::current_core]", memName);
-            emitter().emit("ipx::add_bus_parameter HAS_BURST [ipx::get_bus_interfaces m_axi_%s -of_objects [ipx::current_core]]", memName);
-            emitter().emit("ipx::add_bus_parameter SUPPORTS_NARROW_BURST [ipx::get_bus_interfaces m_axi_%s -of_objects [ipx::current_core]]", memName);
-            emitter().emit("set_property value 0 [ipx::add_bus_parameter HAS_BURST [ipx::get_bus_interfaces m_axi_%s -of_objects [ipx::current_core]]]", memName);
-            emitter().emit("set_property value 0 [ipx::add_bus_parameter SUPPORTS_NARROW_BURST [ipx::get_bus_interfaces m_axi_%s -of_objects [ipx::current_core]]]", memName);
+            createAxiMasterInterface(memName);
         }
         emitter().emitNewLine();
 
-        for (PortDecl port : network.getInputPorts()) {
-            emitter().emit("ipx::associate_bus_interfaces -busif m_axi_%s -clock ap_clk [ipx::current_core]", port.getName());
-            emitter().emit("ipx::add_bus_parameter HAS_BURST [ipx::get_bus_interfaces m_axi_%s -of_objects [ipx::current_core]]", port.getName());
-            emitter().emit("ipx::add_bus_parameter SUPPORTS_NARROW_BURST [ipx::get_bus_interfaces m_axi_%s -of_objects [ipx::current_core]]", port.getName());
-            emitter().emit("set_property value 0 [ipx::add_bus_parameter HAS_BURST [ipx::get_bus_interfaces m_axi_%s -of_objects [ipx::current_core]]]", port.getName());
-            emitter().emit("set_property value 0 [ipx::add_bus_parameter SUPPORTS_NARROW_BURST [ipx::get_bus_interfaces m_axi_%s -of_objects [ipx::current_core]]]", port.getName());
+        ImmutableList<PortDecl> ports = ImmutableList.concat(network.getInputPorts(), network.getOutputPorts());
+        for (PortDecl port : ports) {
+            createAxiMasterInterface(port.getName());
         }
-        emitter().emitNewLine();
 
-        for (PortDecl port : network.getOutputPorts()) {
-            emitter().emit("ipx::associate_bus_interfaces -busif m_axi_%s -clock ap_clk [ipx::current_core]", port.getName());
-            emitter().emit("ipx::add_bus_parameter HAS_BURST [ipx::get_bus_interfaces m_axi_%s -of_objects [ipx::current_core]]", port.getName());
-            emitter().emit("ipx::add_bus_parameter SUPPORTS_NARROW_BURST [ipx::get_bus_interfaces m_axi_%s -of_objects [ipx::current_core]]", port.getName());
-            emitter().emit("set_property value 0 [ipx::add_bus_parameter HAS_BURST [ipx::get_bus_interfaces m_axi_%s -of_objects [ipx::current_core]]]", port.getName());
-            emitter().emit("set_property value 0 [ipx::add_bus_parameter SUPPORTS_NARROW_BURST [ipx::get_bus_interfaces m_axi_%s -of_objects [ipx::current_core]]]", port.getName());
-        }
         emitter().emitNewLine();
 
         emitter().emit("ipx::associate_bus_interfaces -busif s_axi_control -clock ap_clk [ipx::current_core]");
@@ -134,14 +120,20 @@ public interface PackageKernel {
 
         emitter().close();
     }
-
+    default void createAxiMasterInterface(String ifName) {
+        emitter().emit("ipx::associate_bus_interfaces -busif m_axi_%s -clock ap_clk [ipx::current_core]", ifName);
+        emitter().emit("ipx::add_bus_parameter HAS_BURST [ipx::get_bus_interfaces m_axi_%s -of_objects [ipx::current_core]]", ifName);
+        emitter().emit("ipx::add_bus_parameter SUPPORTS_NARROW_BURST [ipx::get_bus_interfaces m_axi_%s -of_objects [ipx::current_core]]", ifName);
+        emitter().emit("set_property value 0 [ipx::add_bus_parameter HAS_BURST [ipx::get_bus_interfaces m_axi_%s -of_objects [ipx::current_core]]]", ifName);
+        emitter().emit("set_property value 0 [ipx::add_bus_parameter SUPPORTS_NARROW_BURST [ipx::get_bus_interfaces m_axi_%s -of_objects [ipx::current_core]]]", ifName);
+    }
     default void importKernelVerilogFiles(Network network, String identifier) {
         emitter().emitSharpBlockComment("Import StreamBlocks Kernel Verilog RTL files");
         for (PortDecl port : network.getInputPorts()) {
-            emitter().emit("import_files -norecurse {@PROJECT_SOURCE_DIR@/code-gen/rtl/%s_input_stage.sv}", port.getName());
+            emitter().emit("import_files -norecurse {@PROJECT_SOURCE_DIR@/code-gen/rtl/%s_input_stage_triggered.sv}", port.getName());
         }
         for (PortDecl port : network.getOutputPorts()) {
-            emitter().emit("import_files -norecurse {@PROJECT_SOURCE_DIR@/code-gen/rtl/%s_output_stage.sv}", port.getName());
+            emitter().emit("import_files -norecurse {@PROJECT_SOURCE_DIR@/code-gen/rtl/%s_output_stage_triggered.sv}", port.getName());
         }
         emitter().emit("import_files -norecurse {@PROJECT_SOURCE_DIR@/code-gen/rtl/%s_control_s_axi.v}", identifier);
         emitter().emit("import_files -norecurse {@PROJECT_SOURCE_DIR@/code-gen/rtl/%s_wrapper.sv}", identifier);

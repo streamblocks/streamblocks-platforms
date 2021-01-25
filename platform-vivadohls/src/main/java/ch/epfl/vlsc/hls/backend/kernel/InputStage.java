@@ -7,6 +7,8 @@ import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.ir.entity.PortDecl;
+import se.lth.cs.tycho.reporting.CompilationException;
+import se.lth.cs.tycho.reporting.Diagnostic;
 import se.lth.cs.tycho.type.Type;
 
 @Module
@@ -42,14 +44,20 @@ public interface InputStage {
 
             emitter().emit("parameter integer C_M_AXI_%s_ADDR_WIDTH = %d,", port.getName().toUpperCase(),
                     AxiConstants.C_M_AXI_ADDR_WIDTH);
+            if (bitSize > 512) {
+                backend().context().getReporter().report(
+                        new Diagnostic(Diagnostic.Kind.ERROR, "Hardware port " + port.getName() +
+                                " has bit width " + bitSize + " which is not supported as an AXI master port")
+                );
+            }
             emitter().emit("parameter integer C_M_AXI_%s_DATA_WIDTH = %d,", port.getName().toUpperCase(),
-                    Math.max(bitSize, 32));
-            emitter().emit("parameter integer C_M_AXI_%s_ID_WIDTH = %d,", port.getName().toUpperCase(), 1);
-            emitter().emit("parameter integer C_M_AXI_%s_AWUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
-            emitter().emit("parameter integer C_M_AXI_%s_ARUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
-            emitter().emit("parameter integer C_M_AXI_%s_WUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
-            emitter().emit("parameter integer C_M_AXI_%s_RUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
-            emitter().emit("parameter integer C_M_AXI_%s_BUSER_WIDTH =  %d", port.getName().toUpperCase(), 1);
+                    AxiConstants.getAxiDataWidth(bitSize).orElse(512));
+            emitter().emit("parameter integer C_M_AXI_ID_WIDTH = %d,", port.getName().toUpperCase(), 1);
+            emitter().emit("parameter integer C_M_AXI_AWUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
+            emitter().emit("parameter integer C_M_AXI_ARUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
+            emitter().emit("parameter integer C_M_AXI_WUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
+            emitter().emit("parameter integer C_M_AXI_RUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
+            emitter().emit("parameter integer C_M_AXI_BUSER_WIDTH =  %d", port.getName().toUpperCase(), 1);
 
             emitter().decreaseIndentation();
         }
@@ -68,19 +76,18 @@ public interface InputStage {
             emitter().emit("output wire [31:0] ap_return,");
             backend().topkernel().getAxiMasterPorts(port.getName());
             emitter().emit("// -- Constant & Addresses");
-            emitter().emit("input  wire [31:0] %s_requested_size,", port.getName());
-            emitter().emit("input  wire [63:0] %s_size_r,", port.getName());
-            emitter().emit("input  wire [63:0] %s_buffer,", port.getName());
-            emitter().emit("input  wire [63:0] %s_offset,", port.getSafeName());
-            emitter().emit("input  wire [31:0] kernel_command,");
+            emitter().emit("input  wire [63:0] data_buffer,");
+            emitter().emit("input  wire [63:0] meta_buffer,");
+            emitter().emit("input  wire [31:0] head,");
+            emitter().emit("input  wire [31:0] tail,");
             emitter().emit("// --- Trigger signals");
             getTriggerIOs(port);
             emitter().emit("// -- output stream");
-            emitter().emit("output  wire [%d:0] %s_din,", bitSize - 1, port.getName());
-            emitter().emit("input   wire %s_full_n,", port.getName());
-            emitter().emit("output  wire %s_write, ", port.getName());
-            emitter().emit("input   wire [31:0] %s_fifo_count,", port.getName());
-            emitter().emit("input   wire [31:0] %s_fifo_size", port.getName());
+            emitter().emit("output  wire [%d:0] din,", bitSize - 1, port.getName());
+            emitter().emit("input   wire full_n,", port.getName());
+            emitter().emit("output  wire write, ", port.getName());
+            emitter().emit("input   wire [31:0] fifo_count,", port.getName());
+            emitter().emit("input   wire [31:0] fifo_size", port.getName());
             emitter().decreaseIndentation();
         }
         emitter().emit(");");

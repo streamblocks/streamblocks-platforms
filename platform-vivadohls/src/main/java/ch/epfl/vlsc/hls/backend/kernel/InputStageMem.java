@@ -24,28 +24,28 @@ public interface InputStageMem {
     default void getInputStageMem(PortDecl port) {
         String identifier = port.getName();
 
-        emitter().open(PathUtils.getTargetCodeGenSource(backend().context()).resolve(identifier + "_input_stage_mem.cpp"));
+        emitter().open(PathUtils.getTargetCodeGenSource(backend().context()).resolve(identifier + "_input_stage.cpp"));
         backend().includeSystem("stdint.h");
         backend().includeSystem("hls_stream.h");
         backend().includeUser("iostage.h");
         emitter().emitNewLine();
-        emitter().emit("using namespace iostage;");
+//        emitter().emit("using namespace iostage;");
         emitter().emitNewLine();
-        emitter().emit("uint32_t %s_input_stage_mem(%s) {", port.getName(), entityPorts(port));
+        emitter().emit("uint32_t %s_input_stage(%s) {", port.getName(), entityPorts(port));
         //emitter().emit("#pragma HLS INTERFACE m_axi port=%s_size offset=direct bundle=%1$s max_read_burst_length=256 max_write_burst_length=256", port.getName());
         //emitter().emit("#pragma HLS INTERFACE m_axi port=%s_buffer offset=direct bundle=%1$s max_read_burst_length=256 max_write_burst_length=256", port.getName());
-        emitter().emit("#pragma HLS INTERFACE m_axi port=%s_size offset=direct bundle=%1$s", port.getName());
-        emitter().emit("#pragma HLS INTERFACE m_axi port=%s_buffer offset=direct bundle=%1$s", port.getName());
-        emitter().emit("#pragma HLS INTERFACE ap_fifo port=%s", port.getName());
-        emitter().emit("#pragma HLS INTERFACE ap_fifo port=%s_offset", port.getName());
+        emitter().emit("#pragma HLS INTERFACE m_axi port=ocl_buffer.data_buffer offset=direct bundle=ocl_bundle");
+        emitter().emit("#pragma HLS INTERFACE m_axi port=ocl_buffer.meta_buffer offset=direct bundle=ocl_bundle");
+        emitter().emit("#pragma HLS INTERFACE ap_fifo port=data_stream");
+        emitter().emit("#pragma HLS INTERFACE ap_fifo port=meta_stream");
         emitter().emit("#pragma HLS INTERFACE ap_ctrl_hs register port=return");
         {
             emitter().increaseIndentation();
 
-            emitter().emit("static class_input_stage_mem< %s > i_%s_input_stage_mem;", backend().declarations().declaration(backend().types().declaredPortType(port), ""), port.getName());
+            emitter().emit("static iostage::InputMemoryStage< %s > i_%s_input_stage_mem;", backend().declarations().declaration(backend().types().declaredPortType(port), ""), port.getName());
             emitter().emitNewLine();
 
-            emitter().emit("return i_%s_input_stage_mem(%1$s_requested_size, %1$s_size, %1$s_buffer, fifo_count, fifo_size, %1$s, %1$s_offset);", port.getName());
+            emitter().emit("return i_%s_input_stage_mem(ocl_buffer, fifo_count, fifo_size, data_stream, meta_stream);", port.getName());
 
             emitter().decreaseIndentation();
         }
@@ -55,15 +55,17 @@ public interface InputStageMem {
 
     default String entityPorts (PortDecl port){
         Type type = backend().types().declaredPortType(port);
+        String typeStr = backend().typeseval().type(type);
         List<String> ports = new ArrayList<>();
-        ports.add(String.format("uint32_t %s_requested_size", port.getName()));
-        ports.add(String.format("bus_t *%s_size", port.getName()));
-        ports.add(String.format("bus_t *%s_buffer", port.getName()));
+        ports.add(String.format("iostage::CircularBuffer< %s > ocl_buffer", typeStr));
+//        ports.add(String.format("bus_t *%s_size", port.getName()));
+//        ports.add(String.format("bus_t *%s_buffer", port.getName()));
         ports.add("uint32_t fifo_count");
         ports.add("uint32_t fifo_size");
         
-        ports.add(backend().declarations().portDeclaration(port));
-        ports.add(String.format("hls::stream< uint64_t > &%s_offset", port.getName()));
+//        ports.add(backend().declarations().portDeclaration(port));
+        ports.add(String.format("hls::stream< %s > &data_stream", typeStr));
+        ports.add(String.format("hls::stream< bool > &meta_stream", port.getName()));
         return String.join(", ", ports);
     }
 

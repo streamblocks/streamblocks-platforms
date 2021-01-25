@@ -304,7 +304,7 @@ public interface VerilogNetwork {
 
         if (useTrigger()) {
             // -- Trigger wires
-            getGlobalTriggerWires();
+            emitter().emit("wire    %s;", getExternalEnqueueSignal());
             getLocalTriggerWires(network.getInstances());
 
             // Local IO sync signals

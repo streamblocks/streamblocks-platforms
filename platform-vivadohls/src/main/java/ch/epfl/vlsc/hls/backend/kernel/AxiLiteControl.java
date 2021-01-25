@@ -12,6 +12,7 @@ import org.multij.Module;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.network.Network;
+import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.type.ListType;
 import se.lth.cs.tycho.type.Type;
 
@@ -123,26 +124,16 @@ public interface AxiLiteControl {
         emitter().emit("input  wire                          RREADY,");
 
 
-
-
-
-        if (!network.getInputPorts().isEmpty()) {
-            for (PortDecl port : network.getInputPorts()) {
-                emitter().emit("output  wire    [31 : 0]    %s_requested_size,", port.getName());
-                emitter().emit("output  wire    [63 : 0]    %s_size,", port.getName());
-                emitter().emit("output  wire    [63 : 0]    %s_buffer,", port.getName());
+        ImmutableList<PortDecl> ports = ImmutableList.concat(network.getInputPorts(), network.getOutputPorts());
+        if (!ports.isEmpty()) {
+            for (PortDecl port : ports) {
+                emitter().emit("output  wire    [64 - 1 : 0]  %s_data_buffer,", port.getName());
+                emitter().emit("output  wire    [64 - 1 : 0]  %s_meta_buffer,", port.getName());
+                emitter().emit("output  wire    [32 - 1 : 0]  %s_head,", port.getName());
+                emitter().emit("output  wire    [32 - 1 : 0]  %s_tail,", port.getName());
             }
         }
 
-        // -- Network Output ports
-        if (!network.getOutputPorts().isEmpty()) {
-            for (PortDecl port : network.getOutputPorts()) {
-                emitter().emit("output  wire    [32 - 1 : 0]    %s_available_size,", port.getName());
-                emitter().emit("output  wire    [64 - 1 : 0]    %s_size,", port.getName());
-                emitter().emit("output  wire    [64 - 1 : 0]    %s_buffer,", port.getName());
-            }
-        }
-        emitter().emit("output  wire    [64 - 1 : 0]    kernel_command,");
 
         for (Memories.InstanceVarDeclPair pair : backend().externalMemory().getExternalMemories(network)) {
             String memName = backend().externalMemory().namePair(pair);
@@ -174,58 +165,39 @@ public interface AxiLiteControl {
         value += 4;
         emitter().emit("ADDR_ISR = %d'h%s,", addressWidth, String.format("%x", value));
         value += 4;
-        for (PortDecl port : network.getInputPorts()) {
-            emitter().emit("ADDR_%s_REQUESTED_SIZE_DATA_0 = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
+
+        ImmutableList<PortDecl> ports = ImmutableList.concat(network.getInputPorts(), network.getOutputPorts());
+        for (PortDecl port : ports) {
+            emitter().emit("ADDR_%s_DATA_BUFFER_DATA_0 = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
             value += 4;
-            emitter().emit("ADDR_%s_REQUESTED_SIZE_CTRL = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
+            emitter().emit("ADDR_%s_DATA_BUFFER_DATA_1 = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
             value += 4;
+            emitter().emit("ADDR_%s_DATA_BUFFER_CTRL = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
+            value += 4;
+
+            emitter().emit("ADDR_%s_META_BUFFER_DATA_0 = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
+            value += 4;
+            emitter().emit("ADDR_%s_META_BUFFER_DATA_1 = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
+            value += 4;
+            emitter().emit("ADDR_%s_META_BUFFER_CTRL = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
+            value += 4;
+
+            emitter().emit("ADDR_%s_ALLOC_SIZE_DATA_0 = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
+            value += 4;
+            emitter().emit("ADDR_%s_ALLOC_SIZE_CTRL = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
+            value += 4;
+
+            emitter().emit("ADDR_%s_HEAD_DATA_0 = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
+            value += 4;
+            emitter().emit("ADDR_%s_HEAD_CTRL = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
+            value += 4;
+
+            emitter().emit("ADDR_%s_TAIL_DATA_0 = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
+            value += 4;
+            emitter().emit("ADDR_%s_TAIL_CTRL = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
+            value += 4;
+
         }
-        for (PortDecl port : network.getOutputPorts()) {
-            emitter().emit("ADDR_%s_AVAILABLE_SIZE_DATA_0 = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
-            value += 4;
-            emitter().emit("ADDR_%s_AVAILABLE_SIZE_CTRL = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
-            value += 4;
-        }
-
-
-        for (PortDecl port : network.getInputPorts()) {
-            emitter().emit("ADDR_%s_SIZE_DATA_0 = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
-            value += 4;
-            emitter().emit("ADDR_%s_SIZE_DATA_1 = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
-            value += 4;
-            emitter().emit("ADDR_%s_SIZE_CTRL = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
-            value += 4;
-            emitter().emit("ADDR_%s_BUFFER_DATA_0 = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
-            value += 4;
-            emitter().emit("ADDR_%s_BUFFER_DATA_1 = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
-            value += 4;
-            emitter().emit("ADDR_%s_BUFFER_CTRL = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
-            value += 4;
-        }
-
-        for (PortDecl port : network.getOutputPorts()) {
-            emitter().emit("ADDR_%s_SIZE_DATA_0 = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
-            value += 4;
-            emitter().emit("ADDR_%s_SIZE_DATA_1 = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
-            value += 4;
-            emitter().emit("ADDR_%s_SIZE_CTRL = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
-            value += 4;
-            emitter().emit("ADDR_%s_BUFFER_DATA_0 = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
-            value += 4;
-            emitter().emit("ADDR_%s_BUFFER_DATA_1 = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
-            value += 4;
-            emitter().emit("ADDR_%s_BUFFER_CTRL = %d'h%s,", port.getName().toUpperCase(), addressWidth, String.format("%x", value));
-            value += 4;
-        }
-
-        // -- the command word
-
-        emitter().emit("ADDR_KERNEL_COMMAND_DATA_0 = %d'h%s,", addressWidth, String.format("%x", value));
-        value += 4;
-        emitter().emit("ADDR_KERNEL_COMMAND_DATA_1 = %d'h%s,", addressWidth, String.format("%x", value));
-        value += 4;
-        emitter().emit("ADDR_KERNEL_COMMAND_CTRL = %d'h%s,", addressWidth, String.format("%x", value));
-        value += 4;
 
         for (Memories.InstanceVarDeclPair mem : backend().externalMemory().getExternalMemories(network)) {
             String memName = backend().externalMemory().namePair(mem);
@@ -281,20 +253,15 @@ public interface AxiLiteControl {
         emitter().emit("// -- Internal Registers for addresses for I/O");
 
 
+        ImmutableList<PortDecl> ports = ImmutableList.concat(network.getInputPorts(), network.getOutputPorts());
+        for (PortDecl port : ports) {
+            emitter().emit("reg [63 : 0] int_%s_data_buffer = 64'd0;", port.getName());
+            emitter().emit("reg [63 : 0] int_%s_meta_buffer = 64'd0;", port.getName());
+            emitter().emit("reg [31 : 0] int_%s_alloc_size = 32'd0;", port.getName());
+            emitter().emit("reg [31 : 0] int_%s_head = 32'd0;", port.getName());
+            emitter().emit("reg [31 : 0] int_%s_tail = 32'd0;", port.getName());
+        }
 
-        for (PortDecl port : network.getInputPorts()) {
-            emitter().emit("reg [31 : 0]    int_%s_requested_size = 32'd0;", port.getName());
-            emitter().emit("reg [63 : 0]    int_%s_size = 64'd0;", port.getName());
-            emitter().emit("reg [63 : 0]    int_%s_buffer = 64'd0;", port.getName());
-        }
-        for (PortDecl port : network.getOutputPorts()) {
-            emitter().emit("reg [31 : 0]    int_%s_available_size = 32'd0;", port.getName());
-            emitter().emit("reg [63 : 0]    int_%s_size = 64'd0;", port.getName());
-            emitter().emit("reg [63 : 0]    int_%s_buffer = 64'd0;", port.getName());
-        }
-        // -- kernel command register
-        emitter().emit("// -- kernel command");
-        emitter().emit("reg [63:0]    int_kernel_command = 64'd0;");
         emitter().emit(" // -- external memories");
         for(Memories.InstanceVarDeclPair mem: backend().externalMemory().getExternalMemories(network)){
             String memName = backend().externalMemory().namePair(mem);
@@ -559,131 +526,20 @@ public interface AxiLiteControl {
 
 
 
+                        ImmutableList<PortDecl> ports = ImmutableList.concat(network.getInputPorts(), network.getOutputPorts());
 
+                        for (PortDecl port : ports) {
 
-                        for (PortDecl port : network.getInputPorts()) {
-                            emitter().emit("ADDR_%s_REQUESTED_SIZE_DATA_0: begin", port.getName().toUpperCase());
-                            {
-                                emitter().increaseIndentation();
-
-                                emitter().emit("rdata <= int_%s_requested_size[31:0];", port.getName());
-
-                                emitter().decreaseIndentation();
-                            }
-                            emitter().emit("end");
-
-                            emitter().emit("ADDR_%s_SIZE_DATA_0: begin", port.getName().toUpperCase());
-                            {
-                                emitter().increaseIndentation();
-
-                                emitter().emit("rdata<= int_%s_size[31:0];", port.getName());
-
-                                emitter().decreaseIndentation();
-                            }
-                            emitter().emit("end");
-
-                            emitter().emit("ADDR_%s_SIZE_DATA_1: begin", port.getName().toUpperCase());
-                            {
-                                emitter().increaseIndentation();
-
-                                emitter().emit("rdata<= int_%s_size[63:32];", port.getName());
-
-                                emitter().decreaseIndentation();
-                            }
-                            emitter().emit("end");
-
-                            emitter().emit("ADDR_%s_BUFFER_DATA_0: begin", port.getName().toUpperCase());
-                            {
-                                emitter().increaseIndentation();
-
-                                emitter().emit("rdata <= int_%s_buffer[31:0];", port.getName());
-
-                                emitter().decreaseIndentation();
-                            }
-                            emitter().emit("end");
-
-                            emitter().emit("ADDR_%s_BUFFER_DATA_1: begin", port.getName().toUpperCase());
-                            {
-                                emitter().increaseIndentation();
-
-                                emitter().emit("rdata <= int_%s_buffer[63:32];", port.getName());
-
-                                emitter().decreaseIndentation();
-                            }
-                            emitter().emit("end");
+                            getReadDataCase(port, "data_buffer", "data_0", 31, 0);
+                            getReadDataCase(port, "data_buffer", "data_1", 63, 32);
+                            getReadDataCase(port, "meta_buffer", "data_0", 31, 0);
+                            getReadDataCase(port, "meta_buffer", "data_1", 63, 32);
+                            getReadDataCase(port, "alloc_size", "data_0", 31, 0);
+                            getReadDataCase(port, "head", "data_0", 31, 0);
+                            getReadDataCase(port, "tail", "data_0", 31, 0);
                         }
 
-                        for (PortDecl port : network.getOutputPorts()) {
-                            emitter().emit("ADDR_%s_AVAILABLE_SIZE_DATA_0: begin", port.getName().toUpperCase());
-                            {
-                                emitter().increaseIndentation();
 
-                                emitter().emit("rdata <= int_%s_available_size[31:0];", port.getName());
-
-                                emitter().decreaseIndentation();
-                            }
-                            emitter().emit("end");
-
-                            emitter().emit("ADDR_%s_SIZE_DATA_0: begin", port.getName().toUpperCase());
-                            {
-                                emitter().increaseIndentation();
-
-                                emitter().emit("rdata <= int_%s_size[31:0];", port.getName());
-
-                                emitter().decreaseIndentation();
-                            }
-                            emitter().emit("end");
-
-                            emitter().emit("ADDR_%s_SIZE_DATA_1: begin", port.getName().toUpperCase());
-                            {
-                                emitter().increaseIndentation();
-
-                                emitter().emit("rdata <= int_%s_size[63:32];", port.getName());
-
-                                emitter().decreaseIndentation();
-                            }
-                            emitter().emit("end");
-
-                            emitter().emit("ADDR_%s_BUFFER_DATA_0: begin", port.getName().toUpperCase());
-                            {
-                                emitter().increaseIndentation();
-
-                                emitter().emit("rdata <= int_%s_buffer[31:0];", port.getName());
-
-                                emitter().decreaseIndentation();
-                            }
-                            emitter().emit("end");
-
-                            emitter().emit("ADDR_%s_BUFFER_DATA_1: begin", port.getName().toUpperCase());
-                            {
-                                emitter().increaseIndentation();
-
-                                emitter().emit("rdata <= int_%s_buffer[63:32];", port.getName());
-
-                                emitter().decreaseIndentation();
-                            }
-                            emitter().emit("end");
-                        }
-                        // -- kernel command
-                        emitter().emit("ADDR_KERNEL_COMMAND_DATA_0: begin");
-                        {
-                            emitter().increaseIndentation();
-
-                            emitter().emit("rdata <= int_kernel_command[31:0];");
-
-                            emitter().decreaseIndentation();
-                        }
-                        emitter().emit("end");
-
-                        emitter().emit("ADDR_KERNEL_COMMAND_DATA_1: begin");
-                        {
-                            emitter().increaseIndentation();
-
-                            emitter().emit("rdata <= int_kernel_command[63:32];");
-
-                            emitter().decreaseIndentation();
-                        }
-                        emitter().emit("end");
 
 
                         // -- external memories
@@ -739,22 +595,17 @@ public interface AxiLiteControl {
         emitter().emit("assign ap_start     = int_ap_start;");
 
 
+        ImmutableList<PortDecl> ports = ImmutableList.concat(network.getInputPorts(), network.getOutputPorts());
 
+        for (PortDecl port : ports) {
+            emitter().emit("assign %s_data_buffer = int_%1$s_data_buffer;", port.getName());
+            emitter().emit("assign %s_meta_buffer = int_%1$s_meta_buffer;", port.getName());
+            emitter().emit("assign %s_alloc_size = int_%1$s_alloc_size;", port.getName());
+            emitter().emit("assign %s_head = int_%1$s_head;", port.getName());
+            emitter().emit("assign %s_tail = int_%1$s_tail;", port.getName());
+        }
 
-        for (PortDecl port : network.getInputPorts()) {
-            emitter().emit("assign %s_requested_size = int_%1$s_requested_size;", port.getName());
-            emitter().emit("assign %s_size = int_%1$s_size;", port.getName());
-            emitter().emit("assign %s_buffer = int_%1$s_buffer;", port.getName());
-        }
-        for (PortDecl port : network.getOutputPorts()) {
-            emitter().emit("assign %s_available_size = int_%1$s_available_size;", port.getName());
-            emitter().emit("assign %s_size = int_%1$s_size;", port.getName());
-            emitter().emit("assign %s_buffer = int_%1$s_buffer;", port.getName());
-        }
         emitter().emitNewLine();
-
-        emitter().emit("assign kernel_command = int_kernel_command;");
-
 
         for (Memories.InstanceVarDeclPair mem : backend().externalMemory().getExternalMemories(network)) {
             String memName = backend().externalMemory().namePair(mem);
@@ -992,37 +843,12 @@ public interface AxiLiteControl {
         emitter().emitNewLine();
 
 
-        for (PortDecl port : network.getInputPorts()) {
-            // -- requested size
-            getReg32Bit(port.getName(), "requested_size");
+        for(PortDecl port : ports) {
+            getReg64Bit(port.getName(), "data_buffer");
+            getReg64Bit(port.getName(), "meta_buffer");
+            getReg32Bit(port.getName(), "head");
+            getReg32Bit(port.getName(), "tail");
         }
-
-        for (PortDecl port : network.getOutputPorts()) {
-            // -- requested size
-            getReg32Bit(port.getName(), "available_size");
-        }
-
-
-
-        for (PortDecl port : network.getInputPorts()) {
-            // -- size
-            getReg64Bit(port.getName(), "size");
-
-            // -- buffer
-            getReg64Bit(port.getName(), "buffer");
-        }
-
-        for (PortDecl port : network.getOutputPorts()) {
-            // -- size
-            getReg64Bit(port.getName(), "size");
-
-            // -- buffer
-            getReg64Bit(port.getName(), "buffer");
-        }
-
-        // -- kernel command reg
-        getKernelCommandReg();
-
 
         for (Memories.InstanceVarDeclPair mem: backend().externalMemory().getExternalMemories(network)) {
             // -- offset
@@ -1088,34 +914,6 @@ public interface AxiLiteControl {
         }
     }
 
-    default void getKernelCommandReg() {
-        int bits = 0;
-        for (int i = 0; i < 2; i++) {
-            emitter().emit("// -- int_kernel_command[%d:%d]", 31 + bits, bits);
-            emitter().emit("always @(posedge ACLK) begin");
-            {
-                emitter().increaseIndentation();
-
-                emitter().emit("if (ARESET)");
-                emitter().emit("\tint_kernel_command[%d:%d] <= 0;", 31 + bits, bits);
-                emitter().emit("else if (ACLK_EN) begin");
-                {
-                    emitter().increaseIndentation();
-
-                    emitter().emit("if (w_hs && waddr == ADDR_KERNEL_COMMAND_DATA_%d)", i);
-                    emitter().emit("\tint_kernel_command[%d:%d] <= (WDATA[31:0] & wmask) | (int_kernel_command[%1$d:%2$d] & ~wmask);", 31 + bits, bits);
-
-                    emitter().decreaseIndentation();
-                }
-                emitter().emit("end");
-
-                emitter().decreaseIndentation();
-            }
-            emitter().emit("end");
-            emitter().emitNewLine();
-            bits += 32;
-        }
-    }
     // -- Helper Methods
 
     default int getAddressBitWidth(Network network) {
@@ -1129,4 +927,15 @@ public interface AxiLiteControl {
         return MathUtils.countBit(value);
     }
 
+
+    default void getReadDataCase(PortDecl port, String reg, String address, int high, int low) {
+        emitter().emit("ADDR_%s_%s_%s: begin", port.getName().toUpperCase(), reg.toUpperCase(),
+                address.toUpperCase());
+        {
+            emitter().increaseIndentation();
+            emitter().emit("rdata <= int_%s_%s[%d:%d];", port.getName(), reg, high, low);
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("end");
+    }
 }

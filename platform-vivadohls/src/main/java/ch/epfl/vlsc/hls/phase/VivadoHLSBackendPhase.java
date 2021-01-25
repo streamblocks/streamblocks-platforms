@@ -327,13 +327,13 @@ public class VivadoHLSBackendPhase implements Phase {
         // -- Input Stage
         for (PortDecl port : backend.task().getNetwork().getInputPorts()) {
             backend.inputstagemem().getInputStageMem(port);
-            backend.inputstage().getInputStage(port);
+//            backend.inputstage().getInputStage(port);
         }
 
         // -- Output Stage
         for (PortDecl port : backend.task().getNetwork().getOutputPorts()) {
             backend.outputstagemem().getOutputStageMem(port);
-            backend.outputstage().getOutputStage(port);
+//            backend.outputstage().getOutputStage(port);
         }
 
         // -- Kernel XML
@@ -482,6 +482,13 @@ public class VivadoHLSBackendPhase implements Phase {
             // -- Input and Output Stage C++ tester
             Files.copy(getClass().getResourceAsStream("/lib/hls/tb_iostage.cpp"),
                     PathUtils.getTargetCodeGenSrcTb(backend.context()).resolve("tb_iostage.cpp"),
+                    StandardCopyOption.REPLACE_EXISTING);
+            // -- Input and Output stage SystemVerilog templates
+            Files.copy(getClass().getResourceAsStream("/lib/verilog/input_stage_triggered.sv.in"),
+                    PathUtils.getTargetScripts(backend.context()).resolve("input_stage_triggered.sv.in"),
+                    StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(getClass().getResourceAsStream("/lib/verilog/output_stage_triggered.sv.in"),
+                    PathUtils.getTargetScripts(backend.context()).resolve("output_stage_triggered.sv.in"),
                     StandardCopyOption.REPLACE_EXISTING);
 
             // -- Synthesis script for Vivado HLS as an input to CMake
