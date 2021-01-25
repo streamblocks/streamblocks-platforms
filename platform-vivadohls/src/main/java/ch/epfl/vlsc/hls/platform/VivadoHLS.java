@@ -72,10 +72,35 @@ public class VivadoHLS implements Platform {
         );
     }
 
+    public static ImmutableList<Phase> frontendPhases() {
+        return ImmutableList.of(
+                // Parse
+                new LoadEntityPhase(),
+                new LoadPreludePhase(),
+                new LoadImportsPhase(),
+
+                // For debugging
+                new PrintLoadedSourceUnits(),
+                new PrintTreesPhase(),
+
+                // Post parse
+                new RemoveExternStubPhase(),
+                new OperatorParsingPhase(),
+                new ImportAnalysisPhase(),
+                new ResolvePatternDeconstructionPhase(),
+                new DeclarationAnalysisPhase(),
+                new ResolveTypeConstructionPhase(),
+                new ConstantVariableInitializationPhase(),
+                new NameAnalysisPhase(),
+                new OldExprVariableSupportPhase()
+        );
+    }
+
 
     private static final List<Phase> phases = ImmutableList.<Phase>builder()
-            .addAll(Compiler.frontendPhases())
+            .addAll(frontendPhases())
             .addAll(Compiler.templatePhases())
+            .add(new RemovePrintPhase())
             .add(new RecursiveTypeDetectionPhase())
             .addAll(CommonPhases.networkElaborationPhases)
             .add(new VerilogNameCheckerPhase())
