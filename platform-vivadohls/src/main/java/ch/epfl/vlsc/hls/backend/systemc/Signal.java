@@ -44,6 +44,11 @@ public class Signal {
             return this.name;
         }
     }
+
+    public Optional<Range> getRange(){
+        return range;
+    }
+
     public String getType() { return this.type.getType(); }
     public Signal withRange(int high, int low) {
         return new Signal(this.name, this.type, new Range(high, low));

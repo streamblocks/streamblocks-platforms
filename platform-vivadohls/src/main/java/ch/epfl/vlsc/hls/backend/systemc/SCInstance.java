@@ -14,8 +14,11 @@ public class SCInstance implements SCInstanceIF {
     public static class IoIF implements SCIF {
         private final PortIF io;
 
-        public IoIF(ImmutableList<InputIF> readers, ImmutableList<OutputIF> writers){
-            io = new PortIF("io", Signal.of("io", new LogicVector(128)));
+        public IoIF(String name, int size) {
+            io = PortIF.of(
+                    "io",
+                    Signal.of(name + "_io", new LogicVector(size)),
+                    Optional.of(PortIF.Kind.INPUT));
         }
 
         @Override
@@ -23,7 +26,7 @@ public class SCInstance implements SCInstanceIF {
             return Stream.of(io);
         }
 
-        public PortIF getIo(){
+        public PortIF getIo() {
             return io;
         }
     }
@@ -31,19 +34,19 @@ public class SCInstance implements SCInstanceIF {
 
     public static class OutputIF implements SCIF {
         private final Queue.WriterIF writer;
-        private final PortIF capacity;
-        public final PortIF count;
+        //private final PortIF capacity;
+        //public final PortIF count;
 
         public OutputIF(Queue queue, String prefix1, String prefix2) {
             this.writer = queue.getWriter().withPrefix(prefix1);
-            this.capacity = queue.getAuxiliary().withPrefix(prefix2).getCapacity();
-            this.count = queue.getAuxiliary().withPrefix(prefix2).getCount();
+            //this.capacity = queue.getAuxiliary().withPrefix(prefix2).getCapacity();
+            //this.count = queue.getAuxiliary().withPrefix(prefix2).getCount();
         }
 
 
         @Override
         public Stream<PortIF> stream() {
-            return Stream.concat(writer.stream(), Stream.of(capacity, count));
+            return writer.stream();
         }
 
         public Queue.WriterIF getWriter() {
@@ -53,18 +56,18 @@ public class SCInstance implements SCInstanceIF {
 
     public static class InputIF implements SCIF {
         private final Queue.ReaderIF reader;
-        private final PortIF peek;
-        private final PortIF count;
+        //private final PortIF peek;
+        //private final PortIF count;
 
         public InputIF(Queue queue, String prefix1, String prefix2) {
             this.reader = queue.getReader().withPrefix(prefix1);
-            this.peek = queue.getAuxiliary().withPrefix(prefix2).getPeek();
-            this.count = queue.getAuxiliary().withPrefix(prefix2).getCount();
+            //this.peek = queue.getAuxiliary().withPrefix(prefix2).getPeek();
+            //this.count = queue.getAuxiliary().withPrefix(prefix2).getCount();
         }
 
         @Override
         public Stream<PortIF> stream() {
-            return Stream.concat(reader.stream(), Stream.of(peek, count));
+            return reader.stream();
         }
 
         public Queue.ReaderIF getReader() {
@@ -76,6 +79,7 @@ public class SCInstance implements SCInstanceIF {
     private final APControl apControl;
     private final ImmutableList<InputIF> readers;
     private final ImmutableList<OutputIF> writers;
+    private final ImmutableList<IoIF> io;
     private final String instanceName;
     private final String name;
     private final PortIF ret;
@@ -83,46 +87,49 @@ public class SCInstance implements SCInstanceIF {
 
     private final ImmutableList<String> actionsIds;
 
-    public SCInstance(String name, ImmutableList<InputIF> readers, ImmutableList<OutputIF> writers, ImmutableList<String> actionIds) {
+    public SCInstance(String name, ImmutableList<InputIF> readers, ImmutableList<OutputIF> writers, ImmutableList<IoIF> io, ImmutableList<String> actionIds) {
         this.originalName = name;
         this.name = this.makeName(name);
         this.instanceName = "inst_" + name;
         this.apControl = new APControl(this.instanceName + "_");
         this.readers = readers;
         this.writers = writers;
+        this.io = io;
         this.ret = PortIF.of(
                 "ap_return",
                 Signal.of(name + "_ap_return", new LogicVector(32)),
                 Optional.of(PortIF.Kind.OUTPUT));
         this.actionsIds = actionIds;
-
-
     }
 
     @Override
     public Stream<PortIF> stream() {
         return Stream.concat(
+
                 Stream.concat(
                         readers.stream().flatMap(InputIF::stream),
-                        writers.stream().flatMap(OutputIF::stream)),
+                        writers.stream().flatMap(OutputIF::stream)
+                ),
+
                 Stream.concat(
+
                         Stream.of(
+
                                 apControl.getClock(),
                                 apControl.getReset()
                         ),
                         streamUnique()));
-
-
     }
 
     public Stream<PortIF> streamUnique() {
         return
-                Stream.of(
-                        apControl.getDone(),
-                        apControl.getReady(),
-                        apControl.getIdle(),
-                        apControl.getStart(),
-                        ret);
+                Stream.concat(io.stream().flatMap(IoIF::stream),
+                        Stream.of(
+                                apControl.getDone(),
+                                apControl.getReady(),
+                                apControl.getIdle(),
+                                apControl.getStart(),
+                                ret));
     }
 
     public String getInstanceName() {
