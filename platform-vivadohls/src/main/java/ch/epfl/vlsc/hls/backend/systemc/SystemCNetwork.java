@@ -50,7 +50,12 @@ public interface SystemCNetwork {
 
     @Binding(BindingKind.LAZY)
     default Map<Instance, SCInstance> instances() {
-        return new HashMap<Instance, SCInstance>();
+        return new HashMap<>();
+    }
+
+    @Binding(BindingKind.LAZY)
+    default Map<SCInstance, Instance> scInstances() {
+        return new HashMap<>();
     }
 
     @Binding(BindingKind.LAZY)
@@ -208,6 +213,7 @@ public interface SystemCNetwork {
 
             SCInstance newInst = new SCInstance(name, readers.build(), writers.build(), io.build(), actionIds);
             instances().put(instance, newInst);
+            scInstances().put(newInst, instance);
             return newInst;
         } else {
             return instances().get(instance);
@@ -650,9 +656,12 @@ public interface SystemCNetwork {
             emitter().emitNewLine();
 
             // -- Method to set IO signal
-            emitter().emit("SC_METHOD(setIoSignals);");
-            emitter().emit("sensitive << %s.pos();", network.getApControl().getClockSignal().getName());
-            emitter().emitNewLine();
+            for(SCInstance instance: network.getInstances()){
+                emitter().emit("SC_METHOD(setIoSignals_%s);", instance.getInstanceName());
+                emitter().emit("sensitive << %s;", String.join(" << ", getIoSignalSensitivity(instance)));
+                emitter().emitNewLine();
+            }
+
 
             // -- Method to set the internal idle reg
             emitter().emit("SC_METHOD(setAmIdle);");
@@ -746,13 +755,15 @@ public interface SystemCNetwork {
     }
 
     default void getIoSignals(Network network) {
-        emitter().emit("void setIoSignals(){");
-        {
-            emitter().increaseIndentation();
+        for (Instance instance : network.getInstances()) {
+            emitter().emit("void setIoSignals_inst_%s(){", instance.getInstanceName());
+            {
+                emitter().increaseIndentation();
 
-            List<Signal> peeks = new ArrayList<>();
-            List<String> signals = new ArrayList<>();
-            for (Instance instance : network.getInstances()) {
+                int ioBitSize = 0;
+
+                List<Signal> peeks = new ArrayList<>();
+                List<String> signals = new ArrayList<>();
                 if (instances().containsKey(instance)) {
                     GlobalEntityDecl entityDecl = backend().globalnames().entityDecl(instance.getEntityName(), true);
                     Entity entity = entityDecl.getEntity();
@@ -763,8 +774,11 @@ public interface SystemCNetwork {
                         Signal peek = queue.getAuxiliary().getPeek().getSignal();
                         peeks.add(peek);
                         signals.add("tmp_" + peek.getName());
+                        ioBitSize += peekValueByType(type);
+
                         Signal count = queue.getAuxiliary().getCount().getSignal();
                         signals.add("(sc_bv<32>) " + count.getName() + ".read()");
+                        ioBitSize += 32;
 
                         emitter().emit("sc_bv<%d> tmp_%s(0);", peekValueByType(type), peek.getName());
                         emitter().emit("tmp_%s.range(%d, 0) = %s.read();", peek.getName(), backend().typeseval().sizeOfBits(type) - 1, peek.getName());
@@ -779,22 +793,57 @@ public interface SystemCNetwork {
                         signals.add("(sc_bv<32>) " + count.getName() + ".read()");
                     }
 
+                    ioBitSize += entity.getOutputPorts().size() * 64;
+
                     Collections.reverse(signals);
                     if (!entity.getInputPorts().isEmpty()) {
                         emitter().emitNewLine();
                     }
 
-                    emitter().emit("inst_%s_io.write((%s));", instance.getInstanceName(), String.join(", ", signals));
+                    emitter().emit("sc_bv<%d> value = (%s);", ioBitSize, String.join(", ", signals));
+
+                    if(ioBitSize <= 64){
+                        emitter().emit("inst_%s_io.write( (vluint64_t) value.to_uint() );", instance.getInstanceName());
+                    }else{
+                        emitter().emit("inst_%s_io.write( value );", instance.getInstanceName());
+                    }
+
+
                 }
+                emitter().decreaseIndentation();
+            }
+            emitter().emit("}");
+            emitter().emitNewLine();
+        }
+    }
 
-
+    default List<String> getIoSignalSensitivity(SCInstance scInstance){
+        List<String> signals = new ArrayList<>();
+        if (scInstances().containsKey(scInstance)) {
+            Instance instance = scInstances().get(scInstance);
+            GlobalEntityDecl entityDecl = backend().globalnames().entityDecl(instance.getEntityName(), true);
+            Entity entity = entityDecl.getEntity();
+            for (PortDecl inPort : entity.getInputPorts()) {
+                Connection connection = findInputPortConnection(instance, inPort);
+                Queue queue = findQueue(connection);
+                Signal peek = queue.getAuxiliary().getPeek().getSignal();
+                signals.add(peek.getName());
+                Signal count = queue.getAuxiliary().getCount().getSignal();
+                signals.add(count.getName());
             }
 
-            emitter().decreaseIndentation();
+            for (PortDecl outPort : entity.getOutputPorts()) {
+                Connection connection = findOutputPortConnection(instance, outPort);
+                Queue queue = findQueue(connection);
+                Signal capacity = queue.getAuxiliary().getCapacity().getSignal();
+                signals.add(capacity.getName());
+                Signal count = queue.getAuxiliary().getCount().getSignal();
+                signals.add(count.getName());
+            }
         }
-        emitter().emit("}");
-        emitter().emitNewLine();
+        return signals;
     }
+
 
     default void getAllWaitedSignals(SCNetwork network) {
 

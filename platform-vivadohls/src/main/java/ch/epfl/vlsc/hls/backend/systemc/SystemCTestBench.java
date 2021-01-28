@@ -376,6 +376,15 @@ public interface SystemCTestBench {
             {
                 emitter().increaseIndentation();
 
+                network.getInstances().stream().forEach(inst -> {
+                    String instName = inst.getInstanceName();
+                    inst.stream().forEach(port -> {
+                        emitter().emit("sc_trace(vcd_dump, inst_%s->%s->%s, \"%1$s.%2$s.%3$s\");",
+                                network.getIdentifier(),
+                                instName, port.getName());
+                    });
+                });
+
                 network.getQueues().stream().forEach(queue -> {
                     String queueName = queue.getName();
                     queue.stream().forEach(port -> {
