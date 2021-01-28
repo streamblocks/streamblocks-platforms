@@ -35,7 +35,7 @@
 
 #define OCL_ASSERT(cond, fmt, args...)                                         \
   do {                                                                         \
-    if (cond == false) {                                                       \
+    if ((cond) == false) {                                                       \
       fprintf(stderr, ANSI_BOLD_RED                                            \
               "ASSERTION FAILED: %s():%d:\t\t\t\t" ANSI_RESET_COLOR fmt,       \
               __func__, __LINE__, ##args);                                     \
