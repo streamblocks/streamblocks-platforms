@@ -126,9 +126,13 @@ public:
                     port_type.token_size * host_buffer.tail;
     return at_tail;
   }
-  uint32_t writeToDeviceBuffer(const cl::CommandQueue &q);
+  uint32_t writeToDeviceBuffer(const cl::CommandQueue &q,
+                               const uint32_t from_index,
+                               const uint32_t to_index);
 
-  uint32_t readFromDeviceBuffer(const cl::CommandQueue &q);
+  uint32_t readFromDeviceBuffer(const cl::CommandQueue &q,
+                                const uint32_t from_index,
+                                const uint32_t to_index);
 
   void equeueReadMeta(const cl::CommandQueue &q,
                       const std::vector<cl::Event> *events = NULL);

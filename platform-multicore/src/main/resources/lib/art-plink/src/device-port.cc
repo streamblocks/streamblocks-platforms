@@ -124,7 +124,9 @@ cl_int DevicePort::allocate(const cl::Context &context,
  * @return uint32_t the number of bytes transferred
  */
 
-uint32_t DevicePort::writeToDeviceBuffer(const cl::CommandQueue &q) {
+uint32_t DevicePort::writeToDeviceBuffer(const cl::CommandQueue &q,
+                                         const uint32_t from_index,
+                                         const uint32_t to_index) {
   cl_int err;
 
   uint32_t total_bytes = 0;
@@ -136,68 +138,42 @@ uint32_t DevicePort::writeToDeviceBuffer(const cl::CommandQueue &q) {
   OCL_ASSERT(buffer_event_info[1].active == false,
              "Illegal write buffer for %s\n", address.toString().c_str());
 
-  // -- Some info about the circular buffer
-  // -- We want to transfer the data in the host buffer to the device buffer
-  // starting from host_buffer[head] to host_buffer[tail]. However, we make
-  // sure that head is not equal to tail after the write since the input stage
-  // would treat the case tail == head as the case that there are no valid
-  // tokens in the buffer. The policy is that "tail can reach the head" but
-  // "head can not reach the tail", i.e., "head can reach tail - 1" because
-  // the head should point to the last entry in the buffer in which it can write
-  // and then increase the head such that the new head still points to an empty
-  // place. If the head reaches tail - 1, then the next place to write is tail -
-  // 1 and that place is indeed empty, however, with head reaching tail the next
-  // place to write will not be an empty place
 
-  // The head of the buffer should be set by entity using the port, an INPUT
-  // port head (in ocl_buffer.user_head) is not modified by the device port
-  // object itself.
 
-  // The follwoing are assumed (head an tail belong to differnt ends, i.e., one
-  // is from the device and the other from the host)
-  // (1) head == tail implies the buffer is empty
-  // (2) head == tail - 1 implies the buffer is full, note
-  // that the actual buffer capacity is therefore one token less than the
-  // allocated amount If the head == tail, and new data for writing is
-  // available, the PLINK (or any other entity) can optionally set the tail to 0
-  // and increase the head from 0 up to alloc_size - 1 to avoid creating sub
-  // buffers
-
-  if (device_buffer.head == host_buffer.head ||
-      host_buffer.head == device_buffer.tail) {
+  if (to_index == from_index) {
     // -- there is nothing new to be transferred to the device buffer
     OCL_MSG("%s::writeToDeviceBuffer::skipped\n", address.toString().c_str());
 
   } else { // there is something to transfer
 
-    if (device_buffer.head < host_buffer.head) {
-      // -- this is the easy case, a single transfer
-      // transfer the data from device_head to host_head - 1 (inclusive)
-      uint32_t tokens_to_transfer = host_buffer.head - device_buffer.head;
-      uint32_t bytes_to_transfer = port_type.token_size * tokens_to_transfer;
+    uint32_t cap = device_buffer.user_alloc_size;
+    uint32_t tokens_to_write = 0;
 
-      uint32_t transfer_offset = device_buffer.head * port_type.token_size;
-      hostToDeviceTransfer(q, bytes_to_transfer, transfer_offset, 0);
+    if (from_index < to_index) {
+      tokens_to_write = to_index - from_index;
 
-      total_bytes += bytes_to_transfer;
-    } else { // device_head > host_head
-      // -- the uneasy case, we need to make two transfers
-      // the first transfer is from device_head to alloc_size - 1 (inclusive)
+    } else { // from_index > to_index, i.e., wrap arround
+      tokens_to_write = cap - from_index + to_index;
+    }
 
-      uint32_t tokens_to_transfer =
-          device_buffer.user_alloc_size - device_buffer.head;
-      uint32_t bytes_to_transfer = port_type.token_size * tokens_to_transfer;
-      uint32_t transfer_offset = port_type.token_size * device_buffer.head;
-      hostToDeviceTransfer(q, bytes_to_transfer, transfer_offset, 0);
+    uint32_t tx_ix;
+    const uint32_t token_size = port_type.token_size;
 
-      total_bytes += bytes_to_transfer;
+    total_bytes = tokens_to_write * token_size;
 
-      // now transfer from 0 to host_head - 1 (inclusive)
-      tokens_to_transfer = device_buffer.head;
-      bytes_to_transfer = port_type.token_size * tokens_to_transfer;
-      hostToDeviceTransfer(q, bytes_to_transfer, 0, 1);
+    auto offset_index = from_index;
+    if (tokens_to_write + from_index >= cap) {
+      // wrap around
+      hostToDeviceTransfer(q, (cap - from_index) * token_size,
+                           offset_index * token_size, tx_ix);
+      tx_ix++;
+      tokens_to_write -= cap - from_index;
+      offset_index = 0;
+    }
 
-      total_bytes += bytes_to_transfer;
+    if (tokens_to_write > 0) {
+      hostToDeviceTransfer(q, tokens_to_write * token_size,
+                           offset_index * token_size, tx_ix);
     }
   }
 
@@ -253,7 +229,9 @@ void DevicePort::hostToDeviceTransfer(const cl::CommandQueue &q,
  * @param q opencl command queue
  * @return uint32_t total bytes transferred
  */
-uint32_t DevicePort::readFromDeviceBuffer(const cl::CommandQueue &q) {
+uint32_t DevicePort::readFromDeviceBuffer(const cl::CommandQueue &q,
+                                          const uint32_t from_index,
+                                          const uint32_t to_index) {
 
   uint32_t total_bytes = 0;
   OCL_ASSERT(port_type.direction == IOType::OUTPUT,
@@ -266,35 +244,37 @@ uint32_t DevicePort::readFromDeviceBuffer(const cl::CommandQueue &q) {
 
   cl_int err;
 
-  if (device_buffer.head == host_buffer.head) {
-    // -- do nothing because the device has not produced anything
-    // more than what was already transferred to the host buffer.
+  if (from_index == to_index) {
+    // -- do nothing
     OCL_MSG("%s::readFromDeviceBuffer::skipped\n", address.toString().c_str());
   } else {
 
-    if (device_buffer.head > host_buffer.head) {
-      // easy case, single transfer
-      uint32_t tokens_to_transfer = device_buffer.head - host_buffer.head;
-      uint32_t bytes_to_transfer = tokens_to_transfer * port_type.token_size;
-      uint32_t transfer_offset = device_buffer.head * port_type.token_size;
+    uint32_t cap = device_buffer.user_alloc_size;
+    uint32_t tokens_to_read = 0;
+    if (from_index < to_index) {
+      tokens_to_read = to_index - from_index;
+    } else { // from_index > to_index, i.e., wrap around read
+      tokens_to_read = cap - from_index + to_index;
+    }
 
-      deviceToHostTransfer(q, bytes_to_transfer, transfer_offset, 0);
+    uint32_t tx_ix = 0;
+    const uint32_t token_size = port_type.token_size;
+    auto offset_index = from_index;
 
-      total_bytes += tokens_to_transfer;
-    } else { // device_buffer.head > host_buffer.head
+    total_bytes = tokens_to_read * token_size;
 
-      uint32_t tokens_to_transfer =
-          device_buffer.user_alloc_size - host_buffer.head;
-      uint32_t bytes_to_transfer = tokens_to_transfer * port_type.token_size;
-      uint32_t transfer_offset = device_buffer.head * port_type.token_size;
-      deviceToHostTransfer(q, bytes_to_transfer, transfer_offset, 0);
-      total_bytes += bytes_to_transfer;
+    if (tokens_to_read + from_index >= cap) {
+      // wrap around
+      deviceToHostTransfer(q, (cap - from_index) * token_size,
+                           offset_index * token_size, tx_ix);
+      tx_ix++;
+      tokens_to_read -= cap - from_index;
+      offset_index = 0;
+    }
 
-      tokens_to_transfer = device_buffer.head;
-      bytes_to_transfer = tokens_to_transfer * port_type.token_size;
-      deviceToHostTransfer(q, bytes_to_transfer, 0, 1);
-
-      total_bytes += bytes_to_transfer;
+    if (tokens_to_read > 0) {
+      deviceToHostTransfer(q, tokens_to_read * token_size,
+                           offset_index * token_size, tx_ix);
     }
   }
 
