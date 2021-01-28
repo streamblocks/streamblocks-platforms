@@ -25,6 +25,7 @@ endif()
 set(FPGA_NAME "xczu7ev-ffvc1156-2-e" CACHE STRING "Name of Xilinx FPGA, e.g \"xcku115-flvb2104-2-e\", \"xcu250-figd2104-2L-e\", \"xczu7ev-ffvc1156-2-e\", \"xczu3eg-sbva484-1-e\", ...")
 set(PLATFORM "xilinx_zcu106_base_dfx_202010_1" CACHE STRING "Supported platform name, e.g \"xilinx_kcu1500_dynamic_5_0\", \"xilinx_u250_xdma_201830_2\", \"zcu102_base\", \"xilinx_zcu106_base_dfx_202010_1\", \"ultra96_base\",... ")
 set(HLS_CLOCK_PERIOD "5" CACHE STRING "Clock period in ns")
+set(KERNEL_FREQ      "200" CACHE STRING "Kernel frequency in MHz")
 set(KERNEL FALSE)
 
 # -- Set CMake module path, for finding the necessary tools

@@ -2,7 +2,8 @@ option(MPSOC "Is MPSoC" OFF)
 
 # ART PLink sources
 set(art_plink_source
-        src/device-handle.cc
+        src/device-port.cc
+        src/plink.cc
         src/xcl2.cc
 )
 
@@ -37,7 +38,7 @@ target_include_directories(art-plink PUBLIC  ${XRT_INCLUDE_DIRS} include)
 target_link_libraries(art-plink ${OpenCL_LIBRARIES} ${XRT_LIBRARIES})
 set_target_properties(art-plink PROPERTIES CXX_STANDARD 14)
 
-
+message(STATUS "${OpenCL_LIBRARIES}")
 
 if (OPENCL_VERBOSE)
         target_compile_definitions(art-plink PUBLIC OCL_VERBOSE=1)
