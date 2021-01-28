@@ -129,6 +129,7 @@ public interface AxiLiteControl {
             for (PortDecl port : ports) {
                 emitter().emit("output  wire    [64 - 1 : 0]  %s_data_buffer,", port.getName());
                 emitter().emit("output  wire    [64 - 1 : 0]  %s_meta_buffer,", port.getName());
+                emitter().emit("output  wire    [32 - 1 : 0]  %s_alloc_size,", port.getName());
                 emitter().emit("output  wire    [32 - 1 : 0]  %s_head,", port.getName());
                 emitter().emit("output  wire    [32 - 1 : 0]  %s_tail,", port.getName());
             }

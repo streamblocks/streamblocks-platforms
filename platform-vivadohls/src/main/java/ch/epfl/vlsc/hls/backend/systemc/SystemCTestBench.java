@@ -375,7 +375,6 @@ public interface SystemCTestBench {
             emitter().emit("if (trace_level > 1) {");
             {
                 emitter().increaseIndentation();
-
                 network.getQueues().stream().forEach(queue -> {
                     String queueName = queue.getName();
                     queue.stream().forEach(port -> {

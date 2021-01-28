@@ -266,11 +266,11 @@ private:
   inline uint32_t getSpaceLeft() {
 #pragma HLS INLINE
     if (this->tail == this->head) {
-      return this->alloc_size;
+      return this->alloc_size - 1;
     } else if (this->head < this->tail) {
-      return this->tail - this->head;
+      return this->tail - 1 - this->head;
     } else { // this->tail < this->head
-      return (this->alloc_size - this->head) + this->tail;
+      return (this->alloc_size - this->head) + ( this->tail - 1 );
     }
   }
 
