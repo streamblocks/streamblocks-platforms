@@ -847,6 +847,7 @@ public interface AxiLiteControl {
         for(PortDecl port : ports) {
             getReg64Bit(port.getName(), "data_buffer");
             getReg64Bit(port.getName(), "meta_buffer");
+            getReg32Bit(port.getName(), "alloc_size");
             getReg32Bit(port.getName(), "head");
             getReg32Bit(port.getName(), "tail");
         }

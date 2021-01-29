@@ -128,7 +128,7 @@ module @ACTOR@_triggered #(
 	always_ff @(posedge ap_clk) begin
 		if (ap_rst_n == 1'b0)
 			fifo_count_reg <= 0;
-		else if(ap_idle == 1'b1 || ap_done == 1'b1)
+		else if(actor_idle == 1'b1 || actor_done == 1'b1)
 			fifo_count_reg <= fifo_count;
 	end
 

@@ -112,27 +112,19 @@ public:
         // data_buffer[head - 1] but if (tail > head) then we first read from
         // the data_buffer[tail] to data_buffer[alloc_size - 1] and then from
         // data_buffer[0] to data_buffer[head - 1].
-        if (this->tail < this->head) {
 
-          readLoop(ocl_buffer.data_buffer, tail, tokens_to_read, data_stream);
+        if (this->tail + tokens_to_read >= this->alloc_size) {
+          readLoop(ocl_buffer.data_buffer, this->tail, this->alloc_size - this->tail, data_stream);
+          tokens_to_read -= this->alloc_size - this->tail;
+          this->tail = 0;
+        }
+
+        if (tokens_to_read > 0) {
+          readLoop(ocl_buffer.data_buffer, this->tail, tokens_to_read, data_stream);
           this->tail += tokens_to_read;
 
-        } else {
-          uint32_t tail_to_end_tokens = this->alloc_size - this->tail;
-          uint32_t read_size = MIN(tail_to_end_tokens, tokens_to_read);
-          bool wraps_around = (tail_to_end_tokens < tokens_to_read);
-          readLoop(ocl_buffer.data_buffer, tail, read_size, data_stream);
-          if (wraps_around) {
-            uint32_t tokens_left_to_read = tokens_to_read - tail_to_end_tokens;
-            read_size = MIN(this->head, tokens_left_to_read);
-            readLoop(ocl_buffer.data_buffer, 0, read_size, data_stream);
-            tail = read_size;
-          } else {
-            tail += read_size;
-          }
         }
-        // meta_buffer[0] = tail;
-        // writeMeta(ocl_buffer.meta_buffer);
+
         return_code = RETURN_EXECUTED;
       } else {
         return_code = RETURN_WAIT;
@@ -160,9 +152,11 @@ private:
 #pragma HLS pipeline
 #pragma HLS loop_tripcount min = 0 max = this->MAX_BURST_LINES
         T token = data_buffer[current_ix];
+
         data_stream.write_nb(token);
         current_ix++;
       }
+
     }
   }
   inline void writeMeta(T *meta_buffer) {
@@ -186,6 +180,7 @@ private:
 
   // local copies of head, tail and alloc_size
   uint32_t head, tail, alloc_size;
+
 };
 
 template <typename T> class OutputMemoryStage : public BusInterface<T> {
@@ -223,31 +218,21 @@ public:
         // (i) head < tail: then write from buffer[head] to buffer[tail - 1]
         // (ii) tail < head: then write from buffer[head] to buffer[alloc_size -
         // 1] and from buffer[0] to buffer[tail - 1]
-        if (this->head < this->tail) {
-          // we have to assert that this->head + tokens_to_write <= this->tail
-          writeLoop(ocl_buffer.data_buffer, this->head, tokens_to_write,
-                    data_stream);
+
+        if (this->head + tokens_to_write >= this->alloc_size) {
+          // wrap around
+          writeLoop(ocl_buffer.data_buffer, this->head, this->alloc_size - this->head, data_stream);
+          tokens_to_write -= this->alloc_size - this->head;
+          this->head = 0;
+        }
+        if (tokens_to_write > 0) {
+          writeLoop(ocl_buffer.data_buffer, this->head, tokens_to_write, data_stream);
+
           this->head += tokens_to_write;
-        } else { // this->
-
-          // in this case we may have to wrap-around in the write
-          uint32_t space_before_wrapping = this->alloc_size - this->head;
-
-          uint32_t write_size = MIN(tokens_to_write, space_before_wrapping);
-
-          writeLoop(ocl_buffer.data_buffer, this->head, write_size,
-                    data_stream);
-
-          if (space_before_wrapping < tokens_to_write) {
-            uint32_t tokens_to_wrap = tokens_to_write - space_before_wrapping;
-            writeLoop(ocl_buffer.data_buffer, 0, tokens_to_wrap, data_stream);
-            this->head = tokens_to_wrap;
-          } else {
-            this->head += write_size;
-          }
         }
 
         return_code = RETURN_EXECUTED;
+
       } else {
         return_code = RETURN_WAIT;
       }

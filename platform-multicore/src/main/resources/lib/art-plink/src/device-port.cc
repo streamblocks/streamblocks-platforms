@@ -67,11 +67,10 @@ DevicePort::DevicePort(PortAddress address, PortType port_type)
   std::stringstream builder2;
   builder2 << address.getName() << " buffer size event";
   size_event_info.init(builder2.str());
-
-  // ocl_buffer.system_alloc_size = 0;
-  // ocl_buffer.user_alloc_size = 0;
-  // ocl_buffer.user_tail = 0;
-  // ocl_buffer.user_head = 0;
+  device_buffer.head = 0;
+  device_buffer.tail = 0;
+  host_buffer.head = 0;
+  host_buffer.tail = 0;
 }
 
 cl_int DevicePort::allocate(const cl::Context &context,
@@ -81,7 +80,6 @@ cl_int DevicePort::allocate(const cl::Context &context,
   extensions.flags = bank_id;
   extensions.obj = 0;
   extensions.param = 0;
-  OCL_MSG("Using bank %d\n", bank_id);
 
   OCL_ASSERT(size % port_type.token_size == 0,
              "Misaligned allocation on port %s\n", address.toString().c_str());
@@ -106,6 +104,10 @@ cl_int DevicePort::allocate(const cl::Context &context,
                  sizeof(uint32_t), &extensions, &err2);
 
   host_buffer.meta_buffer.resize(1);
+
+  OCL_MSG("%s::allocate(bytes=%lu, bank=%u, tokens=%u)\n",
+          address.toString().c_str(), size, bank_id,
+          device_buffer.user_alloc_size);
 
   if (err == CL_SUCCESS && err2 == CL_SUCCESS)
     return CL_SUCCESS;
@@ -138,8 +140,6 @@ uint32_t DevicePort::writeToDeviceBuffer(const cl::CommandQueue &q,
   OCL_ASSERT(buffer_event_info[1].active == false,
              "Illegal write buffer for %s\n", address.toString().c_str());
 
-
-
   if (to_index == from_index) {
     // -- there is nothing new to be transferred to the device buffer
     OCL_MSG("%s::writeToDeviceBuffer::skipped\n", address.toString().c_str());
@@ -156,7 +156,7 @@ uint32_t DevicePort::writeToDeviceBuffer(const cl::CommandQueue &q,
       tokens_to_write = cap - from_index + to_index;
     }
 
-    uint32_t tx_ix;
+    uint32_t tx_ix = 0;
     const uint32_t token_size = port_type.token_size;
 
     total_bytes = tokens_to_write * token_size;
@@ -197,16 +197,17 @@ void DevicePort::hostToDeviceTransfer(const cl::CommandQueue &q,
           address.toString().c_str(), index, size, offset,
           port_type.token_size);
   cl_int err;
-  OCL_CHECK(err,
-            err = q.enqueueWriteBuffer(
-                device_buffer.data_buffer, // -- device buffer
-                CL_FALSE,                  // -- nonblocking transfer
-                offset,                    // -- tranfser offset in bytes
-                size,                      // -- size of the transfer in bytes
-                host_buffer.data_buffer.data(), // -- host buffer pointer
-                NULL,                           // -- do not wait on any events
-                &buffer_event[index] // -- register an event for call back
-                ));
+  OCL_CHECK(
+      err,
+      err = q.enqueueWriteBuffer(
+          device_buffer.data_buffer, // -- device buffer
+          CL_FALSE,                  // -- nonblocking transfer
+          offset,                    // -- tranfser offset in bytes
+          size,                      // -- size of the transfer in bytes
+          host_buffer.data_buffer.data() + offset, // -- host buffer pointer
+          NULL,                // -- do not wait on any events
+          &buffer_event[index] // -- register an event for call back
+          ));
   buffer_event_info[index].active = true;
 
   buffer_event[index].setCallback(CL_COMPLETE, callback_handler,
@@ -297,16 +298,17 @@ void DevicePort::deviceToHostTransfer(const cl::CommandQueue &q,
           port_type.token_size);
 
   cl_int err;
-  OCL_CHECK(err,
-            err = q.enqueueReadBuffer(
-                device_buffer.data_buffer, // -- device buffer
-                CL_FALSE,                  // -- nonblocking read
-                offset,                    // -- transfer offset in bytes
-                size,                      // -- size of the transfer in bytes
-                host_buffer.data_buffer.data(), // -- host buffer pointer
-                NULL,                           // -- do not wait on any events
-                &buffer_event[index]            // -- event to generate
-                ));
+  OCL_CHECK(
+      err,
+      err = q.enqueueReadBuffer(
+          device_buffer.data_buffer, // -- device buffer
+          CL_FALSE,                  // -- nonblocking read
+          offset,                    // -- transfer offset in bytes
+          size,                      // -- size of the transfer in bytes
+          host_buffer.data_buffer.data() + offset, // -- host buffer pointer
+          NULL,                // -- do not wait on any events
+          &buffer_event[index] // -- event to generate
+          ));
   buffer_event_info[index].active = true;
   buffer_event[index].setCallback(CL_COMPLETE, callback_handler,
                                   &buffer_event_info[index]);
@@ -321,8 +323,8 @@ void DevicePort::deviceToHostTransfer(const cl::CommandQueue &q,
  * @param events events that should complete before the read operation is
  *               enqueued
  */
-void DevicePort::equeueReadMeta(const cl::CommandQueue &q,
-                                const std::vector<cl::Event> *events) {
+void DevicePort::enqueueReadMeta(const cl::CommandQueue &q,
+                                 const std::vector<cl::Event> *events) {
 
   cl_int err;
   OCL_ASSERT(size_event_info.active == false, "Illegal read size for %s\n",

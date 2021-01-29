@@ -154,7 +154,8 @@ protected:
                 << std::endl;
 
       std::cerr << "\t\t" << msg << std::endl;
-      fail_test();
+      throw std::runtime_error(msg.c_str());
+      // fail_test();
     }
   }
 
@@ -549,7 +550,7 @@ int main() {
   const size_t count = 1000;
   const size_t alloc_size = 1 << 16;
   const auto thread_count = std::thread::hardware_concurrency() / 2;
-  // const auto thread_count = 1;
+
   std::vector<std::thread> threads;
   const size_t count_per_thread = count / thread_count;
   std::cout << "Starting tests on " << thread_count << " threads" << std::endl;

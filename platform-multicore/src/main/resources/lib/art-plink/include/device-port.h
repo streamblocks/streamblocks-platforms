@@ -134,7 +134,7 @@ public:
                                 const uint32_t from_index,
                                 const uint32_t to_index);
 
-  void equeueReadMeta(const cl::CommandQueue &q,
+  void enqueueReadMeta(const cl::CommandQueue &q,
                       const std::vector<cl::Event> *events = NULL);
 
   void releaseEvents() {
