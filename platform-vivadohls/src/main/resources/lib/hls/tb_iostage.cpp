@@ -218,8 +218,9 @@ public:
     size_t token_index = 0;
     size_t call_index = 0;
     // randomize the circular buffer configuration
-    uint32_t tail = randint(0, this->alloc_size);
-    uint32_t head = randint(0, this->alloc_size);
+    uint32_t tail = randint(0, this->alloc_size - 1);
+
+    uint32_t head = randint(0, this->alloc_size - 1);
     // randomize the starting fifo configuration;
     uint32_t init_fifo_count = randint(0, FIFO_SIZE);
     for (int ix = 0; ix < init_fifo_count; ix++) {
@@ -266,7 +267,8 @@ public:
         msg_builder << "InputStage Production: " << enqueued
                     << " fifo size: " << pre_count;
         msg_builder << "\tActor Consumption: " << dequeue_count
-                    << " fifo size: " << post_count - dequeue_count;
+                    << " fifo size: " << post_count - dequeue_count
+                    << "\ttoken index: " << token_index;
         this->show_info(msg_builder.str(), 1);
       }
 
@@ -278,17 +280,17 @@ public:
           this->assert_check(this->data_stream.empty() == false,
                              msg_builder.str());
         }
-        auto token = this->data_stream.read();
+        T token = this->data_stream.read();
         read_from_stream++;
         if (read_from_stream > init_fifo_count) {
           {
             std::stringstream msg_builder;
-            uint64_t golden = this->golden_tokens[token_index];
-            msg_builder << "Golden result mismatch! Expected " << golden
-                        << " got " << uint64_t(token) << " at " << token_index;
-            this->assert_check(uint64_t(token) ==
-                                   this->golden_tokens[token_index],
-                               msg_builder.str());
+            T golden = this->golden_tokens[token_index];
+            msg_builder << "Golden result mismatch! Expected "
+                        << uint64_t(golden) << " got " << uint64_t(token)
+                        << " at " << token_index
+                        << " with token size = " << sizeof(T);
+            this->assert_check(token == golden, msg_builder.str());
           }
           token_index = (token_index + 1) % this->alloc_size;
         }
@@ -404,8 +406,8 @@ public:
 
     /* create a random circular buffer configuration */
 
-    uint32_t tail = randint(0, this->alloc_size);
-    uint32_t head = randint(0, this->alloc_size);
+    uint32_t tail = randint(0, this->alloc_size - 1);
+    uint32_t head = randint(0, this->alloc_size - 1);
 
     /* create the ciruclar buffer handle */
     iostage::CircularBuffer<T> ocl_buff = {
@@ -433,6 +435,7 @@ public:
       this->show_info(msg_builder.str(), 1);
     }
     uint32_t call_index = 0;
+    uint32_t space_left = 0;
     do {
 
       /* 1. activate the output stage */
@@ -464,7 +467,8 @@ public:
         {
           std::stringstream msg_builder;
           msg_builder << "Expected " << uint64_t(gold_token) << " but got "
-                      << uint64_t(token);
+                      << uint64_t(token) << " tokens size = " << sizeof(T)
+                      << std::endl;
 
           this->assert_check(token == gold_token, msg_builder.str());
         }
@@ -490,7 +494,14 @@ public:
         this->show_info(msg_builder.str(), 1);
       }
 
-    } while (post_head != tail);
+      if (post_head == tail) {
+        space_left = this->alloc_size - 1;
+      } else if (post_head < tail) {
+        space_left = tail - 1 - post_head;
+      } else {
+        space_left = this->alloc_size - post_head + tail - 1;
+      }
+    } while (space_left != 0);
 
     if (validatation_index < this->golden_tokens.size()) {
       {
@@ -527,7 +538,7 @@ size_t runTest(size_t start_id, size_t alloc_size, std::string msg) {
   otester.setVerbose(0);
   otester.test();
 
-  return start_id + 2;
+  return start_id + 1;
 }
 
 void runTests(size_t start_id, size_t count, size_t alloc_size) {
@@ -547,10 +558,10 @@ void runTests(size_t start_id, size_t count, size_t alloc_size) {
 
 int main() {
 
-  const size_t count = 1000;
-  const size_t alloc_size = 1 << 16;
+  const size_t count = 10000;
+  const size_t alloc_size = 1 << 14;
   const auto thread_count = std::thread::hardware_concurrency() / 2;
-
+  // const auto thread_count = 1;
   std::vector<std::thread> threads;
   const size_t count_per_thread = count / thread_count;
   std::cout << "Starting tests on " << thread_count << " threads" << std::endl;

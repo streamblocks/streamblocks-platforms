@@ -114,15 +114,16 @@ public:
         // data_buffer[0] to data_buffer[head - 1].
 
         if (this->tail + tokens_to_read >= this->alloc_size) {
-          readLoop(ocl_buffer.data_buffer, this->tail, this->alloc_size - this->tail, data_stream);
+          readLoop(ocl_buffer.data_buffer, this->tail,
+                   this->alloc_size - this->tail, data_stream);
           tokens_to_read -= this->alloc_size - this->tail;
           this->tail = 0;
         }
 
         if (tokens_to_read > 0) {
-          readLoop(ocl_buffer.data_buffer, this->tail, tokens_to_read, data_stream);
+          readLoop(ocl_buffer.data_buffer, this->tail, tokens_to_read,
+                   data_stream);
           this->tail += tokens_to_read;
-
         }
 
         return_code = RETURN_EXECUTED;
@@ -151,21 +152,28 @@ private:
       for (uint32_t ix = 0; ix < chunk_size; ix++) {
 #pragma HLS pipeline
 #pragma HLS loop_tripcount min = 0 max = this->MAX_BURST_LINES
-        T token = data_buffer[current_ix];
 
+        T token = data_buffer[current_ix];
         data_stream.write_nb(token);
         current_ix++;
       }
-
     }
   }
   inline void writeMeta(T *meta_buffer) {
 #pragma HLS INLINE
-    uint32_t *dest = reinterpret_cast<uint32_t *>(meta_buffer);
-    // std::cout << "Writing tail at " << uintptr_t(meta_buffer) << std::endl;
-    // std::cout << "tail: " << this->tail << std::endl;
-    dest[0] = this->tail;
-    // std::memcpy(meta_buffer, &this->tail, sizeof(uint32_t));
+
+    if (sizeof(T) >= sizeof(uint32_t)) {
+      meta_buffer[0] = this->tail;
+    } else {
+      uint32_t current_tail = this->tail;
+      for (int ix = 0; ix < sizeof(uint32_t) / sizeof(T); ix++) {
+#pragma HLS unroll
+        meta_buffer[ix] = current_tail;
+        current_tail = current_tail >> (sizeof(T) << 3);
+
+      }
+
+    }
   }
   inline uint32_t tokenCount() const {
 #pragma HLS INLINE
@@ -180,7 +188,6 @@ private:
 
   // local copies of head, tail and alloc_size
   uint32_t head, tail, alloc_size;
-
 };
 
 template <typename T> class OutputMemoryStage : public BusInterface<T> {
@@ -221,12 +228,14 @@ public:
 
         if (this->head + tokens_to_write >= this->alloc_size) {
           // wrap around
-          writeLoop(ocl_buffer.data_buffer, this->head, this->alloc_size - this->head, data_stream);
+          writeLoop(ocl_buffer.data_buffer, this->head,
+                    this->alloc_size - this->head, data_stream);
           tokens_to_write -= this->alloc_size - this->head;
           this->head = 0;
         }
         if (tokens_to_write > 0) {
-          writeLoop(ocl_buffer.data_buffer, this->head, tokens_to_write, data_stream);
+          writeLoop(ocl_buffer.data_buffer, this->head, tokens_to_write,
+                    data_stream);
 
           this->head += tokens_to_write;
         }
@@ -255,7 +264,7 @@ private:
     } else if (this->head < this->tail) {
       return this->tail - 1 - this->head;
     } else { // this->tail < this->head
-      return (this->alloc_size - this->head) + ( this->tail - 1 );
+      return (this->alloc_size - this->head) + (this->tail - 1);
     }
   }
 
@@ -285,9 +294,20 @@ private:
 
   void writeMeta(T *meta_buffer) {
 #pragma HLS INLINE
-    uint32_t *dest = reinterpret_cast<uint32_t *>(meta_buffer);
 
-    dest[0] = this->head;
+    if (sizeof(T) >= sizeof(uint32_t)) {
+      meta_buffer[0] = this->head;
+    } else {
+
+      uint32_t current_head = this->head;
+      for (int ix = 0; ix < sizeof(uint32_t) / sizeof(T); ix++) {
+#pragma HLS unroll
+        meta_buffer[ix] = current_head;
+        current_head = current_head >> (sizeof(T) << 3);
+
+      }
+
+    }
   }
   uint32_t tail, head, alloc_size;
 };
