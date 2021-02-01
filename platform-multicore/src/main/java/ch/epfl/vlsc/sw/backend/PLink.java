@@ -566,7 +566,8 @@ public interface PLink {
                 emitter().emit("outputs_builder,  // -- outputs");
                 emitter().emit("%d,  // -- number of external mems", 0);
                 emitter().emit("\"%s\",  // -- kernel name", kernelID);
-                emitter().emit("\"%s\"  // -- kernel dir", "xclbin");
+                emitter().emit("\"%s\",  // -- kernel dir", "xclbin");
+                emitter().emit("false   // -- stat collection");
                 emitter().decreaseIndentation();
             }
             emitter().emit(");");
@@ -580,12 +581,18 @@ public interface PLink {
             for(PortDecl port: entity.getInputPorts()) {
                 int ix = entity.getInputPorts().indexOf(port);
                 String type = backend().typeseval().type(backend().types().declaredPortType(port));
+                if (type == "bool"){
+                    emitter().emit("OCL_ASSERT(sizeof(bool) == 1, \"sizeof(bool) is not 1 byte!\\n\");");
+                }
                 emitter().emit("thisActor->plink->allocateInput(inputs_builder[%d].name, thisActor->base.input[%1$d].capacity * sizeof(%s));", ix, type);
             }
 
             for(PortDecl port: entity.getOutputPorts()) {
                 int ix = entity.getOutputPorts().indexOf(port);
                 String type = backend().typeseval().type(backend().types().declaredPortType(port));
+                if (type == "bool"){
+                    emitter().emit("OCL_ASSERT(sizeof(bool) == 1, \"sizeof(bool) is not 1 byte!\\n\");");
+                }
                 emitter().emit("thisActor->plink->allocateOutput(outputs_builder[%d].name, thisActor->base.output[%1$d].capacity * sizeof(%s));", ix, type);
             }
 

@@ -17,6 +17,7 @@ public class AxiConstants {
     public static Optional<Integer> getAxiDataWidth(int bitWidth) {
 
         switch (bitWidth) {
+            case 1:
             case 8:
             case 16:
             case 32:

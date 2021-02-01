@@ -69,7 +69,7 @@ public interface KernelXml {
                         xmlPort("m_axi_" + port.getName(), "master", "0xFFFFFFFF",
                                 AxiConstants.getAxiDataWidth(bitSize).orElseThrow(
                                         () -> new CompilationException(new Diagnostic(Diagnostic.Kind.ERROR,
-                                                String.format("Unsupported invalid axi port %s of type %s " +
+                                                String.format("Unsupported axi port %s of type %s " +
                                                         "with bit width %d",
                                                         port.getName(), backend().typeseval().type(type), bitSize)))));
                     }
