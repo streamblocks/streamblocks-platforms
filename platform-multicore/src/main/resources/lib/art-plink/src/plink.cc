@@ -1,6 +1,8 @@
 #include "plink.h"
 #include "xcl2.h"
 namespace ocl_device {
+
+
 PLink::PLink(const std::vector<PortInfo<LocalInputPort>> &input_info,
              const std::vector<PortInfo<LocalOutputPort>> &output_info,
              const uint32_t num_mems, const std::string kernel_name,
@@ -315,8 +317,6 @@ void PLink::actionStartKernel() {
     arg_ix++;
     kernel.setArg(arg_ix, input.hw.device_buffer.meta_buffer);
     arg_ix++;
-    OCL_MSG("%s::alloc_size=%u\n", input.hw.address.toString().c_str(),
-            input.hw.device_buffer.user_alloc_size);
     kernel.setArg(arg_ix, input.hw.device_buffer.user_alloc_size);
     arg_ix++;
     kernel.setArg(arg_ix, input.hw.device_buffer.head);
@@ -492,18 +492,24 @@ PLink::Action PLink::actionScheduler(AbstractActorInstance *base) {
     outputs[i].sw->buffer = base->output[i].buffer;
     outputs[i].sw->capacity = base->output[i].capacity;
   }
-  Action action_performed = Action::StartKernel;
+  Action action_performed = Action::NoAction;
   switch (plink_state) {
   case State::INIT:
     // check if pending tokens can be pushed to the output
     if (checkCanWriteToOutput()) {
       actionFreeUpOutputBuffer();
 
-      action_performed = Action::FreeUpOutptuBuffer;
+      action_performed = Action::FreeUpOutputBuffer;
       plink_state = State::INIT;
-    } else if (checkCanSendInput() || checkHardwareOutputSpace() ||
-               checkShouldRetry()) {
+    } else if (checkCanSendInput() && checkHardwareOutputSpace()) {
 
+      actionStartKernel();
+
+      plink_state = State::POLL_KERNEL;
+
+      action_performed = Action::StartKernel;
+    } else if (checkShouldRetry()) {
+      OCL_MSG("plink::retry");
       actionStartKernel();
       plink_state = State::POLL_KERNEL;
       action_performed = Action::StartKernel;
@@ -515,20 +521,22 @@ PLink::Action PLink::actionScheduler(AbstractActorInstance *base) {
 
       actionUpdateIndices();
       plink_state = State::POLL_READ;
-      action_performed = Action::UpdateIndices;
+
     }
+    action_performed = Action::UpdateIndices;
     break;
   case State::POLL_READ:
     if (checkReadFinished()) {
       actionCleanUp();
       actionFreeUpOutputBuffer();
       plink_state = State::INIT;
-      action_performed = Action::FreeUpOutptuBuffer;
     }
+    action_performed = Action::FreeUpOutputBuffer;
     break;
   default:
     OCL_ASSERT(false, "Invalid entry point for plink!\n");
   }
+
 
   if (action_performed != Action::NoAction) {
 
@@ -546,6 +554,8 @@ PLink::Action PLink::actionScheduler(AbstractActorInstance *base) {
           base->output[i].local->available - outputs[i].sw->available;
       base->output[i].local->available = outputs[i].sw->available;
     }
+  } else {
+    OCL_MSG("plink::NoAction\n");
   }
   return action_performed;
 }

@@ -211,9 +211,6 @@ public class VivadoHLSBackendPhase implements Phase {
         // -- Generate Globals
         generateGlobals(backend);
 
-        // -- Generate devicehandle
-        // generateDeviceHandle(backend);
-
         // -- Generate Network
         generateNetwork(backend);
 
@@ -327,13 +324,13 @@ public class VivadoHLSBackendPhase implements Phase {
         // -- Input Stage
         for (PortDecl port : backend.task().getNetwork().getInputPorts()) {
             backend.inputstagemem().getInputStageMem(port);
-//            backend.inputstage().getInputStage(port);
+
         }
 
         // -- Output Stage
         for (PortDecl port : backend.task().getNetwork().getOutputPorts()) {
             backend.outputstagemem().getOutputStageMem(port);
-//            backend.outputstage().getOutputStage(port);
+
         }
 
         // -- Kernel XML
@@ -354,16 +351,6 @@ public class VivadoHLSBackendPhase implements Phase {
         backend.globals().globalHeader();
     }
 
-    /**
-     * Generate host DeviceHandle
-     *
-     * @param backend
-     */
-    public static void generateDeviceHandle(VivadoHLSBackend backend) {
-
-        // -- Globals Header
-        backend.devicehandle().generateDeviceHandle();
-    }
 
     /**
      * Generate tesbenches for Network and Instances

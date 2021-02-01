@@ -2,13 +2,12 @@ package ch.epfl.vlsc.hls.backend;
 
 import ch.epfl.vlsc.attributes.Memories;
 import ch.epfl.vlsc.hls.backend.controllers.*;
-import ch.epfl.vlsc.hls.backend.host.DeviceHandle;
 import ch.epfl.vlsc.hls.backend.kernel.AxiLiteControl;
-import ch.epfl.vlsc.hls.backend.kernel.InputStage;
+
 import ch.epfl.vlsc.hls.backend.kernel.InputStageMem;
 import ch.epfl.vlsc.hls.backend.kernel.KernelWrapper;
 import ch.epfl.vlsc.hls.backend.kernel.KernelXml;
-import ch.epfl.vlsc.hls.backend.kernel.OutputStage;
+
 import ch.epfl.vlsc.hls.backend.kernel.OutputStageMem;
 import ch.epfl.vlsc.hls.backend.kernel.PackageKernel;
 import ch.epfl.vlsc.hls.backend.kernel.TopKernel;
@@ -283,11 +282,7 @@ public interface VivadoHLSBackend {
         return MultiJ.from(Globals.class).bind("backend").to(this).instance();
     }
 
-    // -- DeviceHandle
-    @Binding(LAZY)
-    default DeviceHandle devicehandle() {
-        return MultiJ.from(DeviceHandle.class).bind("backend").to(this).instance();
-    }
+
 
     // -- CMakeLists
     @Binding(LAZY)
@@ -381,11 +376,6 @@ public interface VivadoHLSBackend {
         return MultiJ.from(InputStageMem.class).bind("backend").to(this).instance();
     }
 
-    // -- Input Stage
-    @Binding(LAZY)
-    default InputStage inputstage() {
-        return MultiJ.from(InputStage.class).bind("backend").to(this).instance();
-    }
 
     // -- Output Stage Mem
     @Binding(LAZY)
@@ -393,11 +383,7 @@ public interface VivadoHLSBackend {
         return MultiJ.from(OutputStageMem.class).bind("backend").to(this).instance();
     }
 
-    // -- Output Stage
-    @Binding(LAZY)
-    default OutputStage outputstage() {
-        return MultiJ.from(OutputStage.class).bind("backend").to(this).instance();
-    }
+
 
     // -- OpenCL Kernel XML
     @Binding(LAZY)

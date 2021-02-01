@@ -116,7 +116,7 @@ public interface PLink {
         defineIncludes();
 
         // -- Ports IO
-        portsIO(entity);
+//        portsIO(entity);
 
         // -- Context
         actionContext(instanceName, entity);
@@ -132,9 +132,9 @@ public interface PLink {
         portDescription(instanceName, entity);
 
 
-        // -- setParam
-        if (isSimulated())
-            getSetParam(instanceName, entity);
+//        // -- setParam
+//        if (isSimulated())
+//            getSetParam(instanceName, entity);
 
         // -- State variable description
         stateVariableDescription(instanceName, entity);
@@ -150,12 +150,6 @@ public interface PLink {
 
         // -- Constructor
         constructorDefinition(instanceName, entity);
-
-        // -- Conditions
-        conditionDefinitions(instanceName, entity);
-
-        // -- Actions
-        actionDefinitions(instanceName, entity);
 
         // -- Destructor
         destructorDefinition(instanceName, entity);
@@ -179,7 +173,7 @@ public interface PLink {
             emitter().emit("#include \"network_tester.h\"");
         } else {
             emitter().emit("#include <memory>");
-            emitter().emit("#include \"device-handle.h\"");
+            emitter().emit("#include \"plink.h\"");
         }
         emitter().emit("#define MIN(a, b) (a < b ? a : b)");
     }
@@ -261,15 +255,7 @@ public interface PLink {
 
     default void deviceState(String name, Entity entity) {
 
-        // -- device object
-        emitter().emit("// -- device handle object");
-        emitter().emit("std::unique_ptr<ocl_device::DeviceHandle> dev;");
 
-        // -- input ports
-        emitter().emit("std::vector<ocl_device::PLinkPort> input_ports;");
-
-        // -- output ports
-        emitter().emit("std::vector<ocl_device::PLinkPort> output_ports;");
 
 
 
@@ -282,23 +268,8 @@ public interface PLink {
         {
             emitter().increaseIndentation();
             emitter().emit("AbstractActorInstance base;");
-            emitter().emit("int32_t program_counter;");
 
-            if (isSimulated())
-                simulationState(name, entity);
-            else
-                deviceState(name, entity);
-
-            // -- utility vars
-            emitter().emitNewLine();
-            emitter().emit("uint64_t total_consumed;");
-            emitter().emit("uint64_t total_produced;");
-            emitter().emit("uint64_t total_request;");
-            emitter().emit("bool deadlock_notify;");
-
-            emitter().emit("uint64_t trip_count;");
-            // -- guard variable
-            emitter().emit("bool should_retry;");
+            emitter().emit("std::unique_ptr<ocl_device::PLink> plink;");
 
             emitter().decreaseIndentation();
         }
@@ -556,27 +527,69 @@ public interface PLink {
             emitter().increaseIndentation();
             emitter().emit("%s *thisActor = (%1$s *) pBase;", actorInstanceName);
 
-            emitter().emit("thisActor->program_counter = 0;");
-            emitter().emit("thisActor->deadlock_notify = true;");
-            emitter().emit("thisActor->trip_count = 0;");
 
-            emitter().emit("// -- buffer size info");
+            emitter().emit("using InputInfo = ocl_device::PLink::PortInfo<LocalInputPort>;");
+            emitter().emit("using OutputInfo = ocl_device::PLink::PortInfo<LocalOutputPort>;");
+
+            emitter().emitNewLine();
+
+            // -- build the input and output ports
+            emitter().emit("// -- input port builder");
+            emitter().emit("std::vector<InputInfo> inputs_builder;");
+
+            emitter().emit("// -- output port builder");
+            emitter().emit("std::vector<OutputInfo> outputs_builder;");
+
+            for (PortDecl port : entity.getInputPorts()) {
+                String type = backend().typeseval().type(backend().types().declaredPortType(port));
+                emitter().emit("inputs_builder.emplace_back(ocl_device::PortAddress(\"%s\"), sizeof(%s));",
+                        port.getName(), type);
+            }
+
+            for (PortDecl port : entity.getOutputPorts()) {
+                String type = backend().typeseval().type(backend().types().declaredPortType(port));
+                emitter().emit("outputs_builder.emplace_back(ocl_device::PortAddress(\"%s\"), sizeof(%s));",
+                        port.getName(), type);
+            }
+
+
+            // -- build the plink object
+
+            emitter().emit("// -- construct the plink object");
+            emitter().emit("// -- the device object");
+
+            emitter().emit("thisActor->plink = std::make_unique<ocl_device::PLink>(");
+            {
+                emitter().increaseIndentation();
+                String kernelID = backend().task().getIdentifier().getLast().toString() + "_kernel";
+                emitter().emit("inputs_builder,  // -- inputs");
+                emitter().emit("outputs_builder,  // -- outputs");
+                emitter().emit("%d,  // -- number of external mems", 0);
+                emitter().emit("\"%s\",  // -- kernel name", kernelID);
+                emitter().emit("\"%s\"  // -- kernel dir", "xclbin");
+                emitter().decreaseIndentation();
+            }
+            emitter().emit(");");
+
+            // -- allocate inputs
+
+            emitter().emitNewLine();
+
+            emitter().emit("// -- input/output allocation");
+
             for(PortDecl port: entity.getInputPorts()) {
                 int ix = entity.getInputPorts().indexOf(port);
-                emitter().emit("const std::size_t buffer_size_%s = thisActor->base.input[%d].capacity;",
-                        port.getName(), ix);
+                String type = backend().typeseval().type(backend().types().declaredPortType(port));
+                emitter().emit("thisActor->plink->allocateInput(inputs_builder[%d].name, thisActor->base.input[%1$d].capacity * sizeof(%s));", ix, type);
             }
+
             for(PortDecl port: entity.getOutputPorts()) {
                 int ix = entity.getOutputPorts().indexOf(port);
-
-                emitter().emit("const std::size_t buffer_size_%s = thisActor->base.output[%d].capacity;",
-                        port.getName(), ix);
+                String type = backend().typeseval().type(backend().types().declaredPortType(port));
+                emitter().emit("thisActor->plink->allocateOutput(outputs_builder[%d].name, thisActor->base.output[%1$d].capacity * sizeof(%s));", ix, type);
             }
 
-            if (isSimulated())
-                constructSimulator(name, entity);
-            else
-                constructDevice(name, entity);
+
 
             emitter().emitNewLine();
 
@@ -589,17 +602,6 @@ public interface PLink {
         }
         emitter().emit("}");
         emitter().emitNewLine();
-    }
-
-    default void destructSimulator(String name, Entity entity) {
-        // automatic destruction using smart pointers
-        emitter().emit("STATUS_REPORT(\"PLink trip count = %%lu\\n\", thisActor->trip_count);");
-    }
-
-    default void destructDevice(String name, Entity entity) {
-        PartitionHandle handle = ((PartitionLink) entity).getHandle();
-        // -- device destructor
-        emitter().emit("printf(\"PLink trip count = %%lu\\n\", thisActor->trip_count);");
     }
 
     default void destructorDefinition(String name, Entity entity) {
@@ -615,11 +617,7 @@ public interface PLink {
             emitter().emitNewLine();
 
 
-            // -- device destructor
-            if (isSimulated())
-                destructSimulator(name, entity);
-            else
-                destructDevice(name, entity);
+            emitter().emit("printf(\"PLink trip count = %%lu\\n\", thisActor->plink->getTripCount());");
 
             emitter().decreaseIndentation();
         }
@@ -750,8 +748,9 @@ public interface PLink {
             emitter().emit("%s *thisActor = (%1$s *) pBase;", actorInstanceName);
             emitter().emitNewLine();
 
+            emitter().emit("auto action = thisActor->plink->actionScheduler(pBase);");
 
-            deviceScheduler(name, entity);
+            emitter().emit("return result;");
 
             emitter().decreaseIndentation();
         }
@@ -793,37 +792,7 @@ public interface PLink {
         emitter().emitNewLine();
     }
 
-    default void actionDefinitions(String instanceName, Entity entity) {
 
-        if(isSimulated()) {
-
-            getTransmitActionSim(instanceName, entity);
-            emitter().emitNewLine();
-
-
-            getReceiveActionSim(instanceName, entity);
-            emitter().emitNewLine();
-
-
-            getWriteActionSim(instanceName, entity);
-            emitter().emitNewLine();
-
-        } else {
-
-            getTransmitAction(instanceName, entity);
-            emitter().emitNewLine();
-
-
-            getReceiveAction(instanceName, entity);
-            emitter().emitNewLine();
-
-
-            getWriteAction(instanceName, entity);
-            emitter().emitNewLine();
-        }
-
-
-    }
 
     default void conditionDefinitions(String instanceName, Entity entity) {
 

@@ -27,7 +27,7 @@ public:
                       const cl::size_type size);
 
   enum class Action : int {
-    FreeUpOutptuBuffer,
+    FreeUpOutputBuffer,
     StartKernel,
     UpdateIndices,
     NoAction
@@ -35,6 +35,7 @@ public:
 
   Action actionScheduler(AbstractActorInstance *base);
 
+  inline std::size_t getTripCount() { return call_index; }
 private:
   // -- STATES
   enum class State {
@@ -208,8 +209,9 @@ private:
   std::vector<InputPort> inputs;
   std::vector<OutputPort> outputs;
 
+public:
   const cl_int banks[4] = {XCL_MEM_DDR_BANK0, XCL_MEM_DDR_BANK1,
-                           XCL_MEM_DDR_BANK2, XCL_MEM_DDR_BANK3};
+                               XCL_MEM_DDR_BANK2, XCL_MEM_DDR_BANK3};
 };
 }; // namespace ocl_device
 
