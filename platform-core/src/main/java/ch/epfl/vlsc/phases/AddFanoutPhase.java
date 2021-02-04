@@ -15,16 +15,19 @@ import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.network.Network;
 import se.lth.cs.tycho.ir.stmt.Statement;
-import se.lth.cs.tycho.ir.stmt.StmtAssignment;
 import se.lth.cs.tycho.ir.stmt.StmtRead;
 import se.lth.cs.tycho.ir.stmt.StmtWrite;
 import se.lth.cs.tycho.ir.stmt.lvalue.LValue;
 import se.lth.cs.tycho.ir.stmt.lvalue.LValueVariable;
 import se.lth.cs.tycho.ir.type.TypeExpr;
 import se.lth.cs.tycho.ir.util.ImmutableList;
+import se.lth.cs.tycho.meta.interp.Interpreter;
+import se.lth.cs.tycho.meta.interp.value.ValueLong;
 import se.lth.cs.tycho.phase.ElaborateNetworkPhase;
 import se.lth.cs.tycho.phase.Phase;
 import se.lth.cs.tycho.reporting.CompilationException;
+
+import static se.lth.cs.tycho.compiler.Constants.BUFFER_SIZE;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -47,7 +50,7 @@ public class AddFanoutPhase implements Phase {
 
     public CompilationTask addFannout(CompilationTask task, Network network, Context context) {
 
-        // -- Map of fannouts per input ports and by instance output port
+        // -- Map of fanouts per input ports and by instance output port
         Map<String, List<Connection>> portInFanouts = network.getConnections().stream()
                 .filter(c -> !c.getSource().getInstance().isPresent())
                 .filter(c -> network.getConnections().stream().anyMatch(u -> u.getSource().getPort().equals(c.getSource().getPort()) && !u.equals(c)))
@@ -118,15 +121,18 @@ public class AddFanoutPhase implements Phase {
             Instance instance = new Instance(fanoutInstanceName, QID.of(originalEntityName), ImmutableList.empty(), ImmutableList.empty());
             networkInstances.add(instance);
 
+
             // -- Create Connection from Port to Fanout
+            Connection portToFanoutConnection = null;
             {
                 Connection.End source = new Connection.End(Optional.empty(), portName);
                 Connection.End target = new Connection.End(Optional.of(name), "F_IN");
-                Connection connection = new Connection(source, target);
-                networkConnections.add(connection);
+                portToFanoutConnection = new Connection(source, target);
             }
 
-            // -- Create Connections from fanout to instance/ports
+
+            // -- Create Connections from fanout to instance
+            List<ToolAttribute> bufferSizeFanout = new ArrayList<>();
             int i = 0;
             for (Connection fanoutConnection : portInFanouts.get(portName)) {
                 Connection.End source = new Connection.End(Optional.of(name), "F_OUT_" + i);
@@ -135,12 +141,27 @@ public class AddFanoutPhase implements Phase {
 
                 // -- Remove old connection
                 Connection oldConnection = oldConnections.stream().filter(c -> c.equals(fanoutConnection)).findAny().orElse(null);
+
+                // -- Clone Attributes
+                Optional<ToolAttribute> bufferSize = oldConnection.getAttributes().stream().filter(a -> a.getName().equals(BUFFER_SIZE)).findAny();
+                if(bufferSize.isPresent()){
+                    bufferSizeFanout.add(bufferSize.get());
+                }
+
+                // -- Add to old connections
                 oldConnections.remove(oldConnection);
 
                 // -- Add new Connection to network Connections
-                networkConnections.add(connection);
+                networkConnections.add(connection.withAttributes(oldConnection.getAttributes().map(ToolAttribute::deepClone)));
                 i++;
             }
+
+            // -- Add Port to Fanout Connection
+            Optional<ToolValueAttribute> bufferSize = maxBufferSize(task, bufferSizeFanout);
+            if(bufferSize.isPresent()){
+                portToFanoutConnection = portToFanoutConnection.withAttributes(ImmutableList.of(bufferSize.get()));
+            }
+            networkConnections.add(portToFanoutConnection);
 
             fanoutEntities.add(fanoutEntity);
         }
@@ -175,17 +196,15 @@ public class AddFanoutPhase implements Phase {
                 networkInstances.add(fanoutInstance);
 
                 // -- Create Connection from Port to Fanout
+                Connection portToFanoutConnection = null;
                 {
                     Connection.End source = new Connection.End(Optional.of(instanceName), portName);
                     Connection.End target = new Connection.End(Optional.of(name), "F_IN");
-                    Connection connection = new Connection(source, target);
-                    //ImmutableList.Builder<ToolAttribute> attributes = ImmutableList.builder();
-                    //attributes.add(new ToolValueAttribute("bufferSize", new ExprLiteral(ExprLiteral.Kind.Integer, "2")));
-                    //connection = connection.withAttributes(attributes.build());
-                    networkConnections.add(connection);
+                    portToFanoutConnection = new Connection(source, target);
                 }
 
                 // -- Create Connections from fanout to instance/ports
+                List<ToolAttribute> bufferSizeFanout = new ArrayList<>();
                 int i = 0;
                 for (Connection fanoutConnection : instancePortFanout.get(instanceName).get(portName)) {
                     Connection.End source = new Connection.End(Optional.of(name), "F_OUT_" + i);
@@ -202,13 +221,27 @@ public class AddFanoutPhase implements Phase {
 
                     // -- Remove old connection
                     Connection oldConnection = oldConnections.stream().filter(c -> c.equals(fanoutConnection)).findAny().orElse(null);
+
+                    // -- Clone Attributes
+                    Optional<ToolAttribute> bufferSize = oldConnection.getAttributes().stream().filter(a -> a.getName().equals(BUFFER_SIZE)).findAny();
+                    if(bufferSize.isPresent()){
+                        bufferSizeFanout.add(bufferSize.get());
+                    }
+
+                    // -- Add to old connections
                     oldConnections.remove(oldConnection);
 
                     // -- Add new Connection to network Connections
-                    networkConnections.add(connection);
+                    networkConnections.add(connection.withAttributes(oldConnection.getAttributes().map(ToolAttribute::deepClone)));
                     i++;
                 }
 
+                // -- Add Port to Fanout Connection
+                Optional<ToolValueAttribute> bufferSize = maxBufferSize(task, bufferSizeFanout);
+                if(bufferSize.isPresent()){
+                    portToFanoutConnection = portToFanoutConnection.withAttributes(ImmutableList.of(bufferSize.get()));
+                }
+                networkConnections.add(portToFanoutConnection);
             }
         }
 
@@ -245,6 +278,28 @@ public class AddFanoutPhase implements Phase {
         SourceUnit fanoutUnit = new SyntheticSourceUnit(new NamespaceDecl(QID.empty(), null, null, fanoutEntities.build(), null));
 
         return task.withSourceUnits(ImmutableList.<SourceUnit>builder().addAll(task.getSourceUnits()).add(fanoutUnit).build());
+    }
+
+
+    private Optional<ToolValueAttribute> maxBufferSize(CompilationTask task, List<ToolAttribute> attributes) {
+        Interpreter interp = task.getModule(Interpreter.key);
+
+        long max = -1;
+        try {
+            for (ToolAttribute attr : attributes) {
+                ToolValueAttribute valueAttr = (ToolValueAttribute) attr;
+                ValueLong value = (ValueLong) interp.apply(valueAttr.getValue());
+                if (value.value() > max){
+                    max = value.value();
+                }
+            }
+
+            ToolValueAttribute bufferSize = new ToolValueAttribute(BUFFER_SIZE, new ExprLiteral(ExprLiteral.Kind.Integer, String.valueOf(max)));
+            return Optional.of(bufferSize);
+
+        } catch (ClassCastException exp) {
+            return Optional.empty();
+        }
     }
 
     private CalActor getFanoutActorProcess(PortDecl port, int fanoutSize) {

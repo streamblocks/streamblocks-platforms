@@ -92,7 +92,7 @@
                 <xs:element name="connections">
                     <xs:complexType>
                         <xs:sequence>
-                            <xs:element maxOccurs="unbounded" name="fifo-connection">
+                            <xs:element maxOccurs="unbounded" name="connection">
                                 <xs:complexType>
                                     <xs:attribute name="source" type="xs:string" use="required" />
                                     <xs:attribute name="source-port" type="xs:string" use="required" />
@@ -103,7 +103,7 @@
                                     <xs:attribute name="medium" type="xs:string" />
                                 </xs:complexType>
                             </xs:element>
-                            <xs:element maxOccurs="unbounded" name="memory-connection">
+                            <xs:element maxOccurs="unbounded" name="memory">
                                 <xs:complexType>
                                     <xs:attribute name="instance" type="xs:string" use="required" />
                                     <xs:attribute name="var" type="xs:string" use="required" />
