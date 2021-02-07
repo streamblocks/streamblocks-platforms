@@ -11,7 +11,7 @@ class PLink {
 
 public:
   template <typename T> struct PortInfo {
-    PortInfo(ocl_device::PortAddress name, uint32_t token_size)
+    PortInfo(const std::string& name, uint32_t token_size)
         : name(name), token_size(token_size) {}
     const ocl_device::PortAddress name;
     const uint32_t token_size;
@@ -20,7 +20,7 @@ public:
   PLink(const std::vector<PortInfo<LocalInputPort>> &input_info,
         const std::vector<PortInfo<LocalOutputPort>> &output_info,
         const uint32_t num_mems, const std::string kernel_name,
-        const std::string dir, const bool enable_stats);
+        const std::string dir, const bool enable_stats = false);
   void allocateInput(const ocl_device::PortAddress &name,
                      const cl::size_type size);
   void allocateOutput(const ocl_device::PortAddress &name,
@@ -36,6 +36,9 @@ public:
   Action actionScheduler(AbstractActorInstance *base);
 
   inline std::size_t getTripCount() { return call_index; }
+
+  void dumpStats(const std::string& file_name);
+
 private:
   // -- STATES
   enum class State {
@@ -169,12 +172,13 @@ private:
   std::size_t call_index;
 
   template <typename T> struct Port {
-    T *sw;
+    T sw;
     DevicePort hw;
-    Port(PortAddress address, PortType port_type) : hw(address, port_type) {
-      sw = new T;
+    Port(const PortAddress& address, PortType port_type, const bool enable_stats = false) : hw(address, port_type, enable_stats) {
+
+
     }
-    ~Port() { delete sw; }
+
   };
 
   using InputPort = Port<LocalInputPort>;
@@ -208,6 +212,8 @@ private:
 
   std::vector<InputPort> inputs;
   std::vector<OutputPort> outputs;
+
+  const bool collect_stats;
 
 public:
   const cl_int banks[4] = {XCL_MEM_DDR_BANK0, XCL_MEM_DDR_BANK1,

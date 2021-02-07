@@ -2,6 +2,8 @@
 
 namespace ocl_device {
 
+
+int PortAddress::count = 0;
 void CL_CALLBACK callback_handler(cl_event event, cl_int cmd_status,
                                   void *info) {
 
@@ -53,19 +55,23 @@ void CL_CALLBACK callback_handler(cl_event event, cl_int cmd_status,
  *                  token size on the port
  **/
 
-DevicePort::DevicePort(PortAddress address, PortType port_type)
-    : address(address), port_type(port_type) {
-
+DevicePort::DevicePort(const PortAddress& address, PortType port_type,
+  const bool enable_stats)
+    : address(address), port_type(port_type), collect_stats(enable_stats) {
+  if (collect_stats) {
+    printf("Stat collection is enable for port %s\n", address.toString().c_str());
+  }
+  OCL_MSG("Constructing port %s\n", address.getName().c_str());
   std::stringstream builder;
-  builder << address.getName() << " buffer event[0]";
+  builder << this->address.getName() << " buffer event[0]";
   buffer_event_info[0].init(builder.str());
 
   std::stringstream builder1;
-  builder1 << address.getName() << " buffer event[1]";
+  builder1 << this->address.getName() << " buffer event[1]";
   buffer_event_info[1].init(builder.str());
 
   std::stringstream builder2;
-  builder2 << address.getName() << " buffer size event";
+  builder2 << this->address.getName() << " buffer size event";
   size_event_info.init(builder2.str());
   device_buffer.head = 0;
   device_buffer.tail = 0;
@@ -164,6 +170,7 @@ uint32_t DevicePort::writeToDeviceBuffer(const cl::CommandQueue &q,
     auto offset_index = from_index;
     if (tokens_to_write + from_index >= cap) {
       // wrap around
+
       hostToDeviceTransfer(q, (cap - from_index) * token_size,
                            offset_index * token_size, tx_ix);
       tx_ix++;
@@ -172,6 +179,7 @@ uint32_t DevicePort::writeToDeviceBuffer(const cl::CommandQueue &q,
     }
 
     if (tokens_to_write > 0) {
+
       hostToDeviceTransfer(q, tokens_to_write * token_size,
                            offset_index * token_size, tx_ix);
     }
@@ -212,6 +220,10 @@ void DevicePort::hostToDeviceTransfer(const cl::CommandQueue &q,
 
   buffer_event[index].setCallback(CL_COMPLETE, callback_handler,
                                   &buffer_event_info[index]);
+
+  if (collect_stats) {
+    buffer_event_info[index].setTransferMetrics(size, offset);
+  }
 }
 
 /**
@@ -312,6 +324,9 @@ void DevicePort::deviceToHostTransfer(const cl::CommandQueue &q,
   buffer_event_info[index].active = true;
   buffer_event[index].setCallback(CL_COMPLETE, callback_handler,
                                   &buffer_event_info[index]);
+  if (collect_stats) {
+    buffer_event_info[index].setTransferMetrics(size, offset);
+  }
 }
 
 /**
@@ -342,5 +357,36 @@ void DevicePort::enqueueReadMeta(const cl::CommandQueue &q,
   size_event_info.active = true;
   buffer_size_event.setCallback(CL_COMPLETE, callback_handler,
                                 &size_event_info);
+}
+
+std::string DevicePort::serializedStats(const int indent) {
+  std::stringstream ss;
+  std::string outer_indent = "";
+  for (int i = 0; i < indent; i++)
+    outer_indent += "\t";
+
+  std::string inner_indent = outer_indent + "\t";
+
+  ss << outer_indent << "{" << std::endl;
+  {
+    ss << inner_indent << "\"name\": \"" << this->address.toString() << "\"," << std::endl;
+    ss << inner_indent << "\"token_size\":  "<< this->port_type.token_size << "," << std::endl;
+    ss << inner_indent << "\"alloc_size\":" << this->device_buffer.user_alloc_size << "," << std::endl;
+    ss << inner_indent << "\"logged_transfers\":" << this->stats.size() << "," << std::endl;
+    ss << inner_indent << "\"stats\": [" << std::endl;
+    {
+      for(auto it = this->stats.begin(); it != this->stats.end(); it++) {
+        ss << it->serialized(indent + 2);
+        if (it != this->stats.end() - 1) {
+          ss << ",";
+        }
+        ss << std::endl;
+      }
+    }
+    ss << inner_indent << "]" << std::endl;
+  }
+  ss << outer_indent << "}";
+
+  return ss.str();
 }
 }; // namespace ocl_device

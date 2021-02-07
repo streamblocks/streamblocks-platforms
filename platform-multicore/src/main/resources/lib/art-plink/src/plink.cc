@@ -6,7 +6,8 @@ namespace ocl_device {
 PLink::PLink(const std::vector<PortInfo<LocalInputPort>> &input_info,
              const std::vector<PortInfo<LocalOutputPort>> &output_info,
              const uint32_t num_mems, const std::string kernel_name,
-             const std::string dir, const bool enable_stats) {
+             const std::string dir, const bool enable_stats):
+             collect_stats(enable_stats) {
   cl_int error;
   OCL_MSG("Initializing the device\n");
 
@@ -56,13 +57,13 @@ PLink::PLink(const std::vector<PortInfo<LocalInputPort>> &input_info,
   for (auto &inpt : input_info) {
     inputs.emplace_back(
         inpt.name,
-        ocl_device::PortType(ocl_device::IOType::INPUT, inpt.token_size));
+        ocl_device::PortType(ocl_device::IOType::INPUT, inpt.token_size), enable_stats);
   }
   OCL_MSG("plink::Building %lu output ports\n", output_info.size());
   for (auto &otpt : output_info) {
     outputs.emplace_back(
         otpt.name,
-        ocl_device::PortType(ocl_device::IOType::OUTPUT, otpt.token_size));
+        ocl_device::PortType(ocl_device::IOType::OUTPUT, otpt.token_size), enable_stats);
   }
 
   OCL_MSG("plink::Constructed with xclbin %s\n", xclbin_name.c_str());
@@ -97,53 +98,53 @@ void PLink::allocateInput(const ocl_device::PortAddress &name,
 }
 
 void PLink::pinWriteRepeat(OutputPort &port, char *buff, int n) {
-  OCL_ASSERT(pinAvailOut(port.sw) >= n, "Invalid software write in port %s\n",
+  OCL_ASSERT(pinAvailOut(&port.sw) >= n, "Invalid software write in port %s\n",
              port.hw.getAddress().toString().c_str());
 
-  port.sw->available -= n;
+  port.sw.available -= n;
 
   int token_size = port.hw.getTokenSize();
 
-  if (port.sw->pos + n >= 0) {
+  if (port.sw.pos + n >= 0) {
     auto dest =
-        reinterpret_cast<char *>(port.sw->buffer) + (port.sw->pos * token_size);
+        reinterpret_cast<char *>(port.sw.buffer) + (port.sw.pos * token_size);
 
-    std::memcpy(dest, buff, -(port.sw->pos * token_size));
+    std::memcpy(dest, buff, -(port.sw.pos * token_size));
 
-    buff += -(port.sw->pos * token_size);
-    n -= -(port.sw->pos);
-    port.sw->pos = -(port.sw->capacity);
+    buff += -(port.sw.pos * token_size);
+    n -= -(port.sw.pos);
+    port.sw.pos = -(port.sw.capacity);
   }
   if (n) {
     auto dest =
-        reinterpret_cast<char *>(port.sw->buffer) + port.sw->pos * token_size;
+        reinterpret_cast<char *>(port.sw.buffer) + port.sw.pos * token_size;
     std::memcpy(dest, buff, n * token_size);
-    port.sw->pos += n;
+    port.sw.pos += n;
   }
 }
 
 void PLink::pinReadRepeat(InputPort &port, char *buff, int n) {
-  OCL_ASSERT(pinAvailIn(port.sw) >= n, "Invalid software read in port %s\n",
+  OCL_ASSERT(pinAvailIn(&port.sw) >= n, "Invalid software read in port %s\n",
              port.hw.getAddress().toString().c_str());
-  port.sw->available -= n;
+  port.sw.available -= n;
 
   int token_size = port.hw.getTokenSize();
   char *source =
-      reinterpret_cast<char *>(port.sw->buffer) + port.sw->pos * token_size;
+      reinterpret_cast<char *>(port.sw.buffer) + port.sw.pos * token_size;
 
-  if (port.sw->pos + n >= 0) {
+  if (port.sw.pos + n >= 0) {
     char *source =
-        reinterpret_cast<char *>(port.sw->buffer) + port.sw->pos * token_size;
-    std::memcpy(buff, source, -(port.sw->pos * token_size));
-    buff += -(port.sw->pos * token_size);
-    n -= -(port.sw->pos);
-    port.sw->pos = -(port.sw->capacity);
+        reinterpret_cast<char *>(port.sw.buffer) + port.sw.pos * token_size;
+    std::memcpy(buff, source, -(port.sw.pos * token_size));
+    buff += -(port.sw.pos * token_size);
+    n -= -(port.sw.pos);
+    port.sw.pos = -(port.sw.capacity);
   }
   if (n) {
     char *source =
-        reinterpret_cast<char *>(port.sw->buffer) + port.sw->pos * token_size;
+        reinterpret_cast<char *>(port.sw.buffer) + port.sw.pos * token_size;
     std::memcpy(buff, source, n * token_size);
-    port.sw->pos += n;
+    port.sw.pos += n;
   }
 }
 
@@ -161,7 +162,7 @@ void PLink::actionFreeUpOutputBuffer() {
                "Inconsistent tail in port %s\n",
                output.hw.address.toString().c_str());
 
-    auto available = pinAvailOut(output.sw);
+    auto available = pinAvailOut(&output.sw);
 
     auto unwritten_tokens = 0;
     int alloc_cap = output.hw.device_buffer.user_alloc_size;
@@ -199,8 +200,10 @@ void PLink::actionFreeUpOutputBuffer() {
     }
     output.hw.device_buffer.tail = output.hw.host_buffer.tail;
 
-    if (output.hw.host_buffer.tail == output.hw.host_buffer.head)
+    if (output.hw.host_buffer.tail == output.hw.host_buffer.head) {
       OCL_MSG("plink::%s::freed\n", output.hw.address.toString().c_str());
+    }
+
   }
 }
 
@@ -276,12 +279,16 @@ void PLink::actionStartKernel() {
                    input.hw.host_buffer.tail == input.hw.device_buffer.tail,
                "Inconsistent head or tails for port %s\n",
                input.hw.address.toString().c_str());
-    int available = pinAvailIn(input.sw);
+    int available = pinAvailIn(&input.sw);
     auto old_head = input.hw.host_buffer.head;
 
     auto tail = input.hw.host_buffer.tail;
     auto cap = input.hw.device_buffer.user_alloc_size;
     auto free_space = computeFreeSpace(old_head, tail, cap);
+
+    if (collect_stats) {
+      input.hw.setFreeSpaceStat(free_space * input.hw.port_type.token_size);
+    }
     OCL_MSG("%s::available=%u free_space=%u\n",
             input.hw.address.toString().c_str(), available, free_space);
     auto tokens_to_write = (available < free_space) ? available : free_space;
@@ -336,6 +343,11 @@ void PLink::actionStartKernel() {
     arg_ix++;
     kernel.setArg(arg_ix, output.hw.device_buffer.tail);
     arg_ix++;
+
+    if (collect_stats) {
+      auto free_space = computeFreeSpace(output.hw.device_buffer.head, output.hw.device_buffer.tail, output.hw.device_buffer.user_alloc_size);
+      output.hw.setFreeSpaceStat(free_space * output.hw.port_type.token_size);
+    }
   }
 
   // all the arguements are set and input buffer transfers have been enqueued
@@ -361,10 +373,10 @@ void PLink::actionStartKernel() {
 void PLink::actionCleanUp() {
 
   for (auto &input : inputs) {
-    input.hw.releaseEvents();
+    input.hw.releaseEvents(call_index);
   }
   for (auto &output : outputs) {
-    output.hw.releaseEvents();
+    output.hw.releaseEvents(call_index);
   }
 
 }
@@ -387,7 +399,7 @@ bool PLink::checkCanWriteToOutput() const {
   for (auto &output : outputs) {
     if (output.hw.host_buffer.tail != output.hw.host_buffer.head) {
       // the host buffer has pending tokens
-      if (pinAvailOut(output.sw) > 0)
+      if (pinAvailOut(&output.sw) > 0)
         return true;
     }
   }
@@ -400,7 +412,7 @@ bool PLink::checkCanSendInput() const {
     auto head = input.hw.host_buffer.head;
     auto tail = input.hw.host_buffer.tail;
     auto cap = input.hw.device_buffer.user_alloc_size;
-    auto available = pinAvailIn(input.sw);
+    auto available = pinAvailIn(&input.sw);
     auto free_space = computeFreeSpace(head, tail, cap);
     auto to_write = available < free_space ? available : free_space;
     if (to_write > 0)
@@ -479,18 +491,18 @@ PLink::Action PLink::actionScheduler(AbstractActorInstance *base) {
       base->input[i].local->available = available;
     }
 
-    inputs[i].sw->available = available;
-    inputs[i].sw->pos = base->input[i].local->pos;
-    inputs[i].sw->buffer = base->input[i].buffer;
-    inputs[i].sw->capacity = base->input[i].capacity;
+    inputs[i].sw.available = available;
+    inputs[i].sw.pos = base->input[i].local->pos;
+    inputs[i].sw.buffer = base->input[i].buffer;
+    inputs[i].sw.capacity = base->input[i].capacity;
   }
 
   for (int i = 0; i < outputs.size(); i++) {
 
-    outputs[i].sw->pos = base->output[i].local->pos;
-    outputs[i].sw->available = base->output[i].local->available;
-    outputs[i].sw->buffer = base->output[i].buffer;
-    outputs[i].sw->capacity = base->output[i].capacity;
+    outputs[i].sw.pos = base->output[i].local->pos;
+    outputs[i].sw.available = base->output[i].local->available;
+    outputs[i].sw.buffer = base->output[i].buffer;
+    outputs[i].sw.capacity = base->output[i].capacity;
   }
   Action action_performed = Action::NoAction;
   switch (plink_state) {
@@ -542,21 +554,55 @@ PLink::Action PLink::actionScheduler(AbstractActorInstance *base) {
 
     base->fired = 1;
     for (int i = 0; i < inputs.size(); i++) {
-      base->input[i].local->pos = inputs[i].sw->pos;
+      base->input[i].local->pos = inputs[i].sw.pos;
       base->input[i].local->count =
-          base->input[i].local->available - inputs[i].sw->available;
-      base->input[i].local->available = inputs[i].sw->available;
+          base->input[i].local->available - inputs[i].sw.available;
+      base->input[i].local->available = inputs[i].sw.available;
     }
 
     for (int i = 0; i < outputs.size(); i++) {
-      base->output[i].local->pos = outputs[i].sw->pos;
+      base->output[i].local->pos = outputs[i].sw.pos;
       base->output[i].local->count =
-          base->output[i].local->available - outputs[i].sw->available;
-      base->output[i].local->available = outputs[i].sw->available;
+          base->output[i].local->available - outputs[i].sw.available;
+      base->output[i].local->available = outputs[i].sw.available;
     }
   } else {
     OCL_MSG("plink::NoAction\n");
   }
   return action_performed;
+}
+
+void PLink::dumpStats(const std::string& file_name) {
+  std::ofstream ofs(file_name, std::ios::out);
+  std::stringstream ss;
+
+  ss << "{" << std::endl;
+  {
+    ss << "\t" << "\"input_ports\": [" << std::endl;
+    {
+      for (auto input_it = inputs.begin(); input_it != inputs.end(); input_it ++) {
+        ss << input_it->hw.serializedStats(2);
+        if (input_it != inputs.end() - 1)
+          ss << ",";
+        ss << std::endl;
+      }
+    }
+    ss << "\t" << "]," << std::endl;
+
+    ss << "\t" << "\"output_ports\": [" << std::endl;
+    {
+      for (auto output_it = outputs.begin(); output_it != outputs.end(); output_it ++) {
+        ss << output_it->hw.serializedStats(2);
+        if (output_it != outputs.end() - 1)
+          ss << ",";
+        ss << std::endl;
+      }
+    }
+    ss << "\t" << "]" << std::endl;
+  }
+  ss << "}";
+
+  ofs << ss.str();
+  ofs.close();
 }
 }; // namespace ocl_device
