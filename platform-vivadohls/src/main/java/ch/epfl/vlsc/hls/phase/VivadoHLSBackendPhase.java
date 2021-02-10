@@ -1,6 +1,7 @@
 package ch.epfl.vlsc.hls.phase;
 
 import ch.epfl.vlsc.hls.backend.VivadoHLSBackend;
+import ch.epfl.vlsc.hls.backend.scripts.IdealWeight;
 import ch.epfl.vlsc.platformutils.ControllerToGraphviz;
 import ch.epfl.vlsc.platformutils.PathUtils;
 import ch.epfl.vlsc.settings.PlatformSettings;
@@ -433,6 +434,8 @@ public class VivadoHLSBackendPhase implements Phase {
                 dot.print();
             }
         }
+        // -- Emit Ideal Weights
+        backend.idealWeight().emitIdealWeights();
     }
 
     /**

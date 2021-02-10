@@ -144,7 +144,7 @@ public class AddFanoutPhase implements Phase {
 
                 // -- Clone Attributes
                 Optional<ToolAttribute> bufferSize = oldConnection.getAttributes().stream().filter(a -> a.getName().equals(BUFFER_SIZE)).findAny();
-                if(bufferSize.isPresent()){
+                if (bufferSize.isPresent()) {
                     bufferSizeFanout.add(bufferSize.get());
                 }
 
@@ -158,7 +158,7 @@ public class AddFanoutPhase implements Phase {
 
             // -- Add Port to Fanout Connection
             Optional<ToolValueAttribute> bufferSize = maxBufferSize(task, bufferSizeFanout);
-            if(bufferSize.isPresent()){
+            if (bufferSize.isPresent()) {
                 portToFanoutConnection = portToFanoutConnection.withAttributes(ImmutableList.of(bufferSize.get()));
             }
             networkConnections.add(portToFanoutConnection);
@@ -224,7 +224,7 @@ public class AddFanoutPhase implements Phase {
 
                     // -- Clone Attributes
                     Optional<ToolAttribute> bufferSize = oldConnection.getAttributes().stream().filter(a -> a.getName().equals(BUFFER_SIZE)).findAny();
-                    if(bufferSize.isPresent()){
+                    if (bufferSize.isPresent()) {
                         bufferSizeFanout.add(bufferSize.get());
                     }
 
@@ -238,7 +238,7 @@ public class AddFanoutPhase implements Phase {
 
                 // -- Add Port to Fanout Connection
                 Optional<ToolValueAttribute> bufferSize = maxBufferSize(task, bufferSizeFanout);
-                if(bufferSize.isPresent()){
+                if (bufferSize.isPresent()) {
                     portToFanoutConnection = portToFanoutConnection.withAttributes(ImmutableList.of(bufferSize.get()));
                 }
                 networkConnections.add(portToFanoutConnection);
@@ -289,17 +289,19 @@ public class AddFanoutPhase implements Phase {
             for (ToolAttribute attr : attributes) {
                 ToolValueAttribute valueAttr = (ToolValueAttribute) attr;
                 ValueLong value = (ValueLong) interp.apply(valueAttr.getValue());
-                if (value.value() > max){
+                if (value.value() > max) {
                     max = value.value();
                 }
             }
-
-            ToolValueAttribute bufferSize = new ToolValueAttribute(BUFFER_SIZE, new ExprLiteral(ExprLiteral.Kind.Integer, String.valueOf(max)));
-            return Optional.of(bufferSize);
-
+            if (max != -1) {
+                ToolValueAttribute bufferSize = new ToolValueAttribute(BUFFER_SIZE, new ExprLiteral(ExprLiteral.Kind.Integer, String.valueOf(max)));
+                return Optional.of(bufferSize);
+            }
         } catch (ClassCastException exp) {
             return Optional.empty();
         }
+
+        return Optional.empty();
     }
 
     private CalActor getFanoutActorProcess(PortDecl port, int fanoutSize) {
