@@ -542,13 +542,13 @@ public interface PLink {
 
             for (PortDecl port : entity.getInputPorts()) {
                 String type = backend().typeseval().type(backend().types().declaredPortType(port));
-                emitter().emit("inputs_builder.emplace_back(ocl_device::PortAddress(\"%s\"), sizeof(%s));",
+                emitter().emit("inputs_builder.emplace_back(\"%s\", sizeof(%s));",
                         port.getName(), type);
             }
 
             for (PortDecl port : entity.getOutputPorts()) {
                 String type = backend().typeseval().type(backend().types().declaredPortType(port));
-                emitter().emit("outputs_builder.emplace_back(ocl_device::PortAddress(\"%s\"), sizeof(%s));",
+                emitter().emit("outputs_builder.emplace_back(\"%s\", sizeof(%s));",
                         port.getName(), type);
             }
 
