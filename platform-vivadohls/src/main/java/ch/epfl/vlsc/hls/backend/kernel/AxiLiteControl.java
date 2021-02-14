@@ -919,13 +919,15 @@ public interface AxiLiteControl {
     // -- Helper Methods
 
     default int getAddressBitWidth(Network network) {
+        /**
+         * 16 bytes for AP_CTRL, GIE, IER, and ISR
+         * Then for each input or output port:
+         * 12 bytes for data buffer, 12 bytes for meta buffer, 8 bytes for head, 8 bytes for tail and 8 bytes for alloc
+         * size
+         *
+         */
         int value = 16 +
-                network.getInputPorts().size() * 8 +
-                network.getOutputPorts().size() * 8 +
-                backend().externalMemory().getExternalMemories(network).size() * 24 +
-                network.getInputPorts().size() * 24 +
-                network.getOutputPorts().size() * 24 + 24;
-
+                (network.getInputPorts().size() + network.getOutputPorts().size()) * (12 + 12 + 8 + 8 + 8);
         return MathUtils.countBit(value);
     }
 

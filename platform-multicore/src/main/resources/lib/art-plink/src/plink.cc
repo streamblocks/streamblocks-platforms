@@ -69,6 +69,8 @@ PLink::PLink(const std::vector<PortInfo<LocalInputPort>> &input_info,
   OCL_MSG("plink::Constructed with xclbin %s\n", xclbin_name.c_str());
 
   call_index = 0;
+  should_retry = false;
+  plink_state = State::INIT;
 }
 
 void PLink::allocateOutput(const ocl_device::PortAddress &name,
@@ -521,7 +523,7 @@ PLink::Action PLink::actionScheduler(AbstractActorInstance *base) {
 
       action_performed = Action::StartKernel;
     } else if (checkShouldRetry()) {
-      OCL_MSG("plink::retry");
+      OCL_MSG("plink::retry\n");
       actionStartKernel();
       plink_state = State::POLL_KERNEL;
       action_performed = Action::StartKernel;
