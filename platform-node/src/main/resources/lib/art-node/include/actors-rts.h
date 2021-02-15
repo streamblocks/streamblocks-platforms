@@ -111,9 +111,10 @@ typedef struct LocalInputPort LocalInputPort;
  */
 
 typedef struct {
-    const char *name;          // action tag
-    const int *consumption;   // token rates of input 0,...,numInputs-1
-    const int *production;    // token rates of output 0,...,numOutputs-1
+    const char *name;
+    const char *originalName;
+    const int *consumption;
+    const int *production;
     const int *uses;
     const int *defines;
 } ActionDescription;

@@ -99,14 +99,14 @@ static const int uses_in_actionAtLine_7[] = {};
 static const int defines_in_actionAtLine_7[] = {};
 
 static const ActionDescription actionDescriptions[] = {
-        {"actionAtLine_7", portRate_1, 0}
+        {"sink", "sink", portRate_1, 0}
 };
 
 // -- Condition Description
 static const ConditionDescription conditionDescription[] = {};
 
 ActorClass ActorClass_art_Sink_txt = INIT_ActorClass(
-        "art_Sink_txt",
+        "ART.art_Sink_txt",
         ActorInstance_art_Sink,
         constructor,
         setParam,

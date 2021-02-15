@@ -98,14 +98,14 @@ static const int uses_in_action1[] = {};
 static const int defines_in_action1[] = {};
 
 static const ActionDescription actionDescriptions[] = {
-        {"action1", portRate_1, 0, uses_in_action1, defines_in_action1}
+        {"action1", "action1", portRate_1, 0, uses_in_action1, defines_in_action1}
 };
 
 // -- Condition Description
 static const ConditionDescription conditionDescription[] = {};
 
 ActorClass ActorClass_art_Sink_bin = INIT_ActorClass(
-        "art_Sink_bin",
+        "ART.art_Sink_bin",
         ActorInstance_art_Sink,
         constructor,
         setParam,

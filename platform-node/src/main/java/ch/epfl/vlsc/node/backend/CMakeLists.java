@@ -55,7 +55,7 @@ public interface CMakeLists {
 
             emitter().decreaseIndentation();
         }
-        emitter().emit("elseif(UNIX)");
+        emitter().emit("else()");
         {
             emitter().increaseIndentation();
             emitter().emit("set (CMAKE_CXX_STANDARD 17)");

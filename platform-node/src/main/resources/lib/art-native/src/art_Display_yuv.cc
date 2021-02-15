@@ -189,15 +189,13 @@ static const int defines_in_done_mb[] = {};
 
 
 static const ActionDescription actionDescriptions[] = {
-        {"read", portRate_64, 0, uses_in_read, defines_in_read},
-        {"done.comp", portRate_0, 0, uses_in_done_comp, defines_in_done_comp},
-        {"done.mb", portRate_0, 0, uses_in_done_mb, defines_in_done_mb}};
+        {"read", "read", portRate_64, 0, uses_in_read, defines_in_read}};
 
 // -- Condition Description
 static const ConditionDescription conditionDescription[] = {};
 
 ActorClass ActorClass_art_Display_yuv = INIT_ActorClass(
-        "art_Display_yuv",
+        "ART.art_Display_yuv",
         ActorInstance_art_Display_yuv,
         art_Display_yuv_constructor,
         art_Display_yuv_setParam,
@@ -205,7 +203,7 @@ ActorClass ActorClass_art_Display_yuv = INIT_ActorClass(
         art_Display_yuv_destructor,
         1, inputPortDescriptions,
         0, 0,
-        3, actionDescriptions,
+        1, actionDescriptions,
         0, conditionDescription,
         0, stateVariableDescription
 );

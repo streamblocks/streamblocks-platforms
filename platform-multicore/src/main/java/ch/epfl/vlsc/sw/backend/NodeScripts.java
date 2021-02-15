@@ -81,7 +81,7 @@ public interface NodeScripts {
         // -- New instance
         for (Instance instance : network.getInstances()) {
             GlobalEntityDecl entityDecl = globalnames().entityDecl(instance.getEntityName(), true);
-            String actorClass = instanceActorClasses.get(instance);
+            String actorClass = instance.getEntityName().toString();
             String joinQID = instanceQIDs.get(instance);
             String parameters = "";
             for (ValueParameter p : instance.getValueParameters()) {
