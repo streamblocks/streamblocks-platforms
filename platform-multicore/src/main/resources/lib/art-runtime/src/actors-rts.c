@@ -1276,7 +1276,9 @@ int executeNetwork(int argc,
     int with_bandwidth = options->with_bandwidth;
     int terminationReport = options->terminationReport;
 
-
+    if (options->no_cfile_connections == 1) {
+        printf("Using buffer depth %d on all connections\n", arg_fifo_size);
+    }
     if (!generateFileName && (with_bandwidth || with_complexity)) {
         printf("--with_bandwidth and --with_complexity requires --generate\n");
         exit(1);
