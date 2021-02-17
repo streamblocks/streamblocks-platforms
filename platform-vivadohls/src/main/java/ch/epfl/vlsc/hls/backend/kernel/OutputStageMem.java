@@ -7,11 +7,13 @@ import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.ir.entity.PortDecl;
+import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.reporting.Diagnostic;
 import se.lth.cs.tycho.type.Type;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Module
 public interface OutputStageMem {
@@ -30,6 +32,20 @@ public interface OutputStageMem {
         String typeStr = backend().typeseval().type(type);
 
         int bitWidth = backend().typeseval().sizeOfBits(type);
+
+        Optional<Connection> inputConnection =  backend().task().getNetwork().getConnections().stream().filter(
+                c -> !c.getTarget().getInstance().isPresent() && c.getTarget().getPort().equals(port.getName())
+        ).findFirst();
+        int bufferSize = 12;
+        if (!inputConnection.isPresent()) {
+            backend().context().getReporter().report(
+                    new Diagnostic(Diagnostic.Kind.ERROR, "Could not find the connection for " +
+                            "output port " + port.getName() + " while emitting output stage instance")
+            );
+        } else {
+            bufferSize = backend().channelsutils().connectionBufferSize(inputConnection.get());
+        }
+
         /**
          * A hacky way to dela with AXI master ports of type bool
          */
@@ -49,18 +65,20 @@ public interface OutputStageMem {
 //        emitter().emit("using namespace iostage;");
         emitter().emitNewLine();
         emitter().emit("uint32_t %s_output_stage(%s) {", port.getName(), entityPorts(port, typeStr));
-        emitter().emit("#pragma HLS INTERFACE m_axi port=ocl_buffer.data_buffer offset=direct bundle=ocl_bundle", port.getName());
-        emitter().emit("#pragma HLS INTERFACE m_axi port=ocl_buffer.meta_buffer offset=direct bundle=ocl_bundle", port.getName());
+        emitter().emit("#pragma HLS INTERFACE m_axi port=ocl_buffer_data_buffer offset=direct bundle=ocl_bundle max_write_burst_length=256", port.getName());
+        emitter().emit("#pragma HLS INTERFACE m_axi port=ocl_buffer_meta_buffer offset=direct bundle=ocl_bundle", port.getName());
         emitter().emit("#pragma HLS INTERFACE ap_fifo port=data_stream");
         emitter().emit("#pragma HLS INTERFACE ap_fifo port=meta_stream");
         emitter().emit("#pragma HLS INTERFACE ap_ctrl_hs register port=return");
         {
             emitter().increaseIndentation();
 
-            emitter().emit("static iostage::OutputMemoryStage< %s > i_%s_output_stage_mem;", typeStr, port.getName());
+            emitter().emit("static iostage::OutputMemoryStage< %s , %d > i_%s_output_stage_mem;", typeStr, bufferSize, port.getName());
             emitter().emitNewLine();
 
-            emitter().emit("return i_%s_output_stage_mem(ocl_buffer, fifo_count, data_stream, meta_stream);", port.getName());
+            emitter().emit("return i_%s_output_stage_mem(ocl_buffer_data_buffer, ocl_buffer_meta_buffer, " +
+                    "ocl_buffer_alloc_size, ocl_buffer_head, ocl_buffer_tail, fifo_count, " +
+                    "data_stream, meta_stream);", port.getName());
 
 
             emitter().decreaseIndentation();
@@ -71,14 +89,6 @@ public interface OutputStageMem {
     }
 
     default String entityPorts(PortDecl port, String typeStr) {
-        List<String> ports = new ArrayList<>();
-
-        ports.add(String.format("iostage::CircularBuffer< %s > ocl_buffer", typeStr));
-
-        ports.add("uint32_t fifo_count");
-        ports.add(String.format("hls::stream< %s > &data_stream", typeStr));
-
-        ports.add(String.format("hls::stream< bool > &meta_stream", port.getName()));
-        return String.join(", ", ports);
+        return backend().inputstagemem().entityPorts(port, typeStr);
     }
 }

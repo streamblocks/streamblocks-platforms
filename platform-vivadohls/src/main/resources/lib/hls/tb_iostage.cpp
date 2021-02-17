@@ -211,7 +211,7 @@ public:
 
     initialize();
 
-    using InputStage = iostage::InputMemoryStage<T>;
+    using InputStage = iostage::InputMemoryStage<T, FIFO_SIZE>;
     InputStage input_stage;
 
     iostage::ret_t return_val = RETURN_EXECUTED;
@@ -248,14 +248,10 @@ public:
 
       auto pre_count = this->data_stream.size();
 
-      iostage::CircularBuffer<T> ocl_buff = {
-          .data_buffer = this->memory_buffer.data(),
-          .meta_buffer = this->meta_buffer.data(),
-          .alloc_size = this->alloc_size,
-          .head = head,
-          .tail = tail};
-      return_val = input_stage(ocl_buff, this->data_stream.size(), FIFO_SIZE,
-                               this->data_stream, this->meta_stream);
+      return_val =
+          input_stage(this->memory_buffer.data(), this->meta_buffer.data(),
+                      this->alloc_size, head, tail, this->data_stream.size(),
+                      this->data_stream, this->meta_stream);
 
       auto post_count = this->data_stream.size();
 
@@ -409,13 +405,6 @@ public:
     uint32_t tail = randint(0, this->alloc_size - 1);
     uint32_t head = randint(0, this->alloc_size - 1);
 
-    /* create the ciruclar buffer handle */
-    iostage::CircularBuffer<T> ocl_buff = {
-        .data_buffer = this->memory_buffer.data(),
-        .meta_buffer = this->meta_buffer.data(),
-        .alloc_size = this->alloc_size,
-        .head = head,
-        .tail = tail};
     /* activate the input stage in a loop, by doing the following steps:
        1. activate input stage, let it read from the data_stream and write to
        memory
@@ -423,7 +412,7 @@ public:
        3. check whether the data_buffer has become full (i.e., tail == head)
           and stop the loop
     */
-    iostage::OutputMemoryStage<T> output_stage;
+    iostage::OutputMemoryStage<T, FIFO_SIZE> output_stage;
     auto pre_head = head;
     auto post_head = head;
     uint32_t validatation_index = 0;
@@ -441,8 +430,11 @@ public:
       /* 1. activate the output stage */
       auto pre_count = this->data_stream.size();
       pre_head = post_head;
-      auto return_val = output_stage(ocl_buff, pre_count, this->data_stream,
-                                     this->meta_stream);
+      auto return_val =
+          output_stage(this->memory_buffer.data(), this->meta_buffer.data(),
+                       this->alloc_size, head, tail, pre_count,
+                       this->data_stream, this->meta_stream);
+
       auto post_count = this->data_stream.size();
       post_head = ((uint32_t *)this->meta_buffer.data())[0];
       call_index++;
@@ -472,7 +464,7 @@ public:
 
           this->assert_check(token == gold_token, msg_builder.str());
         }
-        curr_ix = (curr_ix + 1) % ocl_buff.alloc_size;
+        curr_ix = (curr_ix + 1) % this->alloc_size;
 
         validatation_index++;
       }
@@ -538,7 +530,7 @@ size_t runTest(size_t start_id, size_t alloc_size, std::string msg) {
   otester.setVerbose(0);
   otester.test();
 
-  return start_id + 1;
+  return start_id + 2;
 }
 
 void runTests(size_t start_id, size_t count, size_t alloc_size) {

@@ -49,6 +49,8 @@
 #define MIN(A, B) ((A > B) ? B : A)
 
 namespace iostage {
+
+constexpr size_t log2(size_t n) { return ((n < 2) ? 1 : 1 + log2(n / 2)); }
 using const_t = unsigned int;
 // using bus_t = ap_uint<BUS_BIT_WIDTH>;
 using ret_t = uint32_t;
@@ -65,15 +67,31 @@ template <typename T> struct CircularBuffer {
   uint32_t tail;       // the tail pointer, the next token to read from
 };
 
-template <typename T> struct BusInterface {
+template <typename T, uint32_t FIFO_SIZE> struct BusInterface {
   static constexpr const_t BUS_BYTE_WIDTH = sizeof(T);
   static constexpr const_t BUS_BIT_WIDTH = BUS_BYTE_WIDTH << 3;
+  // Maximum number of bytes that can be transferred in a burst
   static constexpr const_t MAX_BURST_TX = 4096;
+  // Maximum number of transfers in a single burst, i.e., words transferred
+  // in a single burst read or write
   static constexpr const_t MAX_BURST_LINES =
       MIN(256, MAX_BURST_TX / BUS_BYTE_WIDTH);
+
+  // maximum number of single bursts in function call
+  // since each burst transfers up to MAX_BURST_LINES tokens, then the
+  // maximum number of such bursts is FIFO_SIZE / MAX_BURST_LINES
+  static constexpr const_t MAX_NUMBER_OF_BURSTS = FIFO_SIZE / MAX_BURST_LINES;
+  virtual uint32_t
+  operator()(T *ocl_buffer_data_buffer, T *ocl_buffer_meta_buffer,
+             uint32_t ocl_buffer_alloc_size, uint32_t ocl_buffer_head,
+             uint32_t ocl_buffer_tail, uint32_t fifo_count,
+             hls::stream<T> &data_stream, hls::stream<bool> &meta_stream) = 0;
 };
 
-template <typename T> class InputMemoryStage : public BusInterface<T> {
+template <typename T, uint32_t FIFO_SIZE>
+class InputMemoryStage : public BusInterface<T, FIFO_SIZE> {
+private:
+  uint32_t head, tail, alloc_size;
 
 public:
   InputMemoryStage() {
@@ -82,9 +100,13 @@ public:
     tail = 0;
   }
 
-  uint32_t operator()(CircularBuffer<T> ocl_buffer, uint32_t fifo_count,
-                      uint32_t fifo_size, hls::stream<T> &data_stream,
-                      hls::stream<bool> &meta_stream) {
+  virtual uint32_t operator()(T *ocl_buffer_data_buffer,
+                              T *ocl_buffer_meta_buffer,
+                              uint32_t ocl_buffer_alloc_size,
+                              uint32_t ocl_buffer_head,
+                              uint32_t ocl_buffer_tail, uint32_t fifo_count,
+                              hls::stream<T> &data_stream,
+                              hls::stream<bool> &meta_stream) override {
 #pragma HLS INLINE
     uint32_t return_code = RETURN_WAIT;
 
@@ -94,14 +116,14 @@ public:
       // read the init token
       meta_stream.read();
 
-      this->alloc_size = ocl_buffer.alloc_size;
-      this->tail = ocl_buffer.tail;
-      this->head = ocl_buffer.head;
+      this->alloc_size = ocl_buffer_alloc_size;
+      this->tail = ocl_buffer_tail;
+      this->head = ocl_buffer_head;
 
       return_code = RETURN_EXECUTED;
     } else {
 
-      uint32_t fifo_space = fifo_count > fifo_size ? 0 : fifo_size - fifo_count;
+      uint32_t fifo_space = fifo_count > FIFO_SIZE ? 0 : FIFO_SIZE - fifo_count;
       uint32_t tokens_in_mem = tokenCount();
       uint32_t tokens_to_read = MIN(fifo_space, tokens_in_mem);
 
@@ -114,14 +136,14 @@ public:
         // data_buffer[0] to data_buffer[head - 1].
 
         if (this->tail + tokens_to_read >= this->alloc_size) {
-          readLoop(ocl_buffer.data_buffer, this->tail,
+          readLoop(&ocl_buffer_data_buffer[this->tail],
                    this->alloc_size - this->tail, data_stream);
           tokens_to_read -= this->alloc_size - this->tail;
           this->tail = 0;
         }
 
         if (tokens_to_read > 0) {
-          readLoop(ocl_buffer.data_buffer, this->tail, tokens_to_read,
+          readLoop(&ocl_buffer_data_buffer[this->tail], tokens_to_read,
                    data_stream);
           this->tail += tokens_to_read;
         }
@@ -132,36 +154,40 @@ public:
       }
     }
     if (return_code == RETURN_EXECUTED) {
-      writeMeta(ocl_buffer.meta_buffer);
+      writeMeta(ocl_buffer_meta_buffer);
     }
     return return_code;
   }
 
 private:
-  void readLoop(T *data_buffer, const uint32_t start_ix,
-                const uint32_t read_size, hls::stream<T> &data_stream) {
+  void readLoop(T *mem_data, const uint32_t read_size,
+                hls::stream<T> &data_stream) {
 #pragma HLS INLINE
-    uint32_t current_ix = start_ix;
+    // uint32_t current_ix = start_ix;
+    // T *mem_data = &data_buffer[start_ix];
+    uint32_t tag = 0;
     for (uint32_t burst_ix = 0; burst_ix < read_size;
          burst_ix += this->MAX_BURST_LINES) {
-
+#pragma HLS loop_tripcount min = 1 max = this->MAX_NUMBER_OF_BURSTS
       uint32_t chunk_size = ((burst_ix + this->MAX_BURST_LINES) >= read_size)
                                 ? (read_size - burst_ix)
                                 : this->MAX_BURST_LINES;
+
     read_loop:
       for (uint32_t ix = 0; ix < chunk_size; ix++) {
-#pragma HLS pipeline
-#pragma HLS loop_tripcount min = 0 max = this->MAX_BURST_LINES
+#pragma HLS pipeline II = 1
+#pragma HLS loop_tripcount min = 1 max = this->MAX_BURST_LINES
 
-        T token = data_buffer[current_ix];
+        // Read the data from the memory, tag it and store it in the burst
+        // buffer
+        T token = mem_data[burst_ix + ix];
         data_stream.write_nb(token);
-        current_ix++;
       }
     }
   }
   inline void writeMeta(T *meta_buffer) {
 #pragma HLS INLINE
-
+    // meta_buffer[0] = this->tail;
     if (sizeof(T) >= sizeof(uint32_t)) {
       meta_buffer[0] = this->tail;
     } else {
@@ -170,9 +196,7 @@ private:
 #pragma HLS unroll
         meta_buffer[ix] = current_tail;
         current_tail = current_tail >> (sizeof(T) << 3);
-
       }
-
     }
   }
   inline uint32_t tokenCount() const {
@@ -187,11 +211,10 @@ private:
   }
 
   // local copies of head, tail and alloc_size
-  uint32_t head, tail, alloc_size;
 };
 
-template <typename T> class OutputMemoryStage : public BusInterface<T> {
-
+template <typename T, uint32_t FIFO_SIZE>
+class OutputMemoryStage : public BusInterface<T, FIFO_SIZE> {
 public:
   OutputMemoryStage() {
     tail = 0;
@@ -199,18 +222,22 @@ public:
     alloc_size = 0;
   }
 
-  uint32_t operator()(CircularBuffer<T> ocl_buffer, uint32_t fifo_count,
-                      hls::stream<T> &data_stream,
-                      hls::stream<bool> &meta_stream) {
+  virtual uint32_t operator()(T *ocl_buffer_data_buffer,
+                              T *ocl_buffer_meta_buffer,
+                              uint32_t ocl_buffer_alloc_size,
+                              uint32_t ocl_buffer_head,
+                              uint32_t ocl_buffer_tail, uint32_t fifo_count,
+                              hls::stream<T> &data_stream,
+                              hls::stream<bool> &meta_stream) override {
 #pragma HLS INLINE
     bool should_init = !meta_stream.empty();
     uint32_t return_code = RETURN_WAIT;
 
     if (should_init) {
       meta_stream.read();
-      this->tail = ocl_buffer.tail;
-      this->head = ocl_buffer.head;
-      this->alloc_size = ocl_buffer.alloc_size;
+      this->tail = ocl_buffer_tail;
+      this->head = ocl_buffer_head;
+      this->alloc_size = ocl_buffer_alloc_size;
       return_code = RETURN_EXECUTED;
     } else {
 
@@ -228,13 +255,13 @@ public:
 
         if (this->head + tokens_to_write >= this->alloc_size) {
           // wrap around
-          writeLoop(ocl_buffer.data_buffer, this->head,
+          writeLoop(&ocl_buffer_data_buffer[this->head],
                     this->alloc_size - this->head, data_stream);
           tokens_to_write -= this->alloc_size - this->head;
           this->head = 0;
         }
         if (tokens_to_write > 0) {
-          writeLoop(ocl_buffer.data_buffer, this->head, tokens_to_write,
+          writeLoop(&ocl_buffer_data_buffer[this->head], tokens_to_write,
                     data_stream);
 
           this->head += tokens_to_write;
@@ -248,7 +275,7 @@ public:
     }
 
     if (return_code == RETURN_EXECUTED) {
-      writeMeta(ocl_buffer.meta_buffer);
+      writeMeta(ocl_buffer_meta_buffer);
     }
 
     return return_code;
@@ -268,26 +295,26 @@ private:
     }
   }
 
-  void writeLoop(T *data_buffer, uint32_t start_ix, uint32_t write_size,
+  void writeLoop(T *mem_data, uint32_t write_size,
                  hls::stream<T> &data_stream) {
 #pragma HLS INLINE
-    uint32_t current_ix = start_ix;
+
     for (uint32_t burst_ix = 0; burst_ix < write_size;
          burst_ix += this->MAX_BURST_LINES) {
+#pragma HLS loop_tripcount min = 1 max = this->MAX_NUMBER_OF_BURSTS
 
       uint32_t chunk_size = ((burst_ix + this->MAX_BURST_LINES) >= write_size)
                                 ? (write_size - burst_ix)
                                 : this->MAX_BURST_LINES;
     write_loop:
       for (uint32_t ix = 0; ix < chunk_size; ix++) {
-#pragma HLS pipeline
-#pragma HLS loop_tripcount min = 0 max = this->MAX_BURST_LINES
+#pragma HLS pipeline II = 1
+#pragma HLS loop_tripcount min = 1 max = this->MAX_BURST_LINES
         T token;
         // implicit assertion, data_stream.empty() == false
         data_stream.read_nb(token);
         // std::cout << "writing : " << uint64_t(token) << std::endl;
-        data_buffer[current_ix] = token;
-        current_ix++;
+        mem_data[ix + burst_ix] = token;
       }
     }
   }
@@ -304,9 +331,7 @@ private:
 #pragma HLS unroll
         meta_buffer[ix] = current_head;
         current_head = current_head >> (sizeof(T) << 3);
-
       }
-
     }
   }
   uint32_t tail, head, alloc_size;

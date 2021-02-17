@@ -501,7 +501,7 @@ public interface KernelWrapper {
                 emitter().emit(".fifo_din(%s_din),", portName);
                 emitter().emit(".fifo_full_n(%s_full_n),", portName);
                 emitter().emit(".fifo_write(%s_write),", portName);
-                emitter().emit(".fifo_size(%s_fifo_size),", portName);
+
             } else {
                 emitter().emit(".fifo_dout(%s_dout),", port.getName());
                 emitter().emit(".fifo_empty_n(%s_empty_n),", port.getName());
