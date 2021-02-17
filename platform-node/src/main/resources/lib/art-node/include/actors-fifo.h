@@ -122,6 +122,8 @@ INL void FIFO_NAME(pinConsume)(LocalInputPort *p) {
 
     assert(p->available > 0);
 
+    readPtr++;
+
     if (readPtr >= (const FIFO_TYPE *) p->bufferEnd)
         readPtr = (const FIFO_TYPE *) p->bufferStart;
     p->readPtr = readPtr;
