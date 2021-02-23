@@ -381,6 +381,15 @@ void PLink::actionCleanUp() {
     output.hw.releaseEvents(call_index);
   }
 
+  if (collect_stats) {
+    EventProfile kernel_profile;
+    kernel_profile.getTiming(kernel_event[0]);
+    kernel_profile.call_index = call_index;
+    kernel_stats.push_back(kernel_profile);
+  }
+
+
+
 }
 inline uint32_t PLink::computeFreeSpace(const uint32_t head,
                                         const uint32_t tail,
@@ -591,6 +600,17 @@ void PLink::dumpStats(const std::string& file_name) {
     }
     ss << "\t" << "]," << std::endl;
 
+    ss << "\t" << "\"kernel\": [" << std::endl;
+    {
+      for(auto it = this->kernel_stats.begin(); it != this->kernel_stats.end(); it++) {
+        ss << it->serialized(2);
+        if (it != this->kernel_stats.end() - 1) {
+          ss << ",";
+        }
+        ss << std::endl;
+      }
+    }
+    ss << "\t" << "], " << std::endl;
     ss << "\t" << "\"output_ports\": [" << std::endl;
     {
       for (auto output_it = outputs.begin(); output_it != outputs.end(); output_it ++) {

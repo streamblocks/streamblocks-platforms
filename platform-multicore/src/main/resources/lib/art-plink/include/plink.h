@@ -213,6 +213,8 @@ private:
   std::vector<InputPort> inputs;
   std::vector<OutputPort> outputs;
 
+  std::vector<EventProfile> kernel_stats;
+
   const bool collect_stats;
 
 public:
