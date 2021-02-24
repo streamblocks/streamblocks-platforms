@@ -31,6 +31,7 @@ if(SDL2_FOUND)
     if(DISPLAY)
       list(APPEND art_native_source src/display-sdl.cc)
       list(APPEND art_native_source src/orcc-display-sdl2.cc)
+      list(APPEND art_native_source src/orcc-framerate-sdl2.cc)
 
       list(APPEND extra_includes ${SDL2_INCLUDE_DIRS})
       string(STRIP ${SDL2_LIBRARIES} SDL2_LIBRARIES)

@@ -85,7 +85,7 @@ TagID partitioningTag[] = {
 };
 
 TagID connectionsTag[] = {
-        {"fifo-connection", parseConnection},
+        {"connection", parseConnection},
         {0}
 };
 
