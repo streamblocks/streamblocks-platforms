@@ -1,0 +1,1 @@
+create_clock -name ap_clk -period ${HLS_CLOCK_PERIOD} [get_ports ap_clk]

@@ -12,13 +12,11 @@
 
     <modules>
         <module>platform-core</module>
-        <module>platform-generic-c</module>
         <module>platform-multicore</module>
-        <module>platform-orcc</module>
         <module>platform-vivadohls</module>
         <module>platform-node</module>
-        <module>platform-opalkelly</module>
-
+        <module>platform-orcc</module>
+        <module>platform-turnus</module>
     </modules>
 
     <properties>

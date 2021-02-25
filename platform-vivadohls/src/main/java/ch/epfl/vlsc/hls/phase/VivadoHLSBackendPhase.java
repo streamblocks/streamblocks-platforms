@@ -497,6 +497,11 @@ public class VivadoHLSBackendPhase implements Phase {
                     PathUtils.getTargetScripts(backend.context()).resolve("Synthesis_vitis.tcl.in"),
                     StandardCopyOption.REPLACE_EXISTING);
 
+            // -- XDC Constraint
+            Files.copy(getClass().getResourceAsStream("/lib/cmake/clock.xdc.in"),
+                    PathUtils.getTargetScripts(backend.context()).resolve("clock.xdc.in"),
+                    StandardCopyOption.REPLACE_EXISTING);
+
             // -- Gen XO
             Files.copy(getClass().getResourceAsStream("/lib/cmake/gen_xo.tcl.in"),
                     PathUtils.getTargetScripts(backend.context()).resolve("gen_xo.tcl.in"),
