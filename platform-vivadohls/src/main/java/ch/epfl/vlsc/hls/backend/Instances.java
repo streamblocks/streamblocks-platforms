@@ -187,6 +187,11 @@ public interface Instances {
 
         String name = instance.getInstanceName();
         emitter().emitClikeBlockComment("HLS Top Function");
+        // -- Static call
+        String className = "class_" + instance.getInstanceName();
+        emitter().emit("static %s i_%s;", className, name);
+        emitter().emitNewLine();
+
         emitter().emit("int %s(%s) {", name, entityPorts(name, withIO, true));
 
         // -- Data pack I/O with algebraic types
@@ -219,11 +224,6 @@ public interface Instances {
             emitter().emitNewLine();
         }
         emitter().increaseIndentation();
-
-        // -- Static call
-        String className = "class_" + instance.getInstanceName();
-        emitter().emit("static %s i_%s;", className, name);
-        emitter().emitNewLine();
 
         List<String> ports = new ArrayList<>();
 
@@ -407,9 +407,9 @@ public interface Instances {
         String className = "class_" + instanceName;
         emitter().emit("class %s {", className);
 
-        // -- Private
+
         if (!actor.getVarDecls().isEmpty()) {
-            emitter().emit("private:");
+            emitter().emit("public:");
             emitter().increaseIndentation();
 
             emitter().emit("states _FSM_state;");
@@ -474,8 +474,7 @@ public interface Instances {
         String className = "class_" + instanceName;
         emitter().emit("class %s {", className);
 
-        // -- Private
-        emitter().emit("private:");
+        emitter().emit("public:");
         {
             emitter().increaseIndentation();
             for (Scope scope : actor.getScopes()) {

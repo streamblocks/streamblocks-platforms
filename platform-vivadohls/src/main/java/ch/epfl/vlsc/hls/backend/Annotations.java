@@ -23,6 +23,8 @@ public interface Annotations {
         Directives directives = Directives.directive(name);
 
         switch (directives) {
+            case ARRAY_PARTITION:
+                return ArrayPartition.parse(backend(), annotation);
             case INLINE:
                 return InlineDirective.parse(backend().interpreter(), annotation);
             case LATENCY:
