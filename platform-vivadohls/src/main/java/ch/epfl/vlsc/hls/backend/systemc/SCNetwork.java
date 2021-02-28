@@ -127,7 +127,7 @@ public class SCNetwork implements SCIF {
     }
 
     private final String identifier;
-//    private final ImmutableList<InputIF> writers;
+    //    private final ImmutableList<InputIF> writers;
 //    private final ImmutableList<OutputIF> readers;
     private final APControl apControl;
     // Actors
@@ -179,9 +179,11 @@ public class SCNetwork implements SCIF {
     private SCTrigger makeTrigger(SCInstanceIF inst) {
         return new SCTrigger(inst, this.globalSync, this.apControl.getStart());
     }
+
     private Signal makeSyncSignal(SCInstanceIF inst) {
         return Signal.of(inst.getInstanceName() + "_sync", new LogicValue());
     }
+
     public String getIdentifier() {
         return identifier;
     }
@@ -206,13 +208,24 @@ public class SCNetwork implements SCIF {
         return instanceTriggers;
     }
 
-    public ImmutableList<SCTrigger> getInputStageTriggers() { return inputStageTriggers; }
+    public ImmutableList<SCTrigger> getInputStageTriggers() {
+        return inputStageTriggers;
+    }
 
-    public ImmutableList<SCTrigger> getOutputStageTriggers() { return outputStageTriggers; }
+    public ImmutableList<SCTrigger> getOutputStageTriggers() {
+        return outputStageTriggers;
+    }
 
     @Override
     public Stream<PortIF> stream() {
-        return Stream.concat(Stream.of(init), apControl.stream());
+        Stream<PortIF> args = ImmutableList.concat(inputStages, outputStages)
+                .stream().flatMap(SCIOStage::getKernelArgs);
+
+        return Stream.concat(
+                Stream.concat(Stream.of(init), apControl.stream()),
+                args
+        );
+
 
     }
 
@@ -228,7 +241,6 @@ public class SCNetwork implements SCIF {
     }
 
 
-
     public SyncIF getGlobalSync() {
         return globalSync;
     }
@@ -237,7 +249,9 @@ public class SCNetwork implements SCIF {
         return apControl;
     }
 
-    public PortIF getInit() { return init; }
+    public PortIF getInit() {
+        return init;
+    }
 
     public Signal getAmIdle() {
         return amIdle;

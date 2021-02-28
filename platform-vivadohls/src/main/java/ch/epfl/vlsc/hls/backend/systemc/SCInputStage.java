@@ -5,17 +5,18 @@ import se.lth.cs.tycho.ir.entity.PortDecl;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-public class SCInputStage implements SCInputOutputIF {
+public class SCInputStage extends SCIOStage {
 
     public static class InputIF implements SCIF {
         private final Queue.WriterIF writer;
         private final Queue.AuxiliaryIF aux;
         private final PortDecl port;
-
+        private int depth;
         public InputIF(Queue queue, PortDecl port) {
             this.writer = queue.getWriter().withPrefix("fifo_");
             this.aux = queue.getAuxiliary().withPrefix("fifo_");
             this.port = port;
+            this.depth = queue.getDepth();
         }
 
 
@@ -35,64 +36,30 @@ public class SCInputStage implements SCInputOutputIF {
         public Queue.AuxiliaryIF getAuxiliary() {
             return aux;
         }
+        public int getDepth() { return depth; }
     }
-    private final APControl apControl;
+
     private final InputIF input;
-    private final PortIF init;
-    private final String instanceName;
-    private final PortIF ret;
 
-    public SCInputStage(String instanceName, PortIF init, InputIF input) {
-        this.instanceName = instanceName;
-        this.init = init;
+
+    public SCInputStage(String instanceName, PortIF kernelStart, InputIF input) {
+        super(instanceName, kernelStart);
         this.input = input;
-        this.apControl = new APControl(instanceName + "_");
-        this.ret = PortIF.of(
-                "ap_return",
-                Signal.of(instanceName + "_ap_return", new LogicVector(32)),
-                Optional.of(PortIF.Kind.OUTPUT));
     }
 
-    @Override
-    public APControl getApControl() {
-        return apControl;
-    }
-
-    @Override
-    public int getNumActions() {
-        return 1;
-    }
 
     public InputIF getInput() {
         return input;
     }
-    public PortIF getInit() {
-        return init;
-
-    }
-
-    @Override
-    public String getInstanceName() {
-        return instanceName;
-    }
-
-    @Override
-    public PortIF getReturn() {
-        return ret;
-    }
 
     @Override
     public String getName() {
-        return "InputStage<" + input.writer.getDin().getSignal().getType() + ">";
+        return "InputMemoryStage<" + input.writer.getDin().getSignal().getType() +
+                ", " + getDepth() + ">";
     }
 
     public Stream<PortIF> streamUnique() {
-        return Stream.concat(
-                Stream.of(apControl.getDone(),
-                apControl.getReady(),
-                apControl.getIdle(),
-                apControl.getStart(),
-                ret),
+        return Stream.concat(super.streamUnique(),
                 input.stream()
         );
     }
@@ -100,7 +67,7 @@ public class SCInputStage implements SCInputOutputIF {
     public Stream<PortIF> stream() {
         return
                 Stream.concat(
-                    Stream.of(apControl.getClock(), apControl.getReset(), init),
+                    super.stream(),
                     streamUnique());
 
     }
@@ -110,4 +77,9 @@ public class SCInputStage implements SCInputOutputIF {
     }
 
     public String getType() { return input.writer.getDin().getSignal().getType(); }
+
+    @Override
+    public int getDepth() {
+        return input.getDepth();
+    }
 }

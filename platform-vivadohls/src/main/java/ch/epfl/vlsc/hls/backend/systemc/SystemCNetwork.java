@@ -67,8 +67,8 @@ public interface SystemCNetwork {
 
     default SCNetwork createSCNetwork(Network network) {
         PortIF initPort = PortIF.of(
-                "init",
-                Signal.of("init", new LogicValue()),
+                "kernel_start",
+                Signal.of("kernel_start", new LogicValue()),
                 Optional.of(PortIF.Kind.INPUT));
 
         ImmutableList.Builder<SCInputStage> inputs = ImmutableList.builder();

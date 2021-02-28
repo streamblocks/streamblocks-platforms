@@ -3,15 +3,14 @@ package ch.epfl.vlsc.hls.backend.systemc;
 import ch.epfl.vlsc.hls.backend.VivadoHLSBackend;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.PathUtils;
+import com.sun.org.apache.bcel.internal.generic.IMUL;
 import org.multij.BindingKind;
 import org.multij.Module;
 import org.multij.Binding;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.stream.Stream;
 
 
@@ -26,15 +25,15 @@ public interface SystemCTestBench {
     }
 
     default String getPostfix() {
-        return "_tester";
+        return "_kernel";
     }
 
     default void generateTester() {
 
         SCNetwork network = backend().scnetwork().createSCNetwork(backend().task().getNetwork());
 
-        String identifier = "NetworkTester";
-        String fileId = "network_tester";
+        String identifier = "SimulationKernel";
+        String fileId = "simulation-kernel";
         emitter().open(PathUtils.getTarget(backend().context()).resolve("systemc/include/" + fileId + ".h"));
         emitter().emit("#ifndef __%s_H__", fileId.toUpperCase());
         emitter().emit("#define __%s_H__", fileId.toUpperCase());
@@ -46,7 +45,34 @@ public interface SystemCTestBench {
         emitter().emitNewLine();
         emitter().emit("namespace ap_rtl {");
 
+        emitter().emit("struct Argument {");
+        {
+            emitter().increaseIndentation();
+            String pointerType = new LogicVector(64).getType();
+            ImmutableList<String> args = ImmutableList.of(
+                    "data_buffer", "meta_buffer", "alloc_size", "head", "tail"
+            );
+            ImmutableList<String> argsTypes = ImmutableList.of(
+                    pointerType,
+                    pointerType,
+                    "uint32_t",
+                    "uint32_t",
+                    "uint32_t"
+            );
+            ImmutableList.Builder<String> typedArgs = ImmutableList.builder();
+            for (int ix = 0; ix < args.size(); ix++) {
+                String typed = "const " + argsTypes.get(ix) + " " + args.get(ix);
+                typedArgs.add(typed);
+                emitter().emit("%s; ", typed);
+            }
 
+            emitter().emit("Argument (%s):%s {};",
+                    String.join(", ", typedArgs.build()),
+                    String.join(", ", args.map(a -> a + "(" + a + ")")));
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("};");
+        emitter().emitNewLine();
         emitter().emit("class %s: public sc_module {", identifier);
         {
             emitter().emit("public:");
@@ -71,20 +97,9 @@ public interface SystemCTestBench {
             emitter().emit("std::unique_ptr<%s> inst_%1$s;", network.getIdentifier());
 
             emitter().emitNewLine();
-            // -- memory allocate
-            getMemoryAllocate(network);
 
-            // -- memory write
-            getMemoryWrite(network);
-
-            // -- memory read
-            getMemoryRead(network);
-
-            // -- size query
-            getQuerySize(network);
-
-            // -- set arg
-            getMemoryArgs(network);
+            // -- kernel arg setter
+            getSetArgs(network);
 
             // -- get reseter
             getReseter(network);
@@ -105,18 +120,6 @@ public interface SystemCTestBench {
         }
         emitter().emit("}; // class %s", identifier);
         emitter().emitNewLine();
-        emitter().emit("struct PLinkPort {\n" +
-                "\n" +
-                "  PLinkPort(NetworkTester::PortAddress port_name, uint32_t capacity)\n" +
-                "      : port(port_name), capacity(capacity) {\n" +
-                "    usable = capacity;\n" +
-                "    used = 0;\n" +
-                "  };\n" +
-                "  NetworkTester::PortAddress port;\n" +
-                "  uint32_t usable;\n" +
-                "  uint32_t used;\n" +
-                "  uint32_t capacity;\n" +
-                "};");
 
         emitter().emitNewLine();
         emitter().emit("} // namespace ap_rtl");
@@ -127,17 +130,30 @@ public interface SystemCTestBench {
 
     default void getMemoryAddresses(SCNetwork network) {
 
-        emitter().emit("enum class PortAddress {");
+        emitter().emit("enum class PortAddress : int{");
         {
             emitter().increaseIndentation();
             emitter().emit("// -- input stage port addresses");
-            network.getInputStages().stream().map(SCInputStage::getPort).map(PortDecl::getName)
-                    .forEach(p -> emitter().emit("%s, ", p));
-            emitter().emit("// -- output stage port addresses");
-            network.getOutputStages().stream().map(SCOutputStage::getPort).map(PortDecl::getName)
-                    .forEach(p -> emitter().emit("%s, ", p));
-            emitter().emit("// -- invalid port address");
-            emitter().emit("INVALID_PORT");
+            ImmutableList<PortDecl> inputPorts = network.getInputStages().stream().map(SCInputStage::getPort)
+                    .collect(ImmutableList.collector());
+
+            ImmutableList<String> inputAddresses = inputPorts.map(port -> port.getName() + " = " +
+                    inputPorts.indexOf(port) + ",");
+            ImmutableList<PortDecl> outputPorts = network.getOutputStages().stream().map(SCOutputStage::getPort)
+                    .collect(ImmutableList.collector());
+            ImmutableList<String> outputAddresses = outputPorts.map(port -> port.getName() + " = " +
+                    outputPorts.indexOf(port) + ",");
+            emitter().emit("// -- input port addresses");
+            List<String> portEnums = new ArrayList<>();
+            portEnums.add("// -- input port addresses");
+            portEnums.addAll(inputAddresses);
+            portEnums.add("// -- output port address");
+            portEnums.addAll(outputAddresses);
+            portEnums.add("INVALID_PORT");
+
+            for (String ePort : portEnums) {
+                emitter().emit("%s", ePort);
+            }
             emitter().decreaseIndentation();
         }
         emitter().emit("};");
@@ -165,13 +181,21 @@ public interface SystemCTestBench {
     default void getModuleSignals(SCNetwork network) {
 
         emitter().emit("sc_clock %s;", network.getApControl().getClockSignal().getName());
-        emitter().emit("sc_signal<%s> %s;", network.getInit().getSignal().getType(),
-                network.getInit().getName());
-        network.getApControl().stream().forEach(port -> {
+//        emitter().emit("sc_signal<%s> %s;", network.getInit().getSignal().getType(),
+//                network.getInit().getName());
+//        network.getApControl().stream().forEach(port -> {
+//            if (!port.equals(network.getApControl().getClock()))
+//                emitter().emit("sc_signal<%s> %s;", port.getSignal().getType(), port.getSignal().getName());
+//        });
+//        ImmutableList.concat(network.getInputStages(), network.getOutputStages()).stream().flatMap(
+//                SCIOStage::getKernelArgs
+//        ).forEach(port -> {
+//            emitter().emit("sc_signal<%s> %s;", port.getSignal().getType(), port.getSignal().getName());
+//        });
+        network.stream().forEach(port -> {
             if (!port.equals(network.getApControl().getClock()))
                 emitter().emit("sc_signal<%s> %s;", port.getSignal().getType(), port.getSignal().getName());
         });
-
         emitter().emitNewLine();
     }
 
@@ -195,8 +219,6 @@ public interface SystemCTestBench {
         emitter().emit("#endif");
         emitter().emitNewLine();
     }
-
-
 
 
     default void getReseter(SCNetwork network) {
@@ -430,23 +452,24 @@ public interface SystemCTestBench {
     default void traceIOInternals(SCInputOutputIF inputOutput, SCNetwork network) {
 
         traceIODetails(
-            Stream.of(
-                    "tokens_processed",
-                    "tokens_to_process",
-                    "state",
-                    "next_state"),
+                Stream.of(
+                        "tokens_processed",
+                        "tokens_to_process",
+                        "state",
+                        "next_state"),
                 inputOutput.getInstanceName(), network.getIdentifier());
 
     }
 
 
-    default void traceIODetails(Stream<String> details, String stageName, String networkName){
+    default void traceIODetails(Stream<String> details, String stageName, String networkName) {
 
         details.forEach(sig ->
                 emitter().emit("sc_trace(vcd_dump, inst_%s->%s->%s, \"%1$s.%2$s.%3$s\");",
                         networkName, stageName, sig)
         );
     }
+
     default void getDumpStats(SCNetwork network) {
 
         emitter().emit("void dumpStats(std::ofstream& stats_dump) {");
@@ -454,7 +477,7 @@ public interface SystemCTestBench {
 
             emitter().emit("stats_dump << \"<network name=\\\"%s\\\" clockcycles-total=\\\"\" << this->total_ticks << \"\\\" runs=\\\"\" << this->total_runs << \"\\\" >\" << std::endl;", network.getIdentifier());
 
-            for (SCTrigger trigger: network.getInstanceTriggers())
+            for (SCTrigger trigger : network.getInstanceTriggers())
                 dumpInstanceStats(trigger, network);
 
             emitter().emit("stats_dump << \"</network>\" << std::endl;");
@@ -463,186 +486,43 @@ public interface SystemCTestBench {
         }
         emitter().emit("}");
     }
+
     default void dumpInstanceStats(SCTrigger trigger, SCNetwork network) {
 
         emitter().emit("this->inst_%s->%s->dumpStats(stats_dump);", network.getIdentifier(), trigger.getName());
     }
 
 
-    default void getMemoryAllocate(SCNetwork network) {
+    default void emitArgWrite(SCIOStage port) {
 
-        String funcName = "allocateMemory";
-        ImmutableList<String> args = ImmutableList.of("std::size_t size");
-
-        Map<PortDecl, ImmutableList<String>> stmts = new HashMap<>();
-        Stream.concat(network.getInputStages().stream(), network.getOutputStages().stream()).forEach(port -> {
-            String alloctStmt = String.format("inst_%s->%s->allocateDeviceMemory(size)", network.getIdentifier(),
-                    port.getInstanceName());
-            stmts.put(port.getPort(), ImmutableList.of(alloctStmt));
-        });
-
-        getMemoryOperation(funcName, args, stmts, ImmutableList.empty(), "", "void", ImmutableList.empty());
-    }
-
-    default void getMemoryArgs(SCNetwork network) {
-        String funName = "setArg";
-        ImmutableList<String> args = ImmutableList.of("std::size_t value");
-        Map<PortDecl, ImmutableList<String>> stmts = new HashMap<>();
-        Stream.concat(network.getInputStages().stream(), network.getOutputStages().stream()).forEach(port -> {
-            String setArgStmt = String.format("inst_%s->%s->setArg(value);", network.getIdentifier(),
-                    port.getInstanceName());
-            stmts.put(port.getPort(), ImmutableList.of(setArgStmt));
-        });
-
-        getMemoryOperation(funName, args, stmts, ImmutableList.empty(), "value", "std::size_t",
-                ImmutableList.empty());
-    }
-    default void getMemoryWrite(SCNetwork network) {
-
-        network.getInputStages()
-                .map(SCInputOutputIF::getType)
-                .stream().distinct()
-                .forEach(t -> getMemoryWriteTyped(network, t));
-
-    }
-
-    default void getMemoryWriteTyped(SCNetwork network, String type) {
-
-        ImmutableList<String> args = ImmutableList.of(
-                "std::vector<" + type + "> &host_buffer",
-                "std::size_t n=0");
-        Map<PortDecl, ImmutableList<String>> stmts = new HashMap<>();
-
-        // -- get the ports of the given type
-        network.getInputStages().stream()
-                .filter(input -> input.getType().equals(type))
-                .forEach(port -> {
-            String writeStmt = String.format("inst_%s->%s->writeDeviceMemory(host_buffer, n)",
-                    network.getIdentifier(),
-                    port.getInstanceName());
-            stmts.put(port.getPort(), ImmutableList.of(writeStmt));
-        });
-
-        // -- get the ports of other types
-        network.getInputStages().stream()
-                .filter(input -> !input.getType().equals(type))
-                .forEach(port -> {
-            String invalidTypePanic = String.format("PANIC(\"Invalid write type for %s!\\n\")",
-                        port.getPort().getName());
-            stmts.put(port.getPort(), ImmutableList.of(invalidTypePanic));
-        });
-
-        // -- get the output port panics
-        network.getOutputStages().forEach(port -> {
-            String panicStmt = String.format("PANIC(\"Port address %s is read-only!\\n\")", port.getPort().getName());
-            stmts.put(port.getPort(), ImmutableList.of(panicStmt));
-        });
-
-        getMemoryOperation("writeDeviceMemory", args, stmts, ImmutableList.empty(), "", "void",
-                ImmutableList.empty());
-
-    }
-
-
-    default void getMemoryRead(SCNetwork network) {
-
-        network.getOutputStages().map(SCInputOutputIF::getType)
-                .stream().distinct().forEach(type -> getMemoryReadTyped(network, type));
-
-    }
-
-    default void getMemoryReadTyped(SCNetwork network, String type) {
-
-
-        String funName = "readDeviceMemory";
-        ImmutableList<String> args = ImmutableList.of("std::vector<" + type + "> &host_buffer", "std::size_t n=0");
-        Map<PortDecl, ImmutableList<String>> stmts = new HashMap<>();
-
-        // -- get write only panics
-        network.getInputStages().forEach(port -> {
-            String panicStmt = String.format("PANIC(\"Port address %s is write-only\\n\")", port.getPort().getName());
-            stmts.put(port.getPort(), ImmutableList.of(panicStmt));
-        });
-
-
-        // -- get the ports of given type
-        network.getOutputStages().stream().filter(output -> output.getType().equals(type))
-            .forEach(port -> {
-                String readStmt = String.format("inst_%s->%s->readDeviceMemory(host_buffer, n);", network.getIdentifier(),
-                        port.getInstanceName());
-                stmts.put(port.getPort(), ImmutableList.of(readStmt));
-            });
-        // -- get the ports of other types
-        network.getOutputStages().stream().filter(output -> !output.getType().equals(type))
-                .forEach(port -> {
-                    String invalidTypePanic = String.format("PANIC(\"Invalid read type for %s!\\n\")",
-                            port.getPort().getName());
-                    stmts.put(port.getPort(), ImmutableList.of(invalidTypePanic));
-        });
-
-        getMemoryOperation("readDeviceMemory", args, stmts, ImmutableList.empty(), "", "void",
-                ImmutableList.empty());
-
-
-    }
-    default void getQuerySize(SCNetwork network) {
-
-        String funName = "querySize";
-        ImmutableList<String> args = ImmutableList.empty();
-        ImmutableList<String> defines = ImmutableList.of("std::size_t size = 0");
-        Map<PortDecl, ImmutableList<String>> stmts = new HashMap<>();
-
-        Stream.concat(network.getInputStages().stream(), network.getOutputStages().stream()).forEach(port -> {
-            String queryStmt = String.format("size = inst_%s->%s->querySize()", network.getIdentifier(),
-                    port.getInstanceName());
-            stmts.put(port.getPort(), ImmutableList.of(queryStmt));
-        });
-
-        getMemoryOperation(funName, args, stmts, defines, "size", "std::size_t", ImmutableList.empty());
-    }
-
-
-    default void getMemoryOperation(String op, ImmutableList<String> args, Map<PortDecl, ImmutableList<String>> statements,
-                                    ImmutableList<String> defines, String ret, String retType, ImmutableList<String> templates) {
-        String commaArgs = "PortAddress address";
-
-        if (args.size() != 0) {
-
-            commaArgs = commaArgs + ", " + String.join(", ", args);
-
-        }
-        if (templates.size() > 0)
-            emitter().emit("template <%s>", String.join(", ", templates));
-
-        emitter().emit("%s %s(%s) {", retType, op, commaArgs);
+        emitter().emit("case PortAddress::%s:", port.getPort().getName());
+        emitter().increaseIndentation();
         {
-            emitter().increaseIndentation();
-            defines.forEach(def ->
-                    emitter().emit("%s;", def)
-            );
-            emitter().emitNewLine();
-            emitter().emit("switch(address) {");
-            {
-                statements.forEach(this::getMemoryOperationCase);
-
-                emitter().emit("case PortAddress::INVALID_PORT:");
-                emitter().emit("default:");
-                {
-                    emitter().increaseIndentation();
-                    emitter().emit("PANIC(\"Invalid port address %%lu\", address)");
-                    emitter().emit("break;");
-                    emitter().decreaseIndentation();
-                }
-            }
-            emitter().emit("}");
-            if (!ret.isEmpty())
-                emitter().emit("return %s;", ret);
-            else
-                emitter().emitNewLine();
-            emitter().decreaseIndentation();
+            port.getKernelArgs().forEach(aPort -> {
+                emitter().emit("%s.write(arg.%s);", aPort.getSignal().getName(), aPort.getName());
+            });
         }
+        emitter().decreaseIndentation();
+    }
+
+    default void getSetArgs(SCNetwork network) {
+        emitter().emit("void setArg(const int port_index, const Argument& args) {");
+        emitter().increaseIndentation();
+        {
+            emitter().emit("auto port_address = static_cast<PortAddress>(port_index);");
+            emitter().emit("switch(port_address) {");
+            emitter().increaseIndentation();
+            {
+                ImmutableList.concat(network.getInputStages(), network.getOutputStages()).forEach(this::emitArgWrite);
+                emitter().emit("default: PANIC(\"Invalid argument index %%d\\n\", port_index);");
+            }
+            emitter().decreaseIndentation();
+            emitter().emit("}");
+        }
+        emitter().decreaseIndentation();
         emitter().emit("}");
     }
+
     default void getMemoryOperationCase(PortDecl port, ImmutableList<String> stmts) {
         emitter().emit("case PortAddress::%s: {", port.getName());
         {

@@ -40,8 +40,12 @@
 #ifndef __IOSTAGE_H__
 #define __IOSTAGE_H__
 
-#include "globals.h"
-#include <ap_int.h>
+// -- Actor Return values
+#define RETURN_IDLE 0
+#define RETURN_WAIT 1
+#define RETURN_TEST 2
+#define RETURN_EXECUTED 3
+
 #include <cstring>
 #include <hls_stream.h>
 #include <stdint.h>
@@ -81,6 +85,8 @@ template <typename T, uint32_t FIFO_SIZE> struct BusInterface {
   // since each burst transfers up to MAX_BURST_LINES tokens, then the
   // maximum number of such bursts is FIFO_SIZE / MAX_BURST_LINES
   static constexpr const_t MAX_NUMBER_OF_BURSTS = FIFO_SIZE / MAX_BURST_LINES;
+  virtual uint32_t tokensToProcess(uint32_t fifo_count) = 0;
+
   virtual uint32_t
   operator()(T *ocl_buffer_data_buffer, T *ocl_buffer_meta_buffer,
              uint32_t ocl_buffer_alloc_size, uint32_t ocl_buffer_head,
@@ -100,13 +106,18 @@ public:
     tail = 0;
   }
 
-  virtual uint32_t operator()(T *ocl_buffer_data_buffer,
-                              T *ocl_buffer_meta_buffer,
-                              uint32_t ocl_buffer_alloc_size,
-                              uint32_t ocl_buffer_head,
-                              uint32_t ocl_buffer_tail, uint32_t fifo_count,
-                              hls::stream<T> &data_stream,
-                              hls::stream<bool> &meta_stream) override {
+  inline uint32_t tokensToProcess(uint32_t fifo_count) override {
+    uint32_t fifo_space = fifo_count > FIFO_SIZE ? 0 : FIFO_SIZE - fifo_count;
+    uint32_t tokens_in_mem = tokenCount();
+    uint32_t tokens_to_read = MIN(fifo_space, tokens_in_mem);
+    return tokens_to_read;
+  }
+  uint32_t operator()(T *ocl_buffer_data_buffer, T *ocl_buffer_meta_buffer,
+                      uint32_t ocl_buffer_alloc_size, uint32_t ocl_buffer_head,
+                      uint32_t ocl_buffer_tail, uint32_t fifo_count,
+                      hls::stream<T> &data_stream,
+                      hls::stream<bool> &meta_stream) override {
+
 #pragma HLS INLINE
     uint32_t return_code = RETURN_WAIT;
 
@@ -123,9 +134,7 @@ public:
       return_code = RETURN_EXECUTED;
     } else {
 
-      uint32_t fifo_space = fifo_count > FIFO_SIZE ? 0 : FIFO_SIZE - fifo_count;
-      uint32_t tokens_in_mem = tokenCount();
-      uint32_t tokens_to_read = MIN(fifo_space, tokens_in_mem);
+      uint32_t tokens_to_read = tokensToProcess(fifo_count);
 
       if (tokens_to_read > 0) {
 
@@ -221,14 +230,17 @@ public:
     head = 0;
     alloc_size = 0;
   }
+  inline uint32_t tokensToProcess(uint32_t fifo_count) override {
+    uint32_t space_left = getSpaceLeft();
+    uint32_t tokens_to_write = MIN(space_left, fifo_count);
+    return tokens_to_write;
+  }
 
-  virtual uint32_t operator()(T *ocl_buffer_data_buffer,
-                              T *ocl_buffer_meta_buffer,
-                              uint32_t ocl_buffer_alloc_size,
-                              uint32_t ocl_buffer_head,
-                              uint32_t ocl_buffer_tail, uint32_t fifo_count,
-                              hls::stream<T> &data_stream,
-                              hls::stream<bool> &meta_stream) override {
+  uint32_t operator()(T *ocl_buffer_data_buffer, T *ocl_buffer_meta_buffer,
+                      uint32_t ocl_buffer_alloc_size, uint32_t ocl_buffer_head,
+                      uint32_t ocl_buffer_tail, uint32_t fifo_count,
+                      hls::stream<T> &data_stream,
+                      hls::stream<bool> &meta_stream) override {
 #pragma HLS INLINE
     bool should_init = !meta_stream.empty();
     uint32_t return_code = RETURN_WAIT;
@@ -241,10 +253,7 @@ public:
       return_code = RETURN_EXECUTED;
     } else {
 
-      // space left on the DDR buffer
-      uint32_t space_left = getSpaceLeft();
-
-      uint32_t tokens_to_write = MIN(space_left, fifo_count);
+      uint32_t tokens_to_write = tokensToProcess(fifo_count);
 
       if (tokens_to_write > 0) {
 
