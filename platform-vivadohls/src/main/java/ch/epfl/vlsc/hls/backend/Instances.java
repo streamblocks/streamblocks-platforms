@@ -187,11 +187,6 @@ public interface Instances {
 
         String name = instance.getInstanceName();
         emitter().emitClikeBlockComment("HLS Top Function");
-        // -- Static call
-        String className = "class_" + instance.getInstanceName();
-        emitter().emit("static %s i_%s;", className, name);
-        emitter().emitNewLine();
-
         emitter().emit("int %s(%s) {", name, entityPorts(name, withIO, true));
 
         // -- Data pack I/O with algebraic types
@@ -218,7 +213,7 @@ public interface Instances {
         // -- Top Directives
         List<Annotation> annotations = entity.getAnnotations();
         for (Annotation ann : annotations) {
-            backend().annotations().emit(ann);
+            backend().annotations().emitTop(ann);
         }
         if (!annotations.isEmpty()) {
             emitter().emitNewLine();
@@ -226,8 +221,6 @@ public interface Instances {
         emitter().increaseIndentation();
 
         List<String> ports = new ArrayList<>();
-
-
         // -- External memories
         ports.addAll(
                 backend().externalMemory()
@@ -235,6 +228,16 @@ public interface Instances {
 
         ports.addAll(entity.getInputPorts().stream().map(PortDecl::getName).collect(Collectors.toList()));
         ports.addAll(entity.getOutputPorts().stream().map(PortDecl::getName).collect(Collectors.toList()));
+
+
+        // -- Static call
+        String className = "class_" + instance.getInstanceName();
+        emitter().emit("static %s i_%s;", className, name);
+        // -- Instance based Directive
+        for (Annotation ann : annotations) {
+            backend().annotations().emitInstance(ann);
+        }
+        emitter().emitNewLine();
 
         if (entity instanceof CalActor) {
             CalActor actor = (CalActor) entity;
@@ -1028,7 +1031,7 @@ public interface Instances {
         // -- Emit transition annotations
         List<Annotation> annotations = transition.getAnnotations();
         for (Annotation ann : annotations) {
-            backend().annotations().emit(ann);
+            backend().annotations().emitTopAction(ann);
         }
         {
             emitter().increaseIndentation();
@@ -1186,7 +1189,7 @@ public interface Instances {
         // -- Emit transition annotations
         List<Annotation> annotations = action.getAnnotations();
         for (Annotation ann : annotations) {
-            backend().annotations().emit(ann);
+            backend().annotations().emitTopAction(ann);
         }
         {
             emitter().increaseIndentation();
@@ -1247,7 +1250,7 @@ public interface Instances {
         // -- Emit transition annotations
         List<Annotation> annotations = action.getAnnotations();
         for (Annotation ann : annotations) {
-            backend().annotations().emit(ann);
+            backend().annotations().emitTopAction(ann);
         }
         {
             emitter().increaseIndentation();
