@@ -288,6 +288,7 @@ public interface SystemCNetwork {
         SCNetwork scNetwork = createSCNetwork(network);
 
         String identifier = scNetwork.getIdentifier();
+        String headerId = "__" + identifier.replace("-", "_") + "__";
 
         network().set(scNetwork);
 
@@ -306,8 +307,8 @@ public interface SystemCNetwork {
 
         }
 
-        emitter().emit("#ifndef __%s_H__", identifier);
-        emitter().emit("#define __%s_H__", identifier);
+        emitter().emit("#ifndef __%s_H__", headerId);
+        emitter().emit("#define __%s_H__", headerId);
         emitter().emitNewLine();
         // -- Include headers
         getIncludes(scNetwork);
@@ -359,7 +360,8 @@ public interface SystemCNetwork {
 
         emitter().emit("} // namespace ap_rtl");
         emitter().emitNewLine();
-        emitter().emit("#endif // __%s_H__", identifier);
+
+        emitter().emit("#endif // __%s_H__", headerId);
         network().clear();
         emitter().close();
     }
@@ -371,7 +373,7 @@ public interface SystemCNetwork {
         emitter().emit("#include \"systemc.h\"");
         emitter().emit("#include \"trigger.h\"");
         emitter().emit("#include \"queue.h\"");
-        emitter().emit("#include \"sim_iostage.h\"");
+        emitter().emit("#include \"simulation-iostage.h\"");
         network.getInstances().stream().forEach(this::getIncludeInstance);
         emitter().emitNewLine();
     }

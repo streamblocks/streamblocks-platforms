@@ -3,7 +3,6 @@ package ch.epfl.vlsc.hls.backend.systemc;
 import ch.epfl.vlsc.hls.backend.VivadoHLSBackend;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.PathUtils;
-import com.sun.org.apache.bcel.internal.generic.IMUL;
 import org.multij.BindingKind;
 import org.multij.Module;
 import org.multij.Binding;
@@ -34,9 +33,10 @@ public interface SystemCTestBench {
 
         String identifier = "SimulationKernel";
         String fileId = "simulation-kernel";
+        String header = fileId.replace("-", "_");
         emitter().open(PathUtils.getTarget(backend().context()).resolve("systemc/include/" + fileId + ".h"));
-        emitter().emit("#ifndef __%s_H__", fileId.toUpperCase());
-        emitter().emit("#define __%s_H__", fileId.toUpperCase());
+        emitter().emit("#ifndef __%s_H__", header.toUpperCase());
+        emitter().emit("#define __%s_H__", header.toUpperCase());
         emitter().emitNewLine();
 
         emitter().emitNewLine();
@@ -52,9 +52,10 @@ public interface SystemCTestBench {
             ImmutableList<String> args = ImmutableList.of(
                     "data_buffer", "meta_buffer", "alloc_size", "head", "tail"
             );
+            emitter().emit("using sim_ptr_t = %s;", pointerType);
             ImmutableList<String> argsTypes = ImmutableList.of(
-                    pointerType,
-                    pointerType,
+                    "sim_ptr_t",
+                    "sim_ptr_t",
                     "uint32_t",
                     "uint32_t",
                     "uint32_t"
@@ -124,7 +125,7 @@ public interface SystemCTestBench {
         emitter().emitNewLine();
         emitter().emit("} // namespace ap_rtl");
         emitter().emitNewLine();
-        emitter().emit("#endif // __%s_H__", fileId.toUpperCase());
+        emitter().emit("#endif // __%s_H__", header.toUpperCase());
         emitter().close();
     }
 
@@ -142,7 +143,7 @@ public interface SystemCTestBench {
             ImmutableList<PortDecl> outputPorts = network.getOutputStages().stream().map(SCOutputStage::getPort)
                     .collect(ImmutableList.collector());
             ImmutableList<String> outputAddresses = outputPorts.map(port -> port.getName() + " = " +
-                    outputPorts.indexOf(port) + ",");
+                    outputPorts.indexOf(port) + inputPorts.size() + ",");
             emitter().emit("// -- input port addresses");
             List<String> portEnums = new ArrayList<>();
             portEnums.add("// -- input port addresses");
@@ -453,10 +454,8 @@ public interface SystemCTestBench {
 
         traceIODetails(
                 Stream.of(
-                        "tokens_processed",
-                        "tokens_to_process",
-                        "state",
-                        "next_state"),
+                        "state"
+                        ),
                 inputOutput.getInstanceName(), network.getIdentifier());
 
     }
@@ -499,9 +498,10 @@ public interface SystemCTestBench {
         emitter().increaseIndentation();
         {
             port.getKernelArgs().forEach(aPort -> {
-                emitter().emit("%s.write(arg.%s);", aPort.getSignal().getName(), aPort.getName());
+                emitter().emit("%s.write(args.%s);", aPort.getSignal().getName(), aPort.getName());
             });
         }
+        emitter().emit("break;");
         emitter().decreaseIndentation();
     }
 

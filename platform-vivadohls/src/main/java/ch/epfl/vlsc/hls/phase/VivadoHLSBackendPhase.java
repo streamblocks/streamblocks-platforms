@@ -466,6 +466,10 @@ public class VivadoHLSBackendPhase implements Phase {
             Files.copy(getClass().getResourceAsStream("/lib/hls/iostage.h"),
                     PathUtils.getTargetCodeGenInclude(backend.context()).resolve("iostage.h"),
                     StandardCopyOption.REPLACE_EXISTING);
+            // -- copy actor machine related definitions
+            Files.copy(getClass().getResourceAsStream("/lib/hls/actor-machine.h"),
+                    PathUtils.getTargetCodeGenInclude(backend.context()).resolve("actor-machine.h"),
+                    StandardCopyOption.REPLACE_EXISTING);
             // -- Input and Output Stage C++ tester
             Files.copy(getClass().getResourceAsStream("/lib/hls/tb_iostage.cpp"),
                     PathUtils.getTargetCodeGenSrcTb(backend.context()).resolve("tb_iostage.cpp"),
@@ -511,10 +515,12 @@ public class VivadoHLSBackendPhase implements Phase {
                 Files.copy(getClass().getResourceAsStream("/lib/systemc/trigger.h"),
                         PathUtils.getTarget(backend.context()).resolve("systemc/include/trigger.h"),
                         StandardCopyOption.REPLACE_EXISTING);
-                Files.copy(getClass().getResourceAsStream("/lib/systemc/sim_iostage.h"),
-                        PathUtils.getTarget(backend.context()).resolve("systemc/include/sim_iostage.h"),
+                Files.copy(getClass().getResourceAsStream("/lib/systemc/simulation-iostage.h"),
+                        PathUtils.getTarget(backend.context()).resolve("systemc/include/simulation-iostage.h"),
                         StandardCopyOption.REPLACE_EXISTING);
-
+                Files.copy(getClass().getResourceAsStream("/lib/systemc/simulate.h"),
+                        PathUtils.getTarget(backend.context()).resolve("systemc/include/simulate.h"),
+                        StandardCopyOption.REPLACE_EXISTING);
                 Files.copy(getClass().getResourceAsStream("/lib/systemc/debug_macros.h"),
                         PathUtils.getTarget(backend.context()).resolve("systemc/include/debug_macros.h"),
                         StandardCopyOption.REPLACE_EXISTING);

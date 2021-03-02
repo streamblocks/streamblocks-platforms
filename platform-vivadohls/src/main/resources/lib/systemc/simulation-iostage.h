@@ -1,5 +1,5 @@
-#ifndef __SC_IOSTAGE_H__
-#define __SC_IOSTAGE_H__
+#ifndef __SIMULATION_IOSTAGE_H__
+#define __SIMULATION_IOSTAGE_H__
 #include "debug_macros.h"
 #include "iostage.h"
 #include <memory>
@@ -219,13 +219,14 @@ class SimulatedInputMemoryStage : public SimulatedBusInterface<T, FIFO_SIZE> {
 public:
   sc_core::sc_in<bool> fifo_full_n;
   sc_core::sc_out<bool> fifo_write;
-  sc_core::sc_out<T> fifo_dout;
+  sc_core::sc_out<T> fifo_din;
+  sc_core::sc_in<uint32_t> fifo_size;
   using State = typename SimulatedBusInterface<T, FIFO_SIZE>::State;
 
   SimulatedInputMemoryStage(sc_core::sc_module_name name)
       : SimulatedBusInterface<T, FIFO_SIZE>(name) {
     // -- power on initializations
-    this->atomic_implemenation =
+    this->atomic_implementation =
         std::make_unique<iostage::InputMemoryStage<T, FIFO_SIZE>>();
   }
 
@@ -274,7 +275,7 @@ public:
         ASSERT(this->data_stream.size() > 0,
                "Attempted to read from an empty hls::stream!\n");
         this->waitCycles(1);
-        this->fifo_dout.write(token);
+        this->fifo_din.write(token);
         this->fifo_write.write(true);
       }
 
@@ -314,7 +315,8 @@ class SimulatedOutputMemoryStage : public SimulatedBusInterface<T, FIFO_SIZE> {
 public:
   sc_core::sc_in<bool> fifo_empty_n;
   sc_core::sc_out<bool> fifo_read;
-  sc_core::sc_in<T> fifo_din;
+  sc_core::sc_in<T> fifo_dout;
+  sc_core::sc_in<T> fifo_peek;
   using State = typename SimulatedBusInterface<T, FIFO_SIZE>::State;
 
   SimulatedOutputMemoryStage(sc_core::sc_module_name name)
@@ -362,7 +364,7 @@ public:
         ASSERT(this->fifo_empty_n.read() == true,
                "Attempted to read from an empty fifo in an output stage\n");
         this->waitCycles(1);
-        auto token = this->fifo_din.read();
+        auto token = this->fifo_dout.read();
         this->data_stream.write(token);
         this->fifo_read.write(true);
       }
@@ -374,7 +376,7 @@ public:
   }
 
   inline uint32_t evaluateAtomically() {
-    return this->atomic_implemenation->operator()(
+    return this->atomic_implementation->operator()(
         this->asPointer(this->data_buffer.read()), // The device buffer pointer
                                                    // (allocated else where)
         this->asPointer(
@@ -414,4 +416,4 @@ public:
   }
 };
 };     // namespace ap_rtl
-#endif // __SC_IOSTAGE_H__
+#endif // __SIMULATION_IOSTAGE_H__

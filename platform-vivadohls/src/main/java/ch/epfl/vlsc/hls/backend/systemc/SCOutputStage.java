@@ -55,7 +55,7 @@ public class SCOutputStage extends SCIOStage {
 
     @Override
     public String getName() {
-        return "OutputMemoryStage<" + output.getReader().getDout().getSignal().getType() + ", " + getDepth() + ">";
+        return "SimulatedOutputMemoryStage<" + output.getReader().getDout().getSignal().getType() + ", " + getDepth() + ">";
     }
 
 
@@ -65,14 +65,6 @@ public class SCOutputStage extends SCIOStage {
                 super.streamUnique(),
                 output.stream()
         );
-    }
-
-    public Stream<PortIF> stream() {
-        return
-                Stream.concat(
-                        super.stream(),
-                        output.stream());
-
     }
 
     @Override

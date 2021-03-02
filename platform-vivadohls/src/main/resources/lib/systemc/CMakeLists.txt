@@ -153,7 +153,8 @@ endforeach()
 
 
 set(ART_SYSTEMC_HEADERS
-
+  ${VIVADO_HLS_INCLUDE_DIRS}
+  ${PROJECT_SOURCE_DIR}/code-gen/include
   ${PROJECT_SOURCE_DIR}/systemc/include
   ${VERILATOR_ROOT}/include
   ${VERILATOR_ROOT}/include/vlstd

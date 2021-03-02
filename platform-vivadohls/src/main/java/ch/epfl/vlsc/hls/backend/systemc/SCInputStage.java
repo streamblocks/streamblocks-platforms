@@ -54,23 +54,18 @@ public class SCInputStage extends SCIOStage {
 
     @Override
     public String getName() {
-        return "InputMemoryStage<" + input.writer.getDin().getSignal().getType() +
+        return "SimulatedInputMemoryStage<" + input.writer.getDin().getSignal().getType() +
                 ", " + getDepth() + ">";
     }
 
+    @Override
     public Stream<PortIF> streamUnique() {
         return Stream.concat(super.streamUnique(),
                 input.stream()
         );
     }
 
-    public Stream<PortIF> stream() {
-        return
-                Stream.concat(
-                    super.stream(),
-                    streamUnique());
 
-    }
 
     public PortDecl getPort() {
         return input.getPort();

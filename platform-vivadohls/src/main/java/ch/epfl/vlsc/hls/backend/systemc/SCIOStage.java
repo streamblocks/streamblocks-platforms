@@ -74,22 +74,19 @@ abstract class SCIOStage implements SCInputOutputIF {
 
     @Override
     public Stream<PortIF> streamUnique() {
-        return Stream.concat(
-                Stream.of(
+        return Stream.of(
                         apControl.getDone(),
                         apControl.getReady(),
                         apControl.getIdle(),
                         apControl.getStart(),
-                        ret),
-                args.stream());
-
+                        ret);
     }
 
     @Override
     public Stream<PortIF> stream() {
         return Stream.concat(
             Stream.of(apControl.getClock(), apControl.getReset(), kernelStart),
-                streamUnique()
+                Stream.concat(streamUnique(), args.stream())
         );
     }
 

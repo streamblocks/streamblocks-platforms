@@ -41,10 +41,7 @@
 #define __IOSTAGE_H__
 
 // -- Actor Return values
-#define RETURN_IDLE 0
-#define RETURN_WAIT 1
-#define RETURN_TEST 2
-#define RETURN_EXECUTED 3
+#include "actor-machine.h"
 
 #include <cstring>
 #include <hls_stream.h>
