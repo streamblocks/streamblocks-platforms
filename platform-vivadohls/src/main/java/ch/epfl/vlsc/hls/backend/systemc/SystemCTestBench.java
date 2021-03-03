@@ -276,8 +276,7 @@ public interface SystemCTestBench {
             emitter().emit("std::size_t break_point = start_ticks == 0 ? report_every : " +
                     "( (start_ticks - 1) / report_every + 1 ) * report_every;");
             emitter().emit("auto start_time = std::chrono::high_resolution_clock::now();");
-            emitter().emit("STATUS_REPORT(\"@ %%s starting simulation\\n\",\n" +
-                    "                  sc_time_stamp().to_string().c_str());");
+            emitter().emit("STATUS_REPORT(\"starting simulation\\n\");");
             emitter().emit("auto sim_start_time = sc_time_stamp();");
             emitter().emit("while (%s.read() != %s) {", network.getApControl().getDoneSignal().getName(),
                     LogicValue.Value.SC_LOGIC_1);

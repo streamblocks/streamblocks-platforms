@@ -38,14 +38,14 @@ static void displayUsage(char *binary_name) {
   std::cout << "\t\t--buffer-size       the size of device memory buffers for "
                "network ports, default is 4096 tokens."
             << std::endl;
-  std::cout << "\t\t--queue-depth       the internal fifo capacity, does not "
-            << std::endl;
-  std::cout << "\t\t                    affect input or output stage fifos and "
-            << std::endl;
-  std::cout << "\t\t                    does not override the 'bufferSize' "
-            << std::endl;
-  std::cout << "\t\t                    attribute from the CAL source files"
-            << std::endl;
+  // std::cout << "\t\t--queue-depth       the internal fifo capacity, does not "
+  //           << std::endl;
+  // std::cout << "\t\t                    affect input or output stage fifos and "
+  //           << std::endl;
+  // std::cout << "\t\t                    does not override the 'bufferSize' "
+  //           << std::endl;
+  // std::cout << "\t\t                    attribute from the CAL source files"
+  //           << std::endl;
   std::cout << "\t\t                    default value is 512" << std::endl;
   std::cout << "\t\t--report-every      intervals between report before each "
                "simulation call returns"
@@ -183,7 +183,7 @@ template <typename T> struct SimulationBuffer {
     if (head == tail) {
       return alloc_size - 1;
     } else if (head > tail) {
-      return alloc_size - 1 + head + tail;
+      return alloc_size - 1 - head + tail;
     } else {
       return tail - 1 - head;
     }
@@ -217,8 +217,7 @@ uint32_t distance(const uint32_t start, const uint32_t end,
  * @brief abstract class for a input/output writer/reader object
  *
  */
-template<typename T>
-class ReaderWriter {
+template <typename T> class ReaderWriter {
 protected:
   std::ifstream istream;
   const std::string port_name;
@@ -241,8 +240,13 @@ public:
   virtual uint32_t update(SimulationBuffer<T> *host_buffer) = 0;
   ~ReaderWriter() {
     uint64_t token;
-    if (!(istream >> token)) {
-      WARNING("There are unused tokens on port %s", port_name.c_str());
+    uint64_t left_overs = 0;
+    while (istream >> token) {
+      left_overs++;
+    }
+    if (left_overs) {
+      WARNING("There are %lu unused tokens on port %s\n", left_overs,
+              port_name.c_str());
     }
   }
 };
@@ -279,11 +283,11 @@ public:
     const auto start_ix = this->index;
 
     auto free_space = host_buffer->freeSpace();
-    auto head = host_buffer->head;
+
     uint64_t token;
-    STATUS_REPORT("Updating input stream %s", this->port_name.c_str());
+
     uint32_t count = 0;
-    while (this->istream >> token && free_space > 0) {
+    while (free_space > 0 && this->istream >> token) {
       host_buffer->writeToken(token);
       free_space = host_buffer->freeSpace();
 
@@ -301,9 +305,7 @@ public:
 template <typename T> class Reader : public ReaderWriter<T> {
 public:
   Reader(std::size_t alloc_size, std::string file_name)
-      : ReaderWriter<T>(file_name) {
-
-  }
+      : ReaderWriter<T>(file_name) {}
   /**
    * @brief verifies and consumes the tokens in the host buffer
    *
@@ -315,17 +317,18 @@ public:
     // -- verify tokens from the head to the tail, essentilly free up the buffer
     const auto start_ix = this->index;
 
-    while (host_buffer->head != host_buffer->tail) {
+    while (host_buffer->freeSpace() != host_buffer->alloc_size - 1) {
       uint64_t expected_token = 0;
       if (this->istream >> expected_token) {
         auto token = host_buffer->readToken();
+
         ASSERT(T(expected_token) == token,
                "%s::Expected %lu but received %lu (%lu)\n",
                this->port_name.c_str(), expected_token, token, this->index);
         this->index++;
       } else {
         PANIC("Could not verify all tokens on %s! Simulation has produced more "
-              "tokens than available in the fifo trace.",
+              "tokens than available in the fifo trace.\n",
               this->port_name.c_str());
       }
     }

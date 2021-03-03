@@ -118,11 +118,7 @@ public interface Simulator {
 
             // -- set args
             emitter().emit("STATUS_REPORT(\"Setting simulation kernel arguments\\n\");");
-            emitter().emit("// -- set kernel arguments");
-            emitter().emit("int arg_ix = 0;");
-            ImmutableList.concat(network.getInputPorts(), network.getOutputPorts()).forEach(port -> {
-                emitter().emit("mut->setArg(arg_ix++, buffer_%s.asArgument());", port.getName());
-            });
+
 
             emitter().emitNewLine();
             emitter().emit("std::size_t new_tokens = 0;");
@@ -133,15 +129,9 @@ public interface Simulator {
                 {
                     emitter().increaseIndentation();
                     emitter().emit("new_tokens += writer_%s.update(&buffer_%1$s);", port.getName());
-                    emitter().emit("auto old_tail = buffer_%s.tail;", port.getName());
-                    emitter().emit("auto new_tail = reinterpret_cast<uint32_t const*>(buffer_%s.meta_buffer)[0];",
-                            port.getName());
-                    emitter().emit("auto consumption = distance(old_tail, new_tail, buffer_%s.alloc_size);",
-                            port.getName());
-                    emitter().emit("STATUS_REPORT(\"%s consumed %%lu tokens\\n\", consumption);", port.getName());
 
-                    emitter().emit("buffer_%s.tail = new_tail;",
-                            port.getName());
+                    emitter().emit("STATUS_REPORT(\"%s enqueued %%lu tokens\\n\", new_tokens);", port.getName());
+
                     emitter().decreaseIndentation();
                 }
                 emitter().emit("}");
@@ -154,21 +144,46 @@ public interface Simulator {
             {
                 emitter().increaseIndentation();
 
+                emitter().emit("// -- set kernel arguments");
+                emitter().emit("int arg_ix = 0;");
+                ImmutableList.concat(network.getInputPorts(), network.getOutputPorts()).forEach(port -> {
+                    emitter().emit("mut->setArg(arg_ix++, buffer_%s.asArgument());", port.getName());
+                });
+
                 emitter().emit("STATUS_REPORT(\"Starting simulation\\n\");");
                 emitter().emit("auto ticks = mut->simulate(opts.report_every);");
                 emitter().emit("total_ticks += ticks;");
                 emitter().emit("STATUS_REPORT(\"Simulation returned after %%lu ticks " +
-                        "(total ticks so far: %%lu\\n\", ticks, total_ticks);");
-                emitter().emit("STATUS_REPORT(\"Verifying produced outputs\");");
+                        "(total ticks so far: %%lu)\\n\", ticks, total_ticks);");
+                emitter().emit("STATUS_REPORT(\"Verifying produced outputs\\n\");");
+
+
+                emitter().emit("STATUS_REPORT(\"Updating input stream indices\\n\");");
+                network.getInputPorts().forEach(port -> {
+                    emitter().emit("{");
+                    {
+                        emitter().increaseIndentation();
+
+                        emitter().emit("auto old_tail = buffer_%s.tail;", port.getName());
+                        emitter().emit("auto new_tail = reinterpret_cast<uint32_t const*>(buffer_%s.meta_buffer)[0];",
+                                port.getName());
+                        emitter().emit("auto consumption = distance(old_tail, new_tail, buffer_%s.alloc_size);",
+                                port.getName());
+                        emitter().emit("STATUS_REPORT(\"%s consumed %%lu tokens\\n\", consumption);", port.getName());
+
+                        emitter().emit("buffer_%s.tail = new_tail;",
+                                port.getName());
+                        emitter().decreaseIndentation();
+                    }
+                    emitter().emit("}");
+                });
+
                 emitter().emit("uint32_t new_production = 0;");
                 emitter().emit("should_retry = false;");
                 network.getOutputPorts().forEach(port -> {
                     emitter().emit("{");
                     {
                         emitter().increaseIndentation();
-
-                        emitter().emit("should_retry |= (reader_%s.update(&buffer_%1$s) " +
-                                "== buffer_%1$s.alloc_size - 1);", port.getName());
                         emitter().emit("auto old_head = buffer_%s.head;", port.getName());
                         emitter().emit("auto new_head = reinterpret_cast<uint32_t const*>(buffer_%s.meta_buffer)[0];",
                                 port.getName());
@@ -176,6 +191,9 @@ public interface Simulator {
                                 port.getName());
                         emitter().emit("STATUS_REPORT(\"%s produced %%lu tokens\\n\", production);", port.getName());
                         emitter().emit("buffer_%s.head = new_head;", port.getName());
+                        emitter().emit("should_retry |= (reader_%s.update(&buffer_%1$s) " +
+                                "== buffer_%1$s.alloc_size - 1);", port.getName());
+
                         emitter().decreaseIndentation();
                         emitter().decreaseIndentation();
                     }

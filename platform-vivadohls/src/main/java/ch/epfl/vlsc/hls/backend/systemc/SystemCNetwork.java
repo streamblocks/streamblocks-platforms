@@ -204,15 +204,7 @@ public interface SystemCNetwork {
             return queues().get(connection);
         } else {
             int bitWidth = backend().typeseval().sizeOfBits(getConnectionType(connection));
-            int bufferDepth = 0; // set the buffer depth to zero indicating that it is not provided by the user.
-            Optional<ToolValueAttribute> attribute = connection.getValueAttribute("buffersize");
-            if (!attribute.isPresent()) {
-                attribute = connection.getValueAttribute("bufferSize");
-            }
-            if (attribute.isPresent()) {
-                bufferDepth =  (int) backend().constants().intValue(attribute.get().getValue()).getAsLong();
-            }
-
+            int bufferDepth = backend().channelsutils().connectionBufferSize(connection);
             Queue queue = new Queue(connection, bitWidth, bufferDepth);
             queues().put(connection, queue);
             return queue;

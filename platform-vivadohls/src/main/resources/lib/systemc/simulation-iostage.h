@@ -121,9 +121,10 @@ public:
           this->state.write(next_state);
           break;
         case State::BUSIF_CALL_FUNCTION:
-          ASSERT(
-              this->data_stream.size(),
-              "Data stream should be empty before call to the input stage\n");
+          //          ASSERT(
+          //              this->data_stream.size() == fifo_count.read(),
+          //              "data_stream.size() != fifo_count in input stage
+          //              %s\n", this->name);
           this->return_code = this->evaluateAtomically();
           next_state = this->nextState();
           this->state.write(next_state);
@@ -144,7 +145,7 @@ public:
           break;
         }
         case State::BUSIF_END_DELAY:
-          this->waitCycles(8);
+          this->waitCycles(40);
           next_state = this->nextState();
           this->state.write(next_state);
           break;
@@ -231,6 +232,7 @@ public:
   }
 
   inline uint32_t evaluateAtomically() {
+
     return this->atomic_implementation->operator()(
         this->asPointer(this->data_buffer.read()), // The device buffer pointer
                                                    // (allocated else where)
@@ -258,6 +260,7 @@ public:
     // The number of tokens that are read from the memory is obtained
 
     auto tokens_to_stream = this->data_stream.size();
+
     // Note that we do not model the delay caused by the wrap around
 
     // Enqueue the tokens on hls stream to the systemc fifos using the
@@ -269,11 +272,11 @@ public:
                                 ? (tokens_to_stream - burst_ix)
                                 : MAX_BURST_LINES;
       for (uint32_t ix = 0; ix < chunk_size; ix++) {
-        auto token = this->data_stream.read();
         ASSERT(this->fifo_full_n.read() == true,
                "Attempted to write to a full fifo in an input stage!\n");
         ASSERT(this->data_stream.size() > 0,
                "Attempted to read from an empty hls::stream!\n");
+        auto token = this->data_stream.read();
         this->waitCycles(1);
         this->fifo_din.write(token);
         this->fifo_write.write(true);
@@ -282,6 +285,7 @@ public:
       this->waitCycles(1);
 
       this->fifo_write.write(false);
+      this->waitCycles(10);
     }
   }
 
@@ -363,19 +367,20 @@ public:
 
         ASSERT(this->fifo_empty_n.read() == true,
                "Attempted to read from an empty fifo in an output stage\n");
-        this->waitCycles(1);
-        auto token = this->fifo_dout.read();
-        this->data_stream.write(token);
         this->fifo_read.write(true);
+        this->waitCycles(1);
+        auto token = this->fifo_peek.read();
+        this->data_stream.write(token);
       }
 
+      this->fifo_read.write(false);
       this->waitCycles(1);
 
-      this->fifo_read.write(false);
     }
   }
 
   inline uint32_t evaluateAtomically() {
+
     return this->atomic_implementation->operator()(
         this->asPointer(this->data_buffer.read()), // The device buffer pointer
                                                    // (allocated else where)
