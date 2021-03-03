@@ -2,7 +2,7 @@
 set(art_runtime_sources
         src/options.c
         src/util.c
-        src/actors-rts
+        src/actors-rts.c
         src/termination-report.c
         src/xmlParser.c
         src/xmlTrace.c

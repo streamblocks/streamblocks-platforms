@@ -353,10 +353,15 @@ public class MultiCoreBackendPhase implements Phase {
             Files.copy(getClass().getResourceAsStream("/python/streamblocks.py"), PathUtils.getTargetBin(multicoreBackend.context()).resolve("streamblocks.py"), StandardCopyOption.REPLACE_EXISTING);
 
 
-            // -- replace some files if plink is available
-            if (hasPlink && !isSimulated) {
-                Files.copy(libPath.resolve("CMakeLists.plink.txt"), libPath.resolve("CMakeLists.txt"),
+            if (hasPlink) {
+                // -- replace some files if plink is available
+                Files.copy(getClass().getResourceAsStream("/plink/CMakeLists.txt"), libPath.resolve("CMakeLists.txt"),
                         StandardCopyOption.REPLACE_EXISTING);
+                String sourceDirectory = isSimulated ? "/plink/systemc" : "/plink/opencl";
+                Path plinkLibSourcePath = Paths.get(getClass().getResource(sourceDirectory).toURI());
+                PathUtils.copyDirTree(plinkLibSourcePath, libPath.resolve("art-plink"),
+                        StandardCopyOption.REPLACE_EXISTING);
+
             }
         } catch (IOException e) {
             throw new CompilationException(new Diagnostic(Diagnostic.Kind.ERROR, "Could not copy multicoreBackend resources"));

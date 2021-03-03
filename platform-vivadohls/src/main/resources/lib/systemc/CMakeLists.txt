@@ -181,7 +181,7 @@ verilator_link_systemc(art-systemc)
 
 add_executable(simulate src/simulate.cpp)
 
-target_include_directories(simulate PRIVATE ${ART_SYSTEMC_HEADERS})
+target_include_directories(simulate PUBLIC ${ART_SYSTEMC_HEADERS})
 
 target_link_libraries(simulate art-systemc)
 

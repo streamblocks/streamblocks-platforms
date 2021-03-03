@@ -157,8 +157,7 @@ public interface Main {
             emitter().emit("%s->name = (char *) calloc(%d, sizeof(char));", joinQID, joinQID.length() + 1);
             emitter().emit("strcpy(%s->name, \"%1$s\");", joinQID);
             // -- Instantiate Parameters
-            if (entityDecl.getEntity() instanceof PartitionLink &&
-                    backend().context().getConfiguration().get(PlatformSettings.enableSystemC)) {
+            if (entityDecl.getEntity() instanceof PartitionLink) {
                 emitter().emit("if(options->vcd_trace_level != NULL)");
                 emitter().increaseIndentation();
                 emitter().emit("setParameter(%s, \"vcd-trace-level\", options->vcd_trace_level);", joinQID);
