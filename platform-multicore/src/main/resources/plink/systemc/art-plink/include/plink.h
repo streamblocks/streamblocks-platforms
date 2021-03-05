@@ -304,7 +304,7 @@ private:
     const PortAddress address;
     const uint32_t token_size;
     Port(const PortInfo<T> &info)
-        : address(info.name), token_size(token_size) {}
+        : address(info.name), token_size(info.token_size) {}
     inline const PortAddress &getAddress() { return address; }
   };
 

@@ -357,9 +357,9 @@ public class MultiCoreBackendPhase implements Phase {
                 // -- replace some files if plink is available
                 Files.copy(getClass().getResourceAsStream("/plink/CMakeLists.txt"), libPath.resolve("CMakeLists.txt"),
                         StandardCopyOption.REPLACE_EXISTING);
-                String sourceDirectory = isSimulated ? "/plink/systemc" : "/plink/opencl";
+                String sourceDirectory = isSimulated ? "/plink/systemc/" : "/plink/opencl/";
                 Path plinkLibSourcePath = Paths.get(getClass().getResource(sourceDirectory).toURI());
-                PathUtils.copyDirTree(plinkLibSourcePath, libPath.resolve("art-plink"),
+                PathUtils.copyDirTree(plinkLibSourcePath, libPath,
                         StandardCopyOption.REPLACE_EXISTING);
 
             }
