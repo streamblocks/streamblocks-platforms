@@ -14,6 +14,7 @@ PLink::PLink(const std::vector<PortInfo<LocalInputPort>> &input_info,
   const sc_core::sc_time clk_period(3.3, sc_core::SC_NS);
   kernel = std::make_unique<ap_rtl::SimulationKernel>(
       kernel_name.c_str(), clk_period, 0, vcd_trace_level);
+  kernel->reset();
 
   OCL_MSG("Starting simulation thread\n");
   kernel_thread = std::thread(&PLink::kernelRunner, this);
@@ -45,11 +46,14 @@ void PLink::kernelRunner() {
       kernel->simulate();
       if (profile_file_name != NULL) {
         std::ofstream ofs(profile_file_name, std::ios::out);
+        OCL_MSG("plink::kernelRunner::dumping profile into %s\n",
+                profile_file_name);
         kernel->dumpStats(ofs);
         ofs.close();
       }
       while (response_queue.try_push(true) != true)
         ;
+      OCL_MSG("plink::kernelRunner::SIM_FINISHED\n");
     } else {
       OCL_MSG("plink::kernelRunner::SIM_TERMINATE\n");
       break;
@@ -221,7 +225,7 @@ void PLink::actionUpdateIndices() {
     auto produced = output.hw.readFromDeviceBuffer(old_head, new_head);
 
     OCL_MSG("%s produced %u tokens\n", output.getAddress().toString().c_str(),
-            produced / output.token_size);
+            produced);
 
     output.hw.head = new_head;
 
@@ -290,7 +294,10 @@ void PLink::actionStartKernel() {
   call_index++;
 }
 
-void PLink::actionCleanUp() {}
+void PLink::actionCleanUp() {
+  while (response_queue.try_pop() == false)
+    ;
+}
 inline uint32_t PLink::computeFreeSpace(const uint32_t head,
                                         const uint32_t tail,
                                         const uint32_t cap) const {
@@ -349,7 +356,8 @@ bool PLink::checkShouldRetry() const { return should_retry; }
 
 bool PLink::checkKernelFinished() const {
 
-  return response_queue.empty() == false;
+  bool has_response = response_queue.empty() == false;
+  return has_response;
 }
 
 bool PLink::checkReadFinished() const {

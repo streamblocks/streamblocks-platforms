@@ -165,7 +165,7 @@ set(ART_SYSTEMC_HEADERS
 add_library(art-systemc STATIC ${ALL_VERILATED_SOURCES})
 
 
-target_include_directories(art-systemc PRIVATE ${ART_SYSTEMC_HEADERS})
+target_include_directories(art-systemc PUBLIC ${ART_SYSTEMC_HEADERS})
 set_target_properties(art-systemc PROPERTIES
   CXX_STANDARD 14
   CXX_STANDARD_REQUIRED YES

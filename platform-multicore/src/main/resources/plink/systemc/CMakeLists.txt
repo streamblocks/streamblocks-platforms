@@ -14,8 +14,6 @@ target_link_libraries(art-plink art-systemc)
 set_target_properties(art-plink PROPERTIES CXX_STANDARD 14)
 
 
-message(STATUS "${OpenCL_LIBRARIES}")
-
 if (OPENCL_VERBOSE)
         target_compile_definitions(art-plink PUBLIC OCL_VERBOSE=1)
 else()

@@ -325,7 +325,7 @@ public interface PLink {
             emitter().emit("// -- construct the plink object");
             emitter().emit("// -- the device object");
 
-            emitter().emit("thisActor->plink = std::make_unique<ocl_device::PLink>(");
+            emitter().emit("thisActor->plink = std::make_unique<%s::PLink>(", deviceNameSpace);
             {
                 emitter().increaseIndentation();
                 String kernelID = backend().task().getIdentifier().getLast().toString() + "_kernel";
