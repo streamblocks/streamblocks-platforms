@@ -270,7 +270,8 @@ public:
 
     if (actor_done.read() == true && return_code == ReturnStatus::EXECUTED &&
         action_id < stats.size()) {
-      stats[action_id].register_stat(clock_counter.read() + 1);
+      auto _c = clock_counter.read();
+      stats[action_id].register_stat(_c == 0 ? 1 : _c);
       return true;
     }
     return false;

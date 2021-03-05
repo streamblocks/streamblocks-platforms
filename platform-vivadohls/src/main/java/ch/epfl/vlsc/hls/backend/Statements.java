@@ -390,7 +390,12 @@ public interface Statements {
             backend().annotations().emitInsideCode(ann);
         }
         emitter().increaseIndentation();
-        emitter().emit("if (!%s) break;", expressioneval().evaluate(stmt.getCondition()));
+        boolean needParenthesis = stmt.getCondition() instanceof ExprBinaryOp;
+        if(needParenthesis){
+            emitter().emit("if (!(%s)) break;", expressioneval().evaluate(stmt.getCondition()));
+        }else{
+            emitter().emit("if (!%s) break;", expressioneval().evaluate(stmt.getCondition()));
+        }
         stmt.getBody().forEach(this::execute);
         emitter().decreaseIndentation();
         emitter().emit("}");

@@ -695,15 +695,11 @@ public interface Instances {
                     } else if (var.getValue() instanceof ExprLambda || var.getValue() instanceof ExprProc) {
                         // -- Do nothing
                     } else {
-                        if (var.isConstant()) {
-                            Interpreter interpreter = backend().interpreter();
-                            Environment environment = new Environment();
-                            Value value = interpreter.eval((ExprComprehension) var.getValue(), environment);
-                            Expression expression = backend().converter().apply(value);
-                            emitter().emit("%s = %s;", decl, backend().expressioneval().evaluate(expression));
-                        } else {
-                            emitter().emit("%s = %s;", decl, backend().expressioneval().evaluate(var.getValue()));
-                        }
+                        Interpreter interpreter = backend().interpreter();
+                        Environment environment = new Environment();
+                        Value value = interpreter.eval((ExprComprehension) var.getValue(), environment);
+                        Expression expression = backend().converter().apply(value);
+                        emitter().emit("%s = %s;", decl, backend().expressioneval().evaluate(expression));
                     }
                 }
 
