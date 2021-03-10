@@ -89,7 +89,7 @@ template <typename T, uint32_t FIFO_SIZE> struct BusInterface {
   // maximum number of such bursts is FIFO_SIZE / MAX_BURST_LINES
   static constexpr const_t MAX_NUMBER_OF_BURSTS = FIFO_SIZE / MAX_BURST_LINES;
 
-#ifdef __SIMULATION_IOSTAGE__
+#ifdef __SIMULATION_IOSTAGE_H__
   virtual uint32_t tokensToProcess(uint32_t fifo_count) = 0;
 
   virtual uint32_t
