@@ -49,7 +49,7 @@
 
 #define IOSTAGE_OVERRIDE
 
-#ifdef __SIMULATION_IOSTAGE__
+#ifdef __SIMULATION_IOSTAGE_H__
 #define IOSTAGE_OVERRIDE override
 #endif
 
