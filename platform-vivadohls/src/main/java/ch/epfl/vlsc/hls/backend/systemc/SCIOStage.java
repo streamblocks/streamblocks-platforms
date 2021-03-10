@@ -59,7 +59,10 @@ abstract class SCIOStage implements SCInputOutputIF {
     // IO stage instance name
     protected final String instanceName;
 
-    public SCIOStage(String instanceName, PortIF kernelStart) {
+    // IO stage underlying type in the HLS impl.
+    String underlyingType;
+
+    public SCIOStage(String instanceName, PortIF kernelStart, String underlyingType) {
         this.instanceName = instanceName;
         this.kernelStart = kernelStart;
         this.apControl = new APControl(instanceName + "_");
@@ -69,7 +72,7 @@ abstract class SCIOStage implements SCInputOutputIF {
                 Optional.of(PortIF.Kind.OUTPUT)
         );
         this.args = new KernelArgIF(instanceName);
-
+        this.underlyingType = underlyingType;
     }
 
     @Override
@@ -115,5 +118,10 @@ abstract class SCIOStage implements SCInputOutputIF {
     }
 
     public abstract int getDepth();
+
+    @Override
+    public String getUnderlyingType() {
+        return underlyingType;
+    }
 
 }

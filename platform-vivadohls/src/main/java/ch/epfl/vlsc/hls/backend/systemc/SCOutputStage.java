@@ -44,8 +44,8 @@ public class SCOutputStage extends SCIOStage {
     }
 
     private final OutputIF output;
-    public SCOutputStage(String instanceName, PortIF kernelStart, OutputIF output) {
-        super(instanceName, kernelStart);
+    public SCOutputStage(String instanceName, PortIF kernelStart, OutputIF output, String underlyingType) {
+        super(instanceName, kernelStart, underlyingType);
         this.output = output;
 
     }
@@ -55,7 +55,11 @@ public class SCOutputStage extends SCIOStage {
 
     @Override
     public String getName() {
-        return "SimulatedOutputMemoryStage<" + output.getReader().getDout().getSignal().getType() + ", " + getDepth() + ">";
+        return "SimulatedOutputMemoryStage<" +
+                String.join(", ",
+                        getType(),
+                        getUnderlyingType(),
+                        String.valueOf(getDepth())) + ">";
     }
 
 

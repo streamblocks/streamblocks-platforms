@@ -143,7 +143,7 @@ public interface SystemCTestBench {
             ImmutableList<PortDecl> outputPorts = network.getOutputStages().stream().map(SCOutputStage::getPort)
                     .collect(ImmutableList.collector());
             ImmutableList<String> outputAddresses = outputPorts.map(port -> port.getName() + " = " +
-                    outputPorts.indexOf(port) + inputPorts.size() + ",");
+                    (outputPorts.indexOf(port) + inputPorts.size()) + ",");
             emitter().emit("// -- input port addresses");
             List<String> portEnums = new ArrayList<>();
             portEnums.add("// -- input port addresses");

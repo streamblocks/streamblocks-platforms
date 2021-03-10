@@ -39,6 +39,8 @@ public:
 
   void dumpStats(const std::string& file_name);
 
+  void terminate() {};
+
 private:
   // -- STATES
   enum class State {

@@ -7,6 +7,14 @@
 
 namespace ap_rtl {
 
+/**
+ * @brief An astract class defining a simulated iostage
+ *
+ * @tparam T type of the underlying atomic (hls) implementation of the input
+ * or output stage buffers (same as template paramter T for @c BusInterface<T>
+ * in @c iostage.h )
+ * @tparam FIFO_SIZE size of the connected fifo
+ */
 template <typename T, int FIFO_SIZE>
 class SimulatedBusInterface : public sc_core::sc_module {
 public:
@@ -215,20 +223,32 @@ public:
   T *asPointer(const uintptr_t ptr) { return reinterpret_cast<T *>(ptr); }
 };
 
-template <typename T, int FIFO_SIZE>
-class SimulatedInputMemoryStage : public SimulatedBusInterface<T, FIFO_SIZE> {
+/**
+ * @brief A simulated input memory stage. Uses and atomic implementation of the
+ * input memory stage with virtual delays.
+ *
+ * @tparam T_SC Type of the systemc queue
+ * @tparam T_CPP Type of the input memory stage, should be the same as the
+ * software side type
+ * @tparam FIFO_SIZE Size of the connected fifo
+ */
+template <typename T_SC, typename T_CPP, int FIFO_SIZE>
+class SimulatedInputMemoryStage
+    : public SimulatedBusInterface<T_CPP, FIFO_SIZE> {
 public:
   sc_core::sc_in<bool> fifo_full_n;
   sc_core::sc_out<bool> fifo_write;
-  sc_core::sc_out<T> fifo_din;
+  sc_core::sc_out<T_SC> fifo_din;
   sc_core::sc_in<uint32_t> fifo_size;
-  using State = typename SimulatedBusInterface<T, FIFO_SIZE>::State;
+  using State = typename SimulatedBusInterface<T_CPP, FIFO_SIZE>::State;
 
   SimulatedInputMemoryStage(sc_core::sc_module_name name)
-      : SimulatedBusInterface<T, FIFO_SIZE>(name) {
+      : SimulatedBusInterface<T_CPP, FIFO_SIZE>(name) {
     // -- power on initializations
+    static_assert(sizeof(T_SC) >= sizeof(T_CPP),
+                  "Token size in systemc should be larger than c++ tokens");
     this->atomic_implementation =
-        std::make_unique<iostage::InputMemoryStage<T, FIFO_SIZE>>();
+        std::make_unique<iostage::InputMemoryStage<T_CPP, FIFO_SIZE>>();
   }
 
   inline uint32_t evaluateAtomically() {
@@ -254,9 +274,9 @@ public:
   void streamChunks() override {
 
     const auto MAX_BURST_LINES =
-        iostage::BusInterface<T, FIFO_SIZE>::MAX_BURST_LINES;
+        iostage::BusInterface<T_CPP, FIFO_SIZE>::MAX_BURST_LINES;
     const auto MAX_NUMBER_OF_BURST =
-        iostage::BusInterface<T, FIFO_SIZE>::MAX_NUMBER_OF_BURSTS;
+        iostage::BusInterface<T_CPP, FIFO_SIZE>::MAX_NUMBER_OF_BURSTS;
     // The number of tokens that are read from the memory is obtained
 
     auto tokens_to_stream = this->data_stream.size();
@@ -276,7 +296,7 @@ public:
                "Attempted to write to a full fifo in an input stage!\n");
         ASSERT(this->data_stream.size() > 0,
                "Attempted to read from an empty hls::stream!\n");
-        auto token = this->data_stream.read();
+        T_CPP token = this->data_stream.read();
         this->waitCycles(1);
         this->fifo_din.write(token);
         this->fifo_write.write(true);
@@ -314,20 +334,33 @@ public:
   }
 };
 
-template <typename T, int FIFO_SIZE>
-class SimulatedOutputMemoryStage : public SimulatedBusInterface<T, FIFO_SIZE> {
+/**
+ * @brief A simulated output memory stage. Uses and atomic implementation of the
+ * output memory stage with virtual delays.
+ *
+ * @tparam T_SC Type of the systemc queue
+ * @tparam T_CPP Type of the output memory stage, should be the same as the
+ * software side type and it should be case that @c sizeof(T_SC) >= @c sizeof(T_CPP)
+ * @tparam FIFO_SIZE Size of the connected fifo
+ */
+template <typename T_SC, typename T_CPP, int FIFO_SIZE>
+class SimulatedOutputMemoryStage
+    : public SimulatedBusInterface<T_CPP, FIFO_SIZE> {
 public:
   sc_core::sc_in<bool> fifo_empty_n;
   sc_core::sc_out<bool> fifo_read;
-  sc_core::sc_in<T> fifo_dout;
-  sc_core::sc_in<T> fifo_peek;
-  using State = typename SimulatedBusInterface<T, FIFO_SIZE>::State;
+  sc_core::sc_in<T_SC> fifo_dout;
+  sc_core::sc_in<T_SC> fifo_peek;
+  using State = typename SimulatedBusInterface<T_CPP, FIFO_SIZE>::State;
 
   SimulatedOutputMemoryStage(sc_core::sc_module_name name)
-      : SimulatedBusInterface<T, FIFO_SIZE>(name) {
+      : SimulatedBusInterface<T_CPP, FIFO_SIZE>(name) {
     // -- power on initializations
+    static_assert(sizeof(T_SC) >= sizeof(T_CPP),
+                  "Token size in systemc should be larger than c++ tokens");
+
     this->atomic_implementation =
-        std::make_unique<iostage::OutputMemoryStage<T, FIFO_SIZE>>();
+        std::make_unique<iostage::OutputMemoryStage<T_CPP, FIFO_SIZE>>();
   }
 
   /**
@@ -345,9 +378,9 @@ public:
            "Data stream should be empty in output stage!\n");
 
     const auto MAX_BURST_LINES =
-        iostage::BusInterface<T, FIFO_SIZE>::MAX_BURST_LINES;
+        iostage::BusInterface<T_CPP, FIFO_SIZE>::MAX_BURST_LINES;
     const auto MAX_NUMBER_OF_BURST =
-        iostage::BusInterface<T, FIFO_SIZE>::MAX_NUMBER_OF_BURSTS;
+        iostage::BusInterface<T_CPP, FIFO_SIZE>::MAX_NUMBER_OF_BURSTS;
     // The number of tokens that are read from the memory is obtained
     auto old_fifo_count = this->fifo_count.read();
     auto tokens_to_stream =
@@ -369,13 +402,12 @@ public:
                "Attempted to read from an empty fifo in an output stage\n");
         this->fifo_read.write(true);
         this->waitCycles(1);
-        auto token = this->fifo_peek.read();
+        T_CPP token = this->fifo_peek.read();
         this->data_stream.write(token);
       }
 
       this->fifo_read.write(false);
       this->waitCycles(1);
-
     }
   }
 

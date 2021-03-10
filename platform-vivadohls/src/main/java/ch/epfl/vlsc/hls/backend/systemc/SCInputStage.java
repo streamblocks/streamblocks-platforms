@@ -1,6 +1,7 @@
 package ch.epfl.vlsc.hls.backend.systemc;
 
 import se.lth.cs.tycho.ir.entity.PortDecl;
+import se.lth.cs.tycho.ir.util.ImmutableList;
 
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -42,8 +43,8 @@ public class SCInputStage extends SCIOStage {
     private final InputIF input;
 
 
-    public SCInputStage(String instanceName, PortIF kernelStart, InputIF input) {
-        super(instanceName, kernelStart);
+    public SCInputStage(String instanceName, PortIF kernelStart, InputIF input, String underlyingType) {
+        super(instanceName, kernelStart, underlyingType);
         this.input = input;
     }
 
@@ -54,8 +55,11 @@ public class SCInputStage extends SCIOStage {
 
     @Override
     public String getName() {
-        return "SimulatedInputMemoryStage<" + input.writer.getDin().getSignal().getType() +
-                ", " + getDepth() + ">";
+        return "SimulatedInputMemoryStage<" +
+                String.join(", ",
+                        getType(),
+                        getUnderlyingType(),
+                        String.valueOf(getDepth())) + ">";
     }
 
     @Override

@@ -358,9 +358,17 @@ public class MultiCoreBackendPhase implements Phase {
                 Files.copy(getClass().getResourceAsStream("/plink/CMakeLists.txt"), libPath.resolve("CMakeLists.txt"),
                         StandardCopyOption.REPLACE_EXISTING);
                 String sourceDirectory = isSimulated ? "/plink/systemc/" : "/plink/opencl/";
-                Path plinkLibSourcePath = Paths.get(getClass().getResource(sourceDirectory).toURI());
-                PathUtils.copyDirTree(plinkLibSourcePath, libPath,
-                        StandardCopyOption.REPLACE_EXISTING);
+                URL plinkUrl = getClass().getResource(sourceDirectory);
+                System.out.println(plinkUrl);
+                if (plinkUrl.toString().contains("jar")) {
+                    PathUtils.copyFromJar(getClass().getResource(sourceDirectory).toURI(), sourceDirectory, libPath);
+
+                } else {
+                    Path plinkLibSourcePath = Paths.get(getClass().getResource(sourceDirectory).toURI());
+                    PathUtils.copyDirTree(plinkLibSourcePath, libPath,
+                            StandardCopyOption.REPLACE_EXISTING);
+                }
+
 
             }
         } catch (IOException e) {

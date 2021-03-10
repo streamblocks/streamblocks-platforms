@@ -91,7 +91,7 @@ public:
   PLink(const std::vector<PortInfo<LocalInputPort>> &input_info,
         const std::vector<PortInfo<LocalOutputPort>> &output_info,
         const uint32_t num_mems, const std::string kernel_name,
-        char* profile_file_name, const int vcd_trace_level=0);
+        char *profile_file_name, const int vcd_trace_level = 0);
   void allocateInput(const sim_device::PortAddress &name,
                      const std::size_t size);
   void allocateOutput(const sim_device::PortAddress &name,
@@ -254,8 +254,11 @@ private:
     uint32_t user_alloc_size;
     uint32_t head;
     uint32_t tail;
+    uint32_t token_size;
     DeviceBuffer()
-        : data_buffer(nullptr), user_alloc_size(0), head(0), tail(0) {}
+        : data_buffer(nullptr), user_alloc_size(0), head(0), tail(0), token_size(-1) {
+
+    }
     void allocate(const std::size_t size, const uint32_t token_size) {
       if (data_buffer) {
         delete[] data_buffer;
@@ -263,16 +266,17 @@ private:
       ASSERT(size % token_size == 0, "Unaligned device buffer allocation\n");
       data_buffer = new uint8_t[size];
       user_alloc_size = size / token_size;
+      this->token_size = token_size;
     }
     ~DeviceBuffer() {
       if (user_alloc_size)
         delete[] data_buffer;
     }
     char *getHostBufferAtTail() {
-      return reinterpret_cast<char *>(&data_buffer[tail]);
+      return reinterpret_cast<char *>(&data_buffer[tail * token_size]);
     }
     char *getHostBufferAtHead() {
-      return reinterpret_cast<char *>(&data_buffer[head]);
+      return reinterpret_cast<char *>(&data_buffer[head * token_size]);
     }
     uint32_t writeToDeviceBuffer(const uint32_t from_index,
                                  const uint32_t to_index) {
@@ -287,8 +291,10 @@ private:
     uint32_t __distance__(const uint32_t from_index, const uint32_t to_index) {
       if (from_index < to_index) {
         return to_index - from_index;
-      } else {
+      } else if (from_index > to_index) {
         return user_alloc_size - from_index + to_index;
+      } else {
+        return 0;
       }
     }
     ap_rtl::Argument asArgument() {

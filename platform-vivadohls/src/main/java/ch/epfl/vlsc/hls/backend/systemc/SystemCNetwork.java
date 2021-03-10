@@ -87,7 +87,8 @@ public interface SystemCNetwork {
             Queue queue = findQueue(connection);
             String inputStageInstanceName = "input_stage_" + queue.getName();
             SCInputStage.InputIF fifoIf = new SCInputStage.InputIF(queue, inPort);
-            inputs.add(new SCInputStage(inputStageInstanceName, initPort, fifoIf));
+            String underlyingType = backend().typeseval().type(backend().types().declaredPortType(inPort));
+            inputs.add(new SCInputStage(inputStageInstanceName, initPort, fifoIf, underlyingType));
 
 
         }
@@ -107,8 +108,9 @@ public interface SystemCNetwork {
 
             String outputStageInstanceName = "output_stage_" + queue.getName();
             SCOutputStage.OutputIF fifoIf = new SCOutputStage.OutputIF(queue, outPort);
+            String underlyingType = backend().typeseval().type(backend().types().declaredPortType(outPort));
             outputs.add(
-                    new SCOutputStage(outputStageInstanceName, initPort, fifoIf));
+                    new SCOutputStage(outputStageInstanceName, initPort, fifoIf, underlyingType));
 
         }
         ImmutableList<SCInstance> instances = network.getInstances().map(this::findSCInstance);
