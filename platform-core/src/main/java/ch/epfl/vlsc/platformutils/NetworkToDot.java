@@ -5,6 +5,7 @@ import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.ConstantEvaluator;
 import se.lth.cs.tycho.attribute.GlobalNames;
+import se.lth.cs.tycho.compiler.Constants;
 import se.lth.cs.tycho.ir.ToolValueAttribute;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
@@ -177,9 +178,9 @@ public interface NetworkToDot {
     }
 
     default int connectionBufferSize(Connection connection) {
-        Optional<ToolValueAttribute> attribute = connection.getValueAttribute("buffersize");
+        Optional<ToolValueAttribute> attribute = connection.getValueAttribute(Constants.BUFFER_SIZE);
         if (!attribute.isPresent()) {
-            attribute = connection.getValueAttribute("bufferSize");
+            attribute = connection.getValueAttribute(Constants.BUFFER_SIZE);
         }
         if (attribute.isPresent()) {
             return (int) constants().intValue(attribute.get().getValue()).getAsLong();

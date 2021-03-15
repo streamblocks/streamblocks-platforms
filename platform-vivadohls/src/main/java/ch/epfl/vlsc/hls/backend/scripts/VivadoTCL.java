@@ -48,8 +48,15 @@ public interface VivadoTCL {
         // -- Import Wcfg
         importWcfg(network);
 
+        // -- Import XDC
+        importXdc();
+
         // -- Set top module
         setTopModule(identifier);
+
+        // -- Launch Synthesis
+        launchSynthesis();
+
         emitter().close();
     }
 
@@ -106,6 +113,12 @@ public interface VivadoTCL {
         emitter().emitNewLine();
     }
 
+    default void importXdc(){
+        emitter().emit("# -- Import XDC Clock constraint");
+        emitter().emit("import_files -fileset constrs_1 -norecurse {@PROJECT_SOURCE_DIR@/code-gen/xdc/clock.xdc}");
+        emitter().emitNewLine();
+    }
+
     default void setTopModule(String identifier){
         emitter().emit("# -- Set top Simulation module ");
         // -- Identifier
@@ -115,5 +128,17 @@ public interface VivadoTCL {
         emitter().emitNewLine();
     }
 
+    default void launchSynthesis(){
+        emitter().emit("# -- Launch synthesis ");
+        emitter().emit("launch_runs synth_1 -jobs 2");
+        emitter().emit("wait_on_run synth_1");
+        emitter().emitNewLine();
+
+        emitter().emit("open_run synth_1 -name synth_1");
+        emitter().emit("report_timing_summary -delay_type min_max -report_unconstrained -check_timing_verbose -max_paths 10 -input_pins -routable_nets -name timing_1 -file timing_summary.rpt ");
+        emitter().emit("report_utilization -name utilization_1 -file report_utilization.rpt");
+        emitter().emitNewLine();
+        emitter().emit("close_design");
+    }
 
 }

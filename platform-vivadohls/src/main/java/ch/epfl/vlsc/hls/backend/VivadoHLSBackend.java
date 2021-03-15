@@ -11,6 +11,7 @@ import ch.epfl.vlsc.hls.backend.kernel.KernelXml;
 import ch.epfl.vlsc.hls.backend.kernel.OutputStageMem;
 import ch.epfl.vlsc.hls.backend.kernel.PackageKernel;
 import ch.epfl.vlsc.hls.backend.kernel.TopKernel;
+import ch.epfl.vlsc.hls.backend.scripts.IdealWeight;
 import ch.epfl.vlsc.hls.backend.scripts.VivadoTCL;
 import ch.epfl.vlsc.hls.backend.simulators.WcfgWaveform;
 import ch.epfl.vlsc.hls.backend.systemc.Simulator;
@@ -406,6 +407,10 @@ public interface VivadoHLSBackend {
     // -- Utils
     default QID taskIdentifier() {
         return task().getIdentifier().getButLast();
+    }
+
+    default IdealWeight idealWeight(){
+        return MultiJ.from(IdealWeight.class).bind("backend").to(this).instance();
     }
 
     /**

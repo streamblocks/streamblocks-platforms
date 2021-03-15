@@ -1,17 +1,17 @@
 package ch.epfl.vlsc.configuration;
 
 import com.google.common.collect.Ordering;
+import se.lth.cs.tycho.compiler.Constants;
 import se.lth.cs.tycho.ir.QID;
+import se.lth.cs.tycho.ir.ToolValueAttribute;
+import se.lth.cs.tycho.ir.expr.ExprLiteral;
 import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Network;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.ir.util.Lists;
 
 import java.text.Collator;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class Configurations {
@@ -103,7 +103,7 @@ public class Configurations {
 
         Map<String, ImmutableList.Builder<String>> instancesBuilder = new HashMap<>();
 
-        for (Configuration.CodeGenerators.CodeGenerator codeGen: configuration.getCodeGenerators().getCodeGenerator()) {
+        for (Configuration.CodeGenerators.CodeGenerator codeGen : configuration.getCodeGenerators().getCodeGenerator()) {
             instancesBuilder.put(codeGen.getId(), ImmutableList.builder());
         }
         for (Configuration.Partitioning.Partition part : configuration.getPartitioning().getPartition()) {
@@ -115,14 +115,42 @@ public class Configurations {
                             .collect(ImmutableList.collector()));
 
 
-
         }
         Map<String, List<String>> instances = new HashMap<>();
-        for (String codeGen: instancesBuilder.keySet()) {
+        for (String codeGen : instancesBuilder.keySet()) {
             instances.put(codeGen, instancesBuilder.get(codeGen).build());
         }
         return instances;
     }
 
+    public static List<Connection> getConnections(Configuration configuration, boolean withSize) {
+
+        List<Connection> connections = new ArrayList<>();
+
+        for (Configuration.Connections.Connection fifoConnection : configuration.getConnections().getConnection()) {
+            String sourceActor = fifoConnection.getSource();
+            String sourcePort = fifoConnection.getSourcePort();
+            String targetActor = fifoConnection.getTarget();
+            String targetPort = fifoConnection.getTargetPort();
+            long size = fifoConnection.getSize();
+
+            // -- Ignore a connection that can not be parsed
+            if (sourceActor == null || sourcePort == null || targetActor == null || targetPort == null) {
+                break;
+            }
+
+            Connection.End sourceEnd = new Connection.End(sourceActor.isEmpty() ? Optional.empty() : Optional.of(sourceActor), sourcePort);
+            Connection.End targetEnd = new Connection.End(targetActor.isEmpty() ? Optional.empty() : Optional.of(targetActor), targetPort);
+
+            Connection connection = new Connection(sourceEnd, targetEnd);
+            if (withSize) {
+                ToolValueAttribute sizeAttribute = new ToolValueAttribute(Constants.BUFFER_SIZE, new ExprLiteral(ExprLiteral.Kind.Integer, String.valueOf(size)));
+                connection = connection.withAttributes(ImmutableList.of(sizeAttribute));
+            }
+            connections.add(connection);
+        }
+
+        return connections;
+    }
 
 }

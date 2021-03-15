@@ -9,6 +9,7 @@ public enum Directives {
     LOOP_MERGE("loop_merge"),
     LOOP_TRIPCOUNT("loop_tripcount"),
     PIPELINE("pipeline"),
+    ARRAY_PARTITION("array_partition"),
     UNROLL("unroll");
 
     private String name;
@@ -23,6 +24,8 @@ public enum Directives {
 
     public static Directives directive(String name) {
         switch (name) {
+            case "array_partition":
+                return ARRAY_PARTITION;
             case "inline":
                 return INLINE;
             case "latency":

@@ -47,5 +47,9 @@ config_compile -name_max_length 512 -no_signed_zeros=0 -pipeline_loops 256 -unsa
 ## -- Run synthesis
 csynth_design
 
+## -- Export Design
+if { ${EXPORT_DESIGN_RTL} } {
+    export_design -flow syn -rtl verilog -format ip_catalog
+}
 exit
 ## EOF

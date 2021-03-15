@@ -85,8 +85,8 @@ static const int defines_in_read[] = {};
 
 // -- Action Description
 static const ActionDescription actionDescriptions[] = {
-        {"startFrame", portRate_0_1_1,  portRate_0, uses_in_startFrame, defines_in_startFrame},
-        {"read",       portRate_64_0_0, portRate_0, uses_in_read, defines_in_read}
+        {"startFrame", "startFrame", portRate_0_1_1,  portRate_0, uses_in_startFrame, defines_in_startFrame},
+        {"read", "read", portRate_64_0_0, portRate_0, uses_in_read, defines_in_read}
 };
 
 
@@ -94,7 +94,7 @@ static const ActionDescription actionDescriptions[] = {
 static const ConditionDescription conditionDescription[] = {};
 
 ActorClass ActorClass_art_Display_yuv_width_height = INIT_ActorClass(
-        "art_Display_yuv_width_height",
+        "ART.art_Display_yuv_width_height",
         ActorInstance_art_Display_yuv_width_height,
         art_Display_yuv_width_height_constructor,
         art_Display_yuv_width_height_setParam,
@@ -144,7 +144,7 @@ ART_ACTION_SCHEDULER(art_Display_yuv_width_height_action_scheduler) {
         if (thisActor->mby >= thisActor->currHeight) {
             if (pinAvailIn_int16_t(IN1_WIDTH) >= 1)
                 if (pinAvailIn_int16_t(IN2_HEIGHT) >= 1) {
-                    ART_ACTION_ENTER(art_Display_yuv_width_height_a0_startFrame, 0);
+                    ART_ACTION_ENTER(startFrame, 0);
                     int32_t lastWidth = thisActor->currWidth;
                     int32_t lastHeight = thisActor->currHeight;
 
@@ -183,7 +183,7 @@ ART_ACTION_SCHEDULER(art_Display_yuv_width_height_action_scheduler) {
                     }
                     thisActor->mby = 0;
                     thisActor->partialFrames++;
-                    ART_ACTION_EXIT(art_Display_yuv_width_height_a0_startFrame, 0);
+                    ART_ACTION_EXIT(startFrame, 0);
                 } else {
                     exitCode = exitcode_block_HEIGHT_1;
                     goto action_scheduler_exit;
@@ -208,9 +208,9 @@ ART_ACTION_SCHEDULER(art_Display_yuv_width_height_action_scheduler) {
                 while (ptr < end) {
                     /*** read action ***/
 
-                    ART_ACTION_ENTER(read, 0);
+                    ART_ACTION_ENTER(read, 1);
                     pinReadRepeat_int32_t(IN0_In, ptr, 64);
-                    ART_ACTION_EXIT(read, 0);
+                    ART_ACTION_EXIT(read, 1);
                     ptr += 64;
                 }
 

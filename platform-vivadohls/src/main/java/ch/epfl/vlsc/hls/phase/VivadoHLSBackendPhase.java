@@ -1,6 +1,7 @@
 package ch.epfl.vlsc.hls.phase;
 
 import ch.epfl.vlsc.hls.backend.VivadoHLSBackend;
+import ch.epfl.vlsc.hls.backend.scripts.IdealWeight;
 import ch.epfl.vlsc.platformutils.ControllerToGraphviz;
 import ch.epfl.vlsc.platformutils.PathUtils;
 import ch.epfl.vlsc.settings.PlatformSettings;
@@ -420,6 +421,8 @@ public class VivadoHLSBackendPhase implements Phase {
                 dot.print();
             }
         }
+        // -- Emit Ideal Weights
+        backend.idealWeight().emitIdealWeights();
     }
 
     /**
@@ -490,6 +493,11 @@ public class VivadoHLSBackendPhase implements Phase {
             // -- Synthesis script for Vivado HLS as an input to CMake
             Files.copy(getClass().getResourceAsStream("/lib/cmake/Synthesis_vitis.tcl.in"),
                     PathUtils.getTargetScripts(backend.context()).resolve("Synthesis_vitis.tcl.in"),
+                    StandardCopyOption.REPLACE_EXISTING);
+
+            // -- XDC Constraint
+            Files.copy(getClass().getResourceAsStream("/lib/cmake/clock.xdc.in"),
+                    PathUtils.getTargetScripts(backend.context()).resolve("clock.xdc.in"),
                     StandardCopyOption.REPLACE_EXISTING);
 
             // -- Gen XO

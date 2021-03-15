@@ -107,14 +107,14 @@ static const int uses_in_actionAtLine_5[] = {};
 static const int defines_in_actionAtLine_5[] = {};
 
 static const ActionDescription actionDescriptions[] = {
-        {"actionAtLine_5", 0, portRate_1, uses_in_actionAtLine_5, defines_in_actionAtLine_5}
+        {"action", "action", 0, portRate_1, uses_in_actionAtLine_5, defines_in_actionAtLine_5}
 };
 
 // -- Condition Description
 static const ConditionDescription conditionDescription[] = {};
 
 ActorClass ActorClass_art_Source_real = INIT_ActorClass(
-        "art_Source_real",
+        "ART.art_Source_real",
         ActorInstance_art_Source,
         constructor,
         setParam,

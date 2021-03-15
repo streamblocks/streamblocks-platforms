@@ -141,7 +141,7 @@ public interface Instances {
 
                 backend().branchingController().waitTargetBitSets(actor).stream().forEach(s -> {
                     State state = stateMap.entrySet().stream().filter(entry -> Objects.equals(entry.getValue(), s)).map(Map.Entry::getKey).findAny().orElse(null);
-                    backend().branchingController().emitStateFunction(instanceName,actor, initialize, stateMap, state);
+                    backend().branchingController().emitStateFunction(instanceName, actor, initialize, stateMap, state);
                 });
             }
 
@@ -213,21 +213,14 @@ public interface Instances {
         // -- Top Directives
         List<Annotation> annotations = entity.getAnnotations();
         for (Annotation ann : annotations) {
-            backend().annotations().emit(ann);
+            backend().annotations().emitTop(ann);
         }
         if (!annotations.isEmpty()) {
             emitter().emitNewLine();
         }
         emitter().increaseIndentation();
 
-        // -- Static call
-        String className = "class_" + instance.getInstanceName();
-        emitter().emit("static %s i_%s;", className, name);
-        emitter().emitNewLine();
-
         List<String> ports = new ArrayList<>();
-
-
         // -- External memories
         ports.addAll(
                 backend().externalMemory()
@@ -235,6 +228,16 @@ public interface Instances {
 
         ports.addAll(entity.getInputPorts().stream().map(PortDecl::getName).collect(Collectors.toList()));
         ports.addAll(entity.getOutputPorts().stream().map(PortDecl::getName).collect(Collectors.toList()));
+
+
+        // -- Static call
+        String className = "class_" + instance.getInstanceName();
+        emitter().emit("static %s i_%s;", className, name);
+        // -- Instance based Directive
+        for (Annotation ann : annotations) {
+            backend().annotations().emitInstance(ann);
+        }
+        emitter().emitNewLine();
 
         if (entity instanceof CalActor) {
             CalActor actor = (CalActor) entity;
@@ -353,16 +356,17 @@ public interface Instances {
         }
         emitter().emit("};");
         emitter().emitNewLine();
-        if(actor instanceof ActorMachine){
+        if (actor instanceof ActorMachine) {
             ActorMachine am = (ActorMachine) actor;
 
-        if (backend().context().getConfiguration().get(PlatformSettings.defaultController) == PlatformSettings.ControllerKind.BC || am.controller().getStateList().size() > MAX_STATES_FOR_QUICK_JUMP_CONTROLLER) {
-            emitter().emit("struct StateReturn {");
-            emitter().emit("\tint program_counter;");
-            emitter().emit("\tint return_code;");
-            emitter().emit("};");
-            emitter().emitNewLine();
-        }}
+            if (backend().context().getConfiguration().get(PlatformSettings.defaultController) == PlatformSettings.ControllerKind.BC || am.controller().getStateList().size() > MAX_STATES_FOR_QUICK_JUMP_CONTROLLER) {
+                emitter().emit("struct StateReturn {");
+                emitter().emit("\tint program_counter;");
+                emitter().emit("\tint return_code;");
+                emitter().emit("};");
+                emitter().emitNewLine();
+            }
+        }
     }
 
     /*
@@ -407,9 +411,9 @@ public interface Instances {
         String className = "class_" + instanceName;
         emitter().emit("class %s {", className);
 
-        // -- Private
+
         if (!actor.getVarDecls().isEmpty()) {
-            emitter().emit("private:");
+            emitter().emit("public:");
             emitter().increaseIndentation();
 
             emitter().emit("states _FSM_state;");
@@ -429,11 +433,11 @@ public interface Instances {
                         } else {
                             String decl = declarations().declaration(types().declaredType(var),
                                     backend().variables().declarationName(var));
-                            emitter().emit("%s;", decl);
+                            emitter().emit("%s%s;", var.isConstant() ? "const " : "", decl);
                         }
                     } else {
                         String decl = declarations().declaration(types().declaredType(var), backend().variables().declarationName(var));
-                        emitter().emit("%s;", decl);
+                        emitter().emit("%s%s;", (var.isConstant() && !(var.getValue() instanceof ExprInput)) ? "const " : "", decl);
                     }
                 }
             }
@@ -474,8 +478,7 @@ public interface Instances {
         String className = "class_" + instanceName;
         emitter().emit("class %s {", className);
 
-        // -- Private
-        emitter().emit("private:");
+        emitter().emit("public:");
         {
             emitter().increaseIndentation();
             for (Scope scope : actor.getScopes()) {
@@ -496,11 +499,11 @@ public interface Instances {
                                 } else {
                                     String decl = declarations().declaration(types().declaredType(var),
                                             backend().variables().declarationName(var));
-                                    emitter().emit("%s;", decl);
+                                    emitter().emit("%s%s;", var.isConstant() ? "const " : "", decl);
                                 }
                             } else {
                                 String decl = declarations().declaration(types().declaredType(var), backend().variables().declarationName(var));
-                                emitter().emit("%s;", decl);
+                                emitter().emit("%s%s;", (var.isConstant() && !(var.getValue() instanceof ExprInput)) ? "const " : "", decl);
                             }
                         }
                     }
@@ -576,50 +579,54 @@ public interface Instances {
     default void instanceConstructor(String instanceName, ActorMachine actor) {
         // -- External memories
 
-        String className = "class_" + instanceName;
-        emitter().emit("%s(){", className);
-        {
-            emitter().increaseIndentation();
-
-            for (Scope scope : actor.getScopes()) {
-                if (!scope.getDeclarations().isEmpty()) {
-                    emitter().emit("// -- Scope %d", actor.getScopes().indexOf(scope));
-                    for (VarDecl var : scope.getDeclarations()) {
-                        if (scope.isPersistent()) {
-                            String decl = backend().variables().declarationName(var);
-                            if (var.getValue() != null && !(var.getValue() instanceof ExprInput)) {
-                                if (var.getValue() instanceof ExprList) {
-                                    emitter().emit("{");
-                                    emitter().increaseIndentation();
-
-                                    backend().statements().copy(types().declaredType(var), backend().variables().declarationName(var), types().type(var.getValue()), expressioneval().evaluate(var.getValue()));
-
-                                    emitter().decreaseIndentation();
-                                    emitter().emit("}");
-                                } else if (var.getValue() instanceof ExprComprehension) {
-                                    emitter().emit("{");
-                                    emitter().increaseIndentation();
-
-                                    Interpreter interpreter = backend().interpreter();
-                                    Environment environment = new Environment();
-                                    Value value = interpreter.eval((ExprComprehension) var.getValue(), environment);
-                                    Expression expression = backend().converter().apply(value);
-
-                                    backend().statements().copy(types().declaredType(var), backend().variables().declarationName(var), types().type(var.getValue()), expressioneval().evaluate(expression));
-
-                                    emitter().decreaseIndentation();
-                                    emitter().emit("}");
-                                } else if (var.getValue() instanceof ExprLambda || var.getValue() instanceof ExprProc) {
-                                    // -- Do nothing
+        List<String> initializations = new ArrayList<>();
+        for (Scope scope : actor.getScopes()) {
+            if (!scope.getDeclarations().isEmpty()) {
+                emitter().emit("// -- Scope %d", actor.getScopes().indexOf(scope));
+                for (VarDecl var : scope.getDeclarations()) {
+                    if (scope.isPersistent()) {
+                        String decl = backend().variables().declarationName(var);
+                        if (var.getValue() != null && !(var.getValue() instanceof ExprInput)) {
+                            if (var.getValue() instanceof ExprLambda || var.getValue() instanceof ExprProc) {
+                                // -- Do nothing
+                            } else {
+                                Interpreter interpreter = backend().interpreter();
+                                Environment environment = new Environment();
+                                Value value = interpreter.eval(var.getValue(), environment);
+                                Expression expression = backend().converter().apply(value);
+                                if (expression instanceof ExprList) {
+                                    initializations.add(String.format("%s%s", decl, backend().expressioneval().evaluateWithoutTemp((ExprList) expression)));
                                 } else {
-                                    emitter().emit("%s = %s;", decl, backend().expressioneval().evaluate(var.getValue()));
+                                    initializations.add(String.format("%s(%s)", decl, backend().expressioneval().evaluate(expression)));
                                 }
                             }
                         }
-
                     }
                 }
             }
+        }
+
+
+        String className = "class_" + instanceName;
+        emitter().emit("%s():", className);
+        emitter().increaseIndentation();
+        emitter().emit("program_counter(%d)%s", backend().quickJumpController().stateMap(actor.controller().getStateList()).get(actor.controller().getInitialState()), initializations.isEmpty() ? "" : ",");
+
+        for (String init : initializations) {
+            if (initializations.indexOf(init) == initializations.size() - 1) {
+                emitter().emit(init);
+            } else {
+                emitter().emit("%s,", init);
+            }
+        }
+
+        emitter().decreaseIndentation();
+
+
+        emitter().emit("{");
+        {
+            emitter().increaseIndentation();
+
 
             // -- Parameters
             Instance instance = backend().instancebox().get();
@@ -643,7 +650,6 @@ public interface Instances {
                         emitter().emit("__consume_%s = 0;", port.getName());
                     }
                 }
-
 
             emitter().decreaseIndentation();
         }
@@ -689,7 +695,11 @@ public interface Instances {
                     } else if (var.getValue() instanceof ExprLambda || var.getValue() instanceof ExprProc) {
                         // -- Do nothing
                     } else {
-                        emitter().emit("%s = %s;", decl, backend().expressioneval().evaluate(var.getValue()));
+                        Interpreter interpreter = backend().interpreter();
+                        Environment environment = new Environment();
+                        Value value = interpreter.eval((ExprComprehension) var.getValue(), environment);
+                        Expression expression = backend().converter().apply(value);
+                        emitter().emit("%s = %s;", decl, backend().expressioneval().evaluate(expression));
                     }
                 }
 
@@ -811,13 +821,13 @@ public interface Instances {
             PlatformSettings.ControllerKind controller = backend().context().getConfiguration().get(PlatformSettings.defaultController);
 
             emitter().increaseIndentation();
-            if(controller == PlatformSettings.ControllerKind.QJ && actor.controller().getStateList().size() < MAX_STATES_FOR_QUICK_JUMP_CONTROLLER) {
+            if (controller == PlatformSettings.ControllerKind.QJ && actor.controller().getStateList().size() < MAX_STATES_FOR_QUICK_JUMP_CONTROLLER) {
                 emitter().emit("int _ret = RETURN_WAIT;");
-            }else{
+            } else {
                 emitter().emit("StateReturn _ret;");
             }
 
-            if(controller == PlatformSettings.ControllerKind.QJ) {
+            if (controller == PlatformSettings.ControllerKind.QJ) {
                 boolean traceEnabled = backend().context().getConfiguration().isDefined(PlatformSettings.enableActionProfile) &&
                         backend().context().getConfiguration().get(PlatformSettings.enableActionProfile);
                 if (traceEnabled) {
@@ -845,9 +855,9 @@ public interface Instances {
             } else {
                 backend().branchingController().emitController(instanceName, actor);
             }
-            if(controller == PlatformSettings.ControllerKind.QJ && actor.controller().getStateList().size() < MAX_STATES_FOR_QUICK_JUMP_CONTROLLER) {
+            if (controller == PlatformSettings.ControllerKind.QJ && actor.controller().getStateList().size() < MAX_STATES_FOR_QUICK_JUMP_CONTROLLER) {
                 emitter().emit("return _ret;");
-            }else{
+            } else {
                 emitter().emit("this->program_counter = _ret.program_counter;");
                 emitter().emit("return _ret.return_code;");
             }
@@ -971,18 +981,9 @@ public interface Instances {
 
     default String evaluateCondition(PortCondition condition) {
         if (condition.isInputCondition()) {
-            if (condition.N() > 1) {
-                return String.format("(pinAvailIn(%s, io) >= %d) && !%1$s.empty()", channelutils().definedInputPort(condition.getPortName()), condition.N());
-            } else {
-                return String.format("!%1$s.empty()", channelutils().definedInputPort(condition.getPortName()), condition.N());
-            }
+            return String.format("pinAvailIn(%s, io) >= %d", channelutils().definedInputPort(condition.getPortName()), condition.N());
         } else {
-            if (condition.N() > 1) {
-                return String.format("(pinAvailOut(%s, io) >= %d) && !%1$s.full()", channelutils().definedOutputPort(condition.getPortName()), condition.N());
-            } else {
-                return String.format("!%1$s.full()", channelutils().definedOutputPort(condition.getPortName()), condition.N());
-            }
-
+            return String.format("pinAvailOut(%s, io) >= %d", channelutils().definedOutputPort(condition.getPortName()), condition.N());
         }
     }
 
@@ -1029,7 +1030,7 @@ public interface Instances {
         // -- Emit transition annotations
         List<Annotation> annotations = transition.getAnnotations();
         for (Annotation ann : annotations) {
-            backend().annotations().emit(ann);
+            backend().annotations().emitTopAction(ann);
         }
         {
             emitter().increaseIndentation();
@@ -1187,7 +1188,7 @@ public interface Instances {
         // -- Emit transition annotations
         List<Annotation> annotations = action.getAnnotations();
         for (Annotation ann : annotations) {
-            backend().annotations().emit(ann);
+            backend().annotations().emitTopAction(ann);
         }
         {
             emitter().increaseIndentation();
@@ -1248,7 +1249,7 @@ public interface Instances {
         // -- Emit transition annotations
         List<Annotation> annotations = action.getAnnotations();
         for (Annotation ann : annotations) {
-            backend().annotations().emit(ann);
+            backend().annotations().emitTopAction(ann);
         }
         {
             emitter().increaseIndentation();

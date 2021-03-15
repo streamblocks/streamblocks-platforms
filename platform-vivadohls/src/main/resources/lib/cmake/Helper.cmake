@@ -4,7 +4,13 @@ message(STATUS "Top network ${__NETWORK_NAME__}")
 # -- CMake Options
 option(USE_VITIS "Build an RTL OpenCL Kernel for Vitis" OFF)
 option(USE_SDACCEL "Build an RTL OpenCL Kernel for SDAccel" OFF)
+option(EXPORT_RTL "Synthesize Each actor generated RTL" OFF)
 
+if(EXPORT_RTL)
+    set(EXPORT_DESIGN_RTL "1")
+else()
+    set(EXPORT_DESIGN_RTL "0")
+endif()
 
 # -- --------------------------------------------------------------------------
 # -- Profile and Debug Options
@@ -106,6 +112,7 @@ else()
 endif()
 
 configure_file(${PROJECT_SOURCE_DIR}/scripts/${__NETWORK_NAME__}.tcl.in ${__NETWORK_NAME__}.tcl @ONLY)
+configure_file(${PROJECT_SOURCE_DIR}/scripts/clock.xdc.in ${PROJECT_SOURCE_DIR}/code-gen/xdc/clock.xdc)
 
 # -- --------------------------------------------------------------------------
 # -- Configure files for Vitis or SDAccel Kernel

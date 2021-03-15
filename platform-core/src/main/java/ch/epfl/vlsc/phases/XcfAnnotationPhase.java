@@ -10,6 +10,7 @@ import se.lth.cs.tycho.ir.QID;
 import se.lth.cs.tycho.ir.ToolAttribute;
 import se.lth.cs.tycho.ir.ToolValueAttribute;
 import se.lth.cs.tycho.ir.expr.ExprLiteral;
+import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.phase.ElaborateNetworkPhase;
@@ -125,8 +126,24 @@ public class XcfAnnotationPhase implements Phase {
                         }
                     }
 
-                    CompilationTask transformedTask =
-                            task.withNetwork(task.getNetwork().withInstances(instanceBuilder.build()));
+                    List<Connection> originalConnections = task.getNetwork().getConnections();
+                    List<Connection> xcfConnections = Configurations.getConnections(configuration, true);
+
+                    boolean containsAllFifo = true;
+
+                    for(Connection oc : originalConnections){
+                        if(!xcfConnections.contains(oc)){
+                           containsAllFifo = false;
+                           break;
+                        }
+                    }
+
+                    CompilationTask transformedTask = null;
+                    if(containsAllFifo){
+                        transformedTask = task.withNetwork(task.getNetwork().withInstances(instanceBuilder.build()).withConnections(xcfConnections));
+                    }else{
+                        transformedTask = task.withNetwork(task.getNetwork().withInstances(instanceBuilder.build()));
+                    }
 
                     // -- make sure all instances are kept
                     allInstancesKept(task, transformedTask);
@@ -150,6 +167,14 @@ public class XcfAnnotationPhase implements Phase {
         }
 
         return task;
+    }
+
+    private static <T> boolean listEqualsIgnoreOrder(List<T> list1, List<T> list2) {
+        if (list1 == null)
+            return list2==null;
+        if (list2 == null)
+            return list1 == null;
+        return new HashSet<>(list1).equals(new HashSet<>(list2));
     }
 
     @Override

@@ -299,13 +299,13 @@ public class MultiCoreBackendPhase implements Phase {
 
         Configuration.Connections xcfConnections = new Configuration.Connections();
         for (Connection connection : task.getNetwork().getConnections()) {
-            Configuration.Connections.FifoConnection fifoConnection = new Configuration.Connections.FifoConnection();
+            Configuration.Connections.Connection fifoConnection = new Configuration.Connections.Connection();
             fifoConnection.setSize(4096);
             fifoConnection.setSource(connection.getSource().getInstance().get());
             fifoConnection.setSourcePort(connection.getSource().getPort());
             fifoConnection.setTarget(connection.getTarget().getInstance().get());
             fifoConnection.setTargetPort(connection.getTarget().getPort());
-            xcfConnections.getFifoConnection().add(fifoConnection);
+            xcfConnections.getConnection().add(fifoConnection);
         }
         xcf.setConnections(xcfConnections);
 

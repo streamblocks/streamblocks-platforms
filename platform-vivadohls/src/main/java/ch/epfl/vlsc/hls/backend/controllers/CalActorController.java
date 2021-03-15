@@ -104,6 +104,7 @@ public interface CalActorController {
     default void emitStateFunction(String instanceName, CalActor actor, Schedule schedule, Priorities priorities, String state) {
         emitter().emit("%s{", stateFunctionPrototype(instanceName, true, state));
         emitter().emit("#pragma HLS INLINE off");
+        emitter().emit("#pragma HLS INTERFACE ap_hs port=io");
         emitter().increaseIndentation();
 
         emitter().emit("StateReturn _ret;");

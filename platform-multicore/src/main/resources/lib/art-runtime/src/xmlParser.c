@@ -46,7 +46,7 @@
 
 
 #define CONFIGURATION                       (const xmlChar*)"configuration"
-#define CONNECTION                          (const xmlChar*)"fifo-connection"
+#define CONNECTION                          (const xmlChar*)"connection"
 #define DST                                 (const xmlChar*)"target"
 #define DST_PORT                            (const xmlChar*)"target-port"
 #define SRC                                 (const xmlChar*)"source"
@@ -58,7 +58,7 @@
 #define SCHEDULING_TYPE                     (const xmlChar*)"scheduling"
 
 
-void parseParttioning(xmlNode *node);
+void parsePartitioning(xmlNode *node);
 
 void parseConnections(xmlNode *node);
 
@@ -74,7 +74,7 @@ typedef struct _tagID {
 } TagID;
 
 TagID configTag[] = {
-        {"partitioning", parseParttioning},
+        {"partitioning", parsePartitioning},
         {"connections", parseConnections},
         {0}
 };
@@ -85,7 +85,7 @@ TagID partitioningTag[] = {
 };
 
 TagID connectionsTag[] = {
-        {"fifo-connection", parseConnection},
+        {"connection", parseConnection},
         {0}
 };
 
@@ -183,7 +183,7 @@ void parsePartition(xmlNode *node) {
     xmlFree(id);
 }
 
-void parseParttioning(xmlNode *node) {
+void parsePartitioning(xmlNode *node) {
     numPartitions = 0;
     parseNode(node, partitioningTag);
 }

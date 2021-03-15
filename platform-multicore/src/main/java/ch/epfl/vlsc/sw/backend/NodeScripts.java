@@ -81,11 +81,11 @@ public interface NodeScripts {
         // -- New instance
         for (Instance instance : network.getInstances()) {
             GlobalEntityDecl entityDecl = globalnames().entityDecl(instance.getEntityName(), true);
-            String actorClass = instanceActorClasses.get(instance);
+            String actorClass = instance.getEntityName().toString();
             String joinQID = instanceQIDs.get(instance);
             String parameters = "";
             for (ValueParameter p : instance.getValueParameters()) {
-                String value = String.format("%s=\"%s\"", p.getName(), evaluator().evaluate(p.getValue()));
+                String value = String.format("%s=\"%s\"", p.getName(), evaluator().evaluate(p.getValue()).replaceAll("^[\"']+|[\"']+$", ""));
                 parameters += value + " ";
             }
 
@@ -184,7 +184,7 @@ public interface NodeScripts {
         // -- New instance
         for (Instance instance : network.getInstances()) {
             GlobalEntityDecl entityDecl = globalnames().entityDecl(instance.getEntityName(), true);
-            String actorClass = instanceActorClasses.get(instance);
+            String actorClass = instance.getEntityName().toString();
             String joinQID = instanceQIDs.get(instance);
             List<String> parameters = new ArrayList<>();
 
@@ -192,13 +192,13 @@ public interface NodeScripts {
             //parameters.add(actorClass);
 
             for (ValueParameter p : instance.getValueParameters()) {
-                String value = String.format("%s=\"%s\"", p.getName(), evaluator().evaluate(p.getValue()));
+                String value = String.format("%s=\"%s\"", p.getName(), evaluator().evaluate(p.getValue()).replaceAll("^[\"']+|[\"']+$", ""));
                 parameters.add(value);
             }
 
             String arguments = String.join(", ", parameters);
 
-            emitter().emit("%s = n.new(\"%s\"%s)", joinQID,actorClass, arguments.isEmpty() ? "" : ", " + arguments);
+            emitter().emit("%s = n.new(\"%s\", \"%s\"%s)", joinQID, actorClass, joinQID, arguments.isEmpty() ? "" : ", " + arguments);
         }
         emitter().emitNewLine();
 
