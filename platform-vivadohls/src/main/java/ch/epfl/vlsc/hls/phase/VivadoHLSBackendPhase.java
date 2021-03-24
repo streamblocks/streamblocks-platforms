@@ -523,6 +523,9 @@ public class VivadoHLSBackendPhase implements Phase {
                 Files.copy(getClass().getResourceAsStream("/lib/systemc/trigger.h"),
                         PathUtils.getTarget(backend.context()).resolve("systemc/include/trigger.h"),
                         StandardCopyOption.REPLACE_EXISTING);
+                Files.copy(getClass().getResourceAsStream("/lib/systemc/trigger.cpp"),
+                        PathUtils.getTarget(backend.context()).resolve("systemc/src/trigger.cpp"),
+                        StandardCopyOption.REPLACE_EXISTING);
                 Files.copy(getClass().getResourceAsStream("/lib/systemc/simulation-iostage.h"),
                         PathUtils.getTarget(backend.context()).resolve("systemc/include/simulation-iostage.h"),
                         StandardCopyOption.REPLACE_EXISTING);
@@ -531,6 +534,9 @@ public class VivadoHLSBackendPhase implements Phase {
                         StandardCopyOption.REPLACE_EXISTING);
                 Files.copy(getClass().getResourceAsStream("/lib/systemc/debug_macros.h"),
                         PathUtils.getTarget(backend.context()).resolve("systemc/include/debug_macros.h"),
+                        StandardCopyOption.REPLACE_EXISTING);
+                Files.copy(getClass().getResourceAsStream("/lib/systemc/common.h"),
+                        PathUtils.getTarget(backend.context()).resolve("systemc/include/common.h"),
                         StandardCopyOption.REPLACE_EXISTING);
                 Files.copy(getClass().getResourceAsStream("/lib/systemc/CMakeLists.txt"),
                         PathUtils.getTarget(backend.context()).resolve("systemc/CMakeLists.txt"),

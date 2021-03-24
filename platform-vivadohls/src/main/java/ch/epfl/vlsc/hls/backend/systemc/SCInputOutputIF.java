@@ -8,4 +8,7 @@ public interface SCInputOutputIF extends SCInstanceIF {
     default String getOriginalName() { return getName(); }
     String getType();
     String getUnderlyingType();
+
+    @Override
+    default Boolean getPipelined() { return false; }
 }

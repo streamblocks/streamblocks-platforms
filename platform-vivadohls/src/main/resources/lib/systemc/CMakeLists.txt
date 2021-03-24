@@ -62,20 +62,15 @@ macro(verilate_actor ACTOR)
   endif()
 
 
-  # -- Phony target. A hack to get around the fact that we do not know what files verilator is gonna generate
-  add_custom_target(
-    ${ACTOR}_verimodule_phony
-    DEPENDS ${ACTOR}
-    COMMENT "Phony Verilating ${ACTOR} "
-  )
+  foreach(__VLTD_SOURCE__ ${${ACTOR}_VERILATED_SOURCES})
+    if (NOT EXISTS "${__VLTD_SOURCE__}")
+      message(STATUS "Touching ${__VLTD_SOURCE__}")
+      file(TOUCH ${__VLTD_SOURCE__})
+    endif()
+  endforeach()
 
-  add_custom_command(
-    TARGET ${ACTOR}_verimodule_phony PRE_BUILD
-    COMMAND touch ${${ACTOR}_VERILATED_SOURCES} ${ACTOR}_phony_file.phony
-    DEPENDS ${ACTOR}
-  )
-
-  # -- Real targets
+  # file(TOUCH ${${ACTOR}_VERILATED_SOURCES})
+  # -- targets
   add_custom_command(
     OUTPUT ${${ACTOR}_VERILATED_SOURCES} ${${ACTOR}_VERILATED_HEADERS}
     COMMAND ${VERILATOR_BIN}
@@ -84,14 +79,14 @@ macro(verilate_actor ACTOR)
       --prefix ${ACTOR}_verimodule
       -y ${VERILOG_GEN_DIR}/${ACTOR}/solution/syn/verilog
       ${${ACTOR}_VERILOG_SOURCE} 2> ${ACTOR}_verimodule.log
-    DEPENDS ${ACTOR} ${ACTOR}_verimodule_phony
+    DEPENDS ${ACTOR}
     COMMENT "Verilating ${ACTOR}"
     VERBATIM
   )
 
   add_custom_target(
     ${ACTOR}_verimodule ALL
-    DEPENDS ${${ACTOR}_VERILATED_SOURCES} ${${ACTOR}_VERILATED_HEADERS} ${ACTOR}_verimodule_phony
+    DEPENDS ${${ACTOR}_VERILATED_SOURCES} ${${ACTOR}_VERILATED_HEADERS}
   )
 
 
@@ -162,7 +157,7 @@ set(ART_SYSTEMC_HEADERS
 )
 
 
-add_library(art-systemc STATIC ${ALL_VERILATED_SOURCES})
+add_library(art-systemc STATIC ${ALL_VERILATED_SOURCES} src/trigger.cpp)
 
 
 target_include_directories(art-systemc PUBLIC ${ART_SYSTEMC_HEADERS})

@@ -397,7 +397,7 @@ public interface SystemCTestBench {
             emitter().emit("if (trace_level > 1) {");
             {
                 emitter().increaseIndentation();
-                network.getQueues().stream().forEach(queue -> {
+                network.getQueues().forEach(queue -> {
                     String queueName = queue.getName();
                     queue.stream().forEach(port -> {
                         emitter().emit("sc_trace(vcd_dump, inst_%s->%s->%s, \"%1$s.%2$s.%3$s\");",
@@ -418,17 +418,10 @@ public interface SystemCTestBench {
             emitter().emit("if (trace_level > 2) {");
             {
                 emitter().increaseIndentation();
-                network.getAllTriggers().stream().forEach(trigger -> {
+                network.getAllTriggers().forEach(trigger -> {
                     String triggerName = trigger.getName();
-                    trigger.stream().forEach(port -> {
-                        emitter().emit("sc_trace(vcd_dump, inst_%s->%s->%s, \"%1$s.%2$s.%3$s\");", network.getIdentifier(),
-                                triggerName, port.getName());
-                    });
-                    emitter().emit("sc_trace(vcd_dump, inst_%s->%s->state, \"%1$s.%2$s.state\");",
-                            network.getIdentifier(), triggerName);
-                    emitter().emit("sc_trace(vcd_dump, inst_%s->%s->next_state, \"%1$s.%2$s.next_state\");",
-                            network.getIdentifier(),
-                            triggerName);
+                    emitter().emit("inst_%s->%s->enableTrace(vcd_dump);", network.getIdentifier(), triggerName);
+
                 });
                 emitter().decreaseIndentation();
             }

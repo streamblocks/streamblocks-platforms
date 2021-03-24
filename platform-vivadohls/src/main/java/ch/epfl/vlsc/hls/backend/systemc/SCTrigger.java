@@ -15,11 +15,11 @@ public class SCTrigger implements SCIF {
     private final SCNetwork.SyncIF globalSync;
 
     private final PortIF sleep;
+    private final PortIF syncSleep;
 
-    private final PortIF syncExec;
-    private final PortIF syncWait;
     private final PortIF waited;
-    private final PortIF allWaited;
+
+
 
     private final PortIF actorReturn;
     private final PortIF actorDone;
@@ -29,6 +29,7 @@ public class SCTrigger implements SCIF {
 
     private final int numActions;
 
+    private final Boolean pipelined;
     public SCTrigger(SCInstanceIF instance, SCNetwork.SyncIF globalSync, PortIF start) {
 
         this.apControl = new APControl(instance.getInstanceName() + "_trigger_").withStart(start);
@@ -36,31 +37,23 @@ public class SCTrigger implements SCIF {
         String namePrefix = instance.getInstanceName() + "_";
         this.name = namePrefix + "trigger";
         this.actorName = instance.getOriginalName();
+        this.pipelined = instance.getPipelined();
         this.sleep =
                 PortIF.of(
                         "sleep",
                         Signal.of(namePrefix + "sleep", new LogicValue()),
                         Optional.of(PortIF.Kind.OUTPUT));
-        this.syncExec =
+        this.syncSleep =
                 PortIF.of(
-                        "sync_exec",
-                        Signal.of(namePrefix + "sync_exec", new LogicValue()),
-                        Optional.of(PortIF.Kind.OUTPUT));
-        this.syncWait =
-                PortIF.of(
-                        "sync_wait",
-                        Signal.of(namePrefix + "sync_wait", new LogicValue()),
+                        "sync_sleep",
+                        Signal.of(namePrefix + "sync_sleep", new LogicValue()),
                         Optional.of(PortIF.Kind.OUTPUT));
         this.waited =
                 PortIF.of(
                         "waited",
                         Signal.of(namePrefix + "waited", new LogicValue()),
                         Optional.of(PortIF.Kind.OUTPUT));
-        this.allWaited =
-                PortIF.of(
-                        "all_waited",
-                        Signal.of(namePrefix + "all_waited", new LogicValue()),
-                        Optional.of(PortIF.Kind.INPUT));
+
         this.actorDone =
                 PortIF.of(
                         "actor_done",
@@ -90,21 +83,12 @@ public class SCTrigger implements SCIF {
 
     }
 
-    public PortIF getSyncExec() {
-        return syncExec;
-    }
-
-    public PortIF getSyncWait() {
-        return syncWait;
-    }
 
     public PortIF getWaited() {
         return waited;
     }
 
-    public PortIF getAllWaited() {
-        return allWaited;
-    }
+
 
     public PortIF getActorReturn() {
         return actorReturn;
@@ -129,6 +113,7 @@ public class SCTrigger implements SCIF {
     public PortIF getSleep() {
         return sleep;
     }
+    public PortIF getSyncSleep() { return syncSleep; }
 
     public APControl getApControl() {
         return apControl;
@@ -166,11 +151,8 @@ public class SCTrigger implements SCIF {
 
     public Stream<PortIF> streamUniqueSync() {
         return Stream.of(
-                sleep,
-                syncExec,
-                syncWait,
-                waited,
-                allWaited);
+                sleep, syncSleep,
+                waited);
     }
 
     public Stream<PortIF> streamUniqueAP() {
@@ -183,5 +165,12 @@ public class SCTrigger implements SCIF {
 
     public String getName() {
         return name;
+    }
+
+    public String getTriggerClass() {
+        return "streamblocks_rtl::" + (pipelined ? "PipelinedTrigger" : "Trigger");
+    }
+    public Boolean getPipelined() {
+        return pipelined;
     }
 }

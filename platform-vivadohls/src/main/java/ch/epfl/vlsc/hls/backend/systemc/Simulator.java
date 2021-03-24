@@ -169,7 +169,7 @@ public interface Simulator {
                                 port.getName());
                         emitter().emit("auto consumption = distance(old_tail, new_tail, buffer_%s.alloc_size);",
                                 port.getName());
-                        emitter().emit("STATUS_REPORT(\"%s consumed %%lu tokens\\n\", consumption);", port.getName());
+                        emitter().emit("STATUS_REPORT(\"%s consumed %%u tokens\\n\", consumption);", port.getName());
 
                         emitter().emit("buffer_%s.tail = new_tail;",
                                 port.getName());
@@ -189,7 +189,7 @@ public interface Simulator {
                                 port.getName());
                         emitter().emit("auto production = distance(old_head, new_head, buffer_%s.alloc_size);",
                                 port.getName());
-                        emitter().emit("STATUS_REPORT(\"%s produced %%lu tokens\\n\", production);", port.getName());
+                        emitter().emit("STATUS_REPORT(\"%s produced %%u tokens\\n\", production);", port.getName());
                         emitter().emit("buffer_%s.head = new_head;", port.getName());
                         emitter().emit("should_retry |= (reader_%s.update(&buffer_%1$s) " +
                                 "== buffer_%1$s.alloc_size - 1);", port.getName());
@@ -224,7 +224,7 @@ public interface Simulator {
         emitter().emit("auto total_time = std::chrono::duration_cast<std::chrono::milliseconds>(finish_time - start_time);");
         emitter().emit("STATUS_REPORT(\"simulation finished after %%lu ticks and %%3.6f milliseconds\\n\", " +
                 "total_ticks, total_time.count() / 1e3);");
-
+        emitter().emit("return 0;");
     }
 
     default void getProfileDump() {

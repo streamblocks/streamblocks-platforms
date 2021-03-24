@@ -1,6 +1,7 @@
 package ch.epfl.vlsc.hls.backend.systemc;
 
 import ch.epfl.vlsc.hls.backend.VivadoHLSBackend;
+import ch.epfl.vlsc.hls.backend.directives.Directives;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.PathUtils;
 
@@ -27,7 +28,6 @@ import se.lth.cs.tycho.reporting.CompilationException;
 import se.lth.cs.tycho.reporting.Diagnostic;
 import se.lth.cs.tycho.type.ListType;
 import se.lth.cs.tycho.type.Type;
-
 
 
 import java.util.HashMap;
@@ -185,13 +185,15 @@ public interface SystemCNetwork {
                 } else {
                     throw new CompilationException(
                             new Diagnostic(Diagnostic.Kind.ERROR, String.format("" +
-                                    "ActionId annotation missing for actor %s ",
+                                            "ActionId annotation missing for actor %s ",
                                     instance.getEntityName().toString())));
 
                 }
             });
-
-            SCInstance newInst = new SCInstance(name, readers.build(), writers.build(), actionIds);
+            Boolean pipelined =
+                    entity.getAnnotations().stream().anyMatch(annon ->
+                            Directives.directive(annon.getName()) == Directives.PIPELINE);
+            SCInstance newInst = new SCInstance(name, readers.build(), writers.build(), actionIds, pipelined);
             instances().put(instance, newInst);
             return newInst;
         } else {
@@ -333,9 +335,11 @@ public interface SystemCNetwork {
 
             // -- get process methods
 
-            getSyncSignals(scNetwork);
-            getAllWaitedSignals(scNetwork);
-            getGlobalSyncSignals(scNetwork);
+
+            getAllWaitedSignalSetter(scNetwork);
+            getAllSleepSignalSetter(scNetwork);
+            getAllSyncSleepSignalSetter(scNetwork);
+
             getAmIdle(scNetwork);
             getApIdle(scNetwork);
 
@@ -429,6 +433,7 @@ public interface SystemCNetwork {
         queue.streamUnique().map(PortIF::getSignal).forEach(this::declareSignal);
 
     }
+
     default void getTriggerSignals(SCTrigger trigger) {
 
         emitter().emit("// -- Signals for trigger %s", trigger.getName());
@@ -483,7 +488,7 @@ public interface SystemCNetwork {
     }
 
     default void defineTriggerObject(SCTrigger trigger) {
-        emitter().emit("std::unique_ptr<Trigger> %s;", trigger.getName());
+        emitter().emit("std::unique_ptr<%s> %s;", trigger.getTriggerClass(), trigger.getName());
     }
 
     default void getConstructor(SCNetwork network) {
@@ -503,7 +508,7 @@ public interface SystemCNetwork {
                 //-- construct instances
                 emitter().emit("// -- set names for the ports (useful for debug)");
                 List<PortIF> ports = network.stream().collect(Collectors.toList());
-                for (PortIF port: ports) {
+                for (PortIF port : ports) {
                     boolean last = ports.indexOf(port) == ports.size() - 1;
                     emitter().emit("%s(\"%1$s\")%s", port.getSignal().getName(), last ? "{" : ",");
                 }
@@ -522,7 +527,7 @@ public interface SystemCNetwork {
             emitter().emit("// -- output stage constructors");
             network.getOutputStages().forEach(this::constructInstance);
             emitter().emitNewLine();
-;
+            ;
 
             // -- triggers
             emitter().emit("// -- instance trigger constructors");
@@ -579,30 +584,28 @@ public interface SystemCNetwork {
 
 
             // -- Register methods
-            List<Signal> syncExecs = network.getAllTriggers().stream().map(SCTrigger::getSyncExec).map(PortIF::getSignal).collect(Collectors.toList());
-            List<Signal> syncWaits = network.getAllTriggers().stream().map(SCTrigger::getSyncWait).map(PortIF::getSignal).collect(Collectors.toList());
+
             List<Signal> waited = network.getAllTriggers().stream().map(SCTrigger::getWaited).map(PortIF::getSignal).collect(Collectors.toList());
             List<Signal> sleeps = network.getAllTriggers().stream().map(SCTrigger::getSleep).map(PortIF::getSignal).collect(Collectors.toList());
-            // -- Method to set the sync signals for each instance
-            emitter().emit("SC_METHOD(setSyncSignals);");
-            emitter().emit("sensitive << %s;", String.join(" << ",
-                    Stream.concat(syncExecs.stream(), syncWaits.stream()).map(Signal::getName).collect(Collectors.toList())));
+            List<Signal> syncSleeps = network.getAllTriggers().stream().map(SCTrigger::getSyncSleep).map(PortIF::getSignal).collect(Collectors.toList());
             emitter().emitNewLine();
             // -- Method to set the waited signals for each instance trigger
-            emitter().emit("SC_METHOD(setAllWaitedSignals);");
-            emitter().emit("sensitive << %s;", String.join(" << ",
-                    waited.stream().map(Signal::getName).collect(Collectors.toList())));
+            emitter().emit("SC_METHOD(setAllWaited);");
+            emitter().emit("sensitive << %s;", waited.stream()
+                    .map(Signal::getName).collect(Collectors.joining(" << ")));
             emitter().emitNewLine();
-            // -- Method to set the sleep signals
-            emitter().emit("SC_METHOD(setGlobalSyncSignals);");
-            emitter().emit("sensitive << %s;", String.join(" << ",
-                    Stream.concat(
-                            sleeps.stream(),
-                            Stream.concat(
-                                    syncWaits.stream(),
-                                    network.getAllSyncSignals().stream()))
-                            .map(Signal::getName).collect(Collectors.toList())));
 
+            // -- Method to set the sleep signals
+            emitter().emit("SC_METHOD(setAllSleep);");
+            emitter().emit("sensitive << %s;", sleeps.stream().map(Signal::getName).collect(
+                    Collectors.joining(" << ")));
+            emitter().emitNewLine();
+
+            // -- Method to set the sleep signals
+            emitter().emit("SC_METHOD(setAllSyncSleep);");
+            emitter().emit("sensitive << %s;", syncSleeps.stream().map(Signal::getName).collect(
+                    Collectors.joining(" << ")));
+            emitter().emitNewLine();
 
             // -- Method to set the internal idle reg
             emitter().emit("SC_METHOD(setAmIdle);");
@@ -631,14 +634,17 @@ public interface SystemCNetwork {
     default void constructInstance(SCInstanceIF instance) {
         emitter().emit("%s = std::make_unique<%s>(\"%1$s\");", instance.getInstanceName(), instance.getName());
     }
+
     default void constructTrigger(SCTrigger trigger) {
-        emitter().emit("%s = std::make_unique<Trigger>(\"%1$s\", \"%s\");", trigger.getName(),
+
+        String triggerClass = trigger.getTriggerClass();
+        emitter().emit("%s = std::make_unique<%s>(\"%1$s\", \"%s\");", trigger.getName(), triggerClass,
                 trigger.getActorName());
     }
 
     default void registerActions(SCInstance instance, SCTrigger trigger) {
         if (backend().context().getConfiguration().get(PlatformSettings.enableActionProfile))
-            instance.getActionsIds().forEach( id -> {
+            instance.getActionsIds().forEach(id -> {
                 int ix = instance.getActionsIds().indexOf(id);
                 emitter().emit("%s->registerAction(%d, \"%s\");", trigger.getName(), ix, id);
             });
@@ -673,18 +679,20 @@ public interface SystemCNetwork {
                         port.getSignal().getName()));
         emitter().emitNewLine();
     }
-    default void getSyncSignals(SCNetwork network) {
 
-        emitter().emit("void setSyncSignals() {");
+
+    default void getAllWaitedSignalSetter(SCNetwork network) {
+
+        emitter().emit("void setAllWaited() {");
         {
             emitter().increaseIndentation();
-            network.getAllTriggers().stream().forEach(trigger -> {
-                emitter().emit("// -- sync assignment for %s", trigger.getName());
-                Signal syncExec = trigger.getSyncExec().getSignal();
-                Signal syncWait = trigger.getSyncWait().getSignal();
-                Signal sync = network.getSyncSignal(trigger);
-                emitter().emit("%s = %s | %s;", sync.getName(), syncExec.getName(), syncWait.getName());
-            });
+            // -- all waited
+            emitter().emit("%s = %s;", network.getGlobalSync().getAllWaited().getSignal().getName(),
+                    network.getAllTriggers().stream()
+                            .map(SCTrigger::getWaited)
+                            .map(PortIF::getSignal)
+                            .map(Signal::getName)
+                            .collect(Collectors.joining(" & ")));
             emitter().emitNewLine();
 
             emitter().decreaseIndentation();
@@ -693,69 +701,39 @@ public interface SystemCNetwork {
         emitter().emitNewLine();
     }
 
-    default void getAllWaitedSignals(SCNetwork network) {
+    default void getAllSleepSignalSetter(SCNetwork network) {
 
-        emitter().emit("void setAllWaitedSignals() {");
-        {
-            emitter().increaseIndentation();
-            network.getAllTriggers().stream().forEach(trigger -> {
-                Signal allWaited = trigger.getAllWaited().getSignal();
-                List<String> othersWaited = network.getAllTriggers().stream()
-                        .filter(t -> !t.equals(trigger))
-                        .map(SCTrigger::getWaited)
-                        .map(PortIF::getSignal)
-                        .map(Signal::getName)
-                        .collect(Collectors.toList());
-                if (othersWaited.size() > 0)
-                    emitter().emit("%s = %s;", allWaited.getName(), String.join(" & ", othersWaited));
-                else
-                    emitter().emit("%s = %s;", allWaited.getName(), LogicValue.Value.SC_LOGIC_1);
-            });
-
-            emitter().decreaseIndentation();
-        }
-        emitter().emit("}");
-        emitter().emitNewLine();
-    }
-
-    default void getGlobalSyncSignals(SCNetwork network) {
-
-        emitter().emit("void setGlobalSyncSignals() {");
+        emitter().emit("void setAllSleep() {");
         {
             emitter().increaseIndentation();
 
-            // -- external enqueue
-            emitter().emit("%s = %s;",
-                    network.getGlobalSync().getExternalEnqueue().getSignal().getName(), LogicValue.Value.SC_LOGIC_0);
-            emitter().emitNewLine();
 
             // -- all sleep
             emitter().emit("%s = %s;", network.getGlobalSync().getAllSleep().getSignal().getName(),
-                    String.join(" & ",
-                            network.getAllTriggers().stream()
-                                    .map(SCTrigger::getSleep)
-                                    .map(PortIF::getSignal)
-                                    .map(Signal::getName)
-                                    .collect(Collectors.toList())));
+                    network.getAllTriggers().stream()
+                            .map(SCTrigger::getSleep)
+                            .map(PortIF::getSignal)
+                            .map(Signal::getName)
+                            .collect(Collectors.joining(" & ")));
             emitter().emitNewLine();
-            // -- all sync wait
-            emitter().emit("%s = %s;",
-                    network.getGlobalSync().getAllSyncWait().getSignal().getName(),
-                    String.join(" & ",
-                            network.getAllTriggers().stream()
-                                    .map(SCTrigger::getSyncWait)
-                                    .map(PortIF::getSignal)
-                                    .map(Signal::getName)
-                                    .collect(Collectors.toList())));
-            emitter().emitNewLine();
-            // -- all sync
-            emitter().emit("%s = %s;",
-                    network.getGlobalSync().getAllSync().getSignal().getName(),
-                    String.join(" & ",
-                            network.getAllSyncSignals().stream()
-                                    .map(Signal::getName)
-                                    .collect(Collectors.toList())));
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("}");
+    }
+    default void getAllSyncSleepSignalSetter(SCNetwork network) {
 
+        emitter().emit("void setAllSyncSleep() {");
+        {
+            emitter().increaseIndentation();
+
+            // -- all sync sleep
+            emitter().emit("%s = %s;", network.getGlobalSync().getAllSyncSleep().getSignal().getName(),
+                    network.getAllTriggers().stream()
+                            .map(SCTrigger::getSyncSleep)
+                            .map(PortIF::getSignal)
+                            .map(Signal::getName)
+                            .collect(Collectors.joining(" & ")));
+            emitter().emitNewLine();
             emitter().decreaseIndentation();
         }
         emitter().emit("}");

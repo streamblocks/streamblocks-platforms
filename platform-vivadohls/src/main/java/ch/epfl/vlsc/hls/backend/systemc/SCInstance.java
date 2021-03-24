@@ -63,14 +63,16 @@ public class SCInstance implements SCInstanceIF {
     private final String originalName;
 
     private final ImmutableList<String> actionsIds;
-
-    public SCInstance(String name, ImmutableList<InputIF> readers, ImmutableList<OutputIF> writers, ImmutableList<String> actionIds) {
+    private final Boolean pipelined;
+    public SCInstance(String name, ImmutableList<InputIF> readers, ImmutableList<OutputIF> writers, ImmutableList<String> actionIds, Boolean pipelined) {
         this.originalName = name;
-        this.name = this.makeName(name);
+        this.name = SCInstance.makeName(name);
         this.instanceName = "inst_" + name;
         this.apControl = new APControl(this.instanceName + "_");
         this.readers = readers;
         this.writers = writers;
+        this.pipelined = pipelined;
+
         this.ret = PortIF.of(
                 "ap_return",
                 Signal.of(name + "_ap_return", new LogicVector(32)),
@@ -129,4 +131,9 @@ public class SCInstance implements SCInstanceIF {
     public ImmutableList<String> getActionsIds() { return actionsIds; }
 
     public String getOriginalName() { return this.originalName; }
+
+    @Override
+    public Boolean getPipelined() {
+        return pipelined;
+    }
 }
