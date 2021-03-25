@@ -157,7 +157,7 @@ set(ART_SYSTEMC_HEADERS
 )
 
 
-add_library(art-systemc STATIC ${ALL_VERILATED_SOURCES} src/trigger.cpp)
+add_library(art-systemc STATIC ${ALL_VERILATED_SOURCES} src/trigger.cpp src/profiler.cpp)
 
 
 target_include_directories(art-systemc PUBLIC ${ART_SYSTEMC_HEADERS})

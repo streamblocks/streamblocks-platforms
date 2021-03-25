@@ -288,8 +288,13 @@ void PipelinedTrigger::setNextState() {
       // ASSERT(first_invocation.read() == false,
       //        "Unexpected actor_done pulse in %s!\n", this->name());
       if (return_code == ReturnStatus::WAIT && all_waited.read() == true) {
-        next_state.write(State::FLUSH);
+
         next_outstanding.write(outstanding_invocations.read() - 1);
+        if (outstanding_invocations.read() == 1) {
+          next_state.write(State::SLEEP);
+        } else {
+          next_state.write(State::FLUSH);
+        }
       } else {
         next_state.write(State::LAUNCH);
 
@@ -360,13 +365,6 @@ void PipelinedTrigger::setNextState() {
     break;
 
   case State::SYNC_LAUNCH:
-    next_state.write(State::SYNC_FLUSH);
-    ASSERT(actor_done.read() == false,
-           "Premature pipelined termination in %s, are you sure the actor is "
-           "pipelined?\n",
-           this->name());
-    next_outstanding.write(1);
-    break;
   case State::SYNC_FLUSH:
     if (actor_done.read() == true) {
       tagged_clock.return_code = return_code;

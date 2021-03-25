@@ -526,6 +526,12 @@ public class VivadoHLSBackendPhase implements Phase {
                 Files.copy(getClass().getResourceAsStream("/lib/systemc/trigger.cpp"),
                         PathUtils.getTarget(backend.context()).resolve("systemc/src/trigger.cpp"),
                         StandardCopyOption.REPLACE_EXISTING);
+                Files.copy(getClass().getResourceAsStream("/lib/systemc/profiler.cpp"),
+                        PathUtils.getTarget(backend.context()).resolve("systemc/src/profiler.cpp"),
+                        StandardCopyOption.REPLACE_EXISTING);
+                Files.copy(getClass().getResourceAsStream("/lib/systemc/profiler.h"),
+                        PathUtils.getTarget(backend.context()).resolve("systemc/include/profiler.h"),
+                        StandardCopyOption.REPLACE_EXISTING);
                 Files.copy(getClass().getResourceAsStream("/lib/systemc/simulation-iostage.h"),
                         PathUtils.getTarget(backend.context()).resolve("systemc/include/simulation-iostage.h"),
                         StandardCopyOption.REPLACE_EXISTING);
