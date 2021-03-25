@@ -498,7 +498,7 @@ public interface SystemCNetwork {
         emitter().emit("SC_HAS_PROCESS(%s);", network.getIdentifier());
         emitter().emit("// -- constructor");
 
-        emitter().emit("%s(sc_module_name name, unsigned int queue_capacity=512):", network.getIdentifier());
+        emitter().emit("%s(sc_module_name name, bool enable_profiler=false, unsigned int queue_capacity=512):", network.getIdentifier());
         {
             emitter().increaseIndentation();
             {
@@ -638,7 +638,7 @@ public interface SystemCNetwork {
     default void constructTrigger(SCTrigger trigger) {
 
         String triggerClass = trigger.getTriggerClass();
-        emitter().emit("%s = std::make_unique<%s>(\"%1$s\", \"%s\");", trigger.getName(), triggerClass,
+        emitter().emit("%s = std::make_unique<%s>(\"%1$s\", \"%s\", enable_profiler);", trigger.getName(), triggerClass,
                 trigger.getActorName());
     }
 

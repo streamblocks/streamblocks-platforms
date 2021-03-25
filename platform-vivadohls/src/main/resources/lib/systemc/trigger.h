@@ -1,6 +1,8 @@
 #ifndef __TRIGGER_H__
 #define __TRIGGER_H__
 
+#include "profiler.h"
+#include <array>
 #include <systemc>
 
 namespace streamblocks_rtl {
@@ -38,7 +40,23 @@ protected:
     SYNC_SLEEP = 6
   };
 
+  // a clock value tagged with return code
+  struct TaggedClock {
+    sc_core::sc_signal<uint32_t> return_code;
+    sc_core::sc_signal<bool> start;
+  };
+
+  TaggedClock tagged_clock;
+
   const std::string actor_id;
+
+  using StateProfile =
+      std::array<uint64_t, State::SYNC_SLEEP - State::IDLE_STATE + 1>;
+  std::unique_ptr<ActorProfiler> actor_profiler;
+
+  const bool enable_profiler;
+
+  void profileActor();
 
 public:
   // internal signals
@@ -50,7 +68,8 @@ public:
                   // would be weired.
 
   SC_HAS_PROCESS(AbstractTrigger);
-  AbstractTrigger(sc_core::sc_module_name name, const std::string actor_id);
+  AbstractTrigger(sc_core::sc_module_name name, const std::string actor_id,
+                  const bool enable_profiler = true);
 
   /**
    * @brief Get the return code value
@@ -96,16 +115,17 @@ public:
    * @param ix action index
    * @param action_id  action h
    */
-  void registerAction(const unsigned int ix, std::string action_id);
+  void registerAction(const unsigned int ix, const std::string &action_id);
 
-  void dumpStats(std::ofstream &ofs, int indent = 1) {};
+  void dumpStats(std::ofstream &ofs, int indent = 1);
 };
 
 class Trigger : public AbstractTrigger {
 
 public:
   SC_HAS_PROCESS(Trigger);
-  Trigger(sc_core::sc_module_name name, const std::string actor_id);
+  Trigger(sc_core::sc_module_name name, const std::string actor_id,
+          const bool enable_profiler = true);
   /**
    * @brief Sets the next state signal
    *
@@ -117,10 +137,10 @@ class PipelinedTrigger : public AbstractTrigger {
 public:
   SC_HAS_PROCESS(PipelinedTrigger);
   PipelinedTrigger(sc_core::sc_module_name name, const std::string actor_id,
+                   const bool enable_profiler = true,
                    const uint32_t max_outstanding = 1);
 
   sc_core::sc_signal<uint32_t> outstanding_invocations, next_outstanding;
-
 
 private:
   const uint32_t max_outstanding;
@@ -139,7 +159,6 @@ public:
    *
    */
   void setOutstanding();
-
 };
 } // namespace streamblocks_rtl
 #endif // __TRIGGER_H__

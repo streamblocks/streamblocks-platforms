@@ -343,7 +343,7 @@ public interface SystemCTestBench {
     default void getConstructor(SCNetwork network, String identifier) {
         emitter().emit("// -- constructor");
 
-        emitter().emit("%s(sc_module_name name, const sc_time clock_period, const unsigned int queue_capacity = 512, const unsigned int trace_level = 0): ", identifier);
+        emitter().emit("%s(sc_module_name name, const sc_time clock_period, const unsigned int queue_capacity = 512, const unsigned int trace_level = 0, bool enable_profiler = false): ", identifier);
 
         {
             emitter().increaseIndentation();
@@ -362,7 +362,7 @@ public interface SystemCTestBench {
 
             // -- construct the network
             emitter().emit("// -- network");
-            emitter().emit("inst_%s = std::make_unique<%1$s>(\"inst_%1$s\", queue_capacity);", network.getIdentifier());
+            emitter().emit("inst_%s = std::make_unique<%1$s>(\"inst_%1$s\", enable_profiler, queue_capacity);", network.getIdentifier());
 
             emitter().emitNewLine();
             // -- bind the ports to signals
@@ -386,10 +386,10 @@ public interface SystemCTestBench {
                 network.stream().forEach(port -> {
                     emitter().emit("sc_trace(vcd_dump, %s, \"%1$s\");", port.getSignal().getName());
                 });
-                network.getInputStages().stream().forEach(input -> traceIO(input, network));
-                network.getInputStages().stream().forEach(input -> traceIOInternals(input, network));
-                network.getOutputStages().stream().forEach(output -> traceIO(output, network));
-                network.getOutputStages().stream().forEach(output -> traceIOInternals(output, network));
+                network.getInputStages().forEach(input -> traceIO(input, network));
+                network.getInputStages().forEach(input -> traceIOInternals(input, network));
+                network.getOutputStages().forEach(output -> traceIO(output, network));
+                network.getOutputStages().forEach(output -> traceIOInternals(output, network));
                 emitter().decreaseIndentation();
             }
             emitter().emit("}");
