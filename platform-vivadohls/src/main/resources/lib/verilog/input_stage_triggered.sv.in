@@ -79,13 +79,12 @@ module @ACTOR@_triggered #(
   input  wire [31:0] head,
   input  wire [31:0] tail,
 	// --- Trigger signals
-	input  wire all_sync,
-	input  wire all_sync_wait,
+
 	input  wire all_sleep,
 	input  wire all_waited,
+	input  wire all_sync_sleep,
 	output wire sleep,
-	output wire sync_wait,
-	output wire sync_exec,
+	output wire sync_sleep,
 	output wire waited,
 	// -- output stream
 	output  wire [C_USER_DW - 1:0] fifo_din,
@@ -102,10 +101,7 @@ module @ACTOR@_triggered #(
 	// -- fifo_count register
 	logic    [31:0] fifo_count_reg = 32'd0;
 
-	// -- Input stage mem
-	// -- Trigger wires for port: source1_out_adder1_in_banked_0
 
-	localparam mode_t trigger_mode = ACTOR_TRIGGER;
 
   // -- control signals for the io actor
   wire    actor_start;
@@ -158,7 +154,7 @@ module @ACTOR@_triggered #(
 
 	// -- Trigger instance
 
-	trigger #(.mode(trigger_mode)) io_trigger (
+	Trigger io_trigger (
 		.ap_clk(ap_clk),
 		.ap_rst_n(ap_rst_n),
     //-- start the trigger only after the token has been pushed to the meta fifo
@@ -166,13 +162,10 @@ module @ACTOR@_triggered #(
 		.ap_done(ap_done),
 		.ap_idle(ap_idle),
 		.ap_ready(ap_ready),
-		.external_enqueue(1'b0),
-		.all_sync(all_sync),
-		.all_sync_wait(all_sync_wait),
 		.all_sleep(all_sleep),
+		.all_sync_sleep(all_sync_sleep),
 		.sleep(sleep),
-		.sync_exec(sync_exec),
-		.sync_wait(sync_wait),
+		.sync_sleep(sync_sleep),
 		.all_waited(all_waited),
 		.waited(waited),
 		.actor_return(actor_return[1:0]),

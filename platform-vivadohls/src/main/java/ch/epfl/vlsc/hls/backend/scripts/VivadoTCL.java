@@ -70,8 +70,9 @@ public interface VivadoTCL {
 
     default void importStreamblocksVerilogFiles(String identifier){
         emitter().emitSharpBlockComment("Import StreamBlocks Verilog RTL files");
-        emitter().emit("import_files -norecurse {@PROJECT_SOURCE_DIR@/code-gen/rtl/TriggerTypes.sv}");
+        emitter().emit("import_files -norecurse {@PROJECT_SOURCE_DIR@/code-gen/rtl/trigger_common.sv}");
         emitter().emit("import_files -norecurse {@PROJECT_SOURCE_DIR@/code-gen/rtl/trigger.sv}");
+        emitter().emit("import_files -norecurse {@PROJECT_SOURCE_DIR@/code-gen/rtl/pipelined_trigger.sv}");
         emitter().emit("import_files -norecurse {@PROJECT_SOURCE_DIR@/code-gen/rtl/fifo.v}");
         emitter().emit("import_files -norecurse {@PROJECT_SOURCE_DIR@/code-gen/rtl/%s.sv}", identifier);
         emitter().emit("import_files -norecurse {@PROJECT_SOURCE_DIR@/code-gen/rtl/%s_pure.sv}", identifier);

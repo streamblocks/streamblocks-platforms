@@ -34,11 +34,12 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
 `include "trigger_common.sv"
 import TriggerCommon::*;
 
-module Trigger (
+
+
+module PipelinedTrigger (
   input wire ap_clk,
   input wire ap_rst_n,
   input wire ap_start,
@@ -61,11 +62,16 @@ module Trigger (
   output wire actor_start
 );
 
+
   timeunit 1ps;
   timeprecision 1ps;
 
   State pstate, nstate;
   logic last_waited;
+  logic[31:0] outstanding, next_outstanding;
+  wire should_relaunch;
+  wire [31:0] outstanding_minus;
+  wire [31:0] outstanding_plus;
 
   // set state
   always_ff @(posedge ap_clk) begin
@@ -90,29 +96,65 @@ module Trigger (
     end
   end
 
+  always_ff @(posedge ap_clk) begin
+    outstanding <= next_outstanding;
+  end
+
 
   always_comb begin
-    case (psate)
+    case (pstate)
       IDLE_STATE: begin
         next_outstanding = 32'd1;
         if (ap_start == 1'b1)
           nstate = LAUNCH;
         else
           nstate = IDLE_STATE;
-
       end
       LAUNCH: begin
         if (actor_done == 1'b1) begin
-          if (actor_return != WAIT || all_waited == 1'b0)
+          if (actor_return == WAIT && all_waited == 1'b1) begin
+            next_outstanding = outstanding - 1;
+            if (outstanding == 32'd1)
+              nstate = SLEEP;
+            else
+              nstate = FLUSH;
+          end else begin
             nstate = LAUNCH;
-          else
-            nstate = SLEEP;
-        end else
+            if (actor_ready == 1'b1)
+              next_outstanding = outstanding;
+            else
+              next_outstanding = outstanding_minus;
+          end
+        end else begin
           nstate = LAUNCH;
+          if (actor_ready == 1'b1)
+            next_outstanding = outstanding_plus;
+          else
+            next_outstanding = outstanding;
+
+        end
       end
       FLUSH: begin
-        // UNUSED STATE
-        nstate = IDLE_STATE;
+        if (actor_done == 1'b1) begin
+          if (outstanding == 32'd1) begin
+            if (should_relaunch)
+              nstate = LAUNCH;
+            else
+              nstate = SLEEP;
+            next_outstanding = 32'd1;
+          end else begin
+            if (should_relaunch) begin
+              nstate = LAUNCH;
+              next_outstanding = outstanding;
+            end else begin
+              nstate = FLUSH;
+              next_outstanding = outstanding_minus;
+            end
+          end
+        end else begin
+          nstate = FLUSH;
+          next_outstanding = outstanding;
+        end
       end
       SLEEP: begin
         next_outstanding = 32'd1;
@@ -131,8 +173,11 @@ module Trigger (
           nstate = SYNC_LAUNCH;
       end
       SYNC_FLUSH: begin
-        // UNUSED STATE
-        nstate = IDLE_STATE;
+        next_outstanding = 32'd1;
+        if (actor_done == 1'b1)
+          nstate = SYNC_SLEEP;
+        else
+          nstate = SYNC_LAUNCH;
       end
       SYNC_SLEEP: begin
         next_outstanding = 32'b1;
@@ -157,6 +202,10 @@ module Trigger (
   assign sync_sleep = (pstate == SYNC_SLEEP) | (pstate == IDLE_STATE);
   assign ap_done = (nstate == IDLE_STATE);
   assign ap_ready = (nstate == IDLE_STATE);
+
+  assign should_relaunch = (all_waited == 1'b0 || actor_return != WAIT);
+  assign outstanding_minus = outstanding - 1;
+  assign outstanding_plus = outstanding + 1;
 
 endmodule
 

@@ -282,18 +282,15 @@ public interface KernelWrapper {
         getPortsLocalTriggerWires(network.getInputPorts());
         getPortsLocalTriggerWires(network.getOutputPorts());
 
-        emitter().emit("// -- global trigger wires");
-        backend().vnetwork().getGlobalTriggerWires();
 
     }
 
     default void getPortsLocalTriggerWires(ImmutableList<PortDecl> ports) {
         for (PortDecl port : ports) {
             emitter().emit("wire    %s_sleep;", port.getSafeName());
-            emitter().emit("wire    %s_sync_wait;", port.getSafeName());
-            emitter().emit("wire    %s_sync_exec;", port.getSafeName());
+            emitter().emit("wire    %s_sync_sleep;", port.getSafeName());
             emitter().emit("wire    %s_waited;", port.getSafeName());
-            emitter().emit("wire    %s_all_waited;", port.getSafeName());
+
         }
 
     }
@@ -530,7 +527,7 @@ public interface KernelWrapper {
             {
                 emitter().increaseIndentation();
 
-                // -- External memories parameters
+
 
                 ImmutableList<Memories.InstanceVarDeclPair> mems =
                         backend().externalMemory().getExternalMemories(network);
@@ -575,10 +572,8 @@ public interface KernelWrapper {
                 emitter().emit(".%s_fifo_size(%1$s_fifo_size),", port.getName());
                 emitter().emit("// -- trigger signals");
                 emitter().emit(".%s_sleep(%1$s_sleep),", port.getSafeName());
-                emitter().emit(".%s_sync_wait(%1$s_sync_wait),", port.getSafeName());
-                emitter().emit(".%s_sync_exec(%1$s_sync_exec),", port.getSafeName());
+                emitter().emit(".%s_sync_sleep(%1$s_sync_sleep),", port.getSafeName());
                 emitter().emit(".%s_waited(%1$s_waited),", port.getSafeName());
-                emitter().emit(".%s_all_waited(%1$s_all_waited),", port.getSafeName());
             }
             // -- Output ports
             for (PortDecl port : network.getOutputPorts()) {
@@ -590,10 +585,8 @@ public interface KernelWrapper {
                 emitter().emit(".%s_fifo_size(%1$s_fifo_size),", port.getName());
                 emitter().emit("// -- trigger wires");
                 emitter().emit(".%s_sleep(%1$s_sleep),", port.getSafeName());
-                emitter().emit(".%s_sync_wait(%1$s_sync_wait),", port.getSafeName());
-                emitter().emit(".%s_sync_exec(%1$s_sync_exec),", port.getSafeName());
+                emitter().emit(".%s_sync_sleep(%1$s_sync_sleep),", port.getSafeName());
                 emitter().emit(".%s_waited(%1$s_waited),", port.getSafeName());
-                emitter().emit(".%s_all_waited(%1$s_all_waited),", port.getSafeName());
             }
             emitter().emit("//-- global trigger signals");
             getTriggerGlobalBindings();
@@ -612,16 +605,15 @@ public interface KernelWrapper {
     }
 
     default void getTriggerGlobalBindings() {
-        emitter().emit(".%s(%1$s),", backend().vnetwork().getAllSyncSignal());
-        emitter().emit(".%s(%1$s),", backend().vnetwork().getAllSyncWaitSignal());
+
         emitter().emit(".%s(%1$s),", backend().vnetwork().getAllSleepSignal());
+        emitter().emit(".%s(%1$s),", backend().vnetwork().getAllSyncSleepSignal());
+        emitter().emit(".%s(%1$s),", backend().vnetwork().getAllWaitedSignal());
     }
 
     default void getTriggerPortBindings(PortDecl port) {
-        emitter().emit(".all_waited(%s_all_waited),", port.getSafeName());
         emitter().emit(".sleep(%s_sleep),", port.getSafeName());
-        emitter().emit(".sync_wait(%s_sync_wait),", port.getSafeName());
-        emitter().emit(".sync_exec(%s_sync_exec),", port.getSafeName());
+        emitter().emit(".sync_sleep(%s_sync_sleep),", port.getSafeName());
         emitter().emit(".waited(%s_waited),", port.getSafeName());
     }
 

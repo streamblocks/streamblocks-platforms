@@ -437,11 +437,14 @@ public class VivadoHLSBackendPhase implements Phase {
                     PathUtils.getTargetCodeGenRtl(backend.context()).resolve("fifo.v"),
                     StandardCopyOption.REPLACE_EXISTING);
             // -- Actor Start controller
-            Files.copy(getClass().getResourceAsStream("/lib/verilog/TriggerTypes.sv"),
-                    PathUtils.getTargetCodeGenRtl(backend.context()).resolve("TriggerTypes.sv"),
+            Files.copy(getClass().getResourceAsStream("/lib/verilog/trigger_common.sv"),
+                    PathUtils.getTargetCodeGenRtl(backend.context()).resolve("trigger_common.sv"),
                     StandardCopyOption.REPLACE_EXISTING);
             Files.copy(getClass().getResourceAsStream("/lib/verilog/trigger.sv"),
                     PathUtils.getTargetCodeGenRtl(backend.context()).resolve("trigger.sv"),
+                    StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(getClass().getResourceAsStream("/lib/verilog/pipelined_trigger.sv"),
+                    PathUtils.getTargetCodeGenRtl(backend.context()).resolve("pipelined_trigger.sv"),
                     StandardCopyOption.REPLACE_EXISTING);
 
             // -- Find Vivado hls, vivado & SDAccel for cmake
