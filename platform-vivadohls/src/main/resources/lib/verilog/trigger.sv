@@ -94,7 +94,7 @@ module Trigger (
   always_comb begin
     case (psate)
       IDLE_STATE: begin
-        next_outstanding = 32'd1;
+    
         if (ap_start == 1'b1)
           nstate = LAUNCH;
         else
@@ -115,7 +115,7 @@ module Trigger (
         nstate = IDLE_STATE;
       end
       SLEEP: begin
-        next_outstanding = 32'd1;
+    
         if (all_sleep == 1'b1)
           nstate = SYNC_LAUNCH;
         else if (all_waited == 1'b0)
@@ -124,7 +124,7 @@ module Trigger (
           nstate = SLEEP;
       end
       SYNC_LAUNCH: begin
-        next_outstanding = 32'd1;
+    
         if (actor_done == 1'b1)
           nstate = SYNC_SLEEP;
         else
@@ -135,7 +135,7 @@ module Trigger (
         nstate = IDLE_STATE;
       end
       SYNC_SLEEP: begin
-        next_outstanding = 32'b1;
+       
         if (all_sync_sleep == 1'b1)
           if (all_waited == 1'b1)
             nstate = IDLE_STATE;

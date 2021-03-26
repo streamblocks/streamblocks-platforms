@@ -13,7 +13,8 @@ PLink::PLink(const std::vector<PortInfo<LocalInputPort>> &input_info,
   OCL_MSG("Constructing simulation device\n");
   const sc_core::sc_time clk_period(3.3, sc_core::SC_NS);
   kernel = std::make_unique<ap_rtl::SimulationKernel>(
-      kernel_name.c_str(), clk_period, 0, vcd_trace_level);
+      kernel_name.c_str(), clk_period, 0, vcd_trace_level,
+      profile_file_name != NULL);
   kernel->reset();
 
   OCL_MSG("Starting simulation thread\n");
