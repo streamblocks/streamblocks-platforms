@@ -13,6 +13,7 @@
     <modules>
         <module>platform-core</module>
         <module>platform-multicore</module>
+        <module>platform-raft</module>
         <module>platform-vivadohls</module>
         <module>platform-node</module>
         <module>platform-orcc</module>
