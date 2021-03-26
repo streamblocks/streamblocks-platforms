@@ -74,7 +74,7 @@ std::string ActorProfiler::serialized(const uint32_t indent,
   ss << indent_str << "<actor id=\"" << actor_id << "\" clockcyles=\""
      << average_ticks << "\" clockcycles-min=\"" << min_ticks
      << "\" clockcyles-max=\"" << max_ticks << "\" clockcycles-total=\""
-     << total_ticks << "\" firings=\"" << firings << "\" />" << std::endl
+     << total_ticks << "\" firings=\"" << firings << "\" >" << std::endl
      << std::endl;
   for (auto &_stat : stats) {
     ss << _stat.second->serialized(indent + 1) << std::endl;
