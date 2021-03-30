@@ -92,7 +92,7 @@ module Trigger (
 
 
   always_comb begin
-    case (psate)
+    case (pstate)
       IDLE_STATE: begin
     
         if (ap_start == 1'b1)

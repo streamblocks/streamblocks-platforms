@@ -1,6 +1,3 @@
-`include "TriggerTypes.sv"
-import TriggerTypes::*;
-
 module @ACTOR@_triggered #(
 	parameter integer C_M_AXI_ADDR_WIDTH = 64,
 	parameter integer C_M_AXI_DATA_WIDTH = 32,
@@ -83,6 +80,7 @@ module @ACTOR@_triggered #(
 	input  wire all_sleep,
 	input  wire all_waited,
 	output wire sleep,
+	output wire sync_sleep,
 	output wire waited,
 
 	// -- input stream

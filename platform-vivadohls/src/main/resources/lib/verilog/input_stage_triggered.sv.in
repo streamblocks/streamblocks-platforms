@@ -1,5 +1,3 @@
-`include "TriggerTypes.sv"
-import TriggerTypes::*;
 
 module @ACTOR@_triggered #(
 	parameter integer C_M_AXI_ADDR_WIDTH = 64,

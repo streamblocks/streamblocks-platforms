@@ -34,7 +34,7 @@ module FIFO
     output wire [31:0] size,
 
     // count
-    output reg [31:0] count
+    output [31:0] count
 );
 
 localparam DEPTH = 1 << ADDR_WIDTH;
@@ -57,6 +57,8 @@ reg                   show_ahead = 1'b0;
 reg  [DATA_WIDTH-1:0] dout_buf = 1'b0;
 reg                   dout_valid = 1'b0;
 
+reg [31:0] count_r;
+
 //------------------------Body---------------------------
 assign if_full_n  = full_n;
 assign if_empty_n = dout_valid;
@@ -72,6 +74,7 @@ assign rnext      = !pop                 ? raddr :
 assign peek       = dout_buf;
 assign size       = DEPTH;
 
+assign count = (dout_valid) ? count_r : 32'b0;
 
 // waddr
 always @(posedge clk) begin
@@ -102,15 +105,15 @@ end
 // count
 always @(posedge clk) begin
     if (reset_n == 1'b0)
-        count <= 1'b0;
+        count_r <= 1'b0;
     else if((if_full_n & if_write) & (if_empty_n & if_read))
-    	count <= count;
+    	count_r <= count_r;
     else if (if_full_n & if_write)
-        count <= count + 1'b1;
+        count_r <= count_r + 1'b1;
     else if (if_empty_n & if_read)
-        count <= count - 1'b1;
+        count_r <= count_r - 1'b1;
     else
-    	count <= count;
+    	count_r <= count_r;
 end
 
 // full_n

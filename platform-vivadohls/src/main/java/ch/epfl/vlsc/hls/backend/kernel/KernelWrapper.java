@@ -278,6 +278,10 @@ public interface KernelWrapper {
         emitter().emit("logic   ap_idle_r = 1'b1;");
         emitter().emitNewLine();
 
+        emitter().emit("// -- global trigger wires");
+        emitter().emit("wire %s;", backend().vnetwork().getAllWaitedSignal());
+        emitter().emit("wire %s;", backend().vnetwork().getAllSyncSleepSignal());
+        emitter().emit("wire %s;", backend().vnetwork().getAllSleepSignal());
         emitter().emit("// -- local trigger wire");
         getPortsLocalTriggerWires(network.getInputPorts());
         getPortsLocalTriggerWires(network.getOutputPorts());
