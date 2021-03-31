@@ -35,8 +35,16 @@ macro(verilate_actor ACTOR)
     "${VERILATOR_GEN_DIR}/${ACTOR}_verimodule__1.cpp"
     "${VERILATOR_GEN_DIR}/${ACTOR}_verimodule__2.cpp"
     "${VERILATOR_GEN_DIR}/${ACTOR}_verimodule__3.cpp"
+    "${VERILATOR_GEN_DIR}/${ACTOR}_verimodule__4.cpp"
+    "${VERILATOR_GEN_DIR}/${ACTOR}_verimodule__5.cpp"
+    "${VERILATOR_GEN_DIR}/${ACTOR}_verimodule__6.cpp"
+    "${VERILATOR_GEN_DIR}/${ACTOR}_verimodule__7.cpp"
+    "${VERILATOR_GEN_DIR}/${ACTOR}_verimodule__8.cpp"
+    "${VERILATOR_GEN_DIR}/${ACTOR}_verimodule__9.cpp"
     "${VERILATOR_GEN_DIR}/${ACTOR}_verimodule__Slow.cpp"
     "${VERILATOR_GEN_DIR}/${ACTOR}_verimodule__1__Slow.cpp"
+    "${VERILATOR_GEN_DIR}/${ACTOR}_verimodule__2__Slow.cpp"
+    "${VERILATOR_GEN_DIR}/${ACTOR}_verimodule__3__Slow.cpp"
     "${VERILATOR_GEN_DIR}/${ACTOR}_verimodule__Syms.cpp"
   )
 
