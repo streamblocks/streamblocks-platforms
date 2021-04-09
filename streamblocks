@@ -17,7 +17,9 @@ lib="$root/platform-multicore/target/lib"
 
 
 comp="$root/platform-multicore/target/lib/compiler-1.0-SNAPSHOT.jar"
-platforms="$root/platform-multicore/target/platform-multicore-1.0-SNAPSHOT.jar:$root/platform-vivadohls/target/platform-vivadohls-1.0-SNAPSHOT.jar:$root/platform-node/target/platform-node-1.0-SNAPSHOT.jar:$root/platform-orcc/target/platform-orcc-1.0-SNAPSHOT.jar"
+#platforms="$root/platform-multicore/target/platform-multicore-1.0-SNAPSHOT.jar:$root/platform-vivadohls/target/platform-vivadohls-1.0-SNAPSHOT.jar:$root/platform-node/target/platform-node-1.0-SNAPSHOT.jar:$root/platform-orcc/target/platform-orcc-1.0-SNAPSHOT.jar"
+
+platforms="$root/platform-core/target/classes:$root/platform-multicore/target/classes:$root/platform-node/target/classes:$root/platform-orcc/target/classes:$root/platform-vivadohls/target/classes"
 
 if [ -f "$comp" ]
 then

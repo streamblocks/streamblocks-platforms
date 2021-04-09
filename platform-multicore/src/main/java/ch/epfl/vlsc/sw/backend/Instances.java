@@ -653,13 +653,17 @@ public interface Instances {
                 String t = backend().callables().mangle(type).encode();
                 emitter().emit("thisActor->%s = (%s) { *%s, NULL };", variableName, t, wrapperName);
             } else if (var.getValue() != null) {
-                emitter().emit("#ifndef TRACE_TURNUS");
-                evaluateVarInit(var);
-                emitter().emit("#else");
-                backend().profilingbox().set(true);
-                evaluateVarInit(var);
-                backend().profilingbox().clear();
-                emitter().emit("#endif");
+                if(var.getValue() instanceof ExprLambda || var.getValue() instanceof ExprProc ){
+                    // -- Do nothing
+                }else{
+                    emitter().emit("#ifndef TRACE_TURNUS");
+                    evaluateVarInit(var);
+                    emitter().emit("#else");
+                    backend().profilingbox().set(true);
+                    evaluateVarInit(var);
+                    backend().profilingbox().clear();
+                    emitter().emit("#endif");
+                }
             }
         }
         emitter().decreaseIndentation();
