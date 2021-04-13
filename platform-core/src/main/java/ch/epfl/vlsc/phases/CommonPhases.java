@@ -10,7 +10,7 @@ public class CommonPhases {
             new CreateNetworkPhase(),
             new ResolveGlobalEntityNamesPhase(),
             new ResolveGlobalVariableNamesPhase(),
-            new ConnectivityAnalysisPhase(),
+            //new ConnectivityAnalysisPhase(),
             new ElaborateNetworkPhase(),
             new RemoveUnusedGlobalDeclarations()
     );

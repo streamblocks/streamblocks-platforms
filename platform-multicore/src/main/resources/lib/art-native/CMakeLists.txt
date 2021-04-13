@@ -12,6 +12,7 @@ set(art_native_source
     src/art_Sink_8bit_txt.cc
     src/art_Sink_16bit_txt.cc
     src/art_print.cc
+    src/art_time.cc
     src/display.cc
     src/art_utils.cc
     src/orcc-compareyuv.cc

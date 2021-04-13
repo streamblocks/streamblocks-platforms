@@ -920,6 +920,8 @@ public interface ExpressionEvaluator {
                 return String.format("__opCounters->prof_UNARY_BIT_NOT += 1;");
             case "not":
                 return String.format("__opCounters->prof_UNARY_LOGIC_NOT += 1;");
+            case "#":
+                return String.format("__opCounters->prof_UNARY_ELEMENTS += 1;");
             default:
                 throw new UnsupportedOperationException(unaryOp.getOperation());
         }
