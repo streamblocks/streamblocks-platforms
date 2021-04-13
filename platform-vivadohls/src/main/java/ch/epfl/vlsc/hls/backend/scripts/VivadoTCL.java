@@ -42,6 +42,9 @@ public interface VivadoTCL {
         // -- Import Vivado HLS generated RTL files
         importVivadoHLSVerilogFiles(network);
 
+        // -- Create&Import Vivado HLS Used IP Cores
+        importVivadoHLSIpCres(network);
+
         // -- Import Simulation Verilog Modules
         importSimulationVerilogFiles(network);
 
@@ -89,6 +92,20 @@ public interface VivadoTCL {
             emitter().emit("import_files -norecurse $%s_files", instanceId);
             emitter().emitNewLine();
         }
+
+    }
+
+    default void importVivadoHLSIpCres(Network network){
+        emitter().emitSharpBlockComment("Import Vivado HLS Used IP Cores");
+
+        for(Instance instance: network.getInstances()){
+            String instanceId = instance.getInstanceName();
+            emitter().emit("# -- Import IP Core for instance : %s", instanceId);
+            emitter().emit("foreach script [glob -nocomplain [file join @CMAKE_CURRENT_BINARY_DIR@/%1$s/solution/syn/verilog *.tcl]] { source $script }", instanceId);
+            emitter().emitNewLine();
+        }
+
+        emitter().emit("update_compile_order -fileset sources_1");
     }
 
     default void importSimulationVerilogFiles(Network network){

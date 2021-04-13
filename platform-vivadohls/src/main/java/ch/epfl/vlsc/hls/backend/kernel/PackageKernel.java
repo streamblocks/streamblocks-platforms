@@ -45,6 +45,7 @@ public interface PackageKernel {
 
         // -- Import Files
         backend().vivadotcl().importVivadoHLSVerilogFiles(network);
+        backend().vivadotcl().importVivadoHLSIpCres(network);
         backend().vivadotcl().importStreamblocksVerilogFiles(identifier);
         importKernelVerilogFiles(network, identifier);
 
