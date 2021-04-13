@@ -36,7 +36,11 @@ public class VivadoHLS implements Platform {
             "source_rewind",
             "source_decrementNbLoops",
             "source_isMaxLoopsReached",
-            "source_exit"
+            "source_exit",
+            "sin",
+            "rand",
+            "timeMSec",
+            "random"
     );
 
     public static List<Phase> postPartitionNetworkElaborationPhases() {
