@@ -223,18 +223,22 @@ public interface ExpressionEvaluator {
     void evaluateWithLvalue(String lvalue, Expression expr);
 
     default void evaluateWithLvalue(String lvalue, ExprInput input) {
-        String type = channelsutils().inputPortTypeSize(input.getPort());
-        if (input.hasRepeat()) {
-            if (input.getOffset() == 0) {
-                emitter().emit("pinPeekRepeat_%s(%s, %s, %d);", type, channelsutils().definedInputPort(input.getPort()), lvalue, input.getRepeat());
+        Type type = types().type(input);
+        String sType = backend().typeseval().type(type);
+
+        if (backend().channelsutils().isTargetConnected(backend().instancebox().get().getInstanceName(), input.getPort().getName())) {
+            if (input.hasRepeat()) {
+                if (input.getOffset() == 0) {
+                    emitter().emit("pinPeekRepeat_%s(%s, %s, %d);", sType, channelsutils().definedInputPort(input.getPort()), lvalue, input.getRepeat());
+                } else {
+                    throw new RuntimeException("not implemented");
+                }
             } else {
-                throw new RuntimeException("not implemented");
-            }
-        } else {
-            if (input.getOffset() == 0) {
-                emitter().emit("%s = pinPeekFront_%s(%s);", lvalue, type, channelsutils().definedInputPort(input.getPort()));
-            } else {
-                emitter().emit("%s = pinPeek_%s(%s, %d);", lvalue, type, channelsutils().definedInputPort(input.getPort()), input.getOffset());
+                if (input.getOffset() == 0) {
+                    emitter().emit("%s = pinPeekFront_%s(%s);", lvalue, sType, channelsutils().definedInputPort(input.getPort()));
+                } else {
+                    emitter().emit("%s = pinPeek_%s(%s, %d);", lvalue, sType, channelsutils().definedInputPort(input.getPort()), input.getOffset());
+                }
             }
         }
     }
