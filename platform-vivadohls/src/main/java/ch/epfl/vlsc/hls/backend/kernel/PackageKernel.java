@@ -148,6 +148,9 @@ public interface PackageKernel {
         emitter().emit("set %s_files [glob -directory @CMAKE_CURRENT_BINARY_DIR@/%1$s/solution/syn/verilog *{v,dat}]", ioStageId);
         emitter().emit("import_files -norecurse $%s_files", ioStageId);
         emitter().emitNewLine();
+        emitter().emit("foreach script [glob -nocomplain [file join @CMAKE_CURRENT_BINARY_DIR@/%1$s/solution/syn/verilog *.tcl]] { source $script }", ioStageId);
+        emitter().emit("update_compile_order -fileset sources_1");
+        emitter().emitNewLine();
     }
 
     default void setTop(String name){
