@@ -40,7 +40,8 @@ public class VivadoHLS implements Platform {
             "sin",
             "rand",
             "timeMSec",
-            "random"
+            "random",
+            "randInt"
     );
 
     public static List<Phase> postPartitionNetworkElaborationPhases() {
