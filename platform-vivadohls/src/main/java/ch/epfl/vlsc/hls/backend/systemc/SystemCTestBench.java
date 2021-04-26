@@ -399,12 +399,8 @@ public interface SystemCTestBench {
                 emitter().increaseIndentation();
                 network.getQueues().forEach(queue -> {
                     String queueName = queue.getName();
-                    queue.stream().forEach(port -> {
-                        emitter().emit("sc_trace(vcd_dump, inst_%s->%s->%s, \"%1$s.%2$s.%3$s\");",
-                                network.getIdentifier(),
-                                queueName,
-                                port.getName());
-                    });
+                    emitter().emit("inst_%s->%s->enableTrace(vcd_dump);",
+                            network.getIdentifier(), queueName);
                 });
                 network.getInternalSignals().forEach(signal -> {
                     emitter().emit("sc_trace(vcd_dump, inst_%s->%s, \"%1$s.%2$s\");",
@@ -444,11 +440,9 @@ public interface SystemCTestBench {
 
     default void traceIOInternals(SCInputOutputIF inputOutput, SCNetwork network) {
 
-        traceIODetails(
-                Stream.of(
-                        "state"
-                        ),
-                inputOutput.getInstanceName(), network.getIdentifier());
+        emitter().emit("inst_%s->%s->enableTrace(vcd_dump);", network.getIdentifier(),
+                inputOutput.getInstanceName());
+
 
     }
 

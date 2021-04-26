@@ -191,8 +191,9 @@ public interface SystemCNetwork {
                 }
             });
             Boolean pipelined =
-                    entity.getAnnotations().stream().anyMatch(annon ->
-                            Directives.directive(annon.getName()) == Directives.PIPELINE);
+                    !backend().context().getConfiguration().get(PlatformSettings.disablePipelining)
+                    && entity.getAnnotations().stream().anyMatch(annon ->
+                    Directives.directive(annon.getName()) == Directives.PIPELINE);
             SCInstance newInst = new SCInstance(name, readers.build(), writers.build(), actionIds, pipelined);
             instances().put(instance, newInst);
             return newInst;

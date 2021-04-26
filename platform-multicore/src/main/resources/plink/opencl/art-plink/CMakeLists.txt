@@ -1,5 +1,5 @@
 option(MPSOC "Is MPSoC" OFF)
-
+option(OPENCL_VERBOSE "Diagnostic messages for OpenCL calls and events")
 # ART PLink sources
 set(art_plink_source
         src/device-port.cc
@@ -30,7 +30,8 @@ else()
     message(FATAL_ERROR "XRT is not found, source SDx/Vitis settings.sh")
 endif()
 
-option(OPENCL_VERBOSE "Diagnostic messages for OpenCL calls and events")
+
+
 
 
 add_library(art-plink ${art_plink_source})
@@ -46,6 +47,10 @@ else()
         target_compile_definitions(art-plink PUBLIC OCL_VERBOSE=0)
 endif()
 
+
+if (MPSOC)
+    target_compile_definitions(art-plink PUBLIC PLINK_MPSOC)
+endif()
 
 install(TARGETS art-plink
         ARCHIVE DESTINATION lib)

@@ -97,7 +97,8 @@ public class VivadoHLSBackendPhase implements Phase {
                 PlatformSettings.enableActionProfile,
                 PlatformSettings.enableSystemC,
                 PlatformSettings.defaultQueueDepth,
-                PlatformSettings.defaultController
+                PlatformSettings.defaultController,
+                PlatformSettings.disablePipelining
         );
     }
 

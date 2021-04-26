@@ -479,8 +479,10 @@ public interface VerilogNetwork {
         if (useTrigger()) {
             if (entity instanceof ActorMachine) {
                 boolean pipelined =
+                        !backend().context().getConfiguration().get(PlatformSettings.disablePipelining) &&
                         entity.getAnnotations().stream().anyMatch(annon ->
                                 Directives.directive(annon.getName()) == Directives.PIPELINE);
+
                 String triggerClass = pipelined ? "PipelinedTrigger" : "Trigger";
                 emitter().emit("%s i_%s_trigger (", triggerClass, name);
                 {

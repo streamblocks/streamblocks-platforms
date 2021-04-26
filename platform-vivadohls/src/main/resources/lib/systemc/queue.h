@@ -2,15 +2,16 @@
 #define __QUEUE_H__
 
 #include "debug_macros.h"
-#include "systemc.h"
+#include <systemc>
 #include <assert.h>
 #include <fstream>
 #include <iostream>
 #include <vector>
+#include "common.h"
 
 namespace ap_rtl {
 
-template <typename T> class Queue : public sc_module {
+template <typename T> class Queue : public sc_core::sc_module {
 public:
   const unsigned int fifo_depth;
   sc_core::sc_in_clk ap_clk;
@@ -38,12 +39,16 @@ public:
   sc_core::sc_signal<uint32_t> mOutPtr;
   sc_core::sc_signal<sc_dt::sc_uint<1>> mFlag_nEF_hint;
 
+  sc_core::sc_signal<uint32_t> write_counter;
+  sc_core::sc_signal<uint32_t> read_counter;
+
   SC_HAS_PROCESS(Queue);
-  Queue(sc_module_name name, const unsigned int capacity)
+  Queue(sc_core::sc_module_name name, const unsigned int capacity)
       : sc_module(name), fifo_depth(capacity), mStorage(capacity),
         ap_clk("ap_clk"), ap_rst_n("rst_n"), empty_n("empty_n"), read("read"),
         dout("dout"), full_n("full_n"), write("write"), din("din"),
-        count("count"), size("size"), peek("peek") {
+        count("count"), size("size"), peek("peek"),
+        write_counter("write_counter", 0), read_counter("read_counter", 0) {
 
     mInPtr = 0;
     mOutPtr = 0;
@@ -87,6 +92,7 @@ public:
 
       if (read.read() == true && internal_empty_n.read() == true) {
         uint32_t ptr;
+        read_counter.write(read_counter.read() + 1);
         if (mOutPtr.read() == (fifo_depth - 1)) {
           ptr = 0;
           mFlag_nEF_hint.write(~mFlag_nEF_hint.read());
@@ -110,6 +116,7 @@ public:
       if (write.read() == true && internal_full_n.read() == true) {
         uint32_t ptr;
         ptr = mInPtr.read();
+        write_counter.write(write_counter.read() + 1);
         mStorage[ptr].write(din.read());
         if (ptr == (fifo_depth - 1)) {
           ptr = 0;
@@ -152,6 +159,24 @@ public:
     } else {
       internal_full_n.write(true);
     }
+  }
+  void enableTrace(sc_core::sc_trace_file* vcd_dump) {
+    TRACE_SIGNAL(vcd_dump, empty_n);
+    TRACE_SIGNAL(vcd_dump, read);
+    TRACE_SIGNAL(vcd_dump, dout);
+    TRACE_SIGNAL(vcd_dump, full_n);
+    TRACE_SIGNAL(vcd_dump, write);
+    TRACE_SIGNAL(vcd_dump, din);
+    TRACE_SIGNAL(vcd_dump, count);
+    TRACE_SIGNAL(vcd_dump, size);
+    TRACE_SIGNAL(vcd_dump, peek);
+    TRACE_SIGNAL(vcd_dump, internal_empty_n);
+    TRACE_SIGNAL(vcd_dump, internal_full_n);
+    TRACE_SIGNAL(vcd_dump, mInPtr);
+    TRACE_SIGNAL(vcd_dump, mOutPtr);
+    TRACE_SIGNAL(vcd_dump, mFlag_nEF_hint);
+    TRACE_SIGNAL(vcd_dump, write_counter);
+    TRACE_SIGNAL(vcd_dump, read_counter);
   }
 };
 

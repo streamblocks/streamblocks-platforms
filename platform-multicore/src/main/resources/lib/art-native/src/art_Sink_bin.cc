@@ -26,14 +26,14 @@ ART_ACTION_SCHEDULER(art_Sink_bin_action_scheduler) {
     int numTokens;
 
     ART_ACTION_SCHEDULER_ENTER(1, 0);
-    numTokens = pinAvailIn_int32_t(ART_INPUT(0));
+    numTokens = pinAvailIn_uint8_t(ART_INPUT(0));
     ART_ACTION_SCHEDULER_LOOP {
         ART_ACTION_SCHEDULER_LOOP_TOP;
 
         if (numTokens > 0) {
             numTokens--;
             ART_ACTION_ENTER(action1, 0);
-            int32_t token = pinRead_int32_t(ART_INPUT(0));
+            uint8_t token = pinRead_uint8_t(ART_INPUT(0));
             fputc(token, thisActor->file);
             ART_ACTION_EXIT(action1, 0);
         } else {
@@ -80,7 +80,7 @@ static void setParam(AbstractActorInstance *pBase,
 }
 
 static const PortDescription inputPortDescriptions[] = {
-        {0, "In", sizeof(int32_t)}
+        {0, "In", sizeof(uint8_t)}
 };
 
 

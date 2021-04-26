@@ -253,5 +253,22 @@ public class PlatformSettings {
 
     };
 
+    static public OnOffSetting disablePipelining = new OnOffSetting() {
+        @Override
+        public String getKey() {
+            return "disable-pipelining";
+        }
+
+        @Override
+        public String getDescription() {
+            return "Disables the pipelining for hardware actors even if pipelining attributes are used";
+        }
+
+        @Override
+        public Boolean defaultValue(Configuration configuration) {
+            return true;
+        }
+    };
+
 
 }

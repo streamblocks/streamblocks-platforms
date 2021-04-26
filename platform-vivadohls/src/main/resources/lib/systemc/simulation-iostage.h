@@ -4,6 +4,7 @@
 #include "iostage.h"
 #include <memory>
 #include <systemc>
+#include "common.h"
 
 namespace ap_rtl {
 
@@ -43,6 +44,7 @@ public:
   // the derived class
   sc_core::sc_in<uint32_t> fifo_count;
 
+  sc_core::sc_signal<uint32_t> tokens_processed;
   // -- the underlying implementation (functional) in C++, which is
   // also used with Vivado HLS to generate the actual RTL implementation
   std::unique_ptr<iostage::BusInterface<T, FIFO_SIZE>> atomic_implementation;
@@ -78,7 +80,8 @@ public:
 
   SC_HAS_PROCESS(SimulatedBusInterface);
   SimulatedBusInterface(sc_core::sc_module_name name)
-      : sc_core::sc_module(name), state("state") {
+      : sc_core::sc_module(name), state("state"),
+        tokens_processed("tokens_processes", 0) {
     // -- register combinational blocks
 
     SC_METHOD(wireEvaluator);
@@ -221,6 +224,17 @@ public:
   virtual State nextState() = 0;
 
   T *asPointer(const uintptr_t ptr) { return reinterpret_cast<T *>(ptr); }
+
+  void enableTrace(sc_core::sc_trace_file* vcd_dump) {
+
+    TRACE_SIGNAL(vcd_dump, data_buffer);
+    TRACE_SIGNAL(vcd_dump, meta_buffer);
+    TRACE_SIGNAL(vcd_dump, alloc_size);
+    TRACE_SIGNAL(vcd_dump, head);
+    TRACE_SIGNAL(vcd_dump, tail);
+    TRACE_SIGNAL(vcd_dump, tokens_processed);
+
+  }
 };
 
 /**
@@ -297,6 +311,7 @@ public:
         ASSERT(this->data_stream.size() > 0,
                "Attempted to read from an empty hls::stream!\n");
         T_CPP token = this->data_stream.read();
+        this->tokens_processed.write(this->tokens_processed.read() + 1);
         this->waitCycles(1);
         this->fifo_din.write(token);
         this->fifo_write.write(true);
@@ -340,7 +355,8 @@ public:
  *
  * @tparam T_SC Type of the systemc queue
  * @tparam T_CPP Type of the output memory stage, should be the same as the
- * software side type and it should be case that @c sizeof(T_SC) >= @c sizeof(T_CPP)
+ * software side type and it should be case that @c sizeof(T_SC) >= @c
+ * sizeof(T_CPP)
  * @tparam FIFO_SIZE Size of the connected fifo
  */
 template <typename T_SC, typename T_CPP, int FIFO_SIZE>
@@ -401,6 +417,7 @@ public:
         ASSERT(this->fifo_empty_n.read() == true,
                "Attempted to read from an empty fifo in an output stage\n");
         this->fifo_read.write(true);
+        this->tokens_processed.write(this->tokens_processed.read() + 1);
         this->waitCycles(1);
         T_CPP token = this->fifo_peek.read();
         this->data_stream.write(token);

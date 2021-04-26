@@ -220,8 +220,13 @@ private:
   const bool collect_stats;
 
 public:
+#ifndef PLINK_MPSOC
   const cl_int banks[4] = {XCL_MEM_DDR_BANK0, XCL_MEM_DDR_BANK1,
                                XCL_MEM_DDR_BANK2, XCL_MEM_DDR_BANK3};
+#else
+  const cl_int banks[4] = {XCL_MEM_DDR_BANK0, XCL_MEM_DDR_BANK0,
+                               XCL_MEM_DDR_BANK0, XCL_MEM_DDR_BANK0};
+#endif
 };
 }; // namespace ocl_device
 
