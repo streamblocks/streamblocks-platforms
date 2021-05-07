@@ -29,7 +29,7 @@ public interface OutputStageMem {
 
 
         Type type = backend().types().declaredPortType(port);
-        String typeStr = backend().typeseval().type(type);
+        String typeStr = backend().typeseval().axiType(type);
 
         int bitWidth = backend().typeseval().sizeOfBits(type);
 

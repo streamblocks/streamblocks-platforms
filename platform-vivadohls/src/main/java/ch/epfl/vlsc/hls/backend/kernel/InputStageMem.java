@@ -32,7 +32,7 @@ public interface InputStageMem {
         int bitWidth = backend().typeseval().sizeOfBits(type);
 
 
-        String typeStr = backend().typeseval().type(type);
+        String typeStr = backend().typeseval().axiType(type);
 
         if (bitWidth % 8 != 0) {
             backend().context().getReporter().report(
