@@ -1,6 +1,7 @@
 package ch.epfl.vlsc.hls.platform;
 
 import ch.epfl.vlsc.hls.phase.BankedNetworkPortsPhase;
+import ch.epfl.vlsc.hls.phase.ControllerPipeliningPhase;
 import ch.epfl.vlsc.hls.phase.VivadoHLSBackendPhase;
 import ch.epfl.vlsc.phases.*;
 import se.lth.cs.tycho.compiler.Compiler;
@@ -66,6 +67,9 @@ public class VivadoHLS implements Platform {
                 new ScheduleUntaggedPhase(),
                 new ScheduleInitializersPhase(),
                 new MergeManyGuardsPhase(),
+                // handle controller pipelining directive, should be on Cal actor not actor machines
+                new ControllerPipeliningPhase(),
+
                 new CalToAmPhase(),
                 new RemoveEmptyTransitionsPhase(),
                 new ReduceActorMachinePhase(),

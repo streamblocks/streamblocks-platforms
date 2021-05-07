@@ -9,7 +9,9 @@ import org.multij.Module;
 import se.lth.cs.tycho.attribute.ScopeLiveness;
 import se.lth.cs.tycho.ir.entity.am.ActorMachine;
 import se.lth.cs.tycho.ir.entity.am.PortCondition;
+import se.lth.cs.tycho.ir.entity.am.Transition;
 import se.lth.cs.tycho.ir.entity.am.ctrl.*;
+import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.reporting.Diagnostic;
 
 import java.util.*;
@@ -32,6 +34,12 @@ public interface QuickJumpController {
         }
         return result;
     }
+
+//    default ImmutableList<Test> getExecConditions(Exec exec, Controller controller) {
+//
+//
+//
+//    }
 
     default void emitController(String name, ActorMachine actorMachine) {
         List<? extends State> stateList = actorMachine.controller().getStateList();
@@ -67,9 +75,9 @@ public interface QuickJumpController {
         if (am.getCondition(test.condition()) instanceof PortCondition) {
             PortCondition condition = (PortCondition) am.getCondition(test.condition());
             String portName = condition.getPortName().getName();
-            io = portName + ", io";
-        }else{
-            io = "io";
+            io = portName + ", " + (backend().instance().hasPipelinedController(am) ? "local_io" : "io");
+        } else{
+            io = backend().instance().hasPipelinedController(am) ? "local_io" : "io";
         }
         emitter().emit("if (condition_%d(%s)) {", test.condition(), io);
         emitter().increaseIndentation();
@@ -85,7 +93,12 @@ public interface QuickJumpController {
 
     default void emitInstruction(ActorMachine am, String name, Wait wait, Map<State, Integer> stateNumbers) {
         emitter().emit("this->program_counter = %d;", stateNumbers.get(wait.target()));
-        emitter().emit("return RETURN_WAIT;");
+        boolean pipelined = backend().instance().hasPipelinedController(am);
+        if (pipelined) {
+            emitter().emit("yield = true;");
+        } else {
+            emitter().emit("return RETURN_WAIT;");
+        }
         emitter().emit("");
     }
 
@@ -93,27 +106,50 @@ public interface QuickJumpController {
         emitter().emit("transition_%d(%s);", exec.transition(), backend().instance().transitionIoArguments(am.getTransitions().get(exec.transition())));
         emitter().emit("this->program_counter = %d;", stateNumbers.get(exec.target()));
 
+        boolean pipelined = backend().instance().hasPipelinedController(am);
+
+
         boolean traceEnabled = backend().context().getConfiguration().isDefined(PlatformSettings.enableActionProfile) &&
                 backend().context().getConfiguration().get(PlatformSettings.enableActionProfile);
 
-        if (traceEnabled) {
-            if (am.getTransitions().size() >= (1 << 15)) {
-
-                backend().context()
-                        .getReporter()
-                        .report(
-                                new Diagnostic(Diagnostic.Kind.ERROR, String.format(
-                                        "The maximum number of supported actions" +
-                                                "while action profile is enabled is %d", (1 << 15) - 1)));
-
-            }
-            emitter().emit("action_id = %d << 17;", exec.transition());
-            emitter().emit("action_size = %d << 2;", am.getTransitions().size());
-            emitter().emit("return (action_id | action_size | RETURN_EXECUTED);");
-        } else {
-
-            emitter().emit("return RETURN_EXECUTED;");
+        if (traceEnabled && pipelined) {
+            backend().context().getReporter().report(new Diagnostic(Diagnostic.Kind.WARNING, "Actor instance "
+                    + name + " has controller pipelining enabled and can not be used for per action profiling" +
+                    "consider turning off profiling with --set disable-pipelining=on"));
         }
+        if (pipelined) {
+
+            Transition transition = am.getTransitions().get(exec.transition());
+            transition.getInputRates().forEach((port, n) -> {
+                emitter().emit("local_io.%s_count -= %d;\n", port.getName(), n);
+            });
+            transition.getOutputRates().forEach((port, n) -> {
+                emitter().emit("local_io.%s_count += %d;\n", port.getName(), n);
+            });
+
+            emitter().emit("_ret = RETURN_EXECUTED;");
+
+        } else {
+            if (traceEnabled) {
+                if (am.getTransitions().size() >= (1 << 15)) {
+
+                    backend().context()
+                            .getReporter()
+                            .report(
+                                    new Diagnostic(Diagnostic.Kind.ERROR, String.format(
+                                            "The maximum number of supported actions" +
+                                                    "while action profile is enabled is %d", (1 << 15) - 1)));
+
+                }
+                emitter().emit("action_id = %d << 17;", exec.transition());
+                emitter().emit("action_size = %d << 2;", am.getTransitions().size());
+                emitter().emit("return (action_id | action_size | RETURN_EXECUTED);");
+            } else {
+
+                emitter().emit("return RETURN_EXECUTED;");
+            }
+        }
+
         emitter().emit("");
     }
 

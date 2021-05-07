@@ -1,5 +1,6 @@
 package ch.epfl.vlsc.hls.backend;
 
+import ch.epfl.vlsc.hls.backend.directives.Directives;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.PathUtils;
 import ch.epfl.vlsc.settings.PlatformSettings;
@@ -71,7 +72,14 @@ public interface Instances {
         return backend().channelsutils();
     }
 
+    default boolean hasPipelinedController(Entity entity) {
 
+        boolean pipelined =
+                !backend().context().getConfiguration().get(PlatformSettings.disablePipelining)
+                        && entity.getAnnotations().stream().anyMatch(annon ->
+                        Directives.directive(annon.getName()) == Directives.PIPELINE);
+        return  pipelined;
+    }
     default void generateInstance(Instance instance) {
         // -- Add instance to box
         backend().instancebox().set(instance);
@@ -79,6 +87,9 @@ public interface Instances {
         // -- Get Entity
         GlobalEntityDecl entityDecl = globalnames().entityDecl(instance.getEntityName(), true);
         Entity entity = entityDecl.getEntity();
+
+
+
 
         // -- Check complex read
         if (entity instanceof ActorMachine) {
@@ -850,7 +861,24 @@ public interface Instances {
                 if (actor.controller().getStateList().size() > MAX_STATES_FOR_QUICK_JUMP_CONTROLLER) {
                     backend().branchingController().emitController(instanceName, actor);
                 } else {
-                    backend().quickJumpController().emitController(instanceName, actor);
+
+                    if (hasPipelinedController(actor)) {
+                        emitter().emit("IO_%s local_io = io;", instanceName);
+                        emitter().emit("yield = false;");
+                        emitter().emit("while(!yield) {");
+                        emitter().emit("#pragma HLS pipeline");
+                        {
+                            emitter().increaseIndentation();
+
+                            backend().quickJumpController().emitController(instanceName, actor);
+
+                            emitter().decreaseIndentation();
+                        }
+                        emitter().emit("}");
+                    } else {
+                        backend().quickJumpController().emitController(instanceName, actor);
+                    }
+
                 }
             } else {
                 backend().branchingController().emitController(instanceName, actor);
@@ -980,18 +1008,33 @@ public interface Instances {
     }
 
     default String evaluateCondition(PortCondition condition) {
+
+        boolean pipelined = hasPipelinedController(backend().entitybox().get());
+
         if (condition.isInputCondition()) {
-            if (condition.N() > 1) {
-                return String.format("(pinAvailIn(%s, io) >= %d) && !%1$s.empty()", channelutils().definedInputPort(condition.getPortName()), condition.N());
+            if (pipelined) {
+                // don't check for the emptyness, since we are going to use local io counters to break the dependencies
+                return String.format("(pinAvailIn(%s, io) >= %d)", channelutils().definedInputPort(condition.getPortName()), condition.N());
             } else {
-                return String.format("!%1$s.empty()", channelutils().definedInputPort(condition.getPortName()), condition.N());
+                if (condition.N() > 1) {
+                    return String.format("(pinAvailIn(%s, io) >= %d) && !%1$s.empty()", channelutils().definedInputPort(condition.getPortName()), condition.N());
+                } else {
+                    return String.format("!%1$s.empty()", channelutils().definedInputPort(condition.getPortName()), condition.N());
+                }
             }
+
         } else {
-            if (condition.N() > 1) {
-                return String.format("(pinAvailOut(%s, io) >= %d) && !%1$s.full()", channelutils().definedOutputPort(condition.getPortName()), condition.N());
+            if (pipelined) {
+                // don't check for fullness to break the dependencies, instead use local io counters to burst pipeline actions
+                return String.format("(pinAvailOut(%s, io) >= %d)", channelutils().definedOutputPort(condition.getPortName()), condition.N());
             } else {
-                return String.format("!%1$s.full()", channelutils().definedOutputPort(condition.getPortName()), condition.N());
+                if (condition.N() > 1) {
+                    return String.format("(pinAvailOut(%s, io) >= %d) && !%1$s.full()", channelutils().definedOutputPort(condition.getPortName()), condition.N());
+                } else {
+                    return String.format("!%1$s.full()", channelutils().definedOutputPort(condition.getPortName()), condition.N());
+                }
             }
+
 
         }
     }
