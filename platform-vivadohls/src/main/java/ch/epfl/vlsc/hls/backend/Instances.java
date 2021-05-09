@@ -864,7 +864,7 @@ public interface Instances {
 
                     if (hasPipelinedController(actor)) {
                         emitter().emit("IO_%s local_io = io;", instanceName);
-                        emitter().emit("yield = false;");
+                        emitter().emit("bool yield = false;");
                         emitter().emit("while(!yield) {");
                         emitter().emit("#pragma HLS pipeline");
                         {

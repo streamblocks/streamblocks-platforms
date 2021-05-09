@@ -96,6 +96,7 @@ public interface QuickJumpController {
         boolean pipelined = backend().instance().hasPipelinedController(am);
         if (pipelined) {
             emitter().emit("yield = true;");
+            emitter().emit("break;");
         } else {
             emitter().emit("return RETURN_WAIT;");
         }
@@ -128,6 +129,7 @@ public interface QuickJumpController {
             });
 
             emitter().emit("_ret = RETURN_EXECUTED;");
+            emitter().emit("continue;");
 
         } else {
             if (traceEnabled) {

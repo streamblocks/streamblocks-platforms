@@ -112,11 +112,18 @@ public interface TypesEvaluator {
 
     default String axiType(IntType type_) {
         int originalSize = type_.getSize().orElse(32);
-        switch (originalSize) {
-            case 1:
-                backend().context().getReporter().report(new Diagnostic(
-                        Diagnostic.Kind.WARNING, "Treating uint(size=1) and int(size=1) as uint(size=1) and int(size=1)"
-                ));
+        boolean isPower2 = originalSize > 0 && ((originalSize & (originalSize - 1)) == 0);
+        int implSize = isPower2 ? originalSize : (originalSize < 8 ? 8 : Integer.highestOneBit(originalSize - 1) * 2);
+        if (!isPower2) {
+            backend().context().getReporter().report(
+                    new Diagnostic(
+                            Diagnostic.Kind.WARNING,
+                            String.format("Axi port with %sint(size=%d) is treated as %1$sint(size=%d)",
+                                    (type_.isSigned() ? "" : "u"), originalSize, implSize)
+                    )
+            );
+        }
+        switch (implSize) {
             case 8:
             case 16:
             case 32:
