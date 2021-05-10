@@ -444,9 +444,7 @@ public class VivadoHLSBackendPhase implements Phase {
             Files.copy(getClass().getResourceAsStream("/lib/verilog/trigger.sv"),
                     PathUtils.getTargetCodeGenRtl(backend.context()).resolve("trigger.sv"),
                     StandardCopyOption.REPLACE_EXISTING);
-            Files.copy(getClass().getResourceAsStream("/lib/verilog/pipelined_trigger.sv"),
-                    PathUtils.getTargetCodeGenRtl(backend.context()).resolve("pipelined_trigger.sv"),
-                    StandardCopyOption.REPLACE_EXISTING);
+
 
             // -- Find Vivado hls, vivado & SDAccel for cmake
             Files.copy(getClass().getResourceAsStream("/lib/cmake/FindVitisHLS.cmake"),

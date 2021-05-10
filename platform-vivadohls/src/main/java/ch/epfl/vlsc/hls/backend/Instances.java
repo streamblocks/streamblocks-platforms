@@ -224,7 +224,13 @@ public interface Instances {
         // -- Top Directives
         List<Annotation> annotations = entity.getAnnotations();
         for (Annotation ann : annotations) {
-            backend().annotations().emitTop(ann);
+            if (Directives.directive(ann.getName()) == Directives.PIPELINE && hasPipelinedController(entity)) {
+                // do not emit the pipeline annotation to the top function since we are using
+                continue;
+            } else {
+
+                backend().annotations().emitTop(ann);
+            }
         }
         if (!annotations.isEmpty()) {
             emitter().emitNewLine();
