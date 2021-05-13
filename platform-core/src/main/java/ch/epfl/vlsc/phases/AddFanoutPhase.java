@@ -361,6 +361,7 @@ public class AddFanoutPhase implements Phase {
                 ImmutableList.empty(),
                 ImmutableList.empty(),
                 null,
+                null,
                 process,
                 ImmutableList.empty(),
                 ImmutableList.empty());
@@ -446,6 +447,7 @@ public class AddFanoutPhase implements Phase {
                 ImmutableList.empty(),
                 actions.build(),
                 ImmutableList.empty(), // TODO: is this correct?
+                null,
                 null,
                 null,
                 ImmutableList.empty(),
