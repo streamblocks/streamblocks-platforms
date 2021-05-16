@@ -93,14 +93,22 @@ std::string ActorProfiler::serialized(const uint32_t indent,
   return ss.str();
 }
 
-void ActorProfiler::syncStart(const uint64_t start_ticks) {
+void ActorProfiler::syncStart(const uint64_t start_ticks, const bool sleep) {
 
-  kernel_trace[call_index].sync_trace.emplace_back(start_ticks, 0);
-  sync_queue.push(start_ticks);
+  if (sleep) {
+    kernel_trace[call_index].sleep_trace.emplace_back(start_ticks, 0);
+  } else {
+    kernel_trace[call_index].sync_trace.emplace_back(start_ticks, 0);
+  }
 }
 
-void ActorProfiler::syncEnd(const uint64_t end_ticks) {
-  kernel_trace[call_index].sync_trace.back().second = end_ticks;
+void ActorProfiler::syncEnd(const uint64_t end_ticks, const bool sleep) {
+
+  if (sleep) {
+    kernel_trace[call_index].sleep_trace.back().second = end_ticks;
+  } else {
+    kernel_trace[call_index].sync_trace.back().second = end_ticks;
+  }
 }
 
 void ActorProfiler::kernelStart(const uint64_t start_ticks) {
@@ -120,6 +128,11 @@ ActorProfiler::KernelTrace::serialized(const uint32_t indent) const {
      << end << "\">" << std::endl;
   for (const auto &t : sync_trace) {
     ss << std::string(indent + 1, '\t') << "<sync start=\"" << t.first
+       << "\" end=\"" << t.second << "\"/>" << std::endl;
+  }
+
+  for (const auto &t : sleep_trace) {
+    ss << std::string(indent + 1, '\t') << "<sleep start=\"" << t.first
        << "\" end=\"" << t.second << "\"/>" << std::endl;
   }
   ss << std::string(indent, '\t') << "</kernel>" << std::endl;

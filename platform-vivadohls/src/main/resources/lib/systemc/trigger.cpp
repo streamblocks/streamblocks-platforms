@@ -90,21 +90,32 @@ void AbstractTrigger::profileActor() {
       actor_profiler->kernelStart(clock_counter.read());
     }
 
-    bool sync_start =
-        (state.read() == State::LAUNCH && next_state.read() == State::SLEEP);
-    if (sync_start) {
-      actor_profiler->syncStart(clock_counter.read());
+    const uint64_t current_ticks = clock_counter.read();
+
+    bool sleep_start =
+        state.read() == State::LAUNCH && next_state.read() == State::SLEEP;
+    bool sleep_end = state.read() == State::SLEEP &&
+                     (next_state.read() == State::SYNC_LAUNCH ||
+                      next_state.read() == State::LAUNCH);
+    if (sleep_start) {
+      actor_profiler->syncStart(current_ticks, true);
+    }
+    if (sleep_end) {
+      actor_profiler->syncEnd(current_ticks, true);
     }
 
-    bool sync_finished =
-        (state.read() == State::SYNC_SLEEP &&
-         next_state.read() == State::IDLE_STATE) ||
-        (state.read() == State::SYNC_SLEEP &&
-         next_state.read() == State::LAUNCH) ||
-        (state.read() == State::SLEEP && next_state.read() == State::LAUNCH);
+    bool sync_start = (state.read() == State::SLEEP &&
+                       next_state.read() == State::SYNC_LAUNCH);
+    bool sync_end = (state.read() == State::SYNC_SLEEP &&
+                     (next_state.read() == State::IDLE_STATE ||
+                      next_state.read() == State::LAUNCH));
+    if (sync_start) {
+      actor_profiler->syncStart(clock_counter.read(), false);
+    }
 
-    if (sync_finished) {
-      actor_profiler->syncEnd(clock_counter.read());
+
+    if (sync_end) {
+      actor_profiler->syncEnd(clock_counter.read(), false);
     }
 
     bool kernel_end = (state.read() == State::SYNC_SLEEP &&
@@ -212,7 +223,7 @@ void Trigger::setNextState() {
       next_state = State::LAUNCH;
 
       tagged_clock.start = true;
-  
+
     } else
       next_state = State::IDLE_STATE;
     break;
@@ -223,32 +234,29 @@ void Trigger::setNextState() {
 
       if (return_code != ReturnStatus::WAIT || all_waited.read() == false) {
         next_state.write(State::LAUNCH);
-    
+
         tagged_clock.start = true;
       } else {
 
         next_state.write(State::SLEEP);
-    
       }
     } else {
       next_state.write(State::LAUNCH);
-  
     }
     break;
   case State::SLEEP:
     if (all_sleep.read() == true) {
       next_state.write(State::SYNC_LAUNCH);
-  
+
       tagged_clock.start = true;
 
     } else if (all_waited.read() == false) {
       next_state.write(State::LAUNCH);
-  
+
       tagged_clock.start = true;
 
     } else {
       next_state.write(State::SLEEP);
-  
     }
     break;
 
@@ -257,11 +265,9 @@ void Trigger::setNextState() {
       tagged_clock.return_code = actor_return.read();
 
       next_state.write(State::SYNC_SLEEP);
-  
 
     } else {
       next_state.write(State::SYNC_LAUNCH);
-  
     }
     break;
 
@@ -270,16 +276,14 @@ void Trigger::setNextState() {
       if (all_waited.read() == true) {
 
         next_state.write(State::IDLE_STATE);
-    
+
       } else {
         tagged_clock.start = true;
 
         next_state.write(State::LAUNCH);
-    
       }
     else {
       next_state.write(State::SYNC_SLEEP);
-  
     }
     break;
   default:

@@ -68,17 +68,17 @@ public:
                          const std::string append_entry = "");
   void kernelStart(const uint64_t start_ticks);
   void kernelEnd(const uint64_t end_ticks);
-  void syncStart(const uint64_t start_ticks);
-  void syncEnd(const uint64_t end_ticks);
+  void syncStart(const uint64_t start_ticks, const bool sleep);
+  void syncEnd(const uint64_t end_ticks, const bool sleep);
 private:
   // action stats
   std::map<uint32_t, std::unique_ptr<M3ActionProfile>> stats;
   // actor stats
   const std::string actor_id;
   std::queue<uint64_t> p_queue;
-  std::queue<uint64_t> sync_queue;
 
   struct KernelTrace {
+    std::vector<std::pair<uint64_t, uint64_t>> sleep_trace;
     std::vector<std::pair<uint64_t, uint64_t>> sync_trace;
     uint64_t start;
     uint64_t end;
