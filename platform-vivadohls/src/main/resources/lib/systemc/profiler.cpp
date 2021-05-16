@@ -29,8 +29,8 @@ std::string M3ActionProfile::serialized(const uint32_t indent) {
 }
 
 ActorProfiler::ActorProfiler(const std::string actor_id)
-    : actor_id(actor_id), min_ticks(-1), max_ticks(0), total_ticks(0),
-      firings(0), miss_firings(0), miss_ticks(0) {}
+    : actor_id(actor_id), call_index(0), min_ticks(-1), max_ticks(0),
+      total_ticks(0), firings(0), miss_firings(0), miss_ticks(0) {}
 
 void ActorProfiler::start(const uint64_t start_ticks) {
   p_queue.push(start_ticks);
@@ -83,8 +83,48 @@ std::string ActorProfiler::serialized(const uint32_t indent,
      << miss_ticks << "\" miss-firings=\"" << miss_firings << "\"/>"
      << std::endl;
   ss << append_entry << std::endl;
+
+  // sync events
+  for (const auto &k : kernel_trace) {
+    ss << k.serialized(indent + 1);
+  }
   ss << indent_str << "</actor>" << std::endl;
 
   return ss.str();
 }
+
+void ActorProfiler::syncStart(const uint64_t start_ticks) {
+
+  kernel_trace[call_index].sync_trace.emplace_back(start_ticks, 0);
+  sync_queue.push(start_ticks);
+}
+
+void ActorProfiler::syncEnd(const uint64_t end_ticks) {
+  kernel_trace[call_index].sync_trace.back().second = end_ticks;
+}
+
+void ActorProfiler::kernelStart(const uint64_t start_ticks) {
+  kernel_trace.emplace_back(start_ticks);
+}
+
+void ActorProfiler::kernelEnd(const uint64_t end_ticks) {
+  kernel_trace[call_index++].end = end_ticks;
+}
+
+std::string
+ActorProfiler::KernelTrace::serialized(const uint32_t indent) const {
+
+  std::stringstream ss;
+
+  ss << std::string(indent, '\t') << "<kernel start=\"" << start << "\" end=\""
+     << end << "\">" << std::endl;
+  for (const auto &t : sync_trace) {
+    ss << std::string(indent + 1, '\t') << "<sync start=\"" << t.first
+       << "\" end=\"" << t.second << "\"/>" << std::endl;
+  }
+  ss << std::string(indent, '\t') << "</kernel>" << std::endl;
+
+  return ss.str();
+}
+
 } // namespace streamblocks_rtl
