@@ -112,7 +112,7 @@ public interface TypesEvaluator {
 
     default String axiType(IntType type_) {
         int originalSize = type_.getSize().orElse(32);
-        boolean isPower2 = originalSize > 0 && ((originalSize & (originalSize - 1)) == 0);
+        boolean isPower2 = originalSize > 1 && ((originalSize & (originalSize - 1)) == 0);
         int implSize = isPower2 ? originalSize : (originalSize < 8 ? 8 : Integer.highestOneBit(originalSize - 1) * 2);
         if (!isPower2) {
             backend().context().getReporter().report(

@@ -80,9 +80,11 @@ private:
   struct KernelTrace {
     std::vector<std::pair<uint64_t, uint64_t>> sleep_trace;
     std::vector<std::pair<uint64_t, uint64_t>> sync_trace;
+    uint64_t exec; // last exec
+    uint64_t wait; // last wait
     uint64_t start;
     uint64_t end;
-    KernelTrace(const uint64_t start) : start(start) {};
+    KernelTrace(const uint64_t start) : exec(0), wait(0), end(0), start(start) {};
 
     std::string serialized(const uint32_t inden) const;
   };

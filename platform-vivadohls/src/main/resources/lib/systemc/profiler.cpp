@@ -47,6 +47,7 @@ void ActorProfiler::end(const uint32_t action_index, const uint64_t end_ticks) {
   if (stats.find(action_index) != stats.end()) {
     stats[action_index]->registerStat(duration);
   }
+  kernel_trace[call_index].exec = end_ticks;
 }
 
 void ActorProfiler::discard(const uint64_t end_ticks) {
@@ -55,6 +56,7 @@ void ActorProfiler::discard(const uint64_t end_ticks) {
   p_queue.pop();
   miss_firings++;
   miss_ticks += duration;
+  kernel_trace[call_index].wait = end_ticks;
 }
 
 void ActorProfiler::registerAction(const uint32_t action_index,
@@ -125,7 +127,7 @@ ActorProfiler::KernelTrace::serialized(const uint32_t indent) const {
   std::stringstream ss;
 
   ss << std::string(indent, '\t') << "<kernel start=\"" << start << "\" end=\""
-     << end << "\">" << std::endl;
+     << end << "\" exec=\"" << exec << "\" wait=\"" << wait << "\">" << std::endl;
   for (const auto &t : sync_trace) {
     ss << std::string(indent + 1, '\t') << "<sync start=\"" << t.first
        << "\" end=\"" << t.second << "\"/>" << std::endl;
