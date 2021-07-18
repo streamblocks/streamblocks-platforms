@@ -119,7 +119,7 @@ public class ControllerPipeliningPhase implements Phase {
                     reporter.report(
                             new Diagnostic(
                                     Diagnostic.Kind.WARNING,
-                                    "Guard condition depends on input value " + expr.toString(),
+                                    "Guard condition depends on input token value ",
                                     sourceUnitFinder.sourceUnit(expr),
                                     expr
                             )
