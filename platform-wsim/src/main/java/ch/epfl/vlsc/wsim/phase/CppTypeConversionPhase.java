@@ -1,12 +1,10 @@
 package ch.epfl.vlsc.wsim.phase;
 
-import ch.epfl.vlsc.wsim.entity.ir.cpp.CppNominalTypeExpr;
+import ch.epfl.vlsc.wsim.ir.cpp.CppNominalTypeExpr;
 
-import ch.epfl.vlsc.wsim.entity.ir.cpp.types.ArrayCppType;
-import ch.epfl.vlsc.wsim.entity.ir.cpp.types.CppType;
-import ch.epfl.vlsc.wsim.entity.ir.cpp.types.NativeTypeCpp;
+import ch.epfl.vlsc.wsim.phase.attributes.CppTypeConversion;
+import ch.epfl.vlsc.wsim.phase.attributes.SourceUnitFinder;
 
-import ch.epfl.vlsc.wsim.entity.ir.cpp.types.VectorCppType;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.MultiJ;
@@ -14,10 +12,15 @@ import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.compiler.CompilationTask;
 import se.lth.cs.tycho.compiler.Context;
 import se.lth.cs.tycho.compiler.SourceUnit;
+import se.lth.cs.tycho.ir.Generator;
 import se.lth.cs.tycho.ir.IRNode;
 
+import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
+import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.type.NominalTypeExpr;
 
+import se.lth.cs.tycho.ir.type.TypeExpr;
+import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.phase.Phase;
 import se.lth.cs.tycho.phase.TreeShadow;
 import se.lth.cs.tycho.reporting.CompilationException;
@@ -27,6 +30,8 @@ import se.lth.cs.tycho.type.*;
 
 import org.multij.Module;
 
+import java.util.List;
+import java.util.function.Predicate;
 
 
 public class CppTypeConversionPhase implements Phase {
@@ -39,17 +44,76 @@ public class CppTypeConversionPhase implements Phase {
 
     @Override
     public CompilationTask execute(CompilationTask task, Context context) throws CompilationException {
-        TypeConversion conversion = MultiJ.from(TypeConversion.class).instance();
+        CppTypeConversion conversion = MultiJ.from(CppTypeConversion.class).instance();
 
+        // set the generator types
+        SetGeneratorVariableTypes generatorTypes = MultiJ.from(SetGeneratorVariableTypes.class)
+                .bind("context").to(context)
+                .bind("sources").to(task.getModule(SourceUnitFinder.key))
+                .instance();
+        CompilationTask withTypedGenerators = generatorTypes.applyChecked(CompilationTask.class, task);
+        // lower to C++ types
         LowerToCppTypesTransformation transformation = MultiJ.from(LowerToCppTypesTransformation.class)
                 .bind("tree").to(task.getModule(TreeShadow.key))
                 .bind("highLevelTypesExpression").to(task.getModule(Types.key))
                 .bind("conversion").to(conversion)
-                .bind("context").to(context).instance();
-        CompilationTask transformedTask = transformation.applyChecked(CompilationTask.class, task);
+                .bind("context").to(context)
+                .bind("sources").to(task.getModule(SourceUnitFinder.key))
+                .instance();
+        CompilationTask transformedTask = transformation.applyChecked(CompilationTask.class, withTypedGenerators);
         return transformedTask;
     }
 
+
+    /**
+     * Transformation to set the types for generator varDecls
+     */
+    @Module
+    interface SetGeneratorVariableTypes extends IRNode.Transformation {
+
+        @Binding(BindingKind.INJECTED)
+        Context context();
+
+        @Binding(BindingKind.INJECTED)
+        SourceUnitFinder sources();
+
+        default IRNode apply(IRNode node) { return node.transformChildren(this); }
+
+
+        default IRNode apply(Generator gen) {
+
+            ImmutableList<GeneratorVarDecl> decls = gen.getVarDecls();
+            TypeExpr generatorType = gen.getType();
+            Predicate<GeneratorVarDecl> invalidVarDecl = v ->
+                    !(v.getType() == null || v.getType() == generatorType);
+            decls.stream().filter(invalidVarDecl)
+                    .forEach(v ->
+                context().getReporter().report(
+                        new Diagnostic(Diagnostic.Kind.ERROR,
+                                "generator variable declaration does have the same type as the generator.",
+                                sources().find(v), v)
+                )
+            );
+            if (!(generatorType instanceof NominalTypeExpr)) {
+                context().getReporter().report(
+                        new Diagnostic(Diagnostic.Kind.ERROR,
+                                "Only nominal generator types are supported for C++",
+                                sources().find(gen), gen)
+                );
+            }
+
+            Generator transformed = gen.withVarDecls(
+                    decls.map(
+                            v -> v.withType(
+                                    (TypeExpr) generatorType.deepClone()
+                            )));
+            return transformed;
+        }
+    }
+
+    /**
+     * Lower CAL type expression to nominal C++ type expressions
+     */
     @Module
     interface LowerToCppTypesTransformation extends IRNode.Transformation {
 
@@ -57,7 +121,7 @@ public class CppTypeConversionPhase implements Phase {
         Types highLevelTypesExpression();
 
         @Binding(BindingKind.INJECTED)
-        TypeConversion conversion();
+        CppTypeConversion conversion();
 
         @Binding(BindingKind.INJECTED)
         TreeShadow tree();
@@ -65,8 +129,36 @@ public class CppTypeConversionPhase implements Phase {
         @Binding(BindingKind.INJECTED)
         Context context();
 
+        @Binding(BindingKind.INJECTED)
+        SourceUnitFinder sources();
+
         default IRNode apply(IRNode node) {
             return node.transformChildren(this);
+        }
+
+        default SourceUnit apply(SourceUnit src) {
+            return src.transformChildren(this);
+        }
+
+        // check for untyped variable declaration and fix them.
+        default VarDecl apply(VarDecl varDecl) {
+            VarDecl transformedDecl = varDecl.transformChildren(this);
+            if (varDecl.getType() == null) { // if a declaration has no type try to infer it
+                if (varDecl.getValue() != null) {
+                    Type highLevel = highLevelTypesExpression().type(varDecl.getValue());
+                    return transformedDecl
+                            .withType(new CppNominalTypeExpr(
+                                    conversion().convert(highLevel)));
+                } else {
+                    context().getReporter().report(
+                            new Diagnostic(Diagnostic.Kind.ERROR,
+                                    "Error handling untyped variable declaration.",
+                                            findSourceUnit(varDecl), varDecl));
+                    return transformedDecl;
+                }
+            } else {
+                return transformedDecl;
+            }
         }
 
         default CppNominalTypeExpr apply(NominalTypeExpr typeExpr) {
@@ -85,126 +177,17 @@ public class CppTypeConversionPhase implements Phase {
             return cppTypeExpr;
         }
 
+        default CppNominalTypeExpr apply(CppNominalTypeExpr typeExpr) {
+            return typeExpr;
+        }
+
         default SourceUnit findSourceUnit(IRNode node) {
-            return findSourceUnit(tree().parent(node));
+            return sources().find(node);
         }
-        default SourceUnit findSourceUnit(SourceUnit node) {
-            return node;
-        }
-
 
     }
 
-    /**
-     * A functional interface for converting high level CAL types to lower level
-     * C++ types
-     */
 
-    @Module
-    interface TypeConversion {
-
-
-        default <T extends Type> CppType unimplConv(Class<T> type) {
-            throw new CompilationException(
-                    new Diagnostic(Diagnostic.Kind.ERROR,
-                            "Unimplemented type conversion  ")
-            );
-
-        }
-
-        CppType convert(Type t);
-
-        default CppType convert(BottomType t) {
-            return unimplConv(t.getClass());
-        }
-
-        default CppType convert(ListType t) {
-            Type elementType = t.getElementType();
-            if (t.getSize().isPresent()) {
-                return new ArrayCppType(convert(elementType), t.getSize().getAsInt());
-            } else {
-                return new VectorCppType(convert(elementType));
-            }
-        }
-
-        default CppType convert(SetType t) {
-            return unimplConv(t.getClass());
-        }
-
-        default CppType convert(MapType t) {
-            return unimplConv(t.getClass());
-        }
-
-        default CppType convert(QueueType t) {
-            return unimplConv(t.getClass());
-        }
-
-        default CppType convert(IntType t) {
-            final int size = t.getSize().orElse(32);
-            final boolean signed = t.isSigned();
-            if (size == 1) {
-                return NativeTypeCpp.Bool();
-            } else {
-                if (size <= 8) {
-                    return NativeTypeCpp.Int8(signed);
-                } else if (size <= 16) {
-                    return NativeTypeCpp.Int16(signed);
-                } else if (size <= 32) {
-                    return NativeTypeCpp.Int32(signed);
-                } else if (size <= 64) {
-                    return NativeTypeCpp.Int64(signed);
-                } else {
-                    throw new CompilationException(new Diagnostic(
-                            Diagnostic.Kind.ERROR, "Can not convert " + t.toString() +
-                            " to C++ native types."
-                    ));
-                }
-            }
-        }
-
-
-        default CppType convert(BoolType t) {
-            return NativeTypeCpp.Bool();
-        }
-
-        default CppType convert(CharType t) {
-            return NativeTypeCpp.Char();
-        }
-
-        default CppType convert(UnitType t) {
-            return NativeTypeCpp.Void();
-        }
-
-        default CppType convert(RealType t) {
-
-            final int size = t.getSize();
-            if (size <= 32) {
-                return NativeTypeCpp.Float();
-            } else if (size <= 64) {
-                return NativeTypeCpp.Double();
-            } else {
-                throw new CompilationException(
-                        new Diagnostic(
-                                Diagnostic.Kind.ERROR,
-                                "Can not convert " + t.toString() + " to C++ native types."
-                        )
-                );
-            }
-        }
-
-        // remove aliasing
-        default CppType convert(AliasType t) {
-            return convert(t.getType());
-        }
-
-        default CppType convert(SumType t) {
-            return unimplConv(t.getClass());
-        }
-
-        default CppType convert(ProductType t) {
-            return unimplConv(t.getClass());
-        }
-    }
 
 
 }
