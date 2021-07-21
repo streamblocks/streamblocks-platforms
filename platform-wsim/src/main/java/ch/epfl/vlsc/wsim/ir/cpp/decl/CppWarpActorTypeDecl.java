@@ -52,6 +52,8 @@ public class CppWarpActorTypeDecl extends CppClassTypeDecl{
     private final ImmutableList<CppMemberFunctionDecl> actorMethods;
     private final ImmutableList<CppMemberFunctionDecl> conditionMemberFunctions;
     private final ImmutableList<CppMemberFunctionDecl> actionMemberFunctions;
+    private final ImmutableList<CppMemberVarDecl> inputPorts;
+    private final ImmutableList<CppMemberVarDecl> outputPorts;
 //    private final ImmutableList<CppMemberVarDecl> memberVarDecls;
 
     /**
@@ -101,6 +103,8 @@ public class CppWarpActorTypeDecl extends CppClassTypeDecl{
         this.actorMethods = memberFunctionDecls;
         this.conditionMemberFunctions = conditions;
         this.actionMemberFunctions = actions;
+        this.inputPorts = inputPorts;
+        this.outputPorts = outputPorts;
     }
 
     public CppWarpActorTypeDecl(String name, ImmutableList<CppMemberVarDecl> memberVarDecls,

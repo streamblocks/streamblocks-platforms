@@ -2,7 +2,6 @@ package ch.epfl.vlsc.wsim.phase.attributes;
 
 import ch.epfl.vlsc.wsim.ir.cpp.CppNominalTypeExpr;
 import ch.epfl.vlsc.wsim.ir.cpp.decl.CppMemberFunctionDecl;
-import ch.epfl.vlsc.wsim.ir.cpp.expression.ExprCppMethodCall;
 import ch.epfl.vlsc.wsim.ir.cpp.statement.*;
 import ch.epfl.vlsc.wsim.ir.cpp.types.NativeTypeCpp;
 import ch.epfl.vlsc.wsim.ir.cpp.types.PairCppType;
@@ -58,6 +57,7 @@ public interface InstructionTranslator {
     @Module
     interface Implementation extends InstructionTranslator {
 
+        @Override
         default ImmutableList<Statement> translate(
                 ActorMachine actorMachine,
                 ImmutableList<CppMemberFunctionDecl> conditions,

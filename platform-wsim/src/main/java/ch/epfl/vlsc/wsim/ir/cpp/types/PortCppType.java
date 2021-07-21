@@ -1,6 +1,12 @@
 package ch.epfl.vlsc.wsim.ir.cpp.types;
 
+import ch.epfl.vlsc.wsim.ir.cpp.statement.StmtMethodCall;
 import se.lth.cs.tycho.ir.IRNode;
+import se.lth.cs.tycho.ir.Variable;
+import se.lth.cs.tycho.ir.expr.ExprLiteral;
+import se.lth.cs.tycho.ir.expr.ExprVariable;
+import se.lth.cs.tycho.ir.expr.Expression;
+import se.lth.cs.tycho.ir.util.ImmutableList;
 
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -11,6 +17,54 @@ public class PortCppType extends LibraryObjectCppType{
 //    private final String portName;
     private final boolean isInput;
 
+    public static StmtMethodCall portConsume(Expression portObject, boolean isByDeref,
+                                             int count, Variable timeStamp) {
+
+        if (count == 1) {
+            return new StmtMethodCall(
+                    portObject, isByDeref,
+                    new ExprVariable(Variable.variable("consume")),
+                    ImmutableList.of(
+                            new ExprVariable(Variable.variable(timeStamp.getName()))
+                    )
+            );
+        } else {
+            return new StmtMethodCall(
+                    portObject, isByDeref,
+                    new ExprVariable(Variable.variable("consumeRepeat")),
+                    ImmutableList.of(
+                            new ExprLiteral(ExprLiteral.Kind.Integer, String.valueOf(count)),
+                            new ExprVariable(Variable.variable(timeStamp.getName()))
+                    )
+            );
+        }
+    }
+
+    public static StmtMethodCall portWrite(Expression portObject, boolean isByDeref, Expression value,
+                                           Variable timeStamp) {
+
+        return  new StmtMethodCall(
+                portObject, isByDeref,
+                new ExprVariable(Variable.variable("write")),
+                ImmutableList.of(
+                        value, new ExprVariable(Variable.variable(timeStamp.getName()))
+                )
+        );
+
+    }
+
+    public static StmtMethodCall portWriteRepeat(Expression portObject, boolean isByDeref,
+                                                 Expression bufferObject, int count, Variable timeStamp) {
+        return new StmtMethodCall(
+                portObject, isByDeref,
+                new ExprVariable(Variable.variable("writeRepeat")),
+                ImmutableList.of(
+                        bufferObject,
+                        new ExprLiteral(ExprLiteral.Kind.Integer, String.valueOf(count)),
+                        new ExprVariable(Variable.variable(timeStamp.getName()))
+                )
+        );
+    }
     public static PortCppType InputPort(CppType portType) {
         return new PortCppType(portType, true);
     }

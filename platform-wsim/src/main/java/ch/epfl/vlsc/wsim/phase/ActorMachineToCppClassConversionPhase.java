@@ -1,6 +1,6 @@
 package ch.epfl.vlsc.wsim.phase;
 
-import ch.epfl.vlsc.wsim.ir.cpp.CppFunctionTypeExpr;
+
 import ch.epfl.vlsc.wsim.ir.cpp.CppNominalTypeExpr;
 import ch.epfl.vlsc.wsim.ir.cpp.decl.*;
 import ch.epfl.vlsc.wsim.ir.cpp.expression.ExprCppMethod;
@@ -13,7 +13,7 @@ import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.MultiJ;
 import se.lth.cs.tycho.attribute.Ports;
-import se.lth.cs.tycho.attribute.Types;
+
 import se.lth.cs.tycho.compiler.CompilationTask;
 import se.lth.cs.tycho.compiler.Context;
 import se.lth.cs.tycho.compiler.SourceUnit;
@@ -22,26 +22,26 @@ import se.lth.cs.tycho.ir.*;
 import se.lth.cs.tycho.ir.decl.*;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.entity.am.*;
-import se.lth.cs.tycho.ir.entity.am.ctrl.Instruction;
+
 import se.lth.cs.tycho.ir.entity.am.ctrl.InstructionKind;
 import se.lth.cs.tycho.ir.entity.am.ctrl.State;
 import se.lth.cs.tycho.ir.expr.*;
 import se.lth.cs.tycho.ir.stmt.*;
-import se.lth.cs.tycho.ir.stmt.lvalue.LValueVariable;
+
 import se.lth.cs.tycho.ir.type.TypeExpr;
 import se.lth.cs.tycho.ir.util.ImmutableList;
-import se.lth.cs.tycho.phase.TreeShadow;
+
 import se.lth.cs.tycho.reporting.CompilationException;
 import se.lth.cs.tycho.phase.Phase;
 import org.multij.Module;
 import se.lth.cs.tycho.reporting.Diagnostic;
 
 import java.util.*;
-import java.util.function.BiFunction;
+
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
+
 
 public class ActorMachineToCppClassConversionPhase implements Phase {
 
@@ -52,12 +52,9 @@ public class ActorMachineToCppClassConversionPhase implements Phase {
     public CompilationTask execute(CompilationTask task, Context context) throws CompilationException {
 
         CreateActorClass transformation = MultiJ.from(CreateActorClass.class)
-                .bind("tree")
-                .to(task.getModule(TreeShadow.key))
-                .bind("ports")
-                .to(task.getModule(Ports.key))
-                .bind("sources").to(SourceUnitFinder.key)
-                .bind("translator").to(InstructionTranslator.key)
+                .bind("ports").to(task.getModule(Ports.key))
+                .bind("sources").to(task.getModule(SourceUnitFinder.key))
+                .bind("translator").to(task.getModule(InstructionTranslator.key))
                 .instance();
         ImmutableList<CppWarpActorTypeDecl> decl = task.getSourceUnits()
                 .map(SourceUnit::getTree).stream()
@@ -77,9 +74,6 @@ public class ActorMachineToCppClassConversionPhase implements Phase {
 
         @Binding(BindingKind.INJECTED)
         Ports ports();
-
-        @Binding(BindingKind.INJECTED)
-        TreeShadow tree();
 
         @Binding(BindingKind.INJECTED)
         SourceUnitFinder sources();
@@ -112,6 +106,7 @@ public class ActorMachineToCppClassConversionPhase implements Phase {
         default ExprLiteral maxLoops() {
             return new ExprLiteral(ExprLiteral.Kind.Integer, "100");
         }
+
         default CppWarpActorTypeDecl create(GlobalEntityDecl entityDecl) {
 
             ActorMachine actorMachine = (ActorMachine) entityDecl.getEntity();
@@ -360,7 +355,8 @@ public class ActorMachineToCppClassConversionPhase implements Phase {
 
 
             List<State> stateList = actorMachine.controller().getStateList();
-            Map<State, Integer> stateMap = IntStream.range(0, actorMachine.controller().getStateList().size()).boxed()
+            Map<State, Integer> stateMap =
+                    IntStream.range(0, actorMachine.controller().getStateList().size()).boxed()
                     .collect(Collectors
                             .toMap(
                                     stateList::get, Function.identity()
@@ -416,7 +412,6 @@ public class ActorMachineToCppClassConversionPhase implements Phase {
             Variable currentLvt = Variable.variable("current_lvt");
             Variable scheduleQuery = Variable.variable("query");
             Variable latencyFunction = Variable.variable(latencyFunctionVarName());
-            Variable loopCounter = Variable.variable("loop_counter;");
             // translate all the instruction to statements
             ImmutableList<Statement> actionSelectionBody = stateList.stream().flatMap(s ->
                 translator().translate(actorMachine, conditions, actions, stateMap, s,
@@ -435,15 +430,6 @@ public class ActorMachineToCppClassConversionPhase implements Phase {
                                     ),
                                     currentLvt.getName(),
                                     WarpActorBaseCppType.makeGetVirtualTimeStmtCall(),
-                                    false
-                            ),
-                            new LocalVarDecl(
-                                    ImmutableList.empty(),
-                                    new CppNominalTypeExpr(
-                                            NativeTypeCpp.Int32(false)
-                                    ),
-                                    loopCounter.getName(),
-                                    new ExprLiteral(ExprLiteral.Kind.Integer, "0"),
                                     false
                             )
                     ),
@@ -472,7 +458,51 @@ public class ActorMachineToCppClassConversionPhase implements Phase {
         }
 
 
-
+        /**
+         * Translate {@link StmtConsume}, {@link StmtWrite}, and {@link ExprInput}
+         */
+//        @Module
+//        interface TranslatePortStatements extends IRNode.Transformation {
+//
+//            @Binding(BindingKind.INJECTED)
+//            Function<Port, String> inputNames();
+//            @Binding(BindingKind.INJECTED)
+//            Function<Port, String> outputNames();
+//            @Binding(BindingKind.INJECTED)
+//            Variable currentLvt();
+//
+//            default IRNode apply(IRNode node) {
+//                return node.transformChildren(this);
+//            }
+//
+//            default StmtMethodCall apply(StmtConsume consume) {
+//                String portName = inputNames().apply(consume.getPort());
+//                return PortCppType.portConsume(
+//                        new ExprVariable(Variable.variable(portName)),
+//                        StmtMethodCall.ArrowAccess, consume.getNumberOfTokens(),
+//                        currentLvt()
+//                );
+//            }
+//
+//            default Statement apply(StmtWrite writeOperation) {
+//                String portName = outputNames().apply(writeOperation.getPort());
+//                if (writeOperation.getRepeatExpression() == null) {
+//                    // one by one write to port, not optimized
+//                    return new StmtBlock(
+//                            ImmutableList.empty(), ImmutableList.empty(),
+//                            ImmutableList.empty(),
+//                            writeOperation.getValues().map(v ->
+//                                PortCppType.portWrite(
+//                                        new ExprVariable(Variable.variable(portName)),
+//                                        StmtMethodCall.ArrowAccess, v, currentLvt()))
+//                    );
+//                } else {
+//
+//                }
+//            }
+//
+//
+//        }
     }
 
 
