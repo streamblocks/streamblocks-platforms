@@ -51,7 +51,8 @@ import ch.epfl.vlsc.compiler.PartitionedCompilationTask.PartitionKind;
 public class NetworkPartitioningPhase implements Phase {
 
 
-    private final String partitionKey = "partition";
+
+    public static final String partitionKey = PartitionedCompilationTask.partitionKey;
 
     private Map<String, PartitionKind> partition;
 

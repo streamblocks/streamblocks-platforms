@@ -9,6 +9,7 @@ import org.multij.Module;
 import se.lth.cs.tycho.attribute.GlobalNames;
 import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.ir.Annotation;
+import se.lth.cs.tycho.ir.IRNode;
 import se.lth.cs.tycho.ir.Parameter;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.decl.ParameterVarDecl;
@@ -69,11 +70,14 @@ public interface Instances {
     default String inputsStruct() { return "inputs"; }
     default String outputStruct() { return "outputs"; }
     default String getLatencyVar() {
-        return "m_latency";
+        return "getLatency";
     }
     default String getLatency(int actionIndex) {
-        return getLatencyVar() + "[" + actionIndex + "]";
+        return getLatencyVar() + "(" + actionIndex + ")";
     }
+    default String generatedNameSpace() { return "generated"; }
+    default String streamblocksNameSpace() { return "streamblocks"; }
+    default String namespace() { return streamblocksNameSpace() + "::" + generatedNameSpace(); }
     default void emitInstance(Instance instance, Path sourcePath, Path headerPath) {
         // -- Add instance to box
         backend().instancebox().set(instance);
@@ -113,6 +117,7 @@ public interface Instances {
         // -- Includes
         defineIncludes(false);
 
+        emitter().emit("namespace %s {", namespace());
         // -- Controller (aka Action selection)
         backend().controllers().emitController(instanceName, actorMachine);
         emitter().emitNewLine();
@@ -135,9 +140,13 @@ public interface Instances {
 
         actor.getTransitions().forEach(t -> transition(instanceName, t, actor.getTransitions().indexOf(t), actorMachine));
 
+
+        // -- sanity checker
+        sanityChecker(instanceName, actorMachine);
         // -- Callables
         callables(instanceName, actorMachine);
 
+        emitter().emit("}");
         // -- EOF
         emitter().close();
     }
@@ -162,13 +171,13 @@ public interface Instances {
 
         // -- Includes
         defineIncludes(true);
-
+        emitter().emit("namespace %s {", namespace());
         assert entity instanceof ActorMachine;
         ActorMachine actorMachine = (ActorMachine) entity;
 
         // -- Class
         instanceClass(instanceName, actorMachine);
-
+        emitter().emit("}", namespace());
         emitter().emit("#endif // __%s__", instanceName.toUpperCase());
         emitter().emitNewLine();
 
@@ -185,13 +194,13 @@ public interface Instances {
             backend().includeSystem("wsim.h");
             backend().includeSystem("stdint.h");
             backend().includeUser("globals.h");
-            backend().includeUser("prelude.h");
+//            backend().includeUser("prelude.h");
         } else {
             Instance instance = backend().instancebox().get();
             String headerName = instance.getInstanceName() + ".h";
 
             backend().includeUser(headerName);
-            backend().includeUser("natives.h");
+//            backend().includeUser("natives.h");
         }
         emitter().emitNewLine();
     }
@@ -252,9 +261,7 @@ public interface Instances {
             emitter().emitNewLine();
 
 
-            emitter().emit("// -- latency function");
-            emitter().emit("::std::array<::wsim::VirtualTime::type, %d> %s;", actor.getTransitions().size(),
-                    getLatencyVar());
+
             emitter().decreaseIndentation();
 
         }
@@ -274,10 +281,10 @@ public interface Instances {
             emitter().emit("::std::string getEntityName() const { return \"%s\"; } ", instanceName);
             emitter().emit("int getNumInputs() const { return %d; };", actor.getInputPorts().size());
             emitter().emit("int getNumOutputs() const { return %d; };", actor.getOutputPorts().size());
-            emitter().emit("bool getActionDescription(const int index, ::wsim::ActionDescription& desc) const { return false; };");
-            emitter().emit("bool getConditionDescription(const int index, ::wsim::ConditionDescription& desc) const { return false; };");
 
+            emitter().emit("std::string toDetails() const { return \"%s\"; }", instanceName);
 
+            emitter().emit("bool isInitialized() const;");
             portsStructure(actor.getInputPorts(), "InputPorts", "::wsim::InputPort");
             emitter().emit("InputPorts %s;", inputsStruct());
 
@@ -321,17 +328,46 @@ public interface Instances {
         }
         emitter().emit("}" + commaDelim);
     }
+
+    default void actionDescriptions(ImmutableList<Transition> actions) {
+
+        int transition_id = 0;
+        int num_transitions = actions.size();
+        for (Transition transition : actions) {
+            Optional<Annotation> annotation =
+                    Annotation.getAnnotationWithName("ActionId", transition.getAnnotations());
+            String actionTag = "transition_" + transition_id;
+            if (annotation.isPresent()) {
+                actionTag = ((ExprLiteral) annotation.get().getParameters().get(0).getExpression()).getText();
+            }
+            emitter().emit("::wsim::ActionDescription(\"%s\", {}, {})%s", actionTag,
+                    transition_id == num_transitions - 1 ? "" : ",");
+
+        }
+
+    }
     default void instanceConstructor(String instanceName, ActorMachine actor) {
         emitter().emit("%s::%1$s(const ::std::string& instanceName, " +
-                "const ::wsim::AttributeList& attrs) ", instanceName);
+                "const ::wsim::AttributeList& attrs) : ", instanceName);
         {
             emitter().increaseIndentation();
 
             // base constructor
-            emitter().emit("::wsim::ActorBase(instanceName, attrs),");
+            emitter().emit("::wsim::ActorBase(instanceName, attrs,");
+            {
+                emitter().increaseIndentation();
+                emitter().emit("{");
+                emitter().increaseIndentation();
+                actionDescriptions(actor.getTransitions());
+                emitter().decreaseIndentation();
+                emitter().emit("},");
+                emitter().emit("{} // no condition description for now");
+                emitter().decreaseIndentation();
+            }
+            emitter().emit("),");
             // construct ports objects
             buildPorts(inputsStruct(), actor.getInputPorts(), "MAKE_INPUT_PORT", ",");
-            buildPorts(outputStruct(), actor.getOutputPorts(), "MAKE_OUTPUT_PORTS", "{");
+            buildPorts(outputStruct(), actor.getOutputPorts(), "MAKE_OUTPUT_PORT", "{");
 
             emitter().emitNewLine();
 
@@ -419,7 +455,7 @@ public interface Instances {
     default String transitionPrototype(String instanceName, Transition transition, int index, boolean withClassName) {
         // -- Actor Instance Name
 
-        return String.format("void %stransition_%d()", withClassName ? instanceName + "::" : "", index);
+        return String.format("void %stransition_%d(::wsim::VirtualTime::type current_ts)", withClassName ? instanceName + "::" : "", index);
     }
 
     // ------------------------------------------------------------------------
@@ -526,6 +562,25 @@ public interface Instances {
                 }
             }
         }
+    }
+
+
+    default void sanityChecker(String instanceName, ActorMachine am) {
+
+        emitter().emit("bool %s::isInitialized() const {", instanceName);
+        {
+            emitter().increaseIndentation();
+            int indentLevel = emitter().getIndentation() + 1;
+            String indent = Emitter.makeIndentation(indentLevel);
+            emitter().emit("return %s;",
+                    String.join(" &&\n" + indent,
+                            ImmutableList.concat(
+                                    am.getInputPorts().map(p -> inputsStruct() + "." + p.getName() + "->isInitialized()"),
+                                    am.getOutputPorts().map(p -> outputStruct() + "." + p.getName() + "->isInitialized()")
+                            )));
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("}");
     }
 
 }

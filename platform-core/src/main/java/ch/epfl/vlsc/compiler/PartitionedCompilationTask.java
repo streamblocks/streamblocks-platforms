@@ -1,7 +1,11 @@
 package ch.epfl.vlsc.compiler;
 
 import se.lth.cs.tycho.compiler.Context;
+import se.lth.cs.tycho.ir.ToolAttribute;
+import se.lth.cs.tycho.ir.ToolValueAttribute;
+import se.lth.cs.tycho.ir.expr.ExprLiteral;
 import se.lth.cs.tycho.ir.network.Instance;
+import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.reporting.CompilationException;
 import se.lth.cs.tycho.compiler.CompilationTask;
 
@@ -16,6 +20,7 @@ import se.lth.cs.tycho.reporting.Diagnostic;
 
 import java.util.*;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 /**
  * @author Mahyar Emami (mahyar.emami@epfl.ch)
@@ -25,9 +30,10 @@ import java.util.function.Consumer;
 public class PartitionedCompilationTask extends CompilationTask {
 
 
+    public static final String partitionKey = "partition";
 
     public enum PartitionKind {
-        HW, SW;
+        HW, SW, ANY, INVALID;
 
         @Override
         public String toString() {
@@ -37,12 +43,42 @@ public class PartitionedCompilationTask extends CompilationTask {
                     return "hw";
                 case SW:
                     return "sw";
+                case ANY:
+                    return "any";
+                case INVALID:
+                    return "<INVALID>";
                 default:
-                    return "ERROR";
+                    return "<ERROR?";
             }
         }
     };
 
+    public static PartitionKind getPartitionKind(Instance instance) {
+        ImmutableList<ToolAttribute> pattrs =
+                ImmutableList.from(instance.getAttributes()
+                        .stream().filter(a -> a.getName().equals(partitionKey)).collect(Collectors.toList()));
+
+        if (pattrs.size() == 0) {
+            return PartitionKind.ANY;
+        } else if (pattrs.size() == 1) {
+            if (pattrs.get(0) instanceof ToolValueAttribute) {
+                ToolValueAttribute attr = (ToolValueAttribute) pattrs.get(0);
+                String p = ((ExprLiteral) attr.getValue()).asString().get();
+                switch (p) {
+                    case "hw":
+                        return PartitionKind.HW;
+                    case "sw":
+                        return PartitionKind.SW;
+                    default:
+                        return PartitionKind.INVALID;
+                }
+            } else {
+                return PartitionKind.INVALID;
+            }
+        } else {
+            return PartitionKind.INVALID;
+        }
+    }
     private final Map<PartitionKind, Network> networkPartitions;
 
     /**

@@ -8,6 +8,7 @@ import org.multij.Module;
 import se.lth.cs.tycho.ir.Port;
 import se.lth.cs.tycho.ir.ToolValueAttribute;
 import se.lth.cs.tycho.ir.network.Connection;
+import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.network.Network;
 import se.lth.cs.tycho.reporting.Diagnostic;
 import se.lth.cs.tycho.type.Type;
@@ -140,5 +141,23 @@ public interface Channels {
             return PlatformSettings.defaultQueueDepth.defaultValue(backend().context().getConfiguration());
         }
     }
+
+    default Optional<Instance> sourceInstance(Connection connection) {
+
+        return backend().task().getNetwork().getInstances().stream().filter(i ->
+                connection.getSource().getInstance().isPresent() && i.getInstanceName().equals(
+                        connection.getSource().getInstance().get()
+                )
+        ).findAny();
+    }
+
+    default Optional<Instance> targetInstance(Connection connection) {
+        return  backend().task().getNetwork().getInstances().stream().filter(i ->
+                connection.getTarget().getInstance().isPresent() && i.getInstanceName().equals(
+                        connection.getTarget().getInstance().get()
+                )
+        ).findAny();
+    }
+
 
 }

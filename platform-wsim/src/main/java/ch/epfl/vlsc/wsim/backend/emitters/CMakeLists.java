@@ -32,7 +32,7 @@ public interface CMakeLists {
         emitter().emitNewLine();
 
         // -- C Standard
-        emitter().emit("set(CMAKE_CXX_STANDARD 14)");
+        emitter().emit("set(CMAKE_CXX_STANDARD 17)");
         emitter().emitNewLine();
 
         // -- Module Path
@@ -40,8 +40,7 @@ public interface CMakeLists {
         emitter().emitNewLine();
 
         // -- Binary output folder
-        emitter().emit("# -- Configure output Folder for generated binary");
-        emitter().emit("set(EXECUTABLE_OUTPUT_PATH ${CMAKE_SOURCE_DIR}/bin)");
+
         emitter().emitNewLine();
 
         // -- Definitions used in sub directories

@@ -49,6 +49,9 @@ public class WarpActorCodeGenerationPhase implements Phase {
             backend.instance().emitInstance(instance, sourcePath, headerPath);
         }
 
+        backend.networkbuilder().buildNetwork(task.getNetwork(), sourcePath);
+
+
         return task;
     }
 }

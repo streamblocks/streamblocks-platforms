@@ -163,6 +163,12 @@ public interface WSimBackend {
         return MultiJ.from(Instances.class).bind("backend").to(this).instance();
     }
 
+    // -- network builder
+    @Binding(LAZY)
+    default NetworkBuilder networkbuilder() {
+        return MultiJ.from(NetworkBuilder.class)
+                .bind("backend").to(this).instance();
+    }
     @Binding(LAZY)
     default TypesEvaluator typeseval() {
         return MultiJ.from(TypesEvaluator.class)

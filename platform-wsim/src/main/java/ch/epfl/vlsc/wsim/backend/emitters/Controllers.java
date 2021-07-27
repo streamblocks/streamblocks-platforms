@@ -34,11 +34,11 @@ public interface Controllers {
         Map<State, Integer> stateMap = stateMap(stateList);
         Set<State> waitTargets = collectWaitTargets(stateList);
 
-        emitter().emit("void %s::schedule(wsim::ActorScheduleQuery& query) {", name);
+        emitter().emit("void %s::scheduler(wsim::ActorScheduleQuery& query) {", name);
         emitter().increaseIndentation();
 
         emitter().emit("");
-        emitter().emit("%s = getVirtualTime();", currentLvt());
+        emitter().emit("auto %s = ::std::max(query.getScheduleTime().value_or(0), getVirtualTime());", currentLvt());
         emitter().emitNewLine();
 
         jumpInto(waitTargets.stream().mapToInt(stateMap::get).collect(BitSet::new, BitSet::set, BitSet::or),
@@ -110,9 +110,9 @@ public interface Controllers {
     }
 
     default void emitInstruction(String name, Exec exec, State from, Map<State, Integer> stateNumbers) {
-        emitter().emit("transition_%d();", exec.transition());
-        emitter().emit("query.notifyAction(%d);", exec.transition());
         emitter().emit("%s += %s;", currentLvt(), backend().instance().getLatency(exec.transition()));
+        emitter().emit("query.notifyAction(%d);", exec.transition());
+        emitter().emit("transition_%d(%s);", exec.transition(), currentLvt());
         emitter().emit("goto S%d;", stateNumbers.get(exec.target()));
         emitter().emit("");
     }

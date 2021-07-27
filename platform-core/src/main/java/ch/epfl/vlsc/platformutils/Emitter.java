@@ -29,7 +29,13 @@ public class Emitter {
         writer.close();
         writer = null;
     }
-
+    public int getIndentation() { return indentation; }
+    public static String makeIndentation(int indentation) {
+        String indent = "";
+        for (int i = 0; i < indentation; i++)
+            indent = indent + "\t";
+        return indent;
+    }
     public void increaseIndentation() {
         indentation++;
     }
