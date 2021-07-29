@@ -9,6 +9,8 @@ import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.network.Instance;
 import ch.epfl.vlsc.wsim.backend.WSimBackend;
 
+import java.nio.file.Path;
+
 @Module
 public interface CMakeLists {
 
@@ -20,6 +22,32 @@ public interface CMakeLists {
     }
 
 
+    default void generatedSubDirectory(Path genPath) {
+
+        emitter().open(genPath.resolve("CMakeLists.txt"));
+
+        emitter().emit("set(ACTOR_SOURCES");
+        {
+            emitter().increaseIndentation();
+            for(Instance instance : backend().task().getNetwork().getInstances()){
+                emitter().emit("${CMAKE_CURRENT_SOURCE_DIR}/src/%s.cpp", instance.getInstanceName());
+            }
+            emitter().emit("${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp");
+            emitter().emit("PARENT_SCOPE");
+            emitter().decreaseIndentation();
+        }
+        emitter().emit(")");
+
+        emitter().emit("set(ACTOR_INCLUDES");
+        {
+            emitter().increaseIndentation();
+            emitter().emit("${CMAKE_CURRENT_SOURCE_DIR}/include");
+            emitter().emit("PARENT_SCOPE");
+            emitter().decreaseIndentation();
+        }
+        emitter().emit(")");
+        emitter().close();
+    }
     default void projectCMakeLists() {
         emitter().open(PathUtils.getTarget(backend().context()).resolve("CMakeLists.txt"));
         // -- CMake Minimal version

@@ -82,7 +82,7 @@ public interface Statements {
                     backend().controllers().currentLvt());
         } else {
             emitter().emit("%s.%s->consumeRepeat(%d, %s);",
-                    backend().instance().outputStruct(),
+                    backend().instance().inputsStruct(),
                     consume.getPort().getName(),
                     consume.getNumberOfTokens(),
                     backend().controllers().currentLvt());
@@ -139,7 +139,8 @@ public interface Statements {
             if (decl.getValue() != null) {
                 if(decl.getValue() instanceof ExprInput){
                     emitter().emit("%s;", d);
-                    backend().expressions().evaluate((ExprInput) decl.getValue());
+                    backend().expressions().evaluateWithDeclName(declarationName, (ExprInput) decl.getValue());
+
                 } else {
                     emitter().emit("%s = %s;", d, backend().defaultValues().defaultValue(t));
                     copy(t, declarationName, types().type(decl.getValue()), expressions().evaluate(decl.getValue()));

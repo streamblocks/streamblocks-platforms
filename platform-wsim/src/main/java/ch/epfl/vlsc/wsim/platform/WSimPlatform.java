@@ -42,6 +42,7 @@ public class WSimPlatform implements Platform {
     }
     private static final List<Phase> phases = ImmutableList.<Phase>builder()
             .addAll(frontendPhases())
+//            .addAll(new SubstituteTaskNullValueParameters())
             .addAll(Compiler.templatePhases())
             .addAll(CommonPhases.networkElaborationPhases)
             .addAll(Compiler.nameAndTypeAnalysis())

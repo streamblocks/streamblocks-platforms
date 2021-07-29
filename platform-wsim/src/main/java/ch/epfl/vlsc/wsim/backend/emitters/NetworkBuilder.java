@@ -2,7 +2,7 @@ package ch.epfl.vlsc.wsim.backend.emitters;
 
 import ch.epfl.vlsc.compiler.PartitionedCompilationTask;
 import ch.epfl.vlsc.platformutils.Emitter;
-import ch.epfl.vlsc.platformutils.PathUtils;
+
 import ch.epfl.vlsc.wsim.backend.WSimBackend;
 import org.multij.Binding;
 import org.multij.BindingKind;
@@ -41,7 +41,7 @@ public interface NetworkBuilder {
     default boolean isHardwareInputBuffer(Connection connection) {
         Optional<Instance> source = backend().channels().sourceInstance(connection);
         Optional<Instance> target = backend().channels().targetInstance(connection);
-        if (source.isPresent() == false || target.isPresent() == false) {
+        if (!source.isPresent() || !target.isPresent()) {
             backend().context().getReporter().report(
                     new Diagnostic(Diagnostic.Kind.ERROR, "Networks with dangling input or" +
                             "output is not supported. Make sure the top CAL network has no external inputs " +
@@ -82,7 +82,7 @@ public interface NetworkBuilder {
                 "  auto STREAMBLOCKS_BUFFER_NAME(source, sourceport, target, targetport,        \\\n" +
                 "                                index) =                                       \\\n" +
                 "      ::wsim::make_buffer<TYPE>(::wsim::getFifoSize(                           \\\n" +
-                "          #source, #sourceport, #target, #targetport, xml_connections, 1024))\n" +
+                "          #source, #sourceport, #target, #targetport, xml_connections, 4096))\n" +
                 "\n" +
                 "#define STREAMBLOCKS_MAKE_LOCAL_BUFFER(source, sourceport, target, targetport, \\\n" +
                 "                                       TYPE)                                   \\\n" +
@@ -96,7 +96,7 @@ public interface NetworkBuilder {
     }
     default void buildNetwork(Network network, Path targetPath) {
 
-        Path filePath = targetPath.resolve("main.cpp");
+        Path filePath = targetPath.resolve(backend().task().getIdentifier().getLast().toString() + ".cpp");
         emitter().open(filePath);
 
         emitter().emit("#include <wsim.h>");
@@ -104,13 +104,14 @@ public interface NetworkBuilder {
             emitter().emit("#include \"%s.h\"", instance.getInstanceName());
         }
         emitMacros();
-        emitter().emit("int main(int argc, char* argv[]) {");
+        emitter().emit("std::vector<std::unique_ptr<::wsim::SequentialPartition>> " +
+                "buildNetwork(const std::unique_ptr<wsim::cal::options::SimulationConfig> &cfg) {");
         {
             emitter().increaseIndentation();
 
             emitter().emit("// read the xml file");
-            emitter().emit("auto xml_path = argv[1];");
-            emitter().emit("::wsim::XmlConfigurationReader reader(xml_path);");
+
+            emitter().emit("::wsim::XmlConfigurationReader reader(cfg->config_file);");
             emitter().emit("auto xml_connections = reader.readConnections();");
             emitter().emit("auto partitions = reader.readPartitions();");
             emitter().emit("auto profile = reader.readProfile();");
@@ -137,7 +138,7 @@ public interface NetworkBuilder {
                     " partitions->fpga_partition, profile);");
             emitter().emit("using PLinkActorClass = ::wsim::PLink<decltype(plink_input_ports), decltype(plink_output_ports)>;");
             emitter().emit("auto plink_instance = ::wsim::make_actor<PLinkActorClass>(plink_input_ports, plink_output_ports, " +
-                    "::std::move(fpga_scheduler), 1000.0 / 200.0, ::wsim::AttributeList::from(\"verbose\", 10));");
+                    "::std::move(fpga_scheduler), cfg->fpga_freq, cfg->cpu_freq, 1000.0 , ::wsim::AttributeList::from(\"verbose\", cfg->verbose));");
 
             // add the plink to the instances
             emitter().emit("instance_collection.emplace(::std::make_pair(plink_instance->getInstanceName(), ::std::move(plink_instance)));");
@@ -146,7 +147,7 @@ public interface NetworkBuilder {
             emitter().emit("// -- thread schedulers");
             emitter().emit("auto threads_schedulers = makeThreadSchedulers(instance_collection, partitions->threads_partitions, profile);");
 
-            emitter().emit("::wsim::executeNetwork(threads_schedulers);");
+            emitter().emit("return threads_schedulers;");
             emitter().decreaseIndentation();
         }
         emitter().emit("}");

@@ -50,7 +50,7 @@ public class WarpActorCodeGenerationPhase implements Phase {
         }
 
         backend.networkbuilder().buildNetwork(task.getNetwork(), sourcePath);
-
+        backend.cmakelists().generatedSubDirectory(targetPath);
 
         return task;
     }

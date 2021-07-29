@@ -120,41 +120,39 @@ public interface Expressions {
     }
 
     default String evaluate(ExprInput input) {
-        String tmp = variables().generateTemp();
-        Type type = types().type(input);
+        throw new RuntimeException("not implemented");
+//        String tmp = variables().generateTemp();
+//        Type type = types().type(input);
+//        if (input.hasRepeat()) {
+//            if (input.getOffset() == 0) {
+//                emitter().emit("%s.%s->peekRepeat(%s, %d);",
+//                        backend().instance().inputsStruct(), input.getPort().getName(), tmp, input.getRepeat());
+//
+//            } else {
+//                throw new RuntimeException("not implemented");
+//            }
+//        } else {
+//            emitter().emit("%s = %s;", declarations().declaration(type, tmp), backend().defaultValues().defaultValue(type));
+//            emitter().emit("%s = %s.%s->peek(%d);", tmp,
+//                    backend().instance().inputsStruct(), input.getPort().getName(),
+//                    input.getOffset());
+//        }
+//        return tmp;
+    }
+
+    default void evaluateWithDeclName(String name, ExprInput input) {
         if (input.hasRepeat()) {
             if (input.getOffset() == 0) {
                 emitter().emit("%s.%s->peekRepeat(%s, %d);",
-                        backend().instance().inputsStruct(), input.getPort().getName(), tmp, input.getRepeat());
-
+                        backend().instance().inputsStruct(), input.getPort().getName(), name, input.getRepeat());
             } else {
                 throw new RuntimeException("not implemented");
             }
         } else {
-            emitter().emit("%s = %s;", declarations().declaration(type, tmp), backend().defaultValues().defaultValue(type));
-            emitter().emit("%s = %s.%s->peek(%d);", tmp,
-                    backend().instance().inputsStruct(), input.getPort().getName(),
-                    input.getOffset());
-        }
-        return tmp;
-    }
 
-    default void evaluateWithDecl(String name, Type type, ExprInput input) {
-        if (input.hasRepeat()) {
-            if (input.getOffset() == 0) {
-                emitter().emit("auto %s = input[\"%s\"].peek_range<%s>(%d);", name, input.getPort().getName(), typeseval().type(type), input.getRepeat());
-            } else {
-                throw new RuntimeException("not implemented");
-            }
-        } else {
-            emitter().emit("%s = %s;", declarations().declaration(type, name), backend().defaultValues().defaultValue(type));
-            if (input.getOffset() == 0) {
-                emitter().emit("%s = input[\"%s\"].peek<%s>();", name, input.getPort().getName(), typeseval().type(type));
-            } else {
-                String auto = variables().generateTemp();
-                emitter().emit("auto %s = input[\"%s\"].peek_range<%s>(%s);", auto, input.getPort().getName(), typeseval().type(type), input.getOffset() + 1);
-                emitter().emit("%s = %s[%s].ele;", name, auto, input.getOffset());
-            }
+            emitter().emit("%s = %s.%s->peek(%d);", name, backend().instance().inputsStruct(),
+                    input.getPort().getName(), input.getOffset());
+
         }
     }
 
@@ -873,7 +871,7 @@ public interface Expressions {
             }
         }
 
-        return String.format("%s[%s]%s", evaluate(indexer.getStructure()), evaluate(indexer.getIndex()), fromInput ? ".ele" : "");
+        return String.format("%s[%s]", evaluate(indexer.getStructure()), evaluate(indexer.getIndex()));
     }
 
     default String exprIndexing(MapType type, ExprIndexer indexer) {

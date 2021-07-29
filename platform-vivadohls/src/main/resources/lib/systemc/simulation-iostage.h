@@ -143,7 +143,7 @@ public:
         case State::BUSIF_STARTUP_DELAY:
           // wait a specified number of cycles to emulate startup cost of the
           // bus interface
-          this->waitCycles(8);
+          this->waitCycles(1);
           next_state = this->nextState();
           this->state.write(next_state);
           break;
@@ -156,7 +156,7 @@ public:
           break;
         }
         case State::BUSIF_END_DELAY:
-          this->waitCycles(40);
+          this->waitCycles(1);
           next_state = this->nextState();
           this->state.write(next_state);
           break;
@@ -320,7 +320,7 @@ public:
       this->waitCycles(1);
 
       this->fifo_write.write(false);
-      this->waitCycles(10);
+      this->waitCycles(1);
     }
   }
 
