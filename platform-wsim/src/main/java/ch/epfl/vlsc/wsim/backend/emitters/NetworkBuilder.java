@@ -8,11 +8,20 @@ import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 
+import org.multij.MultiJ;
+import se.lth.cs.tycho.ir.IRNode;
+import se.lth.cs.tycho.ir.ValueParameter;
+import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.network.Network;
 import se.lth.cs.tycho.ir.util.ImmutableList;
+import se.lth.cs.tycho.reporting.CompilationException;
 import se.lth.cs.tycho.reporting.Diagnostic;
+import se.lth.cs.tycho.type.BoolType;
+import se.lth.cs.tycho.type.IntType;
+import se.lth.cs.tycho.type.StringType;
+import se.lth.cs.tycho.type.Type;
 
 import java.nio.file.Path;
 import java.util.NoSuchElementException;
@@ -66,10 +75,10 @@ public interface NetworkBuilder {
     default void emitMacros() {
         emitter().emit("" +
                 "#define STREAMBLOCKS_ACTOR_INST(ACTOR_NAME) inst_##ACTOR_NAME\n" +
-                "#define STREAMBLOCKS_MAKE_ACTOR(ACTOR_NAME)                                    \\\n" +
+                "#define STREAMBLOCKS_MAKE_ACTOR(ACTOR_NAME, ATTRS)                             \\\n" +
                 "  auto STREAMBLOCKS_ACTOR_INST(ACTOR_NAME) =                                   \\\n" +
                 "      ::wsim::make_actor<streamblocks::generated::ACTOR_NAME>(                 \\\n" +
-                "          #ACTOR_NAME, ::wsim::AttributeList::empty())\n" +
+                "          #ACTOR_NAME, ATTRS)\n" +
                 "\n" +
                 "#define STREAMBLOCKS_BUFFER_NAME(source, sourceport, target, targetport,       \\\n" +
                 "                                 index)                                        \\\n" +
@@ -100,8 +109,11 @@ public interface NetworkBuilder {
         emitter().open(filePath);
 
         emitter().emit("#include <wsim.h>");
+        emitter().emit("#include <wsim-natives.h>");
         for(Instance instance : network.getInstances()) {
-            emitter().emit("#include \"%s.h\"", instance.getInstanceName());
+            GlobalEntityDecl entityDecl = backend().globalnames().entityDecl(instance.getEntityName(), true);
+            if (!entityDecl.getExternal())
+                emitter().emit("#include \"%s.h\"", instance.getInstanceName());
         }
         emitMacros();
         emitter().emit("std::vector<std::unique_ptr<::wsim::SequentialPartition>> " +
@@ -111,7 +123,7 @@ public interface NetworkBuilder {
 
             emitter().emit("// read the xml file");
 
-            emitter().emit("::wsim::XmlConfigurationReader reader(cfg->config_file);");
+            emitter().emit("::wsim::XmlConfigurationReader reader(cfg->config_path);");
             emitter().emit("auto xml_connections = reader.readConnections();");
             emitter().emit("auto partitions = reader.readPartitions();");
             emitter().emit("auto profile = reader.readProfile();");
@@ -158,9 +170,38 @@ public interface NetworkBuilder {
 
         emitter().emit("// -- build instances");
 
-        emitter().emit("const auto empty_attrs__ = ::wsim::AttributeList::empty();");
+
+        ParamToAttributeType converter = MultiJ.from(ParamToAttributeType.class).instance();
         for(Instance instance : network.getInstances()) {
-            emitter().emit("STREAMBLOCKS_MAKE_ACTOR(%s);", instance.getInstanceName());
+//            if (instance.getValueParameters().)
+
+
+            String attributes = "::wsim::AttributeList::empty()";
+            for(ValueParameter param : instance.getValueParameters()) {
+                Type pType = backend().types().type(param.getValue());
+                try {
+                    String typeStr = converter.convert(pType);
+                    attributes = attributes + ".add(\"" + param.getName() + "\", " +
+                            backend().expressions().evaluate(param.getValue()) + ")";
+
+                } catch (CompilationException e) {
+                    backend().context().getReporter().report(new Diagnostic(Diagnostic.Kind.ERROR,
+                            "Can not set the value parameter of type " + backend().typeseval().type(pType) +
+                                    " for instance " + instance.getInstanceName() + " currently only " +
+                                    "int, string and bool types are supported"));
+                }
+            }
+            GlobalEntityDecl decl = backend().globalnames().entityDecl(instance.getEntityName(), true);
+
+            if (!decl.getExternal())
+                emitter().emit("STREAMBLOCKS_MAKE_ACTOR(%s, %s);", instance.getInstanceName(), attributes);
+            else {
+                emitter().emit("// -- external actor");
+                String externalName = "::" + String.join("::", instance.getEntityName().parts());
+                emitter().emit("auto STREAMBLOCKS_ACTOR_INST(%s) = ::wsim::make_actor<%s>(\"%1$s\", %s);",
+                        instance.getInstanceName(), externalName, attributes);
+            }
+
         }
 
     }
@@ -281,6 +322,7 @@ public interface NetworkBuilder {
                                             "plink_output_proxy);",
                                     connection.getSource().getInstance().get(), connection.getSource().getPort(),
                                     connection.getTarget().getInstance().get(), connection.getTarget().getPort());
+                            plink_output_ix ++;
                         } else {
                             // local connection
                             emitter().emit("::wsim::connectOutputBuffer" +
@@ -336,6 +378,23 @@ public interface NetworkBuilder {
             emitter().decreaseIndentation();
         }
         emitter().emit(");");
+    }
+
+    @Module
+    interface ParamToAttributeType {
+
+        default String convert(Type type) {
+            throw new CompilationException(new Diagnostic(Diagnostic.Kind.ERROR, "Conversion not supported!"));
+        }
+        default String convert(StringType stringType) {
+            return "String";
+        }
+        default String convert(IntType intType) {
+            return "Integer";
+        }
+        default String convert(BoolType boolType) {
+            return "Boolean";
+        }
     }
 
 }

@@ -79,13 +79,16 @@ public interface Instances {
     default String streamblocksNameSpace() { return "streamblocks"; }
     default String namespace() { return streamblocksNameSpace() + "::" + generatedNameSpace(); }
     default void emitInstance(Instance instance, Path sourcePath, Path headerPath) {
+
         // -- Add instance to box
         backend().instancebox().set(instance);
 
         // -- Get Entity
         GlobalEntityDecl entityDecl = globalnames().entityDecl(instance.getEntityName(), true);
         Entity entity = entityDecl.getEntity();
-
+        if (entityDecl.getExternal()) {
+            return;
+        }
         // -- Add entity to box
         backend().entitybox().set(entity);
 
