@@ -288,6 +288,7 @@ public interface Instances {
             emitter().emit("std::string toDetails() const { return \"%s\"; }", instanceName);
 
             emitter().emit("bool isInitialized() const;");
+            emitter().emit("void report() const;");
             portsStructure(actor.getInputPorts(), "InputPorts", "::wsim::InputPort");
             emitter().emit("InputPorts %s;", inputsStruct());
 
@@ -581,6 +582,23 @@ public interface Instances {
                                     am.getInputPorts().map(p -> inputsStruct() + "." + p.getName() + "->isInitialized()"),
                                     am.getOutputPorts().map(p -> outputStruct() + "." + p.getName() + "->isInitialized()")
                             )));
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("}");
+
+        emitter().emit("void %s::report() const {", instanceName);
+        {
+            emitter().increaseIndentation();
+            for(PortDecl input : am.getInputPorts()) {
+
+                emitter().emit("if (auto avail = inputs.%s->available()) {", input.getName());
+                {
+                    emitter().increaseIndentation();
+                    emitter().emit("m_logger.error(\"%%lu tokens left on port %s\", avail);", input.getName());
+                    emitter().decreaseIndentation();
+                }
+                emitter().emit("}");
+            }
             emitter().decreaseIndentation();
         }
         emitter().emit("}");

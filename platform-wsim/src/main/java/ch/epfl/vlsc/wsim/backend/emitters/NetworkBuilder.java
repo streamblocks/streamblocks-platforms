@@ -12,6 +12,7 @@ import org.multij.MultiJ;
 import se.lth.cs.tycho.ir.IRNode;
 import se.lth.cs.tycho.ir.ValueParameter;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
+import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.network.Network;
@@ -131,8 +132,9 @@ public interface NetworkBuilder {
             emitter().emit("// allocate instances");
             buildInstances(network);
 
-            emitter().emit("// allocate buffers");
-            allocateBuffers(network);
+
+            emitter().emit("// build PLink");
+            buildPLink(network);
 
             emitter().emit("// connect ports");
             connectPorts(network);
@@ -175,9 +177,9 @@ public interface NetworkBuilder {
         for(Instance instance : network.getInstances()) {
 //            if (instance.getValueParameters().)
 
-
+            emitter().emit("/****************************%s***************************/", instance.getInstanceName());
             String attributes = "::wsim::AttributeList::empty()";
-            for(ValueParameter param : instance.getValueParameters()) {
+            for (ValueParameter param : instance.getValueParameters()) {
                 Type pType = backend().types().type(param.getValue());
                 try {
                     String typeStr = converter.convert(pType);
@@ -191,20 +193,68 @@ public interface NetworkBuilder {
                                     "int, string and bool types are supported"));
                 }
             }
-            GlobalEntityDecl decl = backend().globalnames().entityDecl(instance.getEntityName(), true);
 
-            if (!decl.getExternal())
+            GlobalEntityDecl decl = backend().globalnames().entityDecl(instance.getEntityName(), true);
+            if (!decl.getExternal()){
                 emitter().emit("STREAMBLOCKS_MAKE_ACTOR(%s, %s);", instance.getInstanceName(), attributes);
-            else {
+
+                emitter().emit("::wsim::assertPartitionType(*STREAMBLOCKS_ACTOR_INST(%s), *partitions, " +
+                        "::wsim::XmlPartition::Type::%s);", instance.getInstanceName(),
+                        isHardwarePartition(instance) ? "FPGA" : "THREAD");
+            }else {
                 emitter().emit("// -- external actor");
                 String externalName = "::" + String.join("::", instance.getEntityName().parts());
                 emitter().emit("auto STREAMBLOCKS_ACTOR_INST(%s) = ::wsim::make_actor<%s>(\"%1$s\", %s);",
                         instance.getInstanceName(), externalName, attributes);
+                emitter().emit("::wsim::assertPartitionType(*STREAMBLOCKS_ACTOR_INST(%s), *partitions, " +
+                        "::wsim::XmlPartition::Type::THREAD);", instance.getInstanceName());
             }
+            emitter().emit("// --output buffers");
+
+            ImmutableList<Connection> outboundConnections = network.getConnections().stream()
+                    .filter(c -> c.getSource().getInstance().isPresent() &&
+                            c.getSource().getInstance().get().equals(instance.getInstanceName()))
+                    .collect(ImmutableList.collector());
+            decl.getEntity().getOutputPorts().stream().filter(
+                    p -> !outboundConnections.map(c -> c.getSource().getPort()).contains(p.getName())
+            ).forEach(p -> {
+                backend().context().getReporter().report(
+                        new Diagnostic(Diagnostic.Kind.ERROR,
+                                String.format("Output port %s of instance %s is dangling!", p.getName(),
+                                        instance.getInstanceName()))
+                );
+            });
+
+            for(PortDecl port : decl.getEntity().getOutputPorts()) {
+                emitter().emit("{");
+                {
+                    String typeStr = backend().typeseval().type(backend().types().declaredPortType(port));
+                    emitter().increaseIndentation();
+                    emitter().emit("auto buffer = ::wsim::make_buffer<%s>(cfg->depth);", typeStr);
+                    emitter().emit("::wsim::connectOutputBuffer(buffer, STREAMBLOCKS_ACTOR_INST(%s)->outputs.%s);",
+                            instance.getInstanceName(), port.getName());
+                    emitter().decreaseIndentation();
+                }
+                emitter().emit("}");
+            }
+
+            emitter().emitNewLine();
 
         }
 
     }
+
+    default void buildPLink(Network network) {
+
+        ImmutableList<Connection> inbound = network.getConnections().stream().filter(
+                this::isHardwareInputBuffer).collect(ImmutableList.collector());
+        ImmutableList<Connection> outbound = network.getConnections().stream().filter(
+                this::isHardwareOutputBuffer).collect(ImmutableList.collector());
+        emitPlinkPortMaker(inbound, true);
+        emitPlinkPortMaker(outbound, false);
+
+    }
+
     default void allocateBuffers(Network network) {
 
         emitter().emit("// -- allocate FIFO buffers");
@@ -262,79 +312,40 @@ public interface NetworkBuilder {
                         if (isHardwareInput && !isHardwareOutput) {
                             // plink input interface
 
-                            emitter().emit("auto plink_input_software = " +
-                                            "::std::get<%d>(plink_input_ports.objects)->getPort();",
+
+                            emitter().emit("auto plink_input = ::std::get<%d>(plink_input_ports.objects)->getPort();", plink_input_ix);
+                            emitter().emit("auto buffer_sw = STREAMBLOCKS_ACTOR_INST(%s)->outputs.%s->getBuffer();",
+                                    connection.getSource().getInstance().get(), connection.getSource().getPort());
+                            emitter().emit("::wsim::connectInputBuffer(buffer_sw, plink_input);");
+                            emitter().emit("auto buffer_hw = ::std::get<%d>(plink_input_ports.objects)->getProxy()->getBuffer();",
                                     plink_input_ix);
-                            emitter().emit("::wsim::connectOutputBuffer" +
-                                            "(STREAMBLOCKS_BUFFER_NAME(%s, %s, %s, %s, original), " +
-                                            "STREAMBLOCKS_ACTOR_INST(%1$s)->outputs.%2$s);",
-                                    connection.getSource().getInstance().get(), connection.getSource().getPort(),
+                            emitter().emit("::wsim::connectInputBuffer(buffer_hw, STREAMBLOCKS_ACTOR_INST(%s)->inputs.%s);",
                                     connection.getTarget().getInstance().get(), connection.getTarget().getPort());
 
-                            emitter().emit("::wsim::connectInputBuffer" +
-                                            "(STREAMBLOCKS_BUFFER_NAME(%s, %s, %s, %s, original), " +
-                                            "plink_input_software);",
-                                    connection.getSource().getInstance().get(), connection.getSource().getPort(),
-                                    connection.getTarget().getInstance().get(), connection.getTarget().getPort());
-
-                            emitter().emit("auto plink_input_proxy = ::std::get<%d>(plink_input_ports.objects)" +
-                                    "->getProxy();", plink_input_ix);
-                            emitter().emit("::wsim::connectOutputBuffer" +
-                                            "(STREAMBLOCKS_BUFFER_NAME(%s, %s, %s, %s, proxy), " +
-                                            "plink_input_proxy);",
-                                    connection.getSource().getInstance().get(), connection.getSource().getPort(),
-                                    connection.getTarget().getInstance().get(), connection.getTarget().getPort());
-                            emitter().emit("::wsim::connectInputBuffer" +
-                                            "(STREAMBLOCKS_BUFFER_NAME(%s, %s, %s, %s, proxy), " +
-                                            "STREAMBLOCKS_ACTOR_INST(%3$s)->inputs.%4$s);",
-                                    connection.getSource().getInstance().get(), connection.getSource().getPort(),
-                                    connection.getTarget().getInstance().get(), connection.getTarget().getPort());
 
                             plink_input_ix ++;
 
                         } else if (!isHardwareInput && isHardwareOutput) {
                             // plink output interface
 
-                            emitter().emit("auto plink_output_software = " +
-                                            "::std::get<%d>(plink_output_ports.objects)->getPort();",
-                                    plink_output_ix);
-                            emitter().emit("::wsim::connectOutputBuffer" +
-                                            "(STREAMBLOCKS_BUFFER_NAME(%s, %s, %s, %s, original), " +
-                                            "plink_output_software);",
-                                    connection.getSource().getInstance().get(), connection.getSource().getPort(),
-                                    connection.getTarget().getInstance().get(), connection.getTarget().getPort());
-
-                            emitter().emit("::wsim::connectInputBuffer" +
-                                            "(STREAMBLOCKS_BUFFER_NAME(%s, %s, %s, %s, original), " +
-                                            "STREAMBLOCKS_ACTOR_INST(%3$s)->inputs.%4$s);",
-                                    connection.getSource().getInstance().get(), connection.getSource().getPort(),
-                                    connection.getTarget().getInstance().get(), connection.getTarget().getPort());
-
-                            emitter().emit("auto plink_output_proxy = ::std::get<%d>(plink_output_ports.objects)" +
-                                    "->getProxy();", plink_output_ix);
-                            emitter().emit("::wsim::connectOutputBuffer" +
-                                            "(STREAMBLOCKS_BUFFER_NAME(%s, %s, %s, %s, proxy), " +
-                                            "STREAMBLOCKS_ACTOR_INST(%1$s)->outputs.%2$s);",
-                                    connection.getSource().getInstance().get(), connection.getSource().getPort(),
-                                    connection.getTarget().getInstance().get(), connection.getTarget().getPort());
-                            emitter().emit("::wsim::connectInputBuffer" +
-                                            "(STREAMBLOCKS_BUFFER_NAME(%s, %s, %s, %s, proxy), " +
-                                            "plink_output_proxy);",
-                                    connection.getSource().getInstance().get(), connection.getSource().getPort(),
+                            emitter().emit("auto buffer_hw = STREAMBLOCKS_ACTOR_INST(%s)->outputs.%s->getBuffer();",
+                                    connection.getSource().getInstance().get(), connection.getSource().getPort());
+                            emitter().emit("auto plink_proxy_port = ::std::get<%d>(plink_output_ports.objects)->getProxy();", plink_output_ix);
+                            emitter().emit("::wsim::connectInputBuffer(buffer_hw, plink_proxy_port);");
+                            emitter().emit("auto buffer_sw = ::std::get<%d>(plink_output_ports.objects)->getPort()->getBuffer();", plink_output_ix);
+                            emitter().emit("::wsim::connectInputBuffer(buffer_sw, STREAMBLOCKS_ACTOR_INST(%s)->inputs.%s);",
                                     connection.getTarget().getInstance().get(), connection.getTarget().getPort());
                             plink_output_ix ++;
                         } else {
                             // local connection
-                            emitter().emit("::wsim::connectOutputBuffer" +
-                                            "(STREAMBLOCKS_BUFFER_NAME(%s, %s, %s, %s, local), " +
-                                            "STREAMBLOCKS_ACTOR_INST(%1$s)->outputs.%2$s);",
-                                    connection.getSource().getInstance().get(), connection.getSource().getPort(),
+                            emitter().emit("auto buffer = STREAMBLOCKS_ACTOR_INST(%s)->outputs.%s->getBuffer();",
+                                    connection.getSource().getInstance().get(), connection.getSource().getPort());
+
+                            emitter().emit("::wsim::connectInputBuffer(" +
+                                            "buffer, " +
+                                            "STREAMBLOCKS_ACTOR_INST(%s)->inputs.%s);",
                                     connection.getTarget().getInstance().get(), connection.getTarget().getPort());
-                            emitter().emit("::wsim::connectInputBuffer" +
-                                            "(STREAMBLOCKS_BUFFER_NAME(%s, %s, %s, %s, local), " +
-                                            "STREAMBLOCKS_ACTOR_INST(%3$s)->inputs.%4$s);",
-                                    connection.getSource().getInstance().get(), connection.getSource().getPort(),
-                                    connection.getTarget().getInstance().get(), connection.getTarget().getPort());
+
                         }
 
                         emitter().decreaseIndentation();
@@ -378,6 +389,31 @@ public interface NetworkBuilder {
             emitter().decreaseIndentation();
         }
         emitter().emit(");");
+
+
+        int ix = 0;
+        for (Connection con : connections) {
+            emitter().emit("{");
+            {
+                emitter().increaseIndentation();
+                String type = backend().typeseval().type(backend().types().connectionType(backend().task().getNetwork(),
+                        con));
+                emitter().emit("// %s.%s->%s.%s", con.getSource().getInstance().get(),
+                        con.getSource().getPort(), con.getTarget().getInstance().get(), con.getTarget().getPort());
+
+                emitter().emit("auto buffer = ::wsim::make_buffer<%s>(cfg->depth);", type);
+                if (isInput) {
+                    emitter().emit("auto outport = ::std::get<%d>(plink_input_ports.objects)->getProxy();", ix++);
+                } else {
+                    emitter().emit("auto outport = ::std::get<%d>(plink_output_ports.objects)->getPort();", ix++);
+                }
+                emitter().emit("::wsim::connectOutputBuffer(buffer, outport);");
+
+                emitter().decreaseIndentation();
+            }
+            emitter().emit("}");
+        }
+
     }
 
     @Module
