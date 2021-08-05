@@ -196,6 +196,7 @@ public interface NetworkBuilder {
 
             GlobalEntityDecl decl = backend().globalnames().entityDecl(instance.getEntityName(), true);
             if (!decl.getExternal()){
+                attributes += ".add(\"__trace__\", true)";
                 emitter().emit("STREAMBLOCKS_MAKE_ACTOR(%s, %s);", instance.getInstanceName(), attributes);
 
                 emitter().emit("::wsim::assertPartitionType(*STREAMBLOCKS_ACTOR_INST(%s), *partitions, " +

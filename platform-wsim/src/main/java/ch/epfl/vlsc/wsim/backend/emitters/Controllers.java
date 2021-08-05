@@ -110,6 +110,7 @@ public interface Controllers {
     }
 
     default void emitInstruction(String name, Exec exec, State from, Map<State, Integer> stateNumbers) {
+        emitter().emit("registerTrace(%d, %s, %s);", exec.transition(), currentLvt(), backend().instance().getLatency(exec.transition()));
         emitter().emit("%s += %s;", currentLvt(), backend().instance().getLatency(exec.transition()));
         emitter().emit("query.notifyAction(%d);", exec.transition());
         emitter().emit("transition_%d(%s);", exec.transition(), currentLvt());
