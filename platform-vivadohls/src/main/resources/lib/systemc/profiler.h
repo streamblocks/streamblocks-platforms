@@ -4,7 +4,8 @@
 #include <memory>
 #include <queue>
 #include <string>
-
+#include <fstream>
+#include <iostream>
 namespace streamblocks_rtl {
 
 class ActionProfileInterface {
@@ -49,6 +50,14 @@ public:
   std::string serialized(const uint32_t indent = 0) override;
 
 private:
+  struct ActionTrace {
+    std::vector<std::pair<uint64_t, uint64_t>> trace;
+    uint64_t start;
+    uint64_t end;
+    ActionTrace(const uint64_t start) : start(start), end(0) {};
+    std::string serialized(const uint32_t indent) const;
+  };
+
   uint64_t total_ticks;
   uint64_t min_ticks;
   uint64_t max_ticks;
@@ -56,9 +65,10 @@ private:
 };
 
 
+
 class ActorProfiler {
 public:
-  ActorProfiler(const std::string actor_id);
+  ActorProfiler(const std::string actor_id, bool dump_trace = false);
   void start(const uint64_t start_ticks);
   void end(const uint32_t action_index, const uint64_t end_ticks);
   void discard(const uint64_t end_ticks);
@@ -70,6 +80,9 @@ public:
   void kernelEnd(const uint64_t end_ticks);
   void syncStart(const uint64_t start_ticks, const bool sleep);
   void syncEnd(const uint64_t end_ticks, const bool sleep);
+  std::string getId() const { return actor_id; }
+  void dumpTrace();
+
 private:
   // action stats
   std::map<uint32_t, std::unique_ptr<M3ActionProfile>> stats;
@@ -85,9 +98,10 @@ private:
     uint64_t start;
     uint64_t end;
     KernelTrace(const uint64_t start) : exec(0), wait(0), end(0), start(start) {};
-
-    std::string serialized(const uint32_t inden) const;
+    std::map<std::string, std::vector<std::pair<uint64_t, uint64_t>>> action_trace;
+    void dump(std::ofstream& os, const uint32_t inden);
   };
+
 
   uint64_t call_index;
   std::vector<KernelTrace> kernel_trace;
@@ -97,6 +111,9 @@ private:
   uint64_t firings;
   uint64_t miss_firings;
   uint64_t miss_ticks;
+
+  std::ofstream m_trace;
+
 };
 } // namespace streamblocks_rtl
 #endif

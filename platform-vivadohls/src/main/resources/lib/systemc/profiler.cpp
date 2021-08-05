@@ -28,24 +28,43 @@ std::string M3ActionProfile::serialized(const uint32_t indent) {
   return ss.str();
 }
 
-ActorProfiler::ActorProfiler(const std::string actor_id)
+ActorProfiler::ActorProfiler(const std::string actor_id, bool dump_trace)
     : actor_id(actor_id), call_index(0), min_ticks(-1), max_ticks(0),
-      total_ticks(0), firings(0), miss_firings(0), miss_ticks(0) {}
+      total_ticks(0), firings(0), miss_firings(0), miss_ticks(0) {
+        if (dump_trace) {
+          m_trace.open(actor_id + std::string(".trace.xml"), std::ios_base::out);
+        }
+      }
 
 void ActorProfiler::start(const uint64_t start_ticks) {
   p_queue.push(start_ticks);
 }
 void ActorProfiler::end(const uint32_t action_index, const uint64_t end_ticks) {
 
-  auto duration = std::max(uint64_t(1), end_ticks - p_queue.front());
+  auto begin_ticks = p_queue.front();
+  auto duration = end_ticks - begin_ticks;
+  // hack to get around Vivado's weired ap_done
+  if (duration == 0) {
+    duration = 1;
+  } else if (duration == 1) {
+    duration = 2;
+  }
+  // auto duration = std::max(uint64_t(1), end_ticks - begin_ticks);
+
   p_queue.pop();
   total_ticks += duration;
   firings++;
   min_ticks = std::min(duration, min_ticks);
   max_ticks = std::max(duration, max_ticks);
-
-  if (stats.find(action_index) != stats.end()) {
+  auto found = stats.find(action_index);
+  if (found != stats.end()) {
     stats[action_index]->registerStat(duration);
+    if (m_trace.is_open()) {
+      std::string action = found->second->getActionId();
+      kernel_trace[call_index].action_trace[action].emplace_back(
+        begin_ticks, end_ticks
+      );
+    }
   }
   kernel_trace[call_index].exec = end_ticks;
 }
@@ -63,6 +82,7 @@ void ActorProfiler::registerAction(const uint32_t action_index,
                                    const std::string &actino_id) {
   stats.emplace(action_index,
                 std::make_unique<M3ActionProfile>(action_index, actino_id));
+
 }
 
 std::string ActorProfiler::serialized(const uint32_t indent,
@@ -87,59 +107,96 @@ std::string ActorProfiler::serialized(const uint32_t indent,
   ss << append_entry << std::endl;
 
   // sync events
-  for (const auto &k : kernel_trace) {
-    ss << k.serialized(indent + 1);
-  }
+  // for (const auto &k : kernel_trace) {
+  //   ss << k.serialized(indent + 1);
+  // }
   ss << indent_str << "</actor>" << std::endl;
 
   return ss.str();
 }
 
 void ActorProfiler::syncStart(const uint64_t start_ticks, const bool sleep) {
-
-  if (sleep) {
-    kernel_trace[call_index].sleep_trace.emplace_back(start_ticks, 0);
-  } else {
-    kernel_trace[call_index].sync_trace.emplace_back(start_ticks, 0);
+  if (m_trace.is_open()) {
+    if (sleep) {
+      kernel_trace[call_index].sleep_trace.emplace_back(start_ticks, 0);
+    } else {
+      kernel_trace[call_index].sync_trace.emplace_back(start_ticks, 0);
+    }
   }
+
 }
 
 void ActorProfiler::syncEnd(const uint64_t end_ticks, const bool sleep) {
-
-  if (sleep) {
-    kernel_trace[call_index].sleep_trace.back().second = end_ticks;
-  } else {
-    kernel_trace[call_index].sync_trace.back().second = end_ticks;
+  if (m_trace.is_open()) {
+    if (sleep) {
+      kernel_trace[call_index].sleep_trace.back().second = end_ticks;
+    } else {
+      kernel_trace[call_index].sync_trace.back().second = end_ticks;
+    }
   }
 }
 
 void ActorProfiler::kernelStart(const uint64_t start_ticks) {
-  kernel_trace.emplace_back(start_ticks);
+  if (m_trace.is_open()) {
+    kernel_trace.emplace_back(start_ticks);
+  }
+
 }
 
 void ActorProfiler::kernelEnd(const uint64_t end_ticks) {
-  kernel_trace[call_index++].end = end_ticks;
+  if (m_trace.is_open()) {
+    kernel_trace[call_index++].end = end_ticks;
+  }
 }
 
-std::string
-ActorProfiler::KernelTrace::serialized(const uint32_t indent) const {
+void ActorProfiler::dumpTrace()  {
+  if (m_trace) {
 
-  std::stringstream ss;
+    for(auto& k: kernel_trace) {
+      k.dump(m_trace, 0);
+    }
 
-  ss << std::string(indent, '\t') << "<kernel start=\"" << start << "\" end=\""
+    // m_trace.close();
+  }
+}
+
+void
+ActorProfiler::KernelTrace::dump(std::ofstream& os, const uint32_t indent) {
+
+
+
+  os << std::string(indent, '\t') << "<kernel start=\"" << start << "\" end=\""
      << end << "\" exec=\"" << exec << "\" wait=\"" << wait << "\">" << std::endl;
   for (const auto &t : sync_trace) {
-    ss << std::string(indent + 1, '\t') << "<sync start=\"" << t.first
+    os << std::string(indent + 1, '\t') << "<sync start=\"" << t.first
        << "\" end=\"" << t.second << "\"/>" << std::endl;
   }
 
   for (const auto &t : sleep_trace) {
-    ss << std::string(indent + 1, '\t') << "<sleep start=\"" << t.first
+    os << std::string(indent + 1, '\t') << "<sleep start=\"" << t.first
        << "\" end=\"" << t.second << "\"/>" << std::endl;
   }
-  ss << std::string(indent, '\t') << "</kernel>" << std::endl;
 
-  return ss.str();
+  for(const auto& action : action_trace) {
+    os << std::string(indent + 1, '\t') << "<trace id=\"" <<
+      action.first << "\">" << std::endl;
+    for(const auto& t: action.second) {
+      os << std::string(indent + 2, '\t') << "<inteval start=\"" << t.first
+       << "\" end=\"" << t.second << "\"/>" << std::endl;
+    }
+    os << std::string(indent + 1, '\t') << "</trace>" << std::endl;
+  }
+
+
+  os << std::string(indent, '\t') << "</kernel>" << std::endl;
+
+  sync_trace.clear();
+  sleep_trace.clear();
+  action_trace.clear();
+
 }
+
+
+
 
 } // namespace streamblocks_rtl

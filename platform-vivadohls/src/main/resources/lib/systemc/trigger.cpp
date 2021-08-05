@@ -198,6 +198,7 @@ void AbstractTrigger::dumpStats(std::ofstream &ofs, int indent) {
 
   if (actor_profiler) {
     ofs << actor_profiler->serialized(indent);
+    actor_profiler->dumpTrace();
   }
 }
 
