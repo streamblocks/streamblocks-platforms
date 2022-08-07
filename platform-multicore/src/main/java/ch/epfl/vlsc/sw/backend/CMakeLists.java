@@ -222,43 +222,12 @@ public interface CMakeLists {
             boolean hasPlink =
                     backend().context().getConfiguration().isDefined(PlatformSettings.PartitionNetwork) &&
                             backend().context().getConfiguration().get(PlatformSettings.PartitionNetwork);
-            boolean isSimulated =
-                    backend().context().getConfiguration().isDefined(PlatformSettings.enableSystemC) &&
-                            backend().context().getConfiguration().get(PlatformSettings.enableSystemC);
-
-            if (hasPlink && isSimulated) {
-                emitter().emit("set(extra_systemc_headers");
-                {
-                    emitter().increaseIndentation();
-                    emitter().emit("${VERILATOR_ROOT}/include");
-                    emitter().emit("${VERILATOR_ROOT}/include/vlstd");
-                    emitter().emit("${CMAKE_BINARY_DIR}/vivado-hls/systemc/verilated/");
-                    emitter().emit("${CMAKE_SOURCE_DIR}/vivado-hls/systemc/include");
-                    emitter().decreaseIndentation();
-                }
-                emitter().emit(")");
-                emitter().emit("set_target_properties(%s PROPERTIES", backend().task().getIdentifier().getLast().toString());
-                {
-                    emitter().increaseIndentation();
-                    emitter().emit("CXX_STANDARD 14");
-                    emitter().emit("CXX_STANDARD_REQUIRED YES");
-                    emitter().emit("CXX_EXTENSIONS NO");
-                    emitter().decreaseIndentation();
-                }
-                emitter().emit(")");
-
-                // -- Target Include directories
-                emitter().emit("# -- Target include directories");
-                emitter().emit("target_include_directories(%s PRIVATE ./include ${extra_systemc_headers})", backend().task().getIdentifier().getLast().toString());
-                emitter().emitNewLine();
-            }
 
             // -- Target link libraries
             emitter().emit("# -- Target link libraries");
             emitter().emit("target_link_libraries(%s art-genomic art-native art-runtime %s ${extra_libraries})",
                     backend().task().getIdentifier().getLast().toString(),
-                    hasPlink && isSimulated ? "art-systemc" :
-                            hasPlink && !isSimulated ? "art-plink" : "");
+                            hasPlink ? "art-plink" : "");
             emitter().decreaseIndentation();
         }
         emitter().emit("endif()");

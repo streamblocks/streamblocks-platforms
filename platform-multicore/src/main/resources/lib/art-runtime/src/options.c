@@ -5,6 +5,8 @@
 #include "actors-rts.h"
 #include "util.h"
 
+#define DEFAULT_FIFO_LENGTH 4096
+
 void show_usage(char *name) {
     printf("Usage: %s [OPTION...]\n", name);
     printf("Executes network %s using the ACTORS run-time system\n", name);
@@ -46,9 +48,17 @@ void show_usage(char *name) {
            "                        the vcd dump is saved to: \n"
            "                        ./network_tester.vcd\n"
            "--i=FILE                Optional input file\n"
-           "--l=N                   Set the number of loops of the previous input file\n"
-           "--f=B                   Restricts the number of displayed frame and then exits\n"
-    );
+           "--l=N                   Set the number of loops of the previous\n"
+           "                        input file                               \n"
+           "--f=B                   Restricts the number of displayed frame \n"
+           "                        and then exits\n");
+    printf(
+           "--depth=N               Buffer depth for all connections,        \n"
+           "                        default is %d tokens                     \n"
+           "--use-default-depth     Ignores the buffer size configurations   \n"
+           "                        provided in using the cfile option and",
+           DEFAULT_FIFO_LENGTH);
+
 }
 
 void pre_parse_args(int argc, char *argv[], RuntimeOptions *options) {
@@ -57,7 +67,11 @@ void pre_parse_args(int argc, char *argv[], RuntimeOptions *options) {
     options->nbr_loops=-1;
     options->nbr_frames = -1;
 
+    options->no_cfile_connections = 0;
+    options->buffer_depth = DEFAULT_FIFO_LENGTH;
+
     for (int i = 1; i < argc; i++) {
+
         if (strcmp(argv[i], "--timing") == 0) {
             options->show_timing = 1;
             options->flags |= FLAG_TIMING;
@@ -92,7 +106,11 @@ void pre_parse_args(int argc, char *argv[], RuntimeOptions *options) {
             options->nbr_loops = atoi(&argv[i][4]);
         } else if (strncmp(argv[i], "--f=", 4) == 0) {
             options->nbr_frames = atoi(&argv[i][4]);
-        } else if (strcmp(argv[i], "--help") == 0) {
+        } else if (strncmp(argv[i], "--d=", 4) == 0) {
+            options->buffer_depth = atoi(&argv[i][4]);
+        } else if (strcmp(argv[i], "--use-default-depth") == 0) {
+            options->no_cfile_connections = 1;
+        }  else if (strcmp(argv[i], "--help") == 0) {
             show_usage(argv[0]);
             exit(0);
         } else {

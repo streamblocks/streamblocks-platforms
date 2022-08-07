@@ -4,7 +4,7 @@ import java.util.Optional;
 
 public class AxiConstants {
 
-    public static final int C_S_AXI_CONTROL_ADDR_WIDTH = 32;
+
 
     public static final int C_S_AXI_CONTROL_DATA_WIDTH = 32;
 
@@ -17,6 +17,7 @@ public class AxiConstants {
     public static Optional<Integer> getAxiDataWidth(int bitWidth) {
 
         switch (bitWidth) {
+            case 1:
             case 8:
             case 16:
             case 32:

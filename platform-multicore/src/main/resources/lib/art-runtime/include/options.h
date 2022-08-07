@@ -28,6 +28,9 @@ typedef struct{
     int enable_display;
     int nbr_loops;
     int nbr_frames;
+    // -- buffer related
+    int buffer_depth;
+    int no_cfile_connections;
 } RuntimeOptions;
 
 void show_usage(char *name);

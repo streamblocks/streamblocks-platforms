@@ -574,7 +574,8 @@ static void set_instance_fifo(ActorInstance_1_t **instance, ConnectID *connect, 
 
 static ActorInstance_1_t **set_config(ActorInstance_1_t **instances,
                                       int numInstances,
-                                      char *filename) {
+                                      char *filename,
+                                      int ignore_connections) {
     int numConnects;
     ActorInstance_1_t **sortedInstances = NULL;
 
@@ -584,12 +585,16 @@ static ActorInstance_1_t **set_config(ActorInstance_1_t **instances,
         // Set actor instance infinity
         sortedInstances =
                 sort_instances(instances, instanceAfinity, numInstances);
+        if (ignore_connections == 1) {
+            printf("Ignoring buffer config from file\n");
+        } else {
+            //Set input ports fifo size
+            for (i = 0; i < numConnects; i++) {
 
-        //Set input ports fifo size
-        for (i = 0; i < numConnects; i++) {
-
-            set_instance_fifo(instances, &connects[i], numInstances);
+                set_instance_fifo(instances, &connects[i], numInstances);
+            }
         }
+
     }
 
     return sortedInstances;
@@ -1258,7 +1263,7 @@ int executeNetwork(int argc,
     int flags = options->flags;
     cpu_runtime_data_t *runtime_data;
     int arg_print_info = 0;
-    int arg_fifo_size = DEFAULT_FIFO_LENGTH;
+    int arg_fifo_size = options->buffer_depth;
     char *configFilename = options->configFilename;
     int show_statistics = options->show_statistics;
     int affinity_is_set = 0;
@@ -1271,6 +1276,9 @@ int executeNetwork(int argc,
     int with_bandwidth = options->with_bandwidth;
     int terminationReport = options->terminationReport;
 
+    if (options->no_cfile_connections == 1) {
+        printf("Using buffer depth %d on all connections\n", arg_fifo_size);
+    }
     if (!generateFileName && (with_bandwidth || with_complexity)) {
         printf("--with_bandwidth and --with_complexity requires --generate\n");
         exit(1);
@@ -1293,7 +1301,7 @@ int executeNetwork(int argc,
     if (result == 0) {
         // Assign affinity and other params from config file
         if (configFilename) {
-            instance_1 = set_config(instance_1, numInstances, configFilename);
+            instance_1 = set_config(instance_1, numInstances, configFilename, options->no_cfile_connections);
             affinity_is_set = 1;
         }
     }

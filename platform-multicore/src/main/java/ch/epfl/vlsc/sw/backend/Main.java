@@ -112,6 +112,8 @@ public interface Main {
         }
 
         emitter().emit("int numberOfInstances = %d;", network.getInstances().size());
+        emitter().emit("int default_buffer_depth = options->buffer_depth;");
+        emitter().emit("int use_default = options->no_cfile_connections;");
         emitter().emitNewLine();
         emitter().emit("AbstractActorInstance **actorInstances = (AbstractActorInstance **) malloc(numberOfInstances * sizeof(AbstractActorInstance *));");
         emitter().emit("*pInstances = actorInstances;");
@@ -155,8 +157,7 @@ public interface Main {
             emitter().emit("%s->name = (char *) calloc(%d, sizeof(char));", joinQID, joinQID.length() + 1);
             emitter().emit("strcpy(%s->name, \"%1$s\");", joinQID);
             // -- Instantiate Parameters
-            if (entityDecl.getEntity() instanceof PartitionLink &&
-                    backend().context().getConfiguration().get(PlatformSettings.enableSystemC)) {
+            if (entityDecl.getEntity() instanceof PartitionLink) {
                 emitter().emit("if(options->vcd_trace_level != NULL)");
                 emitter().increaseIndentation();
                 emitter().emit("setParameter(%s, \"vcd-trace-level\", options->vcd_trace_level);", joinQID);
@@ -180,7 +181,7 @@ public interface Main {
             for (PortDecl inputPort : entityDecl.getEntity().getInputPorts()) {
                 if (backend().channelsutils().isTargetConnected(instance.getInstanceName(), inputPort.getName())) {
                     int bufferSize = backend().channelsutils().targetEndSize(new Connection.End(Optional.of(instance.getInstanceName()), inputPort.getName()));
-                    emitter().emit("%s_%s = createInputPort(%1$s, \"%2$s\", %d);", joinQID, inputPort.getName(), bufferSize);
+                    emitter().emit("%s_%s = createInputPort(%1$s, \"%2$s\", use_default == 1 ? default_buffer_depth : %d);", joinQID, inputPort.getName(), bufferSize);
                 }
             }
             for (PortDecl outputPort : entityDecl.getEntity().getOutputPorts()) {

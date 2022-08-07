@@ -88,36 +88,8 @@ public interface TopKernel {
         backend().vnetwork().getExternalMemoryAxiParams(network,
                 (network.getInputPorts().size() > 0 || network.getOutputPorts().size() > 0) ? "," : "");
 
-        // -- Network Input ports
-        if (!network.getInputPorts().isEmpty()) {
-            for (PortDecl port : network.getInputPorts()) {
-                Type type = backend().types().declaredPortType(port);
-                int bitSize = backend().typeseval().sizeOfBits(type);
-                emitter().emit("parameter integer C_M_AXI_%s_ADDR_WIDTH = %d,", port.getName().toUpperCase(), AxiConstants.C_M_AXI_ADDR_WIDTH);
-                emitter().emit("parameter integer C_M_AXI_%s_DATA_WIDTH = %d,", port.getName().toUpperCase(), Math.max(bitSize, AxiConstants.IO_STAGE_BUS_WIDTH));
-                emitter().emit("parameter integer C_M_AXI_%s_ID_WIDTH = %d,", port.getName().toUpperCase(), 1);
-                emitter().emit("parameter integer C_M_AXI_%s_AWUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
-                emitter().emit("parameter integer C_M_AXI_%s_ARUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
-                emitter().emit("parameter integer C_M_AXI_%s_WUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
-                emitter().emit("parameter integer C_M_AXI_%s_RUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
-                emitter().emit("parameter integer C_M_AXI_%s_BUSER_WIDTH =  %d,", port.getName().toUpperCase(), 1);
-            }
-        }
-        // -- Network Output ports
-        if (!network.getOutputPorts().isEmpty()) {
-            for (PortDecl port : network.getOutputPorts()) {
-                Type type = backend().types().declaredPortType(port);
-                int bitSize = backend().typeseval().sizeOfBits(type);
-                emitter().emit("parameter integer C_M_AXI_%s_ADDR_WIDTH = %d,", port.getName().toUpperCase(), AxiConstants.C_M_AXI_ADDR_WIDTH);
-                emitter().emit("parameter integer C_M_AXI_%s_DATA_WIDTH = %d,", port.getName().toUpperCase(), Math.max(bitSize, AxiConstants.IO_STAGE_BUS_WIDTH));
-                emitter().emit("parameter integer C_M_AXI_%s_ID_WIDTH = %d,", port.getName().toUpperCase(), 1);
-                emitter().emit("parameter integer C_M_AXI_%s_AWUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
-                emitter().emit("parameter integer C_M_AXI_%s_ARUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
-                emitter().emit("parameter integer C_M_AXI_%s_WUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
-                emitter().emit("parameter integer C_M_AXI_%s_RUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
-                emitter().emit("parameter integer C_M_AXI_%s_BUSER_WIDTH =  %d,", port.getName().toUpperCase(), 1);
-            }
-        }
+        // -- wrapper parameters
+        backend().kernelwrapper().getParameters(network, ",");
         // -- AXI4-Lite Control
         emitter().emit("parameter integer C_S_AXI_CONTROL_ADDR_WIDTH = %d,", backend().axilitecontrol().getAddressBitWidth(network));
         emitter().emit("parameter integer C_S_AXI_CONTROL_DATA_WIDTH = %s", AxiConstants.C_S_AXI_CONTROL_DATA_WIDTH);
@@ -254,24 +226,18 @@ public interface TopKernel {
             emitter().emitNewLine();
         }
 
-        if (!network.getInputPorts().isEmpty()) {
-            for (PortDecl port : network.getInputPorts()) {
-                emitter().emit("wire    [32 - 1 : 0] %s_requested_size;", port.getName());
-                emitter().emit("wire    [64 - 1 : 0] %s_size;", port.getName());
-                emitter().emit("wire    [64 - 1 : 0] %s_buffer;", port.getName());
-            }
+        ImmutableList<PortDecl> ports = ImmutableList.concat(network.getInputPorts(), network.getOutputPorts());
+
+        for (PortDecl port : ports) {
+            emitter().emit("wire    [64 - 1 : 0] %s_data_buffer;", port.getName());
+            emitter().emit("wire    [64 - 1 : 0] %s_meta_buffer;", port.getName());
+            emitter().emit("wire    [32 - 1 : 0] %s_alloc_size;", port.getName());
+            emitter().emit("wire    [32 - 1 : 0] %s_head;", port.getName());
+            emitter().emit("wire    [32 - 1 : 0] %s_tail;", port.getName());
         }
-        if (!network.getOutputPorts().isEmpty()) {
-            for (PortDecl port : network.getOutputPorts()) {
-                emitter().emit("wire    [32 - 1 : 0] %s_available_size;", port.getName());
-                emitter().emit("wire    [64 - 1 : 0] %s_size;", port.getName());
-                emitter().emit("wire    [64 - 1 : 0] %s_buffer;", port.getName());
-            }
-        }
+
         emitter().emitNewLine();
-        emitter().emit("// -- kernel command");
-        emitter().emit("wire    [64 - 1 : 0] kernel_command;");
-        emitter().emitNewLine();
+
 
         emitter().emit("// -- Invert reset signal");
         emitter().emit("always @(posedge ap_clk) begin");
@@ -332,21 +298,11 @@ public interface TopKernel {
                 emitter().emit(".%s_offset(%1$s_offset),", memName);
             }
 
-            if (!network.getInputPorts().isEmpty()) {
-                for (PortDecl port : network.getInputPorts()) {
-                    emitter().emit(".%s_requested_size( %1$s_requested_size ),", port.getName());
-                    emitter().emit(".%s_size( %1$s_size ),", port.getName());
-                    emitter().emit(".%s_buffer( %1$s_buffer ),", port.getName());
-                }
+            ImmutableList<PortDecl> ports = ImmutableList.concat(network.getInputPorts(), network.getOutputPorts());
+            for (PortDecl port : ports) {
+                getArgBindings(port);
             }
-            if (!network.getOutputPorts().isEmpty()) {
-                for (PortDecl port : network.getOutputPorts()) {
-                    emitter().emit(".%s_available_size( %1$s_available_size ),", port.getName());
-                    emitter().emit(".%s_size( %1$s_size ),", port.getName());
-                    emitter().emit(".%s_buffer( %1$s_buffer ),", port.getName());
-                }
-            }
-            emitter().emit(".kernel_command(kernel_command),");
+
             emitter().emit(".interrupt( interrupt ),");
             emitter().emit(".ap_start( ap_start ),");
             emitter().emit(".ap_done( ap_done ),");
@@ -359,6 +315,14 @@ public interface TopKernel {
         emitter().emitNewLine();
     }
 
+    default void getArgBindings(PortDecl port) {
+        String portName = port.getName();
+        emitter().emit(".%s_data_buffer(%1$s_data_buffer),", portName);
+        emitter().emit(".%s_meta_buffer(%1$s_meta_buffer),", portName);
+        emitter().emit(".%s_alloc_size(%1$s_alloc_size),", portName);
+        emitter().emit(".%s_head(%1$s_head),", portName);
+        emitter().emit(".%s_tail(%1$s_tail),", portName);
+    }
     // ------------------------------------------------------------------------
     // -- Kernel wrapper
     default void getKernelWrapper(Network network) {
@@ -378,18 +342,14 @@ public interface TopKernel {
                 emitter().emit(".C_M_AXI_%s_DATA_WIDTH(C_M_AXI_%1$s_DATA_WIDTH),", memName.toUpperCase());
             }
 
-            if (!network.getInputPorts().isEmpty()) {
-                for (PortDecl port : network.getInputPorts()) {
-                    boolean lastElement = network.getOutputPorts().isEmpty() && (network.getInputPorts().size() - 1 == network.getInputPorts().indexOf(port));
+            ImmutableList<PortDecl> ports = ImmutableList.concat(network.getInputPorts(), network.getOutputPorts());
+
+            if (!ports.isEmpty()) {
+                for (PortDecl port : ports) {
+                    boolean lastElement = ports.size() - 1 == ports.indexOf(port);
                     emitter().emit(".C_M_AXI_%s_ADDR_WIDTH(C_M_AXI_%1$s_ADDR_WIDTH),", port.getName().toUpperCase());
-                    emitter().emit(".C_M_AXI_%s_DATA_WIDTH(C_M_AXI_%1$s_DATA_WIDTH)%s", port.getName().toUpperCase(), lastElement ? "" : ",");
-                }
-            }
-            // -- Network Output ports
-            if (!network.getOutputPorts().isEmpty()) {
-                for (PortDecl port : network.getOutputPorts()) {
-                    emitter().emit(".C_M_AXI_%s_ADDR_WIDTH(C_M_AXI_%1$s_ADDR_WIDTH),", port.getName().toUpperCase());
-                    emitter().emit(".C_M_AXI_%s_DATA_WIDTH(C_M_AXI_%1$s_DATA_WIDTH)%s", port.getName().toUpperCase(), network.getOutputPorts().size() - 1 == network.getOutputPorts().indexOf(port) ? "" : ",");
+                    emitter().emit(".C_M_AXI_%s_DATA_WIDTH(C_M_AXI_%1$s_DATA_WIDTH),", port.getName().toUpperCase());
+                    emitter().emit(".C_%s_USER_DW(C_%1$s_USER_DW)%s", port.getName().toUpperCase(), lastElement ? "" : ",");
                 }
             }
 
@@ -421,22 +381,11 @@ public interface TopKernel {
                     getAxiMasterConnection(port.getName());
                 }
             }
+            ImmutableList<PortDecl> ports = ImmutableList.concat(network.getInputPorts(), network.getOutputPorts());
+            for (PortDecl port : ports) {
+                getArgBindings(port);
+            }
 
-            if (!network.getInputPorts().isEmpty()) {
-                for (PortDecl port : network.getInputPorts()) {
-                    emitter().emit(".%s_requested_size( %1$s_requested_size ),", port.getName());
-                    emitter().emit(".%s_size( %1$s_size ),", port.getName());
-                    emitter().emit(".%s_buffer( %1$s_buffer ),", port.getName());
-                }
-            }
-            if (!network.getOutputPorts().isEmpty()) {
-                for (PortDecl port : network.getOutputPorts()) {
-                    emitter().emit(".%s_available_size( %1$s_available_size ),", port.getName());
-                    emitter().emit(".%s_size( %1$s_size ),", port.getName());
-                    emitter().emit(".%s_buffer( %1$s_buffer ),", port.getName());
-                }
-            }
-            emitter().emit(".kernel_command(kernel_command),");
             emitter().emit(".ap_start( ap_start ),");
             emitter().emit(".ap_done( ap_done),");
             emitter().emit(".ap_ready( ap_ready),");

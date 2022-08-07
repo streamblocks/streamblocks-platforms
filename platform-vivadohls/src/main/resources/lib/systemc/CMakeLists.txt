@@ -35,8 +35,16 @@ macro(verilate_actor ACTOR)
     "${VERILATOR_GEN_DIR}/${ACTOR}_verimodule__1.cpp"
     "${VERILATOR_GEN_DIR}/${ACTOR}_verimodule__2.cpp"
     "${VERILATOR_GEN_DIR}/${ACTOR}_verimodule__3.cpp"
+    "${VERILATOR_GEN_DIR}/${ACTOR}_verimodule__4.cpp"
+    "${VERILATOR_GEN_DIR}/${ACTOR}_verimodule__5.cpp"
+    "${VERILATOR_GEN_DIR}/${ACTOR}_verimodule__6.cpp"
+    "${VERILATOR_GEN_DIR}/${ACTOR}_verimodule__7.cpp"
+    "${VERILATOR_GEN_DIR}/${ACTOR}_verimodule__8.cpp"
+    "${VERILATOR_GEN_DIR}/${ACTOR}_verimodule__9.cpp"
     "${VERILATOR_GEN_DIR}/${ACTOR}_verimodule__Slow.cpp"
     "${VERILATOR_GEN_DIR}/${ACTOR}_verimodule__1__Slow.cpp"
+    "${VERILATOR_GEN_DIR}/${ACTOR}_verimodule__2__Slow.cpp"
+    "${VERILATOR_GEN_DIR}/${ACTOR}_verimodule__3__Slow.cpp"
     "${VERILATOR_GEN_DIR}/${ACTOR}_verimodule__Syms.cpp"
   )
 
@@ -62,20 +70,15 @@ macro(verilate_actor ACTOR)
   endif()
 
 
-  # -- Phony target. A hack to get around the fact that we do not know what files verilator is gonna generate
-  add_custom_target(
-    ${ACTOR}_verimodule_phony
-    DEPENDS ${ACTOR}
-    COMMENT "Phony Verilating ${ACTOR} "
-  )
+  foreach(__VLTD_SOURCE__ ${${ACTOR}_VERILATED_SOURCES})
+    if (NOT EXISTS "${__VLTD_SOURCE__}")
+      message(STATUS "Touching ${__VLTD_SOURCE__}")
+      file(TOUCH ${__VLTD_SOURCE__})
+    endif()
+  endforeach()
 
-  add_custom_command(
-    TARGET ${ACTOR}_verimodule_phony PRE_BUILD
-    COMMAND touch ${${ACTOR}_VERILATED_SOURCES} ${ACTOR}_phony_file.phony
-    DEPENDS ${ACTOR}
-  )
-
-  # -- Real targets
+  # file(TOUCH ${${ACTOR}_VERILATED_SOURCES})
+  # -- targets
   add_custom_command(
     OUTPUT ${${ACTOR}_VERILATED_SOURCES} ${${ACTOR}_VERILATED_HEADERS}
     COMMAND ${VERILATOR_BIN}
@@ -84,14 +87,14 @@ macro(verilate_actor ACTOR)
       --prefix ${ACTOR}_verimodule
       -y ${VERILOG_GEN_DIR}/${ACTOR}/solution/syn/verilog
       ${${ACTOR}_VERILOG_SOURCE} 2> ${ACTOR}_verimodule.log
-    DEPENDS ${ACTOR} ${ACTOR}_verimodule_phony
+    DEPENDS ${ACTOR}
     COMMENT "Verilating ${ACTOR}"
     VERBATIM
   )
 
   add_custom_target(
     ${ACTOR}_verimodule ALL
-    DEPENDS ${${ACTOR}_VERILATED_SOURCES} ${${ACTOR}_VERILATED_HEADERS} ${ACTOR}_verimodule_phony
+    DEPENDS ${${ACTOR}_VERILATED_SOURCES} ${${ACTOR}_VERILATED_HEADERS}
   )
 
 
@@ -153,7 +156,8 @@ endforeach()
 
 
 set(ART_SYSTEMC_HEADERS
-
+  ${VIVADO_HLS_INCLUDE_DIRS}
+  ${PROJECT_SOURCE_DIR}/code-gen/include
   ${PROJECT_SOURCE_DIR}/systemc/include
   ${VERILATOR_ROOT}/include
   ${VERILATOR_ROOT}/include/vlstd
@@ -161,10 +165,10 @@ set(ART_SYSTEMC_HEADERS
 )
 
 
-add_library(art-systemc STATIC ${ALL_VERILATED_SOURCES})
+add_library(art-systemc STATIC ${ALL_VERILATED_SOURCES} src/trigger.cpp src/profiler.cpp)
 
 
-target_include_directories(art-systemc PRIVATE ${ART_SYSTEMC_HEADERS})
+target_include_directories(art-systemc PUBLIC ${ART_SYSTEMC_HEADERS})
 set_target_properties(art-systemc PROPERTIES
   CXX_STANDARD 14
   CXX_STANDARD_REQUIRED YES
@@ -180,7 +184,7 @@ verilator_link_systemc(art-systemc)
 
 add_executable(simulate src/simulate.cpp)
 
-target_include_directories(simulate PRIVATE ${ART_SYSTEMC_HEADERS})
+target_include_directories(simulate PUBLIC ${ART_SYSTEMC_HEADERS})
 
 target_link_libraries(simulate art-systemc)
 

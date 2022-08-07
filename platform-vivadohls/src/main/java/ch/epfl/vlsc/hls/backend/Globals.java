@@ -41,11 +41,7 @@ public interface Globals {
         emitter().emitNewLine();
 
         // -- Return
-        emitter().emit("// -- Actor Return values");
-        emitter().emit("#define RETURN_IDLE 0");
-        emitter().emit("#define RETURN_WAIT 1");
-        emitter().emit("#define RETURN_TEST 2");
-        emitter().emit("#define RETURN_EXECUTED 3");
+        emitter().emit("#include \"actor-machine.h\"");
         emitter().emitNewLine();
 
         // -- Types

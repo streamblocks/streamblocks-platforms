@@ -29,9 +29,11 @@ public interface TypesEvaluator {
 
     String cltype(Type type);
 
-    default String KernelXmlType(Type type) {
-        if (type instanceof IntType) {
-            IntType t = (IntType) type;
+    String axiType(Type type);
+
+    default String KernelXmlType(Type type_) {
+        if (type_ instanceof IntType) {
+            IntType t = (IntType) type_;
             if (t.getSize().isPresent()) {
                 int originalSize = t.getSize().getAsInt();
                 int targetSize = 8;
@@ -51,7 +53,7 @@ public interface TypesEvaluator {
                 return t.isSigned() ? "int" : "unsigned int ";
             }
         } else {
-            return type(type);
+            return axiType(type_);
         }
     }
 
@@ -106,6 +108,47 @@ public interface TypesEvaluator {
                 throw new UnsupportedOperationException("Unknown real type.");
         }
     }
+
+
+    default String axiType(IntType type_) {
+        int originalSize = type_.getSize().orElse(32);
+        boolean isPower2 = originalSize > 1 && ((originalSize & (originalSize - 1)) == 0);
+        int implSize = isPower2 ? originalSize : (originalSize < 8 ? 8 : Integer.highestOneBit(originalSize - 1) * 2);
+        if (!isPower2) {
+            backend().context().getReporter().report(
+                    new Diagnostic(
+                            Diagnostic.Kind.WARNING,
+                            String.format("Axi port with %sint(size=%d) is treated as %1$sint(size=%d)",
+                                    (type_.isSigned() ? "" : "u"), originalSize, implSize)
+                    )
+            );
+        }
+        switch (implSize) {
+            case 8:
+            case 16:
+            case 32:
+            case 64:
+                return (type_.isSigned() ? "int" : "uint") + Math.min(originalSize, 8) + "_t";
+            case 128:
+            case 256:
+            case 512:
+            default:
+                throw new UnsupportedOperationException("Axi width " + originalSize + " not supported");
+        }
+
+    }
+
+    default String axiType(RealType type_) {
+        switch (type_.getSize()) {
+            case 32:
+                return "uint32_t";
+            case 64:
+                return "uint64_t";
+            default:
+                throw new UnsupportedOperationException("Invalid real type on an axi port!");
+        }
+    }
+
 
     default String type(IntType type) {
         if (!backend().context().getConfiguration().get(PlatformSettings.arbitraryPrecisionIntegers)) {

@@ -188,7 +188,8 @@ public interface Instances {
         int nbrIN = 0;
         for (PortDecl inputPort : entity.getInputPorts()) {
             if (backend().channelsutils().isTargetConnected(backend().instancebox().get().getInstanceName(), inputPort.getName())) {
-                emitter().emit("#define IN%d_%s ART_INPUT(%1$d)", nbrIN, inputPort.getName());
+                String definedInput = "IN" + entity.getInputPorts().indexOf(inputPort) + "_" + inputPort.getName();
+                emitter().emit("#define %s ART_INPUT(%d)", definedInput, nbrIN);
                 nbrIN++;
             }
         }
@@ -197,7 +198,8 @@ public interface Instances {
         int nbrOUT = 0;
         for (PortDecl outputPort : entity.getOutputPorts()) {
             if (backend().channelsutils().isSourceConnected(backend().instancebox().get().getInstanceName(), outputPort.getName())) {
-                emitter().emit("#define OUT%d_%s ART_OUTPUT(%1$d)", nbrOUT, outputPort.getName());
+                String definedOutput = "OUT" + entity.getOutputPorts().indexOf(outputPort) + "_" + outputPort.getName();
+                emitter().emit("#define %s ART_OUTPUT(%d)", definedOutput, nbrOUT);
                 nbrOUT++;
             }
         }
@@ -653,13 +655,17 @@ public interface Instances {
                 String t = backend().callables().mangle(type).encode();
                 emitter().emit("thisActor->%s = (%s) { *%s, NULL };", variableName, t, wrapperName);
             } else if (var.getValue() != null) {
-                emitter().emit("#ifndef TRACE_TURNUS");
-                evaluateVarInit(var);
-                emitter().emit("#else");
-                backend().profilingbox().set(true);
-                evaluateVarInit(var);
-                backend().profilingbox().clear();
-                emitter().emit("#endif");
+                if(var.getValue() instanceof ExprLambda || var.getValue() instanceof ExprProc ){
+                    // -- Do nothing
+                }else{
+                    emitter().emit("#ifndef TRACE_TURNUS");
+                    evaluateVarInit(var);
+                    emitter().emit("#else");
+                    backend().profilingbox().set(true);
+                    evaluateVarInit(var);
+                    backend().profilingbox().clear();
+                    emitter().emit("#endif");
+                }
             }
         }
         emitter().decreaseIndentation();

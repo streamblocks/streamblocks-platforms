@@ -666,10 +666,8 @@ public interface VerilogTestbench {
 
             emitter().emit("// -- trigger constants");
             emitter().emit(".%s_sleep(1'b1),", portName);
-            emitter().emit(".%s_sync_wait(1'b1),", portName);
-            emitter().emit(".%s_sync_exec(1'b0),", portName);
+            emitter().emit(".%s_sync_sleep(1'b1),", portName);
             emitter().emit(".%s_waited(1'b1),", portName);
-            emitter().emit(".%s_all_waited(), // unused", portName);
         }
         emitter().emitNewLine();
     }

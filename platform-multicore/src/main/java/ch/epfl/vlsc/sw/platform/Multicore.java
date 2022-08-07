@@ -31,10 +31,10 @@ public class Multicore implements Platform {
 //            .add(new XcfAnnotationPhase())
             .addAll(CommonPhases.softwarePartitioningPhases)
             .addAll(Compiler.nameAndTypeAnalysis())
-            .add(new FixListInitialValue())
             .addAll(Compiler.actorMachinePhases())
 //            .add(new RemoveUnusedEntityDeclsPhase()) // This can not happen after network elaboration because the hardware partition entities get removed.
             .add(new CreatePartitionLinkPhase())
+            .add(new FixListInitialValue())
             .add(new ExprOutputToAssignment())
             .add(new ExprToStmtAssignment())
             .add(new ListComprehensionToStmtWhile())
@@ -42,9 +42,7 @@ public class Multicore implements Platform {
             .build();
 
 
-
-
-    public static ImmutableList<Phase> frontendPhases() {
+    private static ImmutableList<Phase> frontendPhases() {
         return ImmutableList.of(
                 // Parse
                 new LoadEntityPhase(),
@@ -64,7 +62,8 @@ public class Multicore implements Platform {
                 new ResolveTypeConstructionPhase(),
                 // new ConstantVariableImmutabilityPhase(),
                 new ConstantVariableInitializationPhase(),
-                new NameAnalysisPhase()
+                new NameAnalysisPhase(),
+                new OldExprVariableSupportPhase()
         );
     }
 

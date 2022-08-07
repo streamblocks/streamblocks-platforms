@@ -360,7 +360,8 @@ public class AddFanoutPhase implements Phase {
                 ImmutableList.empty(),
                 ImmutableList.empty(),
                 ImmutableList.empty(),
-                null, null,
+                null,
+                null,
                 process,
                 ImmutableList.empty(),
                 ImmutableList.empty());
@@ -447,7 +448,8 @@ public class AddFanoutPhase implements Phase {
                 actions.build(),
                 ImmutableList.empty(), // TODO: is this correct?
                 null,
-                null, null,
+                null,
+                null,
                 ImmutableList.empty(),
                 ImmutableList.empty());
         return fanout;

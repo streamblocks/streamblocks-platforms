@@ -1,6 +1,8 @@
 package ch.epfl.vlsc.hls.backend.systemc;
 
 
+
+
 import java.util.stream.Stream;
 
 public interface SCInstanceIF extends SCIF {
@@ -12,4 +14,5 @@ public interface SCInstanceIF extends SCIF {
     String getOriginalName();
     PortIF getReturn();
     Stream<PortIF> streamUnique();
+    Boolean getPipelined();
 }

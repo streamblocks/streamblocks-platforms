@@ -8,10 +8,12 @@ import ch.epfl.vlsc.platformutils.PathUtils;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
+import se.lth.cs.tycho.ir.Port;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.network.Network;
 import se.lth.cs.tycho.ir.util.ImmutableList;
+import se.lth.cs.tycho.reporting.Diagnostic;
 import se.lth.cs.tycho.type.ListType;
 import se.lth.cs.tycho.type.Type;
 
@@ -47,7 +49,7 @@ public interface KernelWrapper {
         {
             emitter().increaseIndentation();
 
-            getParameters(network);
+            getParameters(network, "");
 
             emitter().decreaseIndentation();
         }
@@ -80,12 +82,10 @@ public interface KernelWrapper {
             // -- AP Logic
             getApLogic(network);
 
-            // -- Offset logic
-            getOffsetLogic(network);
 
             // -- Input Stage(s)
             for (PortDecl port : network.getInputPorts()) {
-                getInputStage(port);
+                getIOStage(port, true);
             }
 
             // -- Network
@@ -93,7 +93,7 @@ public interface KernelWrapper {
 
             // -- Output Stage(s)
             for (PortDecl port : network.getOutputPorts()) {
-                getOutputStage(port);
+                getIOStage(port, false);
             }
 
         }
@@ -104,9 +104,36 @@ public interface KernelWrapper {
         emitter().close();
     }
 
+    default String getAxiParameter(String name, String param, int value) {
+        return "parameter integer C_M_AXI_" + name + "_" + param + " = " + value;
+    }
+    default ImmutableList<String> getPortParameters(PortDecl port) {
+        Type type = backend().types().declaredPortType(port);
+        int bitSize = backend().typeseval().sizeOfBits(type);
+        String portName = port.getName().toUpperCase();
+        ImmutableList.Builder<String> params  = ImmutableList.builder();
+        if (bitSize > 512) {
+            backend().context().getReporter().report(
+                    new Diagnostic(Diagnostic.Kind.ERROR, "Port " + portName +
+                            " has unsupported axi bit width "  + bitSize)
+            );
+        }
+        return ImmutableList.of(
+                getAxiParameter(portName, "ID_WIDTH", 1),
+                getAxiParameter(portName, "ADDR_WIDTH", AxiConstants.C_M_AXI_ADDR_WIDTH),
+                getAxiParameter(portName, "DATA_WIDTH", AxiConstants.getAxiDataWidth(bitSize).orElse(512)),
+                getAxiParameter(portName, "AWUSER_WIDTH", 1),
+                getAxiParameter(portName, "ARUSER_WIDTH", 1),
+                getAxiParameter(portName, "WUSER_WIDTH", 1),
+                getAxiParameter(portName, "RUSER_WIDTH", 1),
+                getAxiParameter(portName, "BUSER_WIDTH", 1),
+                "parameter integer C_" + portName + "_USER_DW = " + bitSize
+
+        );
+    }
     // ------------------------------------------------------------------------
     // -- Parameters
-    default void getParameters(Network network) {
+    default void getParameters(Network network, String delim) {
 
 
         // -- external memory params
@@ -116,38 +143,18 @@ public interface KernelWrapper {
                 (network.getInputPorts().size() > 0 || network.getOutputPorts().size() > 0) ? "," : "");
 
 
-        for (PortDecl port : network.getInputPorts()) {
-            Type type = backend().types().declaredPortType(port);
-            int bitSize = backend().typeseval().sizeOfBits(type);
-            boolean lastElement = network.getOutputPorts().isEmpty()
-                    && (network.getInputPorts().size() - 1 == network.getInputPorts().indexOf(port));
-            emitter().emit("parameter integer C_M_AXI_%s_ADDR_WIDTH = %d,", port.getName().toUpperCase(),
-                    AxiConstants.C_M_AXI_ADDR_WIDTH);
-            emitter().emit("parameter integer C_M_AXI_%s_DATA_WIDTH = %d,", port.getName().toUpperCase(),
-                    Math.max(bitSize, 32));
-            emitter().emit("parameter integer C_M_AXI_%s_ID_WIDTH = %d,", port.getName().toUpperCase(), 1);
-            emitter().emit("parameter integer C_M_AXI_%s_AWUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
-            emitter().emit("parameter integer C_M_AXI_%s_ARUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
-            emitter().emit("parameter integer C_M_AXI_%s_WUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
-            emitter().emit("parameter integer C_M_AXI_%s_RUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
-            emitter().emit("parameter integer C_M_AXI_%s_BUSER_WIDTH =  %d%s", port.getName().toUpperCase(), 1,
-                    lastElement ? "" : ",");
+        ImmutableList.Builder<String> params = ImmutableList.builder();
+        ImmutableList<PortDecl> ports = ImmutableList.concat(network.getInputPorts(), network.getOutputPorts());
+        for (PortDecl port : ports) {
+            params.addAll(getPortParameters(port));
         }
+        ImmutableList<String> parameters = params.build();
 
-        for (PortDecl port : network.getOutputPorts()) {
-            Type type = backend().types().declaredPortType(port);
-            int bitSize = backend().typeseval().sizeOfBits(type);
-            emitter().emit("parameter integer C_M_AXI_%s_ADDR_WIDTH = %d,", port.getName().toUpperCase(),
-                    AxiConstants.C_M_AXI_ADDR_WIDTH);
-            emitter().emit("parameter integer C_M_AXI_%s_DATA_WIDTH = %d,", port.getName().toUpperCase(),
-                    Math.max(bitSize, 32));
-            emitter().emit("parameter integer C_M_AXI_%s_ID_WIDTH = %d,", port.getName().toUpperCase(), 1);
-            emitter().emit("parameter integer C_M_AXI_%s_AWUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
-            emitter().emit("parameter integer C_M_AXI_%s_ARUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
-            emitter().emit("parameter integer C_M_AXI_%s_WUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
-            emitter().emit("parameter integer C_M_AXI_%s_RUSER_WIDTH = %d,", port.getName().toUpperCase(), 1);
-            emitter().emit("parameter integer C_M_AXI_%s_BUSER_WIDTH =  %d%s", port.getName().toUpperCase(), 1,
-                    network.getOutputPorts().size() - 1 == network.getOutputPorts().indexOf(port) ? "" : ",");
+
+        for(String param : parameters) {
+            boolean lastElement =  parameters.indexOf(param) == parameters.size() - 1;
+            emitter().emit(param + (lastElement ? delim : ","));
+
         }
     }
 
@@ -189,22 +196,15 @@ public interface KernelWrapper {
             emitter().emit("input  wire    [64 - 1 : 0]    %s_offset,", memName);
         }
 
-        for (PortDecl port : network.getInputPorts()) {
-            emitter().emit("input  wire    [32 - 1 : 0]    %s_requested_size,", port.getName());
-            emitter().emit("input  wire    [64 - 1 : 0]    %s_size,", port.getName());
-            emitter().emit("input  wire    [64 - 1 : 0]    %s_buffer,", port.getName());
+        for (PortDecl port : ImmutableList.concat(network.getInputPorts(), network.getOutputPorts())) {
+            emitter().emit("input  wire    [64 - 1 : 0] %s_data_buffer,", port.getName());
+            emitter().emit("input  wire    [64 - 1 : 0] %s_meta_buffer,", port.getName());
+            emitter().emit("input  wire    [32 - 1 : 0] %s_alloc_size,", port.getName());
+            emitter().emit("input  wire    [32 - 1 : 0] %s_head,", port.getName());
+            emitter().emit("input  wire    [32 - 1 : 0] %s_tail,", port.getName());
+
         }
 
-        // -- Network Output ports
-        for (PortDecl port : network.getOutputPorts()) {
-            emitter().emit("input  wire    [32 - 1 : 0]    %s_available_size,", port.getName());
-            emitter().emit("input  wire    [64 - 1 : 0]    %s_size,", port.getName());
-            emitter().emit("input  wire    [64 - 1 : 0]    %s_buffer,", port.getName());
-        }
-
-        // -- Kernel command
-        emitter().emit("// -- kernel command");
-        emitter().emit("input  wire    [64 - 1 : 0] kernel_command,");
         emitter().emit("input   wire    ap_start,");
         emitter().emit("output  wire    ap_ready,");
         emitter().emit("output  wire    ap_idle,");
@@ -226,8 +226,9 @@ public interface KernelWrapper {
         emitter().emit("// -- Network I/O for %s module", moduleName);
         for (PortDecl port : network.getInputPorts()) {
             Type type = backend().types().declaredPortType(port);
-            int bitSize = backend().typeseval().sizeOfBits(type);
-            emitter().emit("wire    [%d:0] %s_din;", bitSize - 1, port.getName());
+
+            emitter().emit("wire    [C_%s_USER_DW - 1:0] %s_din;", port.getName().toUpperCase(),
+                    port.getName());
             emitter().emit("wire    %s_full_n;", port.getName());
             emitter().emit("wire    %s_write;", port.getName());
             emitter().emit("wire    [31:0] %s_fifo_count;", port.getName());
@@ -237,13 +238,13 @@ public interface KernelWrapper {
 
         for (PortDecl port : network.getOutputPorts()) {
             Type type = backend().types().declaredPortType(port);
-            int bitSize = backend().typeseval().sizeOfBits(type);
-            emitter().emit("wire    [%d:0] %s_dout;", bitSize - 1, port.getName());
+
+            emitter().emit("wire    [C_%s_USER_DW - 1:0] %s_dout;", port.getName().toUpperCase(),
+                    port.getName());
             emitter().emit("wire    %s_empty_n;", port.getName());
             emitter().emit("wire    %s_read;", port.getName());
             emitter().emit("wire    [31:0] %s_fifo_count;", port.getName());
             emitter().emit("wire    [31:0] %s_fifo_size;", port.getName());
-            emitter().emit("wire    [63:0] %s_offset;", port.getSafeName());
         }
         emitter().emit("wire    %s_ap_idle;", moduleName);
         emitter().emit("wire    %s_ap_done;", moduleName);
@@ -277,22 +278,23 @@ public interface KernelWrapper {
         emitter().emit("logic   ap_idle_r = 1'b1;");
         emitter().emitNewLine();
 
+        emitter().emit("// -- global trigger wires");
+        emitter().emit("wire %s;", backend().vnetwork().getAllWaitedSignal());
+        emitter().emit("wire %s;", backend().vnetwork().getAllSyncSleepSignal());
+        emitter().emit("wire %s;", backend().vnetwork().getAllSleepSignal());
         emitter().emit("// -- local trigger wire");
         getPortsLocalTriggerWires(network.getInputPorts());
         getPortsLocalTriggerWires(network.getOutputPorts());
 
-        emitter().emit("// -- global trigger wires");
-        backend().vnetwork().getGlobalTriggerWires();
 
     }
 
     default void getPortsLocalTriggerWires(ImmutableList<PortDecl> ports) {
         for (PortDecl port : ports) {
             emitter().emit("wire    %s_sleep;", port.getSafeName());
-            emitter().emit("wire    %s_sync_wait;", port.getSafeName());
-            emitter().emit("wire    %s_sync_exec;", port.getSafeName());
+            emitter().emit("wire    %s_sync_sleep;", port.getSafeName());
             emitter().emit("wire    %s_waited;", port.getSafeName());
-            emitter().emit("wire    %s_all_waited;", port.getSafeName());
+
         }
 
     }
@@ -366,20 +368,6 @@ public interface KernelWrapper {
 
     }
 
-    // -- Offset assignments
-
-    default void getOffsetLogic(Network network) {
-        emitter().emit("// -- offset logic");
-        getPortOffsetLogic(network.getInputPorts());
-        getPortOffsetLogic(network.getOutputPorts());
-        emitter().emitNewLine();
-    }
-
-    default void getPortOffsetLogic(ImmutableList<PortDecl> ports) {
-        for (PortDecl port : ports)
-            emitter().emit("assign %s_offset = 64'b0;", port.getSafeName());
-        emitter().emitNewLine();
-    }
 
     default void getAxiMasterConnections(PortDecl port, boolean safeName) {
         if (safeName) {
@@ -393,67 +381,137 @@ public interface KernelWrapper {
     // ------------------------------------------------------------------------
     // -- Input Stages instantiation
 
-    default void getInputStage(PortDecl port) {
-        emitter().emit("// -- Input stage for port : %s", port.getName());
-        emitter().emitNewLine();
-        emitter().emit("assign %s_input_stage_ap_start = event_start;", port.getName());
-        emitter().emitNewLine();
+    default void getIOStageParamBindings(PortDecl port) {
+        emitter().emit(".C_M_AXI_ID_WIDTH( C_M_AXI_%s_ID_WIDTH ),", port.getName().toUpperCase());
+        emitter().emit(".C_M_AXI_ADDR_WIDTH( C_M_AXI_%s_ADDR_WIDTH ),", port.getName().toUpperCase());
+        emitter().emit(".C_M_AXI_DATA_WIDTH( C_M_AXI_%s_DATA_WIDTH ),", port.getName().toUpperCase());
+        emitter().emit(".C_M_AXI_AWUSER_WIDTH( C_M_AXI_%s_AWUSER_WIDTH ),", port.getName().toUpperCase());
+        emitter().emit(".C_M_AXI_ARUSER_WIDTH( C_M_AXI_%s_ARUSER_WIDTH ),", port.getName().toUpperCase());
+        emitter().emit(".C_M_AXI_WUSER_WIDTH( C_M_AXI_%s_WUSER_WIDTH ),", port.getName().toUpperCase());
+        emitter().emit(".C_M_AXI_RUSER_WIDTH( C_M_AXI_%s_RUSER_WIDTH ),", port.getName().toUpperCase());
+        emitter().emit(".C_M_AXI_BUSER_WIDTH( C_M_AXI_%s_BUSER_WIDTH ),", port.getName().toUpperCase());
+        emitter().emit(".C_USER_DW( C_%s_USER_DW )", port.getName().toUpperCase());
+    }
 
-        emitter().emit("%s_input_stage #(", port.getName());
+    default String getIOStageAxiSinglePortBinding(PortDecl port, String axiPort) {
+        return String.format(".m_axi_%s(m_axi_%s_%1$s),", axiPort, port.getName());
+    }
+    default void getIOStageAxiPortBindings(PortDecl port) {
+        ImmutableList<String> bindings = ImmutableList.of(
+                "AWVALID",
+                "AWREADY",
+                "AWADDR",
+                "AWID",
+                "AWLEN",
+                "AWSIZE",
+                "AWBURST",
+                "AWLOCK",
+                "AWCACHE",
+                "AWPROT",
+                "AWQOS",
+                "AWREGION",
+                "AWUSER",
+                "WVALID",
+                "WREADY",
+                "WDATA",
+                "WSTRB",
+                "WLAST",
+                "WID",
+                "WUSER",
+                "ARVALID",
+                "ARREADY",
+                "ARADDR",
+                "ARID",
+                "ARLEN",
+                "ARSIZE",
+                "ARBURST",
+                "ARLOCK",
+                "ARCACHE",
+                "ARPROT",
+                "ARQOS",
+                "ARREGION",
+                "ARUSER",
+                "RVALID",
+                "RREADY",
+                "RDATA",
+                "RLAST",
+                "RID",
+                "RUSER",
+                "RRESP",
+                "BVALID",
+                "BREADY",
+                "BRESP",
+                "BID",
+                "BUSER"
+        ).map(axiPort -> getIOStageAxiSinglePortBinding(port, axiPort));
+        emitter().emit("// -- AXI master");
+        for (String b : bindings) {
+            emitter().emit("%s", b);
+        }
+
+    }
+
+    default void getIOStageCommonBindings(PortDecl port) {
+
+        getIOStageAxiPortBindings(port);
+        emitter().emit("// --  ocl args");
+        emitter().emit(".data_buffer(%s_data_buffer),", port.getName());
+        emitter().emit(".meta_buffer(%s_meta_buffer),", port.getName());
+        emitter().emit(".alloc_size(%s_alloc_size),", port.getName());
+        emitter().emit(".head(%s_head),", port.getName());
+        emitter().emit(".tail(%s_tail),", port.getName());
+        // -- Trigger
+        getTriggerGlobalBindings();
+        getTriggerPortBindings(port);
+
+    }
+
+
+    default void getIOStage(PortDecl port, Boolean is_input) {
+        emitter().emit("// -- %s stage for port : %s ", is_input ? "Input" : "Output", port.getName());
+        emitter().emitNewLine();
+        emitter().emit("assign %s_%s_ap_start = event_start;", port.getName(), is_input ? "input_stage" : "output_stage");
+        emitter().emitNewLine();
+        emitter().emitNewLine();
+        String stage_type = is_input ? "input_stage" : "output_stage";
+        emitter().emit("%s_%s_triggered #(", port.getName(), stage_type);
         {
             emitter().increaseIndentation();
 
-            emitter().emit(".C_M_AXI_%s_ID_WIDTH( C_M_AXI_%s_ID_WIDTH ),", port.getName().toUpperCase(),
-                    port.getName().toUpperCase());
-            emitter().emit(".C_M_AXI_%s_ADDR_WIDTH( C_M_AXI_%s_ADDR_WIDTH ),", port.getName().toUpperCase(),
-                    port.getName().toUpperCase());
-            emitter().emit(".C_M_AXI_%s_DATA_WIDTH( C_M_AXI_%s_DATA_WIDTH ),", port.getName().toUpperCase(),
-                    port.getName().toUpperCase());
-            emitter().emit(".C_M_AXI_%s_AWUSER_WIDTH( C_M_AXI_%s_AWUSER_WIDTH ),", port.getName().toUpperCase(),
-                    port.getName().toUpperCase());
-            emitter().emit(".C_M_AXI_%s_ARUSER_WIDTH( C_M_AXI_%s_ARUSER_WIDTH ),", port.getName().toUpperCase(),
-                    port.getName().toUpperCase());
-            emitter().emit(".C_M_AXI_%s_WUSER_WIDTH( C_M_AXI_%s_WUSER_WIDTH ),", port.getName().toUpperCase(),
-                    port.getName().toUpperCase());
-            emitter().emit(".C_M_AXI_%s_RUSER_WIDTH( C_M_AXI_%s_RUSER_WIDTH ),", port.getName().toUpperCase(),
-                    port.getName().toUpperCase());
-            emitter().emit(".C_M_AXI_%s_BUSER_WIDTH( C_M_AXI_%s_BUSER_WIDTH )", port.getName().toUpperCase(),
-                    port.getName().toUpperCase());
+            getIOStageParamBindings(port);
 
             emitter().decreaseIndentation();
         }
         emitter().emit(")");
-        emitter().emit("i_%s_input_stage(", port.getName());
+        emitter().emit("i_%s_%s(", port.getName(), stage_type);
         {
             emitter().increaseIndentation();
-            // -- Ap control
+
+            emitter().emit("// -- AP control");
             emitter().emit(".ap_clk(ap_clk),");
             emitter().emit(".ap_rst_n(ap_rst_n),");
-            emitter().emit(".ap_start(%s_input_stage_ap_start),", port.getName());
-            emitter().emit(".ap_done(%s_input_stage_ap_done),", port.getName());
-            emitter().emit(".ap_idle(%s_input_stage_ap_idle),", port.getName());
+            emitter().emit(".ap_start(%s_%s_ap_start),", port.getName(), stage_type);
+            emitter().emit(".ap_done(%s_%s_ap_done),", port.getName(), stage_type);
+            emitter().emit(".ap_idle(%s_%s_ap_idle),", port.getName(), stage_type);
             emitter().emit(".ap_ready(),");
-            emitter().emit(".ap_return(%s_input_stage_ap_return),", port.getName());
+            emitter().emit(".ap_return(%s_%s_ap_return),", port.getName(), stage_type);
+            getIOStageCommonBindings(port);
+            String portName = port.getName();
+            // -- FIFO io
+            if (is_input) {
+                emitter().emit(".fifo_din(%s_din),", portName);
+                emitter().emit(".fifo_full_n(%s_full_n),", portName);
+                emitter().emit(".fifo_write(%s_write),", portName);
 
-            // -- AXI Master
-            getAxiMasterConnections(port, false);
-            // -- Direct address
-            emitter().emit(".%s_requested_size(%1$s_requested_size),", port.getName());
-            emitter().emit(".%s_size_r(%1$s_size),", port.getName());
-            emitter().emit(".%s_buffer(%1$s_buffer),", port.getName());
-            emitter().emit(".kernel_command(kernel_command[31:0]),");
-            emitter().emit(".%s_offset(%1$s_offset),", port.getSafeName());
+            } else {
+                emitter().emit(".fifo_dout(%s_dout),", port.getName());
+                emitter().emit(".fifo_empty_n(%s_empty_n),", port.getName());
+                emitter().emit(".fifo_read(%s_read),", port.getName());
 
-            // -- Trigger
-            getTriggerGlobalBindings();
-            getTriggerPortBindings(port);
+            }
+            emitter().emit(".fifo_count(%s_fifo_count)", portName);
 
-            // -- FIFO I/O
-            emitter().emit(".%s_din(%1$s_din),", port.getName());
-            emitter().emit(".%s_full_n(%1$s_full_n),", port.getName());
-            emitter().emit(".%s_write(%1$s_write),", port.getName());
-            emitter().emit(".%s_fifo_count(%1$s_fifo_count),", port.getName());
-            emitter().emit(".%s_fifo_size(%1$s_fifo_size)", port.getName());
+
 
             emitter().decreaseIndentation();
         }
@@ -473,7 +531,7 @@ public interface KernelWrapper {
             {
                 emitter().increaseIndentation();
 
-                // -- External memories parameters
+
 
                 ImmutableList<Memories.InstanceVarDeclPair> mems =
                         backend().externalMemory().getExternalMemories(network);
@@ -518,10 +576,8 @@ public interface KernelWrapper {
                 emitter().emit(".%s_fifo_size(%1$s_fifo_size),", port.getName());
                 emitter().emit("// -- trigger signals");
                 emitter().emit(".%s_sleep(%1$s_sleep),", port.getSafeName());
-                emitter().emit(".%s_sync_wait(%1$s_sync_wait),", port.getSafeName());
-                emitter().emit(".%s_sync_exec(%1$s_sync_exec),", port.getSafeName());
+                emitter().emit(".%s_sync_sleep(%1$s_sync_sleep),", port.getSafeName());
                 emitter().emit(".%s_waited(%1$s_waited),", port.getSafeName());
-                emitter().emit(".%s_all_waited(%1$s_all_waited),", port.getSafeName());
             }
             // -- Output ports
             for (PortDecl port : network.getOutputPorts()) {
@@ -533,10 +589,8 @@ public interface KernelWrapper {
                 emitter().emit(".%s_fifo_size(%1$s_fifo_size),", port.getName());
                 emitter().emit("// -- trigger wires");
                 emitter().emit(".%s_sleep(%1$s_sleep),", port.getSafeName());
-                emitter().emit(".%s_sync_wait(%1$s_sync_wait),", port.getSafeName());
-                emitter().emit(".%s_sync_exec(%1$s_sync_exec),", port.getSafeName());
+                emitter().emit(".%s_sync_sleep(%1$s_sync_sleep),", port.getSafeName());
                 emitter().emit(".%s_waited(%1$s_waited),", port.getSafeName());
-                emitter().emit(".%s_all_waited(%1$s_all_waited),", port.getSafeName());
             }
             emitter().emit("//-- global trigger signals");
             getTriggerGlobalBindings();
@@ -555,84 +609,17 @@ public interface KernelWrapper {
     }
 
     default void getTriggerGlobalBindings() {
-        emitter().emit(".%s(%1$s),", backend().vnetwork().getAllSyncSignal());
-        emitter().emit(".%s(%1$s),", backend().vnetwork().getAllSyncWaitSignal());
+
         emitter().emit(".%s(%1$s),", backend().vnetwork().getAllSleepSignal());
+        emitter().emit(".%s(%1$s),", backend().vnetwork().getAllSyncSleepSignal());
+        emitter().emit(".%s(%1$s),", backend().vnetwork().getAllWaitedSignal());
     }
 
     default void getTriggerPortBindings(PortDecl port) {
-        emitter().emit(".all_waited(%s_all_waited),", port.getSafeName());
-        emitter().emit(".%s_sleep(%1$s_sleep),", port.getSafeName());
-        emitter().emit(".%s_sync_wait(%1$s_sync_wait),", port.getSafeName());
-        emitter().emit(".%s_sync_exec(%1$s_sync_exec),", port.getSafeName());
-        emitter().emit(".%s_waited(%1$s_waited),", port.getSafeName());
+        emitter().emit(".sleep(%s_sleep),", port.getSafeName());
+        emitter().emit(".sync_sleep(%s_sync_sleep),", port.getSafeName());
+        emitter().emit(".waited(%s_waited),", port.getSafeName());
     }
 
-    // ------------------------------------------------------------------------
-    // -- Output Stages instantiation
-    default void getOutputStage(PortDecl port) {
-        emitter().emit("// -- Output stage for port : %s", port.getName());
-        emitter().emitNewLine();
-
-        emitter().emit("assign %s_output_stage_ap_start = event_start;", port.getName());
-        emitter().emitNewLine();
-
-        emitter().emit("%s_output_stage #(", port.getName());
-        {
-            emitter().increaseIndentation();
-
-            emitter().emit(".C_M_AXI_%s_ID_WIDTH( C_M_AXI_%s_ID_WIDTH ),", port.getName().toUpperCase(),
-                    port.getName().toUpperCase());
-            emitter().emit(".C_M_AXI_%s_ADDR_WIDTH( C_M_AXI_%s_ADDR_WIDTH ),", port.getName().toUpperCase(),
-                    port.getName().toUpperCase());
-            emitter().emit(".C_M_AXI_%s_DATA_WIDTH( C_M_AXI_%s_DATA_WIDTH ),", port.getName().toUpperCase(),
-                    port.getName().toUpperCase());
-            emitter().emit(".C_M_AXI_%s_AWUSER_WIDTH( C_M_AXI_%s_AWUSER_WIDTH ),", port.getName().toUpperCase(),
-                    port.getName().toUpperCase());
-            emitter().emit(".C_M_AXI_%s_ARUSER_WIDTH( C_M_AXI_%s_ARUSER_WIDTH ),", port.getName().toUpperCase(),
-                    port.getName().toUpperCase());
-            emitter().emit(".C_M_AXI_%s_WUSER_WIDTH( C_M_AXI_%s_WUSER_WIDTH ),", port.getName().toUpperCase(),
-                    port.getName().toUpperCase());
-            emitter().emit(".C_M_AXI_%s_RUSER_WIDTH( C_M_AXI_%s_RUSER_WIDTH ),", port.getName().toUpperCase(),
-                    port.getName().toUpperCase());
-            emitter().emit(".C_M_AXI_%s_BUSER_WIDTH( C_M_AXI_%s_BUSER_WIDTH )", port.getName().toUpperCase(),
-                    port.getName().toUpperCase());
-
-            emitter().decreaseIndentation();
-        }
-        emitter().emit(")");
-        emitter().emit("i_%s_output_stage(", port.getName());
-        {
-            emitter().increaseIndentation();
-            // -- Ap control
-            emitter().emit(".ap_clk(ap_clk),");
-            emitter().emit(".ap_rst_n(ap_rst_n),");
-            emitter().emit(".ap_start(%s_output_stage_ap_start),", port.getName());
-            emitter().emit(".ap_done(%s_output_stage_ap_done),", port.getName());
-            emitter().emit(".ap_idle(%s_output_stage_ap_idle),", port.getName());
-            emitter().emit(".ap_ready(),");
-            emitter().emit(".ap_return(%s_output_stage_ap_return),", port.getName());
-            // -- AXI Master
-            getAxiMasterConnections(port, false);
-            // -- Direct address
-            emitter().emit(".%s_available_size(%1$s_available_size),", port.getName());
-            emitter().emit(".%s_size_r(%1$s_size),", port.getName());
-            emitter().emit(".%s_buffer(%1$s_buffer),", port.getName());
-            emitter().emit(".kernel_command(kernel_command[63:32]),");
-            emitter().emit(".%s_offset(%1$s_offset),", port.getSafeName());
-            // -- Trigger
-            getTriggerGlobalBindings();
-            getTriggerPortBindings(port);
-            // -- FIFO I/O
-            emitter().emit(".%s_dout(%1$s_dout),", port.getName());
-            emitter().emit(".%s_empty_n(%1$s_empty_n),", port.getName());
-            emitter().emit(".%s_read(%1$s_read),", port.getName());
-            emitter().emit(".%s_fifo_count(%1$s_fifo_count),", port.getName());
-            emitter().emit(".%s_fifo_size(%1$s_fifo_size)", port.getName());
-            emitter().decreaseIndentation();
-        }
-        emitter().emit(");");
-        emitter().emitNewLine();
-    }
 
 }

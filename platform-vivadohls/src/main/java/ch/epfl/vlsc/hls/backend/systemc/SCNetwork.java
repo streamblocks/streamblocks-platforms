@@ -75,59 +75,47 @@ public class SCNetwork implements SCIF {
 
     public static class SyncIF implements SCIF {
 
-        private final PortIF externalEnqueue;
-        private final PortIF allSync;
-        private final PortIF allSyncWait;
+
         private final PortIF allSleep;
+        private final PortIF allSyncSleep;
+        private final PortIF allWaited;
 
         public SyncIF() {
 
-            this.externalEnqueue =
+            this.allSyncSleep =
                     PortIF.of(
-                            "external_enqueue",
-                            Signal.of("external_enqueue", new LogicValue()),
+                            "all_sync_sleep",
+                            Signal.of("all_sync_sleep", new LogicValue()),
                             Optional.of(PortIF.Kind.INPUT));
-            this.allSync =
-                    PortIF.of(
-                            "all_sync",
-                            Signal.of("all_sync", new LogicValue()),
-                            Optional.of(PortIF.Kind.INPUT));
-            this.allSyncWait =
-                    PortIF.of(
-                            "all_sync_wait",
-                            Signal.of("all_sync_wait", new LogicValue()),
-                            Optional.of(PortIF.Kind.INPUT));
+
             this.allSleep =
                     PortIF.of(
                             "all_sleep",
                             Signal.of("all_sleep", new LogicValue()),
                             Optional.of(PortIF.Kind.INPUT));
+            this.allWaited =
+                    PortIF.of(
+                            "all_waited",
+                            Signal.of("all_waited", new LogicValue()),
+                            Optional.of(PortIF.Kind.INPUT));
         }
 
         @Override
         public Stream<PortIF> stream() {
-            return Stream.of(externalEnqueue, allSync, allSyncWait, allSleep);
-        }
-
-        public PortIF getExternalEnqueue() {
-            return this.externalEnqueue;
+            return Stream.of(allSyncSleep, allSleep, allWaited);
         }
 
         public PortIF getAllSleep() {
             return allSleep;
         }
-
-        public PortIF getAllSync() {
-            return allSync;
+        public PortIF getAllSyncSleep() {
+            return allSyncSleep;
         }
-
-        public PortIF getAllSyncWait() {
-            return allSyncWait;
-        }
+        public PortIF getAllWaited() { return allWaited; }
     }
 
     private final String identifier;
-//    private final ImmutableList<InputIF> writers;
+    //    private final ImmutableList<InputIF> writers;
 //    private final ImmutableList<OutputIF> readers;
     private final APControl apControl;
     // Actors
@@ -179,9 +167,11 @@ public class SCNetwork implements SCIF {
     private SCTrigger makeTrigger(SCInstanceIF inst) {
         return new SCTrigger(inst, this.globalSync, this.apControl.getStart());
     }
+
     private Signal makeSyncSignal(SCInstanceIF inst) {
         return Signal.of(inst.getInstanceName() + "_sync", new LogicValue());
     }
+
     public String getIdentifier() {
         return identifier;
     }
@@ -206,13 +196,24 @@ public class SCNetwork implements SCIF {
         return instanceTriggers;
     }
 
-    public ImmutableList<SCTrigger> getInputStageTriggers() { return inputStageTriggers; }
+    public ImmutableList<SCTrigger> getInputStageTriggers() {
+        return inputStageTriggers;
+    }
 
-    public ImmutableList<SCTrigger> getOutputStageTriggers() { return outputStageTriggers; }
+    public ImmutableList<SCTrigger> getOutputStageTriggers() {
+        return outputStageTriggers;
+    }
 
     @Override
     public Stream<PortIF> stream() {
-        return Stream.concat(Stream.of(init), apControl.stream());
+        Stream<PortIF> args = ImmutableList.concat(inputStages, outputStages)
+                .stream().flatMap(SCIOStage::getKernelArgs);
+
+        return Stream.concat(
+                Stream.concat(Stream.of(init), apControl.stream()),
+                args
+        );
+
 
     }
 
@@ -228,7 +229,6 @@ public class SCNetwork implements SCIF {
     }
 
 
-
     public SyncIF getGlobalSync() {
         return globalSync;
     }
@@ -237,7 +237,9 @@ public class SCNetwork implements SCIF {
         return apControl;
     }
 
-    public PortIF getInit() { return init; }
+    public PortIF getInit() {
+        return init;
+    }
 
     public Signal getAmIdle() {
         return amIdle;

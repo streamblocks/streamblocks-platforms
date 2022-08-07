@@ -6,17 +6,18 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-public class SCOutputStage implements SCInputOutputIF {
+public class SCOutputStage extends SCIOStage {
 
     public static class OutputIF implements SCIF {
         private final Queue.ReaderIF reader;
         private final Queue.AuxiliaryIF aux;
         private final PortDecl port;
-
+        private final int depth;
         public OutputIF(Queue queue, PortDecl port) {
             this.reader = queue.getReader().withPrefix("fifo_");
             this.aux = queue.getAuxiliary().withPrefix("fifo_");
             this.port = port;
+            this.depth = queue.getDepth();
         }
 
 
@@ -36,69 +37,51 @@ public class SCOutputStage implements SCInputOutputIF {
         public Queue.AuxiliaryIF getAuxiliary() {
             return aux;
         }
+
+        public int getDepth() {
+            return depth;
+        }
     }
 
-    private final APControl apControl;
     private final OutputIF output;
-    private final PortIF init;
-    private final String instanceName;
-    private final PortIF ret;
-
-    public SCOutputStage(String instanceName, PortIF init, OutputIF output) {
-        this.instanceName = instanceName;
-        this.init = init;
+    public SCOutputStage(String instanceName, PortIF kernelStart, OutputIF output, String underlyingType) {
+        super(instanceName, kernelStart, underlyingType);
         this.output = output;
-        this.apControl = new APControl(instanceName + "_");
-        this.ret = PortIF.of(
-                "ap_return",
-                Signal.of(instanceName + "_ap_return", new LogicVector(32)),
-                Optional.of(PortIF.Kind.OUTPUT));
+
     }
 
-    public APControl getApControl() { return apControl; }
-
-    @Override
-    public int getNumActions() {
-        return 1;
-    }
 
     public OutputIF getOutput() { return output; }
-    public PortIF getInit() { return init; }
-    public String getName() {
-        return "OutputStage<" + output.getReader().getDout().getSignal().getType() + ">";
-    }
-
-    public String getInstanceName() {
-        return instanceName;
-    }
 
     @Override
-    public PortIF getReturn() {
-        return ret;
+    public String getName() {
+        return "SimulatedOutputMemoryStage<" +
+                String.join(", ",
+                        getType(),
+                        getUnderlyingType(),
+                        String.valueOf(getDepth())) + ">";
     }
 
+
+    @Override
     public Stream<PortIF> streamUnique() {
         return Stream.concat(
-                Stream.of(apControl.getDone(),
-                apControl.getReady(),
-                apControl.getIdle(),
-                apControl.getStart(),
-                ret),
+                super.streamUnique(),
                 output.stream()
         );
     }
 
-    public Stream<PortIF> stream() {
-        return
-                Stream.concat(
-                        Stream.of(apControl.getClock(), apControl.getReset(), init),
-                        streamUnique());
-
-    }
-
+    @Override
     public PortDecl getPort() {
         return output.getPort();
     }
 
+    @Override
     public String getType() { return output.getReader().getDout().getSignal().getType(); }
+
+
+    @Override
+    public int getDepth() {
+        return output.getDepth();
+    }
 }

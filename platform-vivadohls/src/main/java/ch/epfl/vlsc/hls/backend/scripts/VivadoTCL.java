@@ -42,6 +42,9 @@ public interface VivadoTCL {
         // -- Import Vivado HLS generated RTL files
         importVivadoHLSVerilogFiles(network);
 
+        // -- Create&Import Vivado HLS Used IP Cores
+        importVivadoHLSIpCres(network);
+
         // -- Import Simulation Verilog Modules
         importSimulationVerilogFiles(network);
 
@@ -70,8 +73,9 @@ public interface VivadoTCL {
 
     default void importStreamblocksVerilogFiles(String identifier){
         emitter().emitSharpBlockComment("Import StreamBlocks Verilog RTL files");
-        emitter().emit("import_files -norecurse {@PROJECT_SOURCE_DIR@/code-gen/rtl/TriggerTypes.sv}");
+        emitter().emit("import_files -norecurse {@PROJECT_SOURCE_DIR@/code-gen/rtl/trigger_common.sv}");
         emitter().emit("import_files -norecurse {@PROJECT_SOURCE_DIR@/code-gen/rtl/trigger.sv}");
+        emitter().emit("import_files -norecurse {@PROJECT_SOURCE_DIR@/code-gen/rtl/pipelined_trigger.sv}");
         emitter().emit("import_files -norecurse {@PROJECT_SOURCE_DIR@/code-gen/rtl/fifo.v}");
         emitter().emit("import_files -norecurse {@PROJECT_SOURCE_DIR@/code-gen/rtl/%s.sv}", identifier);
         emitter().emit("import_files -norecurse {@PROJECT_SOURCE_DIR@/code-gen/rtl/%s_pure.sv}", identifier);
@@ -88,6 +92,20 @@ public interface VivadoTCL {
             emitter().emit("import_files -norecurse $%s_files", instanceId);
             emitter().emitNewLine();
         }
+
+    }
+
+    default void importVivadoHLSIpCres(Network network){
+        emitter().emitSharpBlockComment("Import Vivado HLS Used IP Cores");
+
+        for(Instance instance: network.getInstances()){
+            String instanceId = instance.getInstanceName();
+            emitter().emit("# -- Import IP Core for instance : %s", instanceId);
+            emitter().emit("foreach script [glob -nocomplain [file join @CMAKE_CURRENT_BINARY_DIR@/%1$s/solution/syn/verilog *.tcl]] { source $script }", instanceId);
+            emitter().emitNewLine();
+        }
+
+        emitter().emit("update_compile_order -fileset sources_1");
     }
 
     default void importSimulationVerilogFiles(Network network){

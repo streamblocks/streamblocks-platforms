@@ -97,7 +97,8 @@ public class VivadoHLSBackendPhase implements Phase {
                 PlatformSettings.enableActionProfile,
                 PlatformSettings.enableSystemC,
                 PlatformSettings.defaultQueueDepth,
-                PlatformSettings.defaultController
+                PlatformSettings.defaultController,
+                PlatformSettings.disablePipelining
         );
     }
 
@@ -212,9 +213,6 @@ public class VivadoHLSBackendPhase implements Phase {
         // -- Generate Globals
         generateGlobals(backend);
 
-        // -- Generate devicehandle
-        // generateDeviceHandle(backend);
-
         // -- Generate Network
         generateNetwork(backend);
 
@@ -328,13 +326,13 @@ public class VivadoHLSBackendPhase implements Phase {
         // -- Input Stage
         for (PortDecl port : backend.task().getNetwork().getInputPorts()) {
             backend.inputstagemem().getInputStageMem(port);
-            backend.inputstage().getInputStage(port);
+
         }
 
         // -- Output Stage
         for (PortDecl port : backend.task().getNetwork().getOutputPorts()) {
             backend.outputstagemem().getOutputStageMem(port);
-            backend.outputstage().getOutputStage(port);
+
         }
 
         // -- Kernel XML
@@ -355,16 +353,6 @@ public class VivadoHLSBackendPhase implements Phase {
         backend.globals().globalHeader();
     }
 
-    /**
-     * Generate host DeviceHandle
-     *
-     * @param backend
-     */
-    public static void generateDeviceHandle(VivadoHLSBackend backend) {
-
-        // -- Globals Header
-        backend.devicehandle().generateDeviceHandle();
-    }
 
     /**
      * Generate tesbenches for Network and Instances
@@ -450,12 +438,13 @@ public class VivadoHLSBackendPhase implements Phase {
                     PathUtils.getTargetCodeGenRtl(backend.context()).resolve("fifo.v"),
                     StandardCopyOption.REPLACE_EXISTING);
             // -- Actor Start controller
-            Files.copy(getClass().getResourceAsStream("/lib/verilog/TriggerTypes.sv"),
-                    PathUtils.getTargetCodeGenRtl(backend.context()).resolve("TriggerTypes.sv"),
+            Files.copy(getClass().getResourceAsStream("/lib/verilog/trigger_common.sv"),
+                    PathUtils.getTargetCodeGenRtl(backend.context()).resolve("trigger_common.sv"),
                     StandardCopyOption.REPLACE_EXISTING);
             Files.copy(getClass().getResourceAsStream("/lib/verilog/trigger.sv"),
                     PathUtils.getTargetCodeGenRtl(backend.context()).resolve("trigger.sv"),
                     StandardCopyOption.REPLACE_EXISTING);
+
 
             // -- Find Vivado hls, vivado & SDAccel for cmake
             Files.copy(getClass().getResourceAsStream("/lib/cmake/FindVitisHLS.cmake"),
@@ -482,9 +471,20 @@ public class VivadoHLSBackendPhase implements Phase {
             Files.copy(getClass().getResourceAsStream("/lib/hls/iostage.h"),
                     PathUtils.getTargetCodeGenInclude(backend.context()).resolve("iostage.h"),
                     StandardCopyOption.REPLACE_EXISTING);
+            // -- copy actor machine related definitions
+            Files.copy(getClass().getResourceAsStream("/lib/hls/actor-machine.h"),
+                    PathUtils.getTargetCodeGenInclude(backend.context()).resolve("actor-machine.h"),
+                    StandardCopyOption.REPLACE_EXISTING);
             // -- Input and Output Stage C++ tester
             Files.copy(getClass().getResourceAsStream("/lib/hls/tb_iostage.cpp"),
                     PathUtils.getTargetCodeGenSrcTb(backend.context()).resolve("tb_iostage.cpp"),
+                    StandardCopyOption.REPLACE_EXISTING);
+            // -- Input and Output stage SystemVerilog templates
+            Files.copy(getClass().getResourceAsStream("/lib/verilog/input_stage_triggered.sv.in"),
+                    PathUtils.getTargetScripts(backend.context()).resolve("input_stage_triggered.sv.in"),
+                    StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(getClass().getResourceAsStream("/lib/verilog/output_stage_triggered.sv.in"),
+                    PathUtils.getTargetScripts(backend.context()).resolve("output_stage_triggered.sv.in"),
                     StandardCopyOption.REPLACE_EXISTING);
 
             // -- Synthesis script for Vivado HLS as an input to CMake
@@ -525,12 +525,26 @@ public class VivadoHLSBackendPhase implements Phase {
                 Files.copy(getClass().getResourceAsStream("/lib/systemc/trigger.h"),
                         PathUtils.getTarget(backend.context()).resolve("systemc/include/trigger.h"),
                         StandardCopyOption.REPLACE_EXISTING);
-                Files.copy(getClass().getResourceAsStream("/lib/systemc/sim_iostage.h"),
-                        PathUtils.getTarget(backend.context()).resolve("systemc/include/sim_iostage.h"),
+                Files.copy(getClass().getResourceAsStream("/lib/systemc/trigger.cpp"),
+                        PathUtils.getTarget(backend.context()).resolve("systemc/src/trigger.cpp"),
                         StandardCopyOption.REPLACE_EXISTING);
-
+                Files.copy(getClass().getResourceAsStream("/lib/systemc/profiler.cpp"),
+                        PathUtils.getTarget(backend.context()).resolve("systemc/src/profiler.cpp"),
+                        StandardCopyOption.REPLACE_EXISTING);
+                Files.copy(getClass().getResourceAsStream("/lib/systemc/profiler.h"),
+                        PathUtils.getTarget(backend.context()).resolve("systemc/include/profiler.h"),
+                        StandardCopyOption.REPLACE_EXISTING);
+                Files.copy(getClass().getResourceAsStream("/lib/systemc/simulation-iostage.h"),
+                        PathUtils.getTarget(backend.context()).resolve("systemc/include/simulation-iostage.h"),
+                        StandardCopyOption.REPLACE_EXISTING);
+                Files.copy(getClass().getResourceAsStream("/lib/systemc/simulate.h"),
+                        PathUtils.getTarget(backend.context()).resolve("systemc/include/simulate.h"),
+                        StandardCopyOption.REPLACE_EXISTING);
                 Files.copy(getClass().getResourceAsStream("/lib/systemc/debug_macros.h"),
                         PathUtils.getTarget(backend.context()).resolve("systemc/include/debug_macros.h"),
+                        StandardCopyOption.REPLACE_EXISTING);
+                Files.copy(getClass().getResourceAsStream("/lib/systemc/common.h"),
+                        PathUtils.getTarget(backend.context()).resolve("systemc/include/common.h"),
                         StandardCopyOption.REPLACE_EXISTING);
                 Files.copy(getClass().getResourceAsStream("/lib/systemc/CMakeLists.txt"),
                         PathUtils.getTarget(backend.context()).resolve("systemc/CMakeLists.txt"),

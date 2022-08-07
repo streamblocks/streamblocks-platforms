@@ -65,7 +65,7 @@ public interface CMakeLists {
         {
             emitter().increaseIndentation();
             network.getInputPorts().forEach(
-                    input -> emitter().emit("%s_input_stage_mem", input.getName()));
+                    input -> emitter().emit("%s_input_stage", input.getName()));
             emitter().decreaseIndentation();
         }
         emitter().emit(")");
@@ -74,7 +74,7 @@ public interface CMakeLists {
         {
             emitter().increaseIndentation();
             network.getOutputPorts().forEach(
-                    output -> emitter().emit("%s_output_stage_mem", output.getName())
+                    output -> emitter().emit("%s_output_stage", output.getName())
             );
             emitter().decreaseIndentation();
         }
