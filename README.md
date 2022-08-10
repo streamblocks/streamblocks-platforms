@@ -9,7 +9,7 @@ StreamBlocks for the first time, this is the readme you need to follow to get a
 sense of the overall workflow and the different tools used within StreamBlocks.
 
 
-StreamBlocks compiler provides ش unified compilation framework for CPU-FPGA
+StreamBlocks compiler provides a unified compilation framework for CPU-FPGA
 platforms. The figure below shows the compiler flow in full.
 
 ![Compiler](doc/compiler.png)
