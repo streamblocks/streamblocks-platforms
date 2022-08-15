@@ -29,7 +29,7 @@ public interface CMakeLists {
         if (hasPlink) {
 
             emitter().open(PathUtils.getTarget(backend().context()).resolve("../CMakeLists.txt"));
-            emitter().emit("cmake_minimum_required(VERSION 3.10)");
+            emitter().emit("cmake_minimum_required(VERSION 3.3)");
             emitter().emit("project(%s)", backend().task().getIdentifier().getLast().toString());
             emitter().emit("set(CMAKE_CXX_STANDARD 14)");
             emitter().emitNewLine();
@@ -47,7 +47,7 @@ public interface CMakeLists {
         emitter().open(PathUtils.getTarget(backend().context()).resolve("CMakeLists.txt"));
         // -- CMake Minimal version
         emitter().emit("# -- Generated from %s", backend().task().getIdentifier());
-        emitter().emit("cmake_minimum_required(VERSION 3.10)");
+        emitter().emit("cmake_minimum_required(VERSION 3.3)");
         emitter().emitNewLine();
 
         // -- Project name

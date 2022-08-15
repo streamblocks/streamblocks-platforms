@@ -120,7 +120,7 @@ home directory which is picked up by `streamblocks-platforms`).
 > cd streamblocks-tycho &&  mvn install -DskipTests && cd ..
 ```
 
-Maven should succeed, then clone this repository and install it using maven.
+Maven should succeed, then clone _this_ repository and install it using maven.
 
 ```bash
 > git clone https://github.com/streamblocks/streamblocks-platforms
@@ -134,7 +134,7 @@ In the `streamblocks-platforms` directory running `streamblocks --help` should
 welcome you with some basic command line options. We will first go through the
 software execution flow and then we will give you a tour of how you can compile
 code for heterogeneous platforms (slightly more complicated). This guide does
-not cover automatic partitioning methodology though, for that refer to the
+not cover our partitioning methodology though, for that refer to the
 [streamblocks-partitioning](https://github.com/streamblocks/streamblocks-partitioning)
 repository.
 
@@ -215,12 +215,13 @@ myproject
     ├── cmake
     └── CMakeLists.txt
 ```
-This directory does not contain any executable. The`bin` does not contain the
-final executable at this point, the python are not currently used generated
-nonetheless and you should just ignore them. To get an executable, we should
-compile the generated C++ files down to binary, this is done quite simply:
+The`bin` does not contain the final executable at this point. The python files
+are not currently used but generated nonetheless and you should just ignore
+them. To get an executable, you should compile the generated C++ files down to
+binary, this is done quite simply:
 ```
-> cd myproject/build # if myproject/build does not exist create it
+> mkdir -p myproject/build
+> cd myproject/build
 > cmake ..
 > cmake --build .
 ```
@@ -354,12 +355,11 @@ available in the `${PATH}` by:
 ```
 source ${VITIS_DIR}/settings64.sh
 ```
-You also need to have `${XILINX_XRT}` set to where `XRT` is installed, e.g.,
-and some `XRT` utility binaries available in the `$PATH`. This can be done
-by (assuming `XRT` is installed in `/opt/xilinx/xrt/`):
+You also need to have `${XILINX_XRT}` set to where `XRT`. Assuming you
+have `XRT` installed in `/opt/xilinx/xrt`:
 
 ```
-bash /opt/xilinx/xrt/setup.sh
+export XILINX_XRT=/opt/xilinx/xrt
 ```
 
 With these environment variables set, you can proceed to building an FPGA binary
@@ -367,8 +367,8 @@ With these environment variables set, you can proceed to building an FPGA binary
 ``` bash
 > mkdir -p myproject/build
 > cd myproject/build
-> cmake .. -DHLS_CLOCK_PERIOD=3.3 -DFPGA_NAME=xcu250-figd2104-2L-e -DPLATFORM=xilinx_u250_xdma_201830_2 -DUSE_VITIS=on
-> cmake --build . --target PassThrough_kernel_xclbin
+> cmake .. -DHLS_CLOCK_PERIOD=3.3 -DFPGA_NAME=xcu200-fsgd2104-2-e -DPLATFORM=xilinx_u200_xdma_201830_2 -DUSE_VITIS=on -DCMAKE_BUILD_TYPE=Debug
+> cmake --build . --target PassThrough_kernel_xclbin -- -j 4
 ```
 This can take several hours. To get a simulation binary instead you can use
 `-DTARGET=hw_emu` to use the hardware emulation mode in which the hardware
@@ -378,7 +378,7 @@ time.
 
 Likewise, you can build the software binary by
 ```
-> cmake --build . --target PassThrough
+> cmake --build . --target PassThrough -- -j 4
 ```
 
 Once both targets are ready, you can execute the program:
@@ -387,25 +387,17 @@ Once both targets are ready, you can execute the program:
 > ./PassThrough
 ```
 
+Note that there is no `cmake` dependency between the software and hardware
+binary. Therefore, if you don't build the hardware binary you will end up with a
+runtime error regarding a missing file. The hardware binary is be placed
+in `bin/xclbin/` and is supposed to be present when you call `./PassThrough`.
 
-Note that this rather tedious flow can be easily scripted. We plan to streamline
+This rather tedious flow can easily be scripted. We plan to streamline
 compilation in the future by integrating all the steps in one place. But for now
 consider writing your own scripts. You can checkout the `streamblocks-example`
 repository to ge inspired by how you can use `cmake` to fully automate the
 process.
 
-### cmake version issues
-
-It's possible that you get a "cmake minimum version" error. This happens because
-xilinx tools override your predefined cmake binary with one of their own. Simply
-install a newer version locally on your system say `${CMAKE_HOME}` and do the following
-after initializing Xilinx tools:
-
-```bash
-alias cmake = ${CMAKE_HOME}/bin/cmake
-```
-
-We will hopefully fix this issue later.
 
 
 
