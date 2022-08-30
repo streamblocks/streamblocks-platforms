@@ -20,7 +20,7 @@ int randint(int min, int max) {
  * @return float reinterpreted value
  */
 
-float reinterpret_float(uint int_value) {
+float reinterpret_float(unsigned int int_value) {
     float* as_float = reinterpret_cast<float*>(&int_value);
     return as_float[0];
 }
