@@ -47,7 +47,7 @@ add_definitions(${extra_definitions})
 add_library(sb-native STATIC ${sb_native_sources} ${sb_native_headers})
 
 # Do the linking
-target_link_libraries(sb-native raft demangle affinity cmdargs ${extra_libraries})
+target_link_libraries(sb-native sb-raft demangle affinity cmdargs ${extra_libraries})
 
 install(TARGETS sb-native
         ARCHIVE DESTINATION lib

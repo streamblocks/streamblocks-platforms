@@ -25,18 +25,16 @@ if(USE_QTHREAD)
     endif()
 endif()
 
-find_package(Raft REQUIRED)
-if(RAFT_FOUND)
-    list(APPEND extra_libraries ${CMAKE_RAFT_LDFLAGS})
-    list(APPEND extra_includes ${RAFT_INCLUDE})
-else()
-    message(STATUS "Cannot find Raft")
-endif()
 
-# -- Includes
-include_directories(sb-native/include)
+#list(APPEND extra_includes  )
 
 # -- Add sb native
+add_subdirectory(helpers)
+add_subdirectory(demangle)
+add_subdirectory(affinity)
+add_subdirectory(shm)
+add_subdirectory(cmdargs)
+add_subdirectory(sb-raft)
 add_subdirectory(sb-native)
 
 set(extra_definitions ${extra_definitions} PARENT_SCOPE)

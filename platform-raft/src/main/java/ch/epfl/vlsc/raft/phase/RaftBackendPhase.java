@@ -70,7 +70,7 @@ public class RaftBackendPhase implements Phase {
 
     @Override
     public String getDescription() {
-        return "StreamBlocks OpenCL Platform";
+        return "StreamBlocks Raft Platform";
     }
 
     @Override

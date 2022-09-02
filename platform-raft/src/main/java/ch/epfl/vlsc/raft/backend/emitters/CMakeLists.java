@@ -59,11 +59,15 @@ public interface CMakeLists {
 
         emitter().emit("include_directories(");
         emitter().increaseIndentation();
+        emitter().emit("lib/sb-raft/include");
         emitter().emit("lib/sb-native/include");
+        emitter().emit("lib/sb-raft/include/raftinc");
+        emitter().emit("lib/demangle/include");
+        emitter().emit("lib/affinity/include");
+        emitter().emit("lib/cmdargs/include");
+        emitter().emit("lib/shm/include");
         emitter().decreaseIndentation();
         emitter().emit(")");
-
-
         emitter().emitNewLine();
 
         // -- Add sub directories
@@ -135,6 +139,10 @@ public interface CMakeLists {
         emitter().emit("# -- Target link libraries");
         emitter().emit("target_link_libraries(%s sb-native ${extra_libraries})",
                 backend().task().getIdentifier().getLast().toString());
+        // -- Target definitions
+        emitter().emit("target_compile_definitions(%s PUBLIC L1D_CACHE_LINE_SIZE=64 STRING_NAMES=1)",
+                backend().task().getIdentifier().getLast().toString());
+        emitter().emitNewLine();
 
         // -- EOF
         emitter().close();
