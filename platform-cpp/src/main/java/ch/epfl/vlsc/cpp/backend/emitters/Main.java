@@ -1,0 +1,258 @@
+package ch.epfl.vlsc.cpp.backend.emitters;
+
+
+import ch.epfl.vlsc.platformutils.Emitter;
+import ch.epfl.vlsc.platformutils.PathUtils;
+import org.multij.Binding;
+import org.multij.BindingKind;
+import org.multij.Module;
+import se.lth.cs.tycho.ir.network.Connection;
+import se.lth.cs.tycho.ir.network.Instance;
+import se.lth.cs.tycho.ir.network.Network;
+import ch.epfl.vlsc.cpp.backend.CppBackend;
+
+import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+@Module
+public interface Main {
+    @Binding(BindingKind.INJECTED)
+    CppBackend backend();
+
+    @Binding(BindingKind.LAZY)
+    default Map<Connection.End, Integer> connectionEndNbrReaders(){
+        return new HashMap<>();
+    }
+
+    @Binding(BindingKind.LAZY)
+    default Map<Connection.End, Integer> connectionId() {
+        return new HashMap<>();
+    }
+
+    default Emitter emitter() {
+        return backend().emitter();
+    }
+
+    default void generateMain() {
+        Path mainTarget = PathUtils.getTargetCodeGenSource(backend().context()).resolve("main.cpp");
+        emitter().open(mainTarget);
+
+        // -- Flatten Network
+        Network network = backend().task().getNetwork();
+
+        // -- Includes
+        defineIncludes(network);
+
+        // -- Main
+        defineMain(network);
+
+        emitter().close();
+    }
+
+    default void defineIncludes(Network network) {
+
+        // -- System
+        backend().includeSystem("cstdint");
+        backend().includeSystem("thread");
+        backend().includeSystem("chrono");
+        backend().includeSystem("map");
+        backend().includeSystem("set");
+        backend().includeSystem("vector");
+        backend().includeSystem("iostream");
+        backend().includeSystem("string");
+        backend().includeSystem("functional");
+        emitter().emitNewLine();
+
+        // -- User
+        backend().includeUser("mapping_parser.h");
+        backend().includeUser("get_opt.h");
+        backend().includeUser("actor.h");
+        backend().includeUser("fifo.h");
+        emitter().emitNewLine();
+
+
+        emitter().emit("// -- Instance headers");
+        for (Instance instance : network.getInstances()) {
+            String headerName = instance.getInstanceName() + ".h";
+
+            backend().includeUser(headerName);
+        }
+        emitter().emitNewLine();
+
+        // -- Chrono
+        emitter().emit("// -- Chrono");
+        emitter().emit("using Clock = std::chrono::high_resolution_clock;");
+        emitter().emit("using Ms = std::chrono::milliseconds;");
+        emitter().emit("template<class Duration>");
+        emitter().emit("using TimePoint = std::chrono::time_point<Clock, Duration>;");
+        emitter().emitNewLine();
+
+        // -- Instances
+        for(Instance instance : network.getInstances()){
+            emitter().emit("%s *i_%1$s;", instance.getInstanceName());
+        }
+        emitter().emitNewLine();
+
+        // -- Partitions Prototype
+        emitter().emit("// -- Partitions Prototype");
+        emitter().emit("void partition_singlecore();");
+        emitter().emit("void partition(std::string name, std::vector<Actor*> actors);");
+        emitter().emitNewLine();
+
+        // -- Single Partition
+        defineSingleCorePartitioning(network);
+        emitter().emitNewLine();
+
+        // -- Multiple Partitions
+        defineMultiplePartitioning();
+        emitter().emitNewLine();
+    }
+
+    default void defineSingleCorePartitioning(Network network){
+        emitter().emit("void partition_singlecore() {");
+        {
+            emitter().increaseIndentation();
+
+            emitter().emit("bool run = false;");
+            emitter().emit("EStatus status = None;");
+            emitter().emit("do {");
+            {
+                emitter().increaseIndentation();
+
+                emitter().emit("run = false;");
+                for(Instance instance : network.getInstances()){
+                   emitter().emit("run |= i_%s->action_selection(status);", instance.getInstanceName());
+                }
+
+                emitter().decreaseIndentation();
+            }
+            emitter().emit("} while(run);");
+
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("}");
+    }
+
+    default void defineMultiplePartitioning(){
+        emitter().emit("void partition(std::string name, std::vector<Actor*> actors) {");
+        {
+            emitter().increaseIndentation();
+
+            emitter().emit("EStatus status = None;");
+            emitter().emit("Clock::time_point _start = Clock::now();");
+            emitter().emit("bool stop = false;");
+            emitter().emitNewLine();
+
+            emitter().emit("do {");
+            {
+                emitter().increaseIndentation();
+
+                emitter().emit("for (Actor* actor : actors) {");
+                emitter().emit("\tactor->action_selection(status);");
+                emitter().emit("}");
+                emitter().emitNewLine();
+
+                emitter().emit("if (status == None) {");
+                {
+                    emitter().increaseIndentation();
+
+                    emitter().emit("stop = TimePoint<Ms>(std::chrono::duration_cast < Ms > (Clock::now() - _start)) > TimePoint<Ms>(Ms(1000));");
+                    emitter().emit("std::this_thread::yield();");
+                    emitter().emitNewLine();
+                    emitter().emit("if (stop) {");
+                    emitter().emit("\tstd::cout << \"Time out occurred on partition \" << name << \"!\" << std::endl;");
+                    emitter().emit("}");
+
+                    emitter().decreaseIndentation();
+                }
+                emitter().emit("} else {");
+                emitter().emit("\t_start = Clock::now();");
+                emitter().emit("}");
+
+                emitter().decreaseIndentation();
+            }
+            emitter().emit("} while (!stop);");
+
+
+
+
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("}");
+    }
+
+    default void fifoAllocationAndPointerAssignment() {
+        emitter().emitClikeBlockComment("FIFO Allocation");
+        Network network = backend().task().getNetwork();
+        //Map<Connection.End, Integer> connectionEndNbrReaders = new HashMap<>();
+        //Map<Connection.End, Integer> connectionId = new HashMap<>();
+        int countId = 0;
+        for (Connection connection : network.getConnections()) {
+            Connection.End source = connection.getSource();
+            Optional<Connection.End> f = connectionEndNbrReaders().keySet()
+                    .stream()
+                    .filter(e -> e.getInstance().equals(source.getInstance()) && e.getPort().equals(source.getPort()))
+                    .findAny();
+            if (!f.isPresent()) {
+                connectionEndNbrReaders().put(source, 1);
+                connectionId().put(source, countId);
+                countId++;
+            } else {
+                Connection.End c = f.get();
+                Integer r = connectionEndNbrReaders().get(c) + 1;
+                connectionEndNbrReaders().put(c, r);
+            }
+        }
+
+        for (Connection.End c : connectionId().keySet()) {
+            emitter().emit("Fifo<%s > *fifo_%s = new Fifo<%1$s >(%s, %s, %s);",
+                    backend().typeseval().type(backend().channelUtils().sourceEndType(c)),
+                    connectionId().get(c),
+                    backend().channelUtils().connectionBufferSize(backend().channelUtils().targetEndConnections(c).get(0)),
+                    1,
+                    connectionEndNbrReaders().get(c)
+            );
+        }
+        emitter().emitNewLine();
+
+/*
+        for (Connection.End source : connectionId().keySet()) {
+            int id = connectionId().get(source);
+            String type = backend().typeseval().type(backend().channelUtils().sourceEndType(source));
+            List<Connection> targetConnections = backend().channelUtils().targetEndConnections(source);
+            emitter().emit("fifo_%s_t *%s_%s = &fifo_%d;", type, backend().instaceQID(source.getInstance().get(), "_"), source.getPort(), id);
+            for(Connection c : targetConnections){
+                emitter().emit("fifo_%s_t *%s_%s = &fifo_%d;", type, backend().instaceQID(c.getTarget().getInstance().get(), "_"), c.getTarget().getPort(), id);
+            }
+            emitter().emitNewLine();
+        }
+*/
+    }
+
+    default void defineMain(Network network) {
+        emitter().emit("int main(int argc, char *argv[]) {");
+        {
+            emitter().increaseIndentation();
+
+            // -- Instantiate Actors
+            emitter().emit("// -- Instantiate Actors");
+            for(Instance instance : network.getInstances()){
+                emitter().emit("i_%s = new %1$s();", instance.getInstanceName());
+            }
+            emitter().emitNewLine();
+
+            // -- Instantiate FIFOs
+            fifoAllocationAndPointerAssignment();
+
+
+            emitter().emitNewLine();
+            emitter().emit("return (EXIT_SUCCESS);");
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("}");
+    }
+
+}

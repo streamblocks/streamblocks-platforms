@@ -17,6 +17,7 @@
         <module>platform-node</module>
         <module>platform-orcc</module>
         <module>platform-raft</module>
+        <module>platform-cpp</module>
         <!-- <module>platform-turnus</module> -->
     </modules>
 
