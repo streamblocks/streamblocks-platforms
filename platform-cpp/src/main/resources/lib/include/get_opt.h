@@ -7,15 +7,12 @@
 #include <set>
 #include <map>
 #include "actor.h"
+#include "options.h"
 
 typedef std::map<std::string, std::vector<std::string> > Tokens;
 typedef std::map<std::string, std::vector<std::string> >::const_iterator TokensIterator;
 
-extern std::string input_file;
-extern std::string write_file;
-extern std::string config_file;
-extern std::string trace_actor_name;
-extern int nbLoops;
+
 // Number of frames to display before closing application
 extern int nbFrames;
 

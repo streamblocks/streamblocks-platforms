@@ -127,7 +127,7 @@ public interface CMakeLists {
 
         // -- Target link libraries
         emitter().emit("# -- Target link libraries");
-        emitter().emit("target_link_libraries(%s cpp-runtime ${extra_libraries})",
+        emitter().emit("target_link_libraries(%s sb-cpp-runtime ${extra_libraries})",
                 backend().task().getIdentifier().getLast().toString());
         // -- EOF
         emitter().close();

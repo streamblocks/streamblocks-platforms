@@ -125,7 +125,12 @@ public interface Statements {
 
             if (decl.getValue() != null) {
                 if(decl.getValue() instanceof ExprInput){
-                    backend().expressions().evaluateWithDecl(declarationName, t, (ExprInput) decl.getValue());
+                    ExprInput input = (ExprInput) decl.getValue();
+                    if(input.hasRepeat()){
+                        emitter().emit("auto *%s = %s;", declarationName, input.getPort().getName());
+                    } else {
+                        emitter().emit("auto %s = *%s;", declarationName, input.getPort().getName());
+                    }
                 }else{
                     emitter().emit("%s = %s;", d, backend().defaultValues().defaultValue(t));
                     copy(t, declarationName, types().type(decl.getValue()), expressions().evaluate(decl.getValue()));

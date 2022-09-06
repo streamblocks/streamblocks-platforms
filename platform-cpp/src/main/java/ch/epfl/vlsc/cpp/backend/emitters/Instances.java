@@ -12,6 +12,7 @@ import se.lth.cs.tycho.ir.Annotation;
 import se.lth.cs.tycho.ir.Parameter;
 import se.lth.cs.tycho.ir.Port;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
+import se.lth.cs.tycho.ir.decl.LocalVarDecl;
 import se.lth.cs.tycho.ir.decl.ParameterVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
@@ -22,13 +23,7 @@ import se.lth.cs.tycho.ir.entity.am.PortCondition;
 import se.lth.cs.tycho.ir.entity.am.PredicateCondition;
 import se.lth.cs.tycho.ir.entity.am.Scope;
 import se.lth.cs.tycho.ir.entity.am.Transition;
-import se.lth.cs.tycho.ir.expr.ExprComprehension;
-import se.lth.cs.tycho.ir.expr.ExprInput;
-import se.lth.cs.tycho.ir.expr.ExprLambda;
-import se.lth.cs.tycho.ir.expr.ExprList;
-import se.lth.cs.tycho.ir.expr.ExprLiteral;
-import se.lth.cs.tycho.ir.expr.ExprProc;
-import se.lth.cs.tycho.ir.expr.Expression;
+import se.lth.cs.tycho.ir.expr.*;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.type.CallableType;
 import se.lth.cs.tycho.type.Type;
@@ -176,7 +171,7 @@ public interface Instances {
             String headerName = instance.getInstanceName() + ".h";
 
             backend().includeUser(headerName);
-            //backend().includeUser("natives.h");
+            backend().includeUser("natives.h");
         }
         emitter().emitNewLine();
     }
@@ -392,7 +387,20 @@ public interface Instances {
                         if (var.isExternal() && type instanceof CallableType) {
                             // -- Do Nothing
                         } else if (var.getValue() != null) {
+                            if (var.getValue() instanceof ExprInput) {
+                                ExprInput input = (ExprInput) var.getValue();
+                                if (input.getRepeat() > 1) {
+                                    emitter().emit("auto *%s = port_%1$s->read_address(0, %s);",
+                                            input.getPort().getName(),
+                                            input.getRepeat());
+                                } else {
+                                    emitter().emit("auto *%s = port_%1$s->read_address(0);",
+                                            input.getPort().getName());
+                                }
+                            }
+
                             emitter().emit("{");
+
                             emitter().increaseIndentation();
 
                             backend().statements().copy(types().declaredType(var), "this->" + backend().variables().declarationName(var), types().type(var.getValue()), backend().expressions().evaluate(var.getValue()));
@@ -418,9 +426,30 @@ public interface Instances {
         // -- Actor Instance Name
         emitter().emit("inline %s{", conditionPrototype(instanceName, condition, index, true));
         emitter().increaseIndentation();
+        if (condition instanceof PredicateCondition) {
+            PredicateCondition pred = (PredicateCondition) condition;
+            if (pred.getExpression() instanceof ExprLet) {
+                ExprLet _let = (ExprLet) pred.getExpression();
+                for (LocalVarDecl var : _let.getVarDecls()) {
+                    if (var.getValue() instanceof ExprInput) {
+                        ExprInput input = (ExprInput) var.getValue();
+                        if (input.getRepeat() > 1) {
+                            emitter().emit("auto *%s = port_%1$s->read_address(0, %s);",
+                                    input.getPort().getName(),
+                                    input.getRepeat());
+                        } else {
+                            emitter().emit("auto *%s = port_%1$s->read_address(0);",
+                                    input.getPort().getName());
+                        }
+                    }
+                }
+            }
+        }
+
         {
             emitter().emit("return %s;", evaluateCondition(condition));
         }
+
         emitter().decreaseIndentation();
         emitter().emit("}");
         emitter().emitNewLine();
@@ -449,14 +478,23 @@ public interface Instances {
         emitter().emit("inline %s{", transitionPrototype(instanceName, transition, index, true));
         {
             emitter().increaseIndentation();
-            for(Port port : transition.getInputRates().keySet()){
+            for (Port port : transition.getInputRates().keySet()) {
                 PortDecl pDecl = backend().ports().declaration(port);
-                emitter().emit("%s* %s = port_%s->read_address(0);",
-                        backend().typeseval().type(types().type(pDecl.getType())),
-                        pDecl.getName(),
-                        pDecl.getName());
+                if (transition.getInputRate(port) > 1) {
+                    emitter().emit("%s* %s = port_%s->read_address(0, %s);",
+                            backend().typeseval().type(types().type(pDecl.getType())),
+                            pDecl.getName(),
+                            pDecl.getName(),
+                            transition.getInputRate(port));
+                } else {
+                    emitter().emit("%s* %s = port_%s->read_address(0);",
+                            backend().typeseval().type(types().type(pDecl.getType())),
+                            pDecl.getName(),
+                            pDecl.getName());
+                }
+
             }
-            for(Port port : transition.getOutputRates().keySet()){
+            for (Port port : transition.getOutputRates().keySet()) {
                 PortDecl pDecl = backend().ports().declaration(port);
                 emitter().emit("%s* %s = port_%s->write_address();",
                         backend().typeseval().type(types().type(pDecl.getType())),
@@ -467,10 +505,10 @@ public interface Instances {
 
             transition.getBody().forEach(backend().statements()::execute);
 
-            for(Port port : transition.getOutputRates().keySet()){
-                if(transition.getOutputRate(port) > 1){
+            for (Port port : transition.getOutputRates().keySet()) {
+                if (transition.getOutputRate(port) > 1) {
                     emitter().emit("port_%s->write_advance(%s);", port.getName(), transition.getOutputRate(port));
-                }else{
+                } else {
                     emitter().emit("port_%s->write_advance();", port.getName());
                 }
                 emitter().emit("status_%s_ -= %s;", port.getName(), transition.getOutputRate(port));

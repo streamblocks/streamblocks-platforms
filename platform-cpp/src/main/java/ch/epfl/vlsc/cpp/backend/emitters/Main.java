@@ -1,6 +1,7 @@
 package ch.epfl.vlsc.cpp.backend.emitters;
 
 
+import ch.epfl.vlsc.configuration.Configuration;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.PathUtils;
 import org.multij.Binding;
@@ -23,7 +24,7 @@ public interface Main {
     CppBackend backend();
 
     @Binding(BindingKind.LAZY)
-    default Map<Connection.End, Integer> connectionEndNbrReaders(){
+    default Map<Connection.End, Integer> connectionEndNbrReaders() {
         return new HashMap<>();
     }
 
@@ -64,6 +65,7 @@ public interface Main {
         backend().includeSystem("iostream");
         backend().includeSystem("string");
         backend().includeSystem("functional");
+        backend().includeSystem("memory");
         emitter().emitNewLine();
 
         // -- User
@@ -90,15 +92,9 @@ public interface Main {
         emitter().emit("using TimePoint = std::chrono::time_point<Clock, Duration>;");
         emitter().emitNewLine();
 
-        // -- Instances
-        for(Instance instance : network.getInstances()){
-            emitter().emit("%s *i_%1$s;", instance.getInstanceName());
-        }
-        emitter().emitNewLine();
-
         // -- Partitions Prototype
         emitter().emit("// -- Partitions Prototype");
-        emitter().emit("void partition_singlecore();");
+        emitter().emit("void partition_singlecore(std::vector<Actor*> actors);");
         emitter().emit("void partition(std::string name, std::vector<Actor*> actors);");
         emitter().emitNewLine();
 
@@ -111,8 +107,8 @@ public interface Main {
         emitter().emitNewLine();
     }
 
-    default void defineSingleCorePartitioning(Network network){
-        emitter().emit("void partition_singlecore() {");
+    default void defineSingleCorePartitioning(Network network) {
+        emitter().emit("void partition_singlecore(std::vector<Actor*> actors) {");
         {
             emitter().increaseIndentation();
 
@@ -123,9 +119,9 @@ public interface Main {
                 emitter().increaseIndentation();
 
                 emitter().emit("run = false;");
-                for(Instance instance : network.getInstances()){
-                   emitter().emit("run |= i_%s->action_selection(status);", instance.getInstanceName());
-                }
+                emitter().emit("for (Actor* actor : actors) {");
+                emitter().emit("\trun |= actor->action_selection(status);");
+                emitter().emit("}");
 
                 emitter().decreaseIndentation();
             }
@@ -136,7 +132,7 @@ public interface Main {
         emitter().emit("}");
     }
 
-    default void defineMultiplePartitioning(){
+    default void defineMultiplePartitioning() {
         emitter().emit("void partition(std::string name, std::vector<Actor*> actors) {");
         {
             emitter().increaseIndentation();
@@ -177,18 +173,15 @@ public interface Main {
             emitter().emit("} while (!stop);");
 
 
-
-
             emitter().decreaseIndentation();
         }
         emitter().emit("}");
     }
 
     default void fifoAllocationAndPointerAssignment() {
-        emitter().emitClikeBlockComment("FIFO Allocation");
+        emitter().emit("// -- FIFO Allocation and connection");
         Network network = backend().task().getNetwork();
-        //Map<Connection.End, Integer> connectionEndNbrReaders = new HashMap<>();
-        //Map<Connection.End, Integer> connectionId = new HashMap<>();
+
         int countId = 0;
         for (Connection connection : network.getConnections()) {
             Connection.End source = connection.getSource();
@@ -218,19 +211,69 @@ public interface Main {
         }
         emitter().emitNewLine();
 
-/*
+
         for (Connection.End source : connectionId().keySet()) {
             int id = connectionId().get(source);
-            String type = backend().typeseval().type(backend().channelUtils().sourceEndType(source));
             List<Connection> targetConnections = backend().channelUtils().targetEndConnections(source);
-            emitter().emit("fifo_%s_t *%s_%s = &fifo_%d;", type, backend().instaceQID(source.getInstance().get(), "_"), source.getPort(), id);
-            for(Connection c : targetConnections){
-                emitter().emit("fifo_%s_t *%s_%s = &fifo_%d;", type, backend().instaceQID(c.getTarget().getInstance().get(), "_"), c.getTarget().getPort(), id);
+            emitter().emit("i_%s->port_%s = fifo_%d;", source.getInstance().get(), source.getPort(), id);
+            for (Connection c : targetConnections) {
+                emitter().emit("i_%s->port_%s = fifo_%d;", c.getTarget().getInstance().get(), c.getTarget().getPort(), id);
             }
             emitter().emitNewLine();
         }
-*/
+
     }
+
+    default void defineActorMap(Network network) {
+        emitter().emit("// -- Actors Map");
+        emitter().emit("std::vector<Actor*> actors;");
+        for (Instance instance : network.getInstances()) {
+            emitter().emit("actors.push_back(i_%s);", instance.getInstanceName());
+        }
+        emitter().emitNewLine();
+    }
+
+    default void definePartition(){
+        emitter().emit("// -- Partitions");
+        emitter().emit("std::map<std::string, std::vector<Actor*>> partitions;");
+        emitter().emit("MappingParser parser(sb::options::config_file, actors);");
+        emitter().emit("partitions = parser.getPartitions();");
+        emitter().emitNewLine();
+
+        emitter().emit("int partitions_size = partitions.size();");
+        emitter().emit("if (partitions_size > 1) {");
+        {
+            emitter().increaseIndentation();
+
+            emitter().emit("std::vector<std::thread> workers(partitions_size);");
+            emitter().emitNewLine();
+
+            emitter().emit("int i = 0;");
+            emitter().emit("for (std::map<std::string, std::vector<Actor*>>::iterator it=partitions.begin(); it!=partitions.end(); ++it){");
+            {
+                emitter().increaseIndentation();
+
+                emitter().emit("workers[i] = std::thread( partition, it->first, it->second );");
+                emitter().emit("i++;");
+
+                emitter().decreaseIndentation();
+            }
+            emitter().emit("}");
+            emitter().emitNewLine();
+
+            emitter().emit("for (int i = 0; i < partitions_size; i++) {");
+            emitter().emit("\tworkers[i].join();");
+            emitter().emit("}");
+
+
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("} else {");
+        emitter().emit("\tpartition_singlecore(actors);");
+        emitter().emit("}");
+        emitter().emitNewLine();
+    }
+
 
     default void defineMain(Network network) {
         emitter().emit("int main(int argc, char *argv[]) {");
@@ -239,14 +282,38 @@ public interface Main {
 
             // -- Instantiate Actors
             emitter().emit("// -- Instantiate Actors");
-            for(Instance instance : network.getInstances()){
-                emitter().emit("i_%s = new %1$s();", instance.getInstanceName());
+            for (Instance instance : network.getInstances()) {
+                emitter().emit("%s *i_%1$s = new %1$s();", instance.getInstanceName());
             }
             emitter().emitNewLine();
 
             // -- Instantiate FIFOs
             fifoAllocationAndPointerAssignment();
 
+            // -- Actors Map
+            defineActorMap(network);
+
+            // ++ Get Options
+            emitter().emit("// -- Get Options");
+            emitter().emit("GetOpt options = GetOpt(argc, argv);");
+            emitter().emit("std::string application_name = \"%s\";", backend().task().getIdentifier());
+            emitter().emit("options.setActors(actors);");
+            emitter().emit("options.getOptions();");
+            emitter().emitNewLine();
+
+            // -- Partition
+            definePartition();
+
+            // -- Delete
+            for (Instance instance : network.getInstances()) {
+                emitter().emit("delete i_%s;", instance.getInstanceName());
+            }
+            emitter().emitNewLine();
+
+
+            for(Connection.End c : connectionId().keySet()){
+                emitter().emit("delete fifo_%s;", connectionId().get(c));
+            }
 
             emitter().emitNewLine();
             emitter().emit("return (EXIT_SUCCESS);");

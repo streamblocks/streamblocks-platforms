@@ -2,12 +2,17 @@
 #include <iostream>
 #include <stdlib.h>
 
-std::string config_file;
-std::string input_file;
-std::string write_file;
+namespace sb {
+    namespace options {
+        std::string config_file;
+		std::string input_file;
+		std::string write_file;
 
-int nbLoops = -1;
-int nbFrames = -1;
+		bool disable_display = false;
+		int nbLoops = -1;
+		int nbFrames = -1;
+    }
+}
 
 GetOpt::GetOpt(int argc, char* argv[]) {
 	parse(argc, argv);
@@ -72,9 +77,9 @@ void GetOpt::getOptions() {
 		get_help();
 		exit(EXIT_SUCCESS);
 	}
-	this->getOptionAs<std::string>("i", input_file);
-	this->getOptionAs<std::string>("m", config_file);
-	this->getOptionAs<std::string>("w", write_file);
+	this->getOptionAs<std::string>("i", sb::options::input_file);
+	this->getOptionAs<std::string>("m", sb::options::config_file);
+	this->getOptionAs<std::string>("w", sb::options::write_file);
 	bool is_trace = this->getOptionAs<std::string>("t", this->trace_instance_names);
 	if (is_trace) {
 		if (!trace_instance_names.empty()) {
@@ -93,10 +98,10 @@ void GetOpt::getOptions() {
 			}
 		}
 	}
-	bool exists = this->getOptionAs<int>("l", nbLoops);
+	bool exists = this->getOptionAs<int>("l", sb::options::nbLoops);
 	if (!exists)
-		nbLoops = -1;
-	exists = this->getOptionAs<int>("f", nbFrames);
+		sb::options::nbLoops = -1;
+	exists = this->getOptionAs<int>("f", sb::options::nbFrames);
 	if (!exists)
-		nbFrames = -1;
+		sb::options::nbFrames = -1;
 }

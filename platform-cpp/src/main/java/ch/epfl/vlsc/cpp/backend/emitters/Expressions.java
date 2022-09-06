@@ -875,7 +875,7 @@ public interface Expressions {
             }
         }
 
-        return String.format("%s[%s]%s", evaluate(indexer.getStructure()), evaluate(indexer.getIndex()), fromInput ? ".ele" : "");
+        return String.format("%s[%s]", evaluate(indexer.getStructure()), evaluate(indexer.getIndex()));
     }
 
     default String exprIndexing(MapType type, ExprIndexer indexer) {
