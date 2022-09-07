@@ -201,9 +201,9 @@ public interface Main {
         }
 
         for (Connection.End c : connectionId().keySet()) {
-            emitter().emit("Fifo<%s > *fifo_%s = new Fifo<%1$s >(%s, %s, %s);",
-                    backend().typeseval().type(backend().channelUtils().sourceEndType(c)),
+            emitter().emit("auto *fifo_%s = new Fifo<%s >(%s, %s, %s);",
                     connectionId().get(c),
+                    backend().typeseval().type(backend().channelUtils().sourceEndType(c)),
                     backend().channelUtils().connectionBufferSize(backend().channelUtils().targetEndConnections(c).get(0)),
                     // FIXME : get correct threshold
                     backend().channelUtils().connectionBufferSize(backend().channelUtils().targetEndConnections(c).get(0)),
@@ -284,7 +284,7 @@ public interface Main {
             // -- Instantiate Actors
             emitter().emit("// -- Instantiate Actors");
             for (Instance instance : network.getInstances()) {
-                emitter().emit("%s *i_%1$s = new %1$s();", instance.getInstanceName());
+                emitter().emit("auto *i_%s = new %1$s();", instance.getInstanceName());
             }
             emitter().emitNewLine();
 

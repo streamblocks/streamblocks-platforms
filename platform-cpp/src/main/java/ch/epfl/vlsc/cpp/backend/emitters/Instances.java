@@ -481,14 +481,12 @@ public interface Instances {
             for (Port port : transition.getInputRates().keySet()) {
                 PortDecl pDecl = backend().ports().declaration(port);
                 if (transition.getInputRate(port) > 1) {
-                    emitter().emit("%s* %s = port_%s->read_address(0, %s);",
-                            backend().typeseval().type(types().type(pDecl.getType())),
+                    emitter().emit("auto %s = port_%s->read_address(0, %s);",
                             pDecl.getName(),
                             pDecl.getName(),
                             transition.getInputRate(port));
                 } else {
-                    emitter().emit("%s* %s = port_%s->read_address(0);",
-                            backend().typeseval().type(types().type(pDecl.getType())),
+                    emitter().emit("auto %s = port_%s->read_address(0);",
                             pDecl.getName(),
                             pDecl.getName());
                 }
@@ -496,8 +494,7 @@ public interface Instances {
             }
             for (Port port : transition.getOutputRates().keySet()) {
                 PortDecl pDecl = backend().ports().declaration(port);
-                emitter().emit("%s* %s = port_%s->write_address();",
-                        backend().typeseval().type(types().type(pDecl.getType())),
+                emitter().emit("auto %s = port_%s->write_address();",
                         pDecl.getName(),
                         pDecl.getName());
             }
