@@ -75,7 +75,11 @@ public interface Statements {
 
     default void execute(StmtConsume consume) {
         // -- FIXME : reader id
-        emitter().emit("port_%s->read_advance(0, %s);", consume.getPort().getName(),consume.getNumberOfTokens());
+        if (consume.getNumberOfTokens() > 1) {
+            emitter().emit("port_%s->read_advance(0, %s);", consume.getPort().getName(), consume.getNumberOfTokens());
+        } else {
+            emitter().emit("port_%s->read_advance(0);", consume.getPort().getName(), consume.getNumberOfTokens());
+        }
         emitter().emit("status_%s_ -= %s;", consume.getPort().getName(), consume.getNumberOfTokens());
     }
 
@@ -86,7 +90,7 @@ public interface Statements {
             emitter().emit("%s;", declarations().declaration(types().portType(write.getPort()), tmp));
             for (Expression expr : write.getValues()) {
                 emitter().emit("%s = %s;", tmp, expressions().evaluate(expr));
-                emitter().emit("%s[0] = %s;", portName, tmp);
+                emitter().emit("%s[%s] = %s;", portName, write.getValues().indexOf(expr), tmp);
             }
         } else if (write.getValues().size() == 1) {
             String value = expressions().evaluate(write.getValues().get(0));
@@ -97,7 +101,7 @@ public interface Statements {
             {
                 emitter().increaseIndentation();
 
-                emitter().emit("%s[%s] = %s[%s];", portName, tmp,  value, tmp);
+                emitter().emit("%s[%s] = %s[%s];", portName, tmp, value, tmp);
 
                 emitter().decreaseIndentation();
             }
@@ -124,18 +128,18 @@ public interface Statements {
             String d = declarations().declaration(t, declarationName);
 
             if (decl.getValue() != null) {
-                if(decl.getValue() instanceof ExprInput){
+                if (decl.getValue() instanceof ExprInput) {
                     ExprInput input = (ExprInput) decl.getValue();
-                    if(input.hasRepeat()){
+                    if (input.hasRepeat()) {
                         emitter().emit("auto *%s = %s;", declarationName, input.getPort().getName());
                     } else {
-                        emitter().emit("auto %s = *%s;", declarationName, input.getPort().getName());
+                        emitter().emit("auto %s = %s[%s];", declarationName, input.getPort().getName(), input.getOffset());
                     }
-                }else{
+                } else {
                     emitter().emit("%s = %s;", d, backend().defaultValues().defaultValue(t));
                     copy(t, declarationName, types().type(decl.getValue()), expressions().evaluate(decl.getValue()));
                 }
-            }else{
+            } else {
                 emitter().emit("%s = %s;", d, backend().defaultValues().defaultValue(t));
             }
         }

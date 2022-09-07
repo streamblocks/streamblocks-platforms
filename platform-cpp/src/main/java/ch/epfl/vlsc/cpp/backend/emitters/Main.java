@@ -205,7 +205,8 @@ public interface Main {
                     backend().typeseval().type(backend().channelUtils().sourceEndType(c)),
                     connectionId().get(c),
                     backend().channelUtils().connectionBufferSize(backend().channelUtils().targetEndConnections(c).get(0)),
-                    1,
+                    // FIXME : get correct threshold
+                    backend().channelUtils().connectionBufferSize(backend().channelUtils().targetEndConnections(c).get(0)),
                     connectionEndNbrReaders().get(c)
             );
         }
