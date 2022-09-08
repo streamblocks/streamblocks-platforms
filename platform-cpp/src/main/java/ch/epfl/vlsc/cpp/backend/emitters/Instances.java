@@ -138,7 +138,6 @@ public interface Instances {
         emitter().emit("#define __%s__", instanceName.toUpperCase());
         emitter().emitNewLine();
 
-
         // -- Includes
         defineIncludes(true);
 
@@ -172,8 +171,16 @@ public interface Instances {
 
             backend().includeUser(headerName);
             backend().includeUser("natives.h");
+            emitter().emitNewLine();
+
+            emitter().emit("// -- TURNUS TRACE");
+            emitter().emit("#ifdef TURNUS_TRACE");
+            emitter().emit("#include \"turnus_trace.h\"");
+            emitter().emit("extern long long firingId;");
+            emitter().emit("#endif ");
         }
         emitter().emitNewLine();
+
     }
 
     default void instanceClass(String instanceName, ActorMachine actor) {
