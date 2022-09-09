@@ -5,8 +5,12 @@ import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.Types;
+import se.lth.cs.tycho.ir.IRNode;
+import se.lth.cs.tycho.ir.NamespaceDecl;
 import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
+import se.lth.cs.tycho.ir.entity.am.ActorMachine;
+import se.lth.cs.tycho.ir.entity.am.Scope;
 import se.lth.cs.tycho.ir.expr.ExprBinaryOp;
 import se.lth.cs.tycho.ir.expr.ExprInput;
 import se.lth.cs.tycho.ir.expr.Expression;
@@ -109,12 +113,19 @@ public interface Statements {
         } else {
             throw new Error("not implemented");
         }
+
+        if (backend().profilingbox().get()) {
+            emitter().emit("__opCounters.DATAHANDLING_STORE += 1;");
+        }
     }
 
     default void execute(StmtAssignment assign) {
         Type type = types().type(assign.getLValue());
         String lvalue = lvalue(assign.getLValue());
         copy(type, lvalue, types().type(assign.getExpression()), expressions().evaluate(assign.getExpression()));
+        if (backend().profilingbox().get()) {
+            emitter().emit("__opCounters.DATAHANDLING_ASSIGN += 1;");
+        }
     }
 
     default void execute(StmtBlock block) {
@@ -123,6 +134,7 @@ public interface Statements {
 
         //backend().callables().declareEnvironmentForCallablesInScope(block);
         for (VarDecl decl : block.getVarDecls()) {
+
             Type t = types().declaredType(decl);
             String declarationName = variables().declarationName(decl);
             String d = declarations().declaration(t, declarationName);
@@ -143,7 +155,9 @@ public interface Statements {
                 emitter().emit("%s = %s;", d, backend().defaultValues().defaultValue(t));
             }
         }
+
         block.getStatements().forEach(this::execute);
+
         emitter().decreaseIndentation();
         emitter().emit("}");
     }
@@ -160,6 +174,9 @@ public interface Statements {
             emitter().decreaseIndentation();
         }
         emitter().emit("}");
+        if(backend().profilingbox().get()){
+            emitter().emit("__opCounters.FLOWCONTROL_IF += 1;");
+        }
     }
 
     void forEach(Expression collection, List<GeneratorVarDecl> varDecls, Runnable action);
@@ -201,6 +218,9 @@ public interface Statements {
                 emitter().emit("}");
             }
         });
+        if (backend().profilingbox().get()) {
+            emitter().emit("__opCounters.FLOWCONTROL_WHILE += 1;");
+        }
     }
 
 
@@ -215,6 +235,9 @@ public interface Statements {
             parameters.add(passByValue(param, type));
         }
         emitter().emit("%s(%s);", proc, String.join(", ", parameters));
+        if (backend().profilingbox().get()) {
+            emitter().emit("__opCounters.DATAHANDLING_CALL += 1;");
+        }
     }
 
     default void execute(StmtWhile stmt) {
@@ -233,6 +256,21 @@ public interface Statements {
     String lvalue(LValue lvalue);
 
     default String lvalue(LValueVariable var) {
+        if (backend().profilingbox().get()) {
+            VarDecl decl = backend().varDecls().declaration(var);
+            IRNode parent = backend().tree().parent(decl);
+            if ((parent instanceof Scope) || (parent instanceof ActorMachine) || (parent instanceof NamespaceDecl)) {
+                Type type = backend().types().type(decl.getType());
+                if (type instanceof ListType) {
+                    emitter().emit("__opCounters.DATAHANDLING_LIST_STORE += 1;");
+                } else {
+                    emitter().emit("__opCounters.DATAHANDLING_STORE += 1;");
+                }
+                if (parent instanceof Scope) {
+                    emitter().emit("__opCounters.updateWriteCounter(\"%s\");", decl.getOriginalName());
+                }
+            }
+        }
         return variables().name(var.getVariable());
     }
 

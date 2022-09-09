@@ -3,6 +3,7 @@
 #include <map>
 #include <sstream>
 #include <string>
+#include <utility>
 
 class OpCounters {
 
@@ -41,8 +42,7 @@ public:
   uint32_t FLOWCONTROL_WHILE;
   uint32_t FLOWCONTROL_CASE;
 
-  std::map<std::string, int> reads;
-  std::map<std::string, int> writes;
+
 
   OpCounters(std::string actor, std::string action, long long firingId,
              std::map<std::string, int> iPortRate,
@@ -100,35 +100,17 @@ public:
     return stream;
   }
 
-  std::stringstream streamConsume() {
+  std::stringstream streamGroupKind(std::string group, std::string kind,
+                                    std::map<std::string, int> data) {
     std::stringstream stream;
 
-    if (!iPortRate.empty()) {
-      stream << "\"consume\" : [";
-      for (auto iter = iPortRate.begin(); iter != iPortRate.end(); iter++) {
-        stream << "{ \"port\" :"
+    if (!data.empty()) {
+      stream << "\"" << group << "\" : [";
+      for (auto iter = data.begin(); iter != data.end(); iter++) {
+        stream << "{ \"" << kind << "\" :"
                << "\"" << iter->first << "\","
                << "\"count\" : " << iter->second << "}";
-        if (std::next(iter) == iPortRate.end()) {
-          stream << ",";
-        }
-      }
-      stream << "]";
-    }
-
-    return stream;
-  }
-
-  std::stringstream streamProduce() {
-    std::stringstream stream;
-
-    if (!oPortRate.empty()) {
-      stream << "\"produce\" : [";
-      for (auto iter = oPortRate.begin(); iter != oPortRate.end(); iter++) {
-        stream << "{ \"port\" :"
-               << "\"" << iter->first << "\","
-               << "\"count\" : " << iter->second << "}";
-        if (std::next(iter) == oPortRate.end()) {
+        if (std::next(iter) != data.end()) {
           stream << ",";
         }
       }
@@ -451,6 +433,50 @@ public:
     return stream;
   }
 
+  std::stringstream profiling() {
+    std::stringstream stream;
+
+    std::stringstream header = streamHeader();
+    std::stringstream consume = streamGroupKind("consume", "port", iPortRate);
+    std::stringstream produce = streamGroupKind("produce", "port", oPortRate);
+    std::stringstream read = streamGroupKind("read", "var", reads);
+    std::stringstream write = streamGroupKind("write", "var", writes);
+    std::stringstream opCounters = streamOpCounters();
+
+    stream << "{";
+
+    stream << header.str();
+
+    if (consume.tellp() != 0) {
+      stream << ",";
+      stream << consume.str();
+    }
+
+    if (produce.tellp() != 0) {
+      stream << ",";
+      stream << produce.str();
+    }
+
+    if (read.tellp() != 0) {
+      stream << ",";
+      stream << read.str();
+    }
+
+    if (write.tellp() != 0) {
+      stream << ",";
+      stream << write.str();
+    }
+
+    if (opCounters.tellp() != 0) {
+      stream << ",";
+      stream << opCounters.str();
+    }
+
+    stream << "}";
+
+    return stream;
+  }
+
   bool isEmpty() {
     if (BINARY_BIT_AND > 0) {
       return false;
@@ -591,10 +617,32 @@ public:
     return true;
   }
 
+  void updateReadCounter(std::string read) {
+    auto it = reads.find(read);
+    if (it != reads.end()) {
+      it->second = reads[read] + 1;
+    } else {
+      reads.insert(std::pair<std::string, int>(read, 1));
+    }
+  }
+
+    void updateWriteCounter(std::string write) {
+    auto it = writes.find(write);
+    if (it != writes.end()) {
+      it->second = writes[write] + 1;
+    } else {
+      writes.insert(std::pair<std::string, int>(write, 1));
+    }
+  }
+
+
 private:
   std::string actor;
   std::string action;
   long long firingId;
+
+  std::map<std::string, int> reads;
+  std::map<std::string, int> writes;
 
   std::map<std::string, int> iPortRate;
   std::map<std::string, int> oPortRate;

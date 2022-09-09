@@ -114,6 +114,7 @@ public interface Instances {
         // -- Transitions
         emitter().emit("// -- Transitions");
 
+
         actor.getTransitions().forEach(t -> transition(instanceName, t, actor.getTransitions().indexOf(t), actorMachine));
 
         // -- Callables
@@ -174,8 +175,11 @@ public interface Instances {
             emitter().emitNewLine();
 
             emitter().emit("// -- TURNUS TRACE");
-            emitter().emit("#ifdef TURNUS_TRACE");
-            emitter().emit("#include \"turnus_trace.h\"");
+            emitter().emit("#ifdef TRACE_TURNUS");
+            emitter().emit("#include \"turnus_tracer.h\"");
+            emitter().emit("#include \"op_counter.h\"");
+            backend().includeSystem("map");
+            backend().includeSystem("string");
             emitter().emit("extern long long firingId;");
             emitter().emit("#endif ");
         }
@@ -475,16 +479,44 @@ public interface Instances {
     // ------------------------------------------------------------------------
     // -- Transitions
     default void transition(String instanceName, Transition transition, int index, ActorMachine actor) {
+        emitter().emit("#ifndef TRACE_TURNUS");
+        backend().profilingbox().set(false);
+        transitionContent(instanceName,transition,index, actor);
+        emitter().emit("#else");
+        backend().profilingbox().set(true);
+        transitionContent(instanceName,transition,index, actor);
+        emitter().emit("#endif");
+        backend().profilingbox().set(false);
+        emitter().emitNewLine();
+    }
 
+
+    default void transitionContent(String instanceName, Transition transition, int index, ActorMachine actor) {
+        String actionTag = "";
         Optional<Annotation> annotation = Annotation.getAnnotationWithName("ActionId", transition.getAnnotations());
         if (annotation.isPresent()) {
-            String actionTag = ((ExprLiteral) annotation.get().getParameters().get(0).getExpression()).getText();
+            actionTag = ((ExprLiteral) annotation.get().getParameters().get(0).getExpression()).getText();
             emitter().emit("// -- Action Tag : %s", actionTag);
         }
 
         emitter().emit("inline %s{", transitionPrototype(instanceName, transition, index, true));
         {
             emitter().increaseIndentation();
+
+            // -- Profiling
+            if(backend().profilingbox().get()){
+                emitter().emit("std::map<std::string, int> iPortRate;");
+                for (Port port : transition.getInputRates().keySet()) {
+                    emitter().emit("iPortRate.insert(std::pair<std::string,int>(\"%s\", %s));", port.getName(), transition.getInputRate(port));
+                }
+                emitter().emitNewLine();
+                emitter().emit("std::map<std::string, int> oPortRate;");
+                for (Port port : transition.getOutputRates().keySet()) {
+                    emitter().emit("oPortRate.insert(std::pair<std::string,int>(\"%s\", %s));", port.getName(), transition.getOutputRate(port));
+                }
+                emitter().emitNewLine();
+                emitter().emit("OpCounters __opCounters(\"%s\", \"%s\", firingId, iPortRate, oPortRate);", instanceName, actionTag);
+            }
             for (Port port : transition.getInputRates().keySet()) {
                 PortDecl pDecl = backend().ports().declaration(port);
                 if (transition.getInputRate(port) > 1) {
@@ -517,12 +549,14 @@ public interface Instances {
                 }
                 emitter().emit("status_%s_ -= %s;", port.getName(), transition.getOutputRate(port));
             }
+            if(backend().profilingbox().get()) {
+                emitter().emitNewLine();
+                emitter().emit("firingId++;");
+            }
 
             emitter().decreaseIndentation();
         }
         emitter().emit("}");
-        emitter().emitNewLine();
-
     }
 
     // ------------------------------------------------------------------------

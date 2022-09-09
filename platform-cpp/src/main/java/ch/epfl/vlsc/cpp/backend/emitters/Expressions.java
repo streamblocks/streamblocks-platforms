@@ -7,8 +7,11 @@ import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.ir.IRNode;
+import se.lth.cs.tycho.ir.NamespaceDecl;
 import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
+import se.lth.cs.tycho.ir.entity.am.ActorMachine;
+import se.lth.cs.tycho.ir.entity.am.Scope;
 import se.lth.cs.tycho.ir.expr.ExprApplication;
 import se.lth.cs.tycho.ir.expr.ExprBinaryOp;
 import se.lth.cs.tycho.ir.expr.ExprCase;
@@ -84,6 +87,24 @@ public interface Expressions {
     String evaluate(Expression expr);
 
     default String evaluate(ExprVariable variable) {
+        if (backend().profilingbox().get()) {
+            VarDecl decl = backend().varDecls().declaration(variable);
+            if (!(decl.getValue() instanceof ExprInput)) {
+                IRNode parent = backend().tree().parent(decl);
+                if ((parent instanceof Scope) || (parent instanceof ActorMachine) || (parent instanceof NamespaceDecl)) {
+                    Type type = backend().types().type(decl.getType());
+                    if (type instanceof ListType) {
+                        emitter().emit("__opCounters.DATAHANDLING_LIST_LOAD += 1;");
+                    } else {
+                        emitter().emit("__opCounters.DATAHANDLING_LOAD += 1;");
+                    }
+
+                    if(parent instanceof Scope){
+                        emitter().emit("__opCounters.updateReadCounter(\"%s\");", decl.getOriginalName());
+                    }
+                }
+            }
+        }
         return variables().name(variable.getVariable());
     }
 
@@ -162,6 +183,9 @@ public interface Expressions {
 
     default String evaluate(ExprBinaryOp binaryOp) {
         assert binaryOp.getOperations().size() == 1 && binaryOp.getOperands().size() == 2;
+        if (backend().profilingbox().get()) {
+            emitter().emit(getOpBinaryPlus(binaryOp));
+        }
         Type lhs = types().type(binaryOp.getOperands().get(0));
         Type rhs = types().type(binaryOp.getOperands().get(1));
         String operation = binaryOp.getOperations().get(0);
@@ -210,6 +234,53 @@ public interface Expressions {
                 return evaluateBinaryGeq(lhs, rhs, binaryOp);
             case "in":
                 return evaluateBinaryIn(lhs, rhs, binaryOp);
+            default:
+                throw new UnsupportedOperationException(operation);
+        }
+    }
+
+    default String getOpBinaryPlus(ExprBinaryOp binaryOp) {
+        String operation = binaryOp.getOperations().get(0);
+        switch (operation) {
+            case "+":
+                return String.format("__opCounters.BINARY_PLUS += 1;");
+            case "-":
+                return String.format("__opCounters.BINARY_MINUS += 1;");
+            case "*":
+                return String.format("__opCounters.BINARY_TIMES += 1;");
+            case "/":
+                return String.format("__opCounters.BINARY_DIV += 1;");
+            case "<":
+                return String.format("__opCounters.BINARY_LT += 1;");
+            case "<=":
+                return String.format("__opCounters.BINARY_LE += 1;");
+            case ">":
+                return String.format("__opCounters.BINARY_GT += 1;");
+            case ">=":
+                return String.format("__opCounters.BINARY_GE += 1;");
+            case "==":
+            case "=":
+                return String.format("__opCounters.BINARY_EQ += 1;");
+            case "!=":
+                return String.format("__opCounters.BINARY_NE += 1;");
+            case "<<":
+                return String.format("__opCounters.BINARY_SHIFT_LEFT += 1;");
+            case ">>":
+                return String.format("__opCounters.BINARY_SHIFT_RIGHT += 1;");
+            case "&":
+                return String.format("__opCounters.BINARY_BIT_AND += 1;");
+            case "|":
+                return String.format("__opCounters.BINARY_BIT_OR += 1;");
+            case "^":
+                return String.format("__opCounters.BINARY_EXP += 1;");
+            case "mod":
+                return String.format("__opCounters.BINARY_MOD += 1;");
+            case "and":
+            case "&&":
+                return String.format("__opCounters.BINARY_LOGIC_AND += 1;");
+            case "||":
+            case "or":
+                return String.format("__opCounters.BINARY_LOGIC_OR += 1;");
             default:
                 throw new UnsupportedOperationException(operation);
         }
@@ -945,6 +1016,9 @@ public interface Expressions {
         String result = variables().generateTemp();
         String decl = declarations().declarationTemp(types().type(apply), result);
         emitter().emit("%s = %s(%s);", decl, fn, String.join(", ", parameters));
+        if(backend().profilingbox().get()){
+            emitter().emit("__opCounters.DATAHANDLING_CALL += 1;");
+        }
         return result;
     }
 

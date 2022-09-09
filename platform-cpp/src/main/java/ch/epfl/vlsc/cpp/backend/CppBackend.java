@@ -142,6 +142,11 @@ public interface CppBackend {
         return Box.empty();
     }
 
+    // -- Prodiling ox
+    @Binding(LAZY)
+    default Box<Boolean> profilingbox() {
+        return Box.empty();
+    }
     // ------------------------------------------------------------------------
     // -- Auxilary Modules
 

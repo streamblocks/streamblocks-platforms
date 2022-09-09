@@ -191,6 +191,7 @@ public class CppBackendPhase implements Phase {
                 .bind("context").to(context)
                 .instance();
 
+        backend.profilingbox().set(false);
         // -- Generate Auxiliary
         generateAuxiliary(backend);
 

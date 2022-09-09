@@ -4,6 +4,11 @@ project(sb-cpp-runtime)
 
 # -- Library options
 option(DISPLAY "Display on the screen." OFF)
+option(TRACE_TURNUS "Generate execution trace for TURNUS." ON)
+
+if(TRACE_TURNUS)
+    list(APPEND extra_definitions "-DTRACE_TURNUS")
+endif()
 
 set(sb_native_sources
 	src/sb_native_source.cpp

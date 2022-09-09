@@ -75,6 +75,11 @@ public interface Main {
         backend().includeUser("fifo.h");
         emitter().emitNewLine();
 
+        // -- Firing Id
+        emitter().emit("#ifdef TRACE_TURNUS");
+        emitter().emit("long long firingId = 0;");
+        emitter().emit("#endif");
+        emitter().emitNewLine();
 
         emitter().emit("// -- Instance headers");
         for (Instance instance : network.getInstances()) {
