@@ -75,9 +75,17 @@ public interface Main {
         backend().includeUser("fifo.h");
         emitter().emitNewLine();
 
-        // -- Firing Id
+        // -- Trace header and Firing Id
         emitter().emit("#ifdef TRACE_TURNUS");
+        backend().includeSystem("fstream");
+        emitter().emit("#include \"turnus_tracer.h\"");
         emitter().emit("long long firingId = 0;");
+        emitter().emit("#endif");
+        emitter().emitNewLine();
+
+        // -- Profiling
+        emitter().emit("#ifdef PROFILING");
+        backend().includeUser("profiling_data.h");
         emitter().emit("#endif");
         emitter().emitNewLine();
 
@@ -293,6 +301,26 @@ public interface Main {
             }
             emitter().emitNewLine();
 
+
+
+            emitter().emit("#ifdef TRACE_TURNUS");
+            emitter().emit("// -- Set tracer");
+            emitter().emit("TurnusTracer *tracer = new TurnusTracer(\"%s.etracez\");", backend().task().getIdentifier());
+            for (Instance instance : network.getInstances()) {
+                emitter().emit("i_%s->set_tracer(tracer);", instance.getInstanceName());
+            }
+            emitter().emit("#endif");
+            emitter().emitNewLine();
+
+            emitter().emit("#ifdef PROFILING");
+            emitter().emit("ProfilingData* profiling_data = new ProfilingData(\"%s\");", backend().task().getIdentifier());
+            for (Instance instance : network.getInstances()) {
+                emitter().emit("i_%s->set_profiling_data(profiling_data);", instance.getInstanceName());
+            }
+            emitter().emit("#endif");
+            emitter().emitNewLine();
+
+
             // -- Instantiate FIFOs
             fifoAllocationAndPointerAssignment();
 
@@ -309,6 +337,25 @@ public interface Main {
 
             // -- Partition
             definePartition();
+
+            emitter().emit("#ifdef TRACE_TURNUS");
+            emitter().emit("// -- Write trace");
+            emitter().emit("tracer->write();");
+            emitter().emitNewLine();
+            emitter().emit("// -- Write firings in a file");
+            emitter().emit("std::ofstream trace_profiling_info;");
+            emitter().emit("trace_profiling_info.open(\"%s.info\");", backend().task().getIdentifier());
+            emitter().emit("trace_profiling_info << \"firings=\" << firingId << \"\\n\";");
+            emitter().emit("trace_profiling_info.close();");
+            emitter().emit("delete tracer;");
+            emitter().emit("#endif");
+            emitter().emitNewLine();
+
+            emitter().emit("#ifdef PROFILING");
+            emitter().emit("profiling_data->generate_results(\"\", false, true);");
+            emitter().emit("delete profiling_data;");
+            emitter().emit("#endif");
+            emitter().emitNewLine();
 
             // -- Delete
             for (Instance instance : network.getInstances()) {

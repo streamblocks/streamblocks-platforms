@@ -1,21 +1,19 @@
 package ch.epfl.vlsc.cpp.backend.emitters;
 
+import ch.epfl.vlsc.cpp.backend.CppBackend;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.settings.PlatformSettings;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.ScopeLiveness;
+import se.lth.cs.tycho.ir.Annotation;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.entity.am.ActorMachine;
 import se.lth.cs.tycho.ir.entity.am.PortCondition;
-import se.lth.cs.tycho.ir.entity.am.ctrl.Exec;
-import se.lth.cs.tycho.ir.entity.am.ctrl.Instruction;
-import se.lth.cs.tycho.ir.entity.am.ctrl.InstructionKind;
-import se.lth.cs.tycho.ir.entity.am.ctrl.State;
-import se.lth.cs.tycho.ir.entity.am.ctrl.Test;
-import se.lth.cs.tycho.ir.entity.am.ctrl.Wait;
-import ch.epfl.vlsc.cpp.backend.CppBackend;
+import se.lth.cs.tycho.ir.entity.am.ctrl.*;
+import se.lth.cs.tycho.ir.expr.ExprLiteral;
+import se.lth.cs.tycho.ir.network.Instance;
 
 import java.util.*;
 import java.util.function.Function;
@@ -37,6 +35,15 @@ public interface Controllers {
 
         emitter().emit("bool %s::action_selection(EStatus& status)  {", name);
         emitter().increaseIndentation();
+
+        emitter().emit("#ifdef PROFILING");
+        emitter().emit("last_selected_action = \"\";");
+        emitter().emit("ticks ___elapsed;");
+        emitter().emit("ticks __start = getticks();");
+        emitter().emit("ticks __end = getticks();");
+        emitter().emit("__start = getticks();");
+        emitter().emit("#endif");
+        emitter().emitNewLine();
 
         emitter().emit("bool progress = false;");
         emitter().emitNewLine();
@@ -125,9 +132,33 @@ public interface Controllers {
     }
 
     default void emitInstruction(String name, Exec exec, State from, Map<State, Integer> stateNumbers, ActorMachine am) {
+        Instance instance = backend().instancebox().get();
+        String instanceName = instance.getInstanceName();
+        String actionTag = "";
+        Optional<Annotation> annotation = Annotation.getAnnotationWithName("ActionId", am.getTransitions().get(exec.transition()).getAnnotations());
+        if (annotation.isPresent()) {
+            actionTag = ((ExprLiteral) annotation.get().getParameters().get(0).getExpression()).getText();
+        }
+
+
+        emitter().emit("#ifdef PROFILING");
+        emitter().emit("__end = getticks();");
+        emitter().emit("___elapsed = elapsed(__end, __start);");
+        emitter().emit("profiling_data->addScheduling(\"%s\", last_selected_action, \"%s\", ___elapsed);", instanceName, actionTag);
+        emitter().emit("#endif");
+        emitter().emitNewLine();
+
         emitter().emit("transition_%d();", exec.transition());
         emitter().emit("progress = true;");
         emitter().emit("status = EStatus::hasExecuted;");
+        emitter().emitNewLine();
+
+        emitter().emit("#ifdef PROFILING");
+        emitter().emit("last_selected_action = \"%s\";", actionTag);
+        emitter().emit("__start = getticks();");
+        emitter().emit("#endif");
+
+        emitter().emitNewLine();
         emitter().emit("goto S%d;", stateNumbers.get(exec.target()));
         emitter().emit("");
     }

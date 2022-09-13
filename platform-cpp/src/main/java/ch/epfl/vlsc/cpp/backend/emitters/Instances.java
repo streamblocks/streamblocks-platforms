@@ -166,12 +166,6 @@ public interface Instances {
             backend().includeUser("fifo.h");
             backend().includeUser("globals.h");
             backend().includeUser("prelude.h");
-        } else {
-            Instance instance = backend().instancebox().get();
-            String headerName = instance.getInstanceName() + ".h";
-
-            backend().includeUser(headerName);
-            backend().includeUser("natives.h");
             emitter().emitNewLine();
 
             emitter().emit("// -- TURNUS TRACE");
@@ -181,7 +175,22 @@ public interface Instances {
             backend().includeSystem("map");
             backend().includeSystem("string");
             emitter().emit("extern long long firingId;");
-            emitter().emit("#endif ");
+            emitter().emit("#endif");
+            emitter().emitNewLine();
+
+            emitter().emit("#ifdef PROFILING");
+            backend().includeSystem("string");
+            backend().includeUser("profiling_data.h");
+            backend().includeUser("cycle.h");
+            emitter().emit("#endif");
+
+        } else {
+            Instance instance = backend().instancebox().get();
+            String headerName = instance.getInstanceName() + ".h";
+
+            backend().includeUser(headerName);
+            backend().includeUser("natives.h");
+            emitter().emitNewLine();
         }
         emitter().emitNewLine();
 
@@ -251,6 +260,17 @@ public interface Instances {
             actor.getTransitions().forEach(t -> emitter().emit("%s;", transitionPrototype(instanceName, t, actor.getTransitions().indexOf(t), false)));
             emitter().emitNewLine();
 
+            emitter().emit("#ifdef TRACE_TURNUS");
+            emitter().emit("TurnusTracer *tracer;");
+            emitter().emit("#endif");
+            emitter().emitNewLine();
+
+            emitter().emit("#ifdef PROFILING");
+            emitter().emit("ProfilingData *profiling_data;");
+            emitter().emit("std::string last_selected_action;");
+            emitter().emit("#endif");
+            emitter().emitNewLine();
+
             emitter().decreaseIndentation();
 
         }
@@ -274,6 +294,21 @@ public interface Instances {
 
             emitter().emit("// -- Action Selection");
             emitter().emit("bool action_selection(EStatus& status);");
+            emitter().emitNewLine();
+
+            emitter().emit("#ifdef TRACE_TURNUS");
+            emitter().emit("// -- TurnusTracer");
+            emitter().emit("void set_tracer(TurnusTracer *t){");
+            emitter().emit("\t tracer = t;");
+            emitter().emit("}");
+            emitter().emit("#endif");
+            emitter().emitNewLine();
+
+            emitter().emit("#ifdef PROFILING");
+            emitter().emit("void set_profiling_data(ProfilingData *p){");
+            emitter().emit("\t profiling_data = p;");
+            emitter().emit("}");
+            emitter().emit("#endif");
 
             emitter().decreaseIndentation();
         }
@@ -502,8 +537,15 @@ public interface Instances {
         emitter().emit("inline %s{", transitionPrototype(instanceName, transition, index, true));
         {
             emitter().increaseIndentation();
+            // Profiling
+            if(!backend().profilingbox().get()) {
+                emitter().emit("#ifdef PROFILING");
+                emitter().emit("ticks __start = getticks();");
+                emitter().emit("#endif");
+                emitter().emitNewLine();
+            }
 
-            // -- Profiling
+            // -- Trace
             if(backend().profilingbox().get()){
                 emitter().emit("std::map<std::string, int> iPortRate;");
                 for (Port port : transition.getInputRates().keySet()) {
@@ -549,9 +591,20 @@ public interface Instances {
                 }
                 emitter().emit("status_%s_ -= %s;", port.getName(), transition.getOutputRate(port));
             }
+
             if(backend().profilingbox().get()) {
                 emitter().emitNewLine();
+                emitter().emit("auto sstream = tracer->getOutputStream();");
+                emitter().emit("*sstream << __opCounters.profiling().str();");
                 emitter().emit("firingId++;");
+            }
+
+            if(!backend().profilingbox().get()) {
+                emitter().emit("#ifdef PROFILING");
+                emitter().emit("ticks __end = getticks();");
+                emitter().emit("ticks __elapsed = elapsed(__end, __start);");
+                emitter().emit("profiling_data->addFiring(\"%s\", \"%s\", __elapsed);", instanceName, actionTag);
+                emitter().emit("#endif");
             }
 
             emitter().decreaseIndentation();

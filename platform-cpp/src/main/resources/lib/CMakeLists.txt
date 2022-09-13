@@ -4,10 +4,20 @@ project(sb-cpp-runtime)
 
 # -- Library options
 option(DISPLAY "Display on the screen." OFF)
-option(TRACE_TURNUS "Generate execution trace for TURNUS." ON)
+option(TRACE_TURNUS "Generate execution trace for TURNUS." OFF)
+option(PROFILING "Generate profiling weights." OFF)
 
 if(TRACE_TURNUS)
     list(APPEND extra_definitions "-DTRACE_TURNUS")
+    find_package(ZLIB REQUIRED)
+        if(ZLIB_FOUND)
+            list(APPEND extra_includes ${ZLIB_INCLUDE_DIRS})
+            list(APPEND extra_libraries ${ZLIB_LIBRARIES})
+        endif()
+endif()
+
+if(PROFILING)
+    list(APPEND extra_definitions "-DPROFILING")
 endif()
 
 set(sb_native_sources
