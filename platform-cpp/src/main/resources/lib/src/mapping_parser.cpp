@@ -22,7 +22,7 @@ MappingParser::~MappingParser() {
 void MappingParser::parse() {
 	XMLDocument doc;
 	doc.LoadFile(filename.c_str());
-	XMLElement* elt =  doc.FirstChildElement("Configuration" )->FirstChildElement("Partitioning");
+	XMLElement* elt =  doc.FirstChildElement("configuration" )->FirstChildElement("partitioning");
 	parsePartitions(elt);
 
 	if(!unmapped_actors.empty()){
@@ -34,7 +34,7 @@ void MappingParser::parse() {
 }
 
 void MappingParser::parsePartitions(XMLElement* parent) {
-	for(XMLElement* child = parent->FirstChildElement("Partition"); child != NULL; child = child->NextSiblingElement("Partition"))
+	for(XMLElement* child = parent->FirstChildElement("partition"); child != NULL; child = child->NextSiblingElement("partition"))
 	{
 		std::string id = std::string(child->Attribute("id"));
 		partitions[id] = parseInstances(id, child);
@@ -43,7 +43,7 @@ void MappingParser::parsePartitions(XMLElement* parent) {
 
 std::vector<Actor*> MappingParser::parseInstances(std::string partitionId, XMLElement* parent) {
 	std::vector<Actor*> instances;
-	for(XMLElement* child = parent->FirstChildElement("Instance"); child != NULL; child = child->NextSiblingElement("Instance"))
+	for(XMLElement* child = parent->FirstChildElement("instance"); child != NULL; child = child->NextSiblingElement("instance"))
 	{
 		XMLElement* elt = child->ToElement();
 		std::string instId = std::string(elt->Attribute("id"));

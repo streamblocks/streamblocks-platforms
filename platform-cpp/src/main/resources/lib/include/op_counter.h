@@ -472,7 +472,7 @@ public:
       stream << opCounters.str();
     }
 
-    stream << "}";
+    stream << "}\n";
 
     return stream;
   }

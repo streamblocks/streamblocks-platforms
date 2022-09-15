@@ -296,6 +296,12 @@ public interface Instances {
             emitter().emit("bool action_selection(EStatus& status);");
             emitter().emitNewLine();
 
+            emitter().emit("std::string name(){");
+            emitter().emit("\treturn \"%s\";", instanceName);
+            emitter().emit("}");
+            emitter().emitNewLine();
+
+
             emitter().emit("#ifdef TRACE_TURNUS");
             emitter().emit("// -- TurnusTracer");
             emitter().emit("void set_tracer(TurnusTracer *t){");

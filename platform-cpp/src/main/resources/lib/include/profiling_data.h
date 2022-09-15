@@ -52,7 +52,7 @@ public:
 
     // create XML file
     std::string tpath = path;
-    FILE *file = fopen(tpath.append("weights.sxdf").c_str(), "w");
+    FILE *file = fopen(tpath.append(networkName + ".sxdf").c_str(), "w");
     tinyxml2::XMLPrinter sprinter(file);
     sprinter.OpenElement("network");
     sprinter.PushAttribute("name", networkName.c_str());
@@ -171,7 +171,7 @@ public:
 
     // create XML file
     tpath = path;
-    file = fopen(tpath.append("weights.exdf").c_str(), "w");
+    file = fopen(tpath.append(networkName + ".exdf").c_str(), "w");
 
     tinyxml2::XMLPrinter printer(file);
     printer.OpenElement("network");
