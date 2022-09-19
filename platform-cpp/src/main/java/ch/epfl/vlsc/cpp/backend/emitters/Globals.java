@@ -40,6 +40,10 @@ public interface Globals {
         emitter().emit("#include  <cstdint>");
         emitter().emitNewLine();
 
+        emitter().emit("#ifdef USE_TORCH");
+        backend().includeSystem("torch/torch.h");
+        emitter().emit("#endif");
+        emitter().emitNewLine();
 
         Map<QID, List<SourceUnit>> sourceunitbyQID = getSourceUnitbyQid();
 

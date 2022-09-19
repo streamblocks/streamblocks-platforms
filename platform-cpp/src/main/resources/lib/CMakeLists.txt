@@ -6,6 +6,14 @@ project(sb-cpp-runtime)
 option(DISPLAY "Display on the screen." OFF)
 option(TRACE_TURNUS "Generate execution trace for TURNUS." OFF)
 option(PROFILING "Generate profiling weights." OFF)
+option(TORCH "Link and include libtorch" ON)
+
+if(TORCH)
+    find_package(Torch REQUIRED)
+    list(APPEND extra_definitions "-DUSE_TORCH")
+    list(APPEND extra_libraries "${TORCH_LIBRARIES}")
+    list(APPEND CMAKE_CXX_FLAGS "${TORCH_CXX_FLAGS}")
+endif()
 
 if(TRACE_TURNUS)
     list(APPEND extra_definitions "-DTRACE_TURNUS")
@@ -23,7 +31,7 @@ endif()
 set(sb_native_sources
 	src/sb_native_source.cpp
 	src/sb_native_counters.cpp
-	src/sb_native_compareyuv.cpp 
+	src/sb_native_compareyuv.cpp
 	src/get_opt.cpp
 	src/mapping_parser.cpp
 	src/tinyxml2.cpp
@@ -37,10 +45,10 @@ set(sb_native_headers
 	include/sb_native_compareyuv.h
 	include/actor.h
 	include/fifo.h
-	
+
 	include/get_opt.h
 	include/mapping_parser.h
-	
+
 	include/tinyxml2.h
 	include/scheduling_miss_logger.h
 )
@@ -79,7 +87,7 @@ add_library(sb-cpp-runtime STATIC ${sb_native_sources} ${sb_native_headers})
 
 # Do the linking
 target_link_libraries(sb-cpp-runtime ${extra_libraries})
-
+set_property(TARGET sb-cpp-runtime PROPERTY CXX_STADNARD 14)
 set(extra_definitions ${extra_definitions} PARENT_SCOPE)
 set(extra_includes ${extra_includes} PARENT_SCOPE)
 set(extra_libraries ${extra_libraries} PARENT_SCOPE)

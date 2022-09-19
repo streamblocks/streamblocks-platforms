@@ -1,5 +1,6 @@
 package ch.epfl.vlsc.turnus.platform;
 
+import ch.epfl.vlsc.phases.AddFanoutPhase;
 import ch.epfl.vlsc.phases.VerilogNameCheckerPhase;
 import ch.epfl.vlsc.turnus.phase.TurnusAdapterPhase;
 import se.lth.cs.tycho.compiler.Compiler;
@@ -14,6 +15,7 @@ public class TurnusAdapterPlatform implements Platform {
             .addAll(Compiler.frontendPhases())
             .addAll(Compiler.templatePhases())
             .addAll(Compiler.networkElaborationPhases())
+            .add(new AddFanoutPhase())
             .addAll(Compiler.nameAndTypeAnalysis())
             .addAll(prepareActorPhases())
             .add(new VerilogNameCheckerPhase())

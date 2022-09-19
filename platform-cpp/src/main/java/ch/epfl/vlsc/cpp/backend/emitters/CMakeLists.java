@@ -75,6 +75,12 @@ public interface CMakeLists {
         emitter().emit("# -- Generated from %s", backend().task().getIdentifier());
         emitter().emitNewLine();
 
+        // -- Torch
+        emitter().emit("if(TORCH)");
+        emitter().emit("\tfind_package(Torch REQUIRED)");
+        emitter().emit("endif()");
+        emitter().emitNewLine();
+
         // -- CodeGen sources
         emitter().emit("# -- Generated code source files");
         emitter().emit("set(sources");
@@ -129,6 +135,8 @@ public interface CMakeLists {
         emitter().emit("# -- Target link libraries");
         emitter().emit("target_link_libraries(%s sb-cpp-runtime ${extra_libraries})",
                 backend().task().getIdentifier().getLast().toString());
+        emitter().emit("set_property(TARGET %s PROPERTY CXX_STADNARD 14)", backend().task().getIdentifier().getLast().toString());
+
         // -- EOF
         emitter().close();
     }

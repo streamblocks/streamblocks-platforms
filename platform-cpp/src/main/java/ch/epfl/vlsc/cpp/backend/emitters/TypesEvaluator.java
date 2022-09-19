@@ -4,16 +4,7 @@ import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.Types;
-import se.lth.cs.tycho.type.AlgebraicType;
-import se.lth.cs.tycho.type.BoolType;
-import se.lth.cs.tycho.type.CallableType;
-import se.lth.cs.tycho.type.IntType;
-import se.lth.cs.tycho.type.ListType;
-import se.lth.cs.tycho.type.RealType;
-import se.lth.cs.tycho.type.RefType;
-import se.lth.cs.tycho.type.StringType;
-import se.lth.cs.tycho.type.Type;
-import se.lth.cs.tycho.type.UnitType;
+import se.lth.cs.tycho.type.*;
 
 @Module
 public interface TypesEvaluator {
@@ -49,6 +40,14 @@ public interface TypesEvaluator {
             default:
                 throw new UnsupportedOperationException("Unknown real type.");
         }
+    }
+
+    default String type(TensorType type){
+        return "torch::Tensor";
+    }
+
+    default String type(TorchIntArrayRef type){
+        return "torch::IntArrayRef";
     }
 
     default String type(UnitType type) {

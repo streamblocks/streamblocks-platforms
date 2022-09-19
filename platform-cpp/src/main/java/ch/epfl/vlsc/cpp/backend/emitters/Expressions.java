@@ -9,6 +9,8 @@ import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.ir.IRNode;
 import se.lth.cs.tycho.ir.NamespaceDecl;
 import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
+import se.lth.cs.tycho.ir.decl.GlobalDecl;
+import se.lth.cs.tycho.ir.decl.GlobalVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.am.ActorMachine;
 import se.lth.cs.tycho.ir.entity.am.Scope;
@@ -38,6 +40,8 @@ import se.lth.cs.tycho.ir.expr.ExprUnaryOp;
 import se.lth.cs.tycho.ir.expr.ExprVariable;
 import se.lth.cs.tycho.ir.expr.Expression;
 import se.lth.cs.tycho.ir.stmt.StmtCall;
+import se.lth.cs.tycho.ir.type.FunctionTypeExpr;
+import se.lth.cs.tycho.ir.type.TypeExpr;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.type.AlgebraicType;
 import se.lth.cs.tycho.type.BoolType;
@@ -99,7 +103,7 @@ public interface Expressions {
                         emitter().emit("__opCounters.DATAHANDLING_LOAD += 1;");
                     }
 
-                    if(parent instanceof Scope){
+                    if (parent instanceof Scope) {
                         emitter().emit("__opCounters.updateReadCounter(\"%s\");", decl.getOriginalName());
                     }
                 }
@@ -1007,8 +1011,27 @@ public interface Expressions {
         String fn;
         List<String> parameters = new ArrayList<>();
 
-        for (Expression parameter : apply.getArgs()) {
-            parameters.add(evaluate(parameter));
+        VarDecl vDecl;
+        List<TypeExpr> paramTypeExpr = null;
+        if (apply.getFunction() instanceof ExprGlobalVariable) {
+            ExprGlobalVariable globalVariable = (ExprGlobalVariable) apply.getFunction();
+            vDecl = backend().globalnames().varDecl(globalVariable.getGlobalName(), true);
+            if (vDecl instanceof GlobalVarDecl) {
+                GlobalVarDecl gVarDecl = (GlobalVarDecl) vDecl;
+                FunctionTypeExpr functionTypeExpr = (FunctionTypeExpr) vDecl.getType();
+                paramTypeExpr = functionTypeExpr.getParameterTypes();
+            }
+        }
+
+        if (paramTypeExpr == null) {
+            for (Expression parameter : apply.getArgs()) {
+                parameters.add(evaluate(parameter));
+            }
+        } else {
+            for (Expression parameter : apply.getArgs()) {
+                Type type = backend().types().type(paramTypeExpr.get(apply.getArgs().indexOf(parameter)));
+                parameters.add(evaluateWithType(parameter, type));
+            }
         }
 
         fn = evaluateCall(apply.getFunction());
@@ -1016,10 +1039,28 @@ public interface Expressions {
         String result = variables().generateTemp();
         String decl = declarations().declarationTemp(types().type(apply), result);
         emitter().emit("%s = %s(%s);", decl, fn, String.join(", ", parameters));
-        if(backend().profilingbox().get()){
+        if (backend().profilingbox().get()) {
             emitter().emit("__opCounters.DATAHANDLING_CALL += 1;");
         }
         return result;
+    }
+
+    default String evaluateWithType(Expression expr, Type type) {
+        return evaluate(expr);
+    }
+
+    default String evaluateWithType(ExprList list, Type type) {
+        String name = variables().generateTemp();
+        String decl = backend().declarations().declaration(type, name);
+        String value = list.getElements().stream().sequential()
+                .map(element -> {
+
+                    return evaluate(element);
+                })
+                .collect(Collectors.joining(", ", " {", "}"));
+        emitter().emit("%s = %s;", decl, value);
+        return name;
+
     }
 
     default String evaluateCall(Expression expression) {
