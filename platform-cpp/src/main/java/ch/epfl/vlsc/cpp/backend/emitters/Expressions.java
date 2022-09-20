@@ -876,7 +876,7 @@ public interface Expressions {
                         return evaluate(element);
                     })
                     .collect(Collectors.joining(", ", " {", "}"));
-            emitter().emit("%s = %s;", decl, value);
+            emitter().emit("const %s = %s;", decl, value);
             return name;
         } else {
             return "NULL /* TODO: implement dynamically sized lists */";
@@ -1049,18 +1049,29 @@ public interface Expressions {
         return evaluate(expr);
     }
 
+
     default String evaluateWithType(ExprList list, Type type) {
-        String name = variables().generateTemp();
-        String decl = backend().declarations().declaration(type, name);
-        String value = list.getElements().stream().sequential()
-                .map(element -> {
-
-                    return evaluate(element);
-                })
-                .collect(Collectors.joining(", ", " {", "}"));
-        emitter().emit("%s = %s;", decl, value);
-        return name;
-
+        ListType t = (ListType) type;
+        if (t.getSize().isPresent()) {
+            String name = variables().generateTemp();
+            Type elementType = t.getElementType();
+            String decl = backend().declarations().declaration(t, name);
+            String value = list.getElements().stream().sequential()
+                    .map(element -> {
+                        if (elementType instanceof AlgebraicType || backend().alias().isAlgebraicType(elementType)) {
+                            String tmp = variables().generateTemp();
+                            emitter().emit("%s = %s;", backend().declarations().declaration(elementType, tmp), backend().defaultValues().defaultValue(elementType));
+                            backend().statements().copy(elementType, tmp, elementType, evaluate(element));
+                            return tmp;
+                        }
+                        return evaluate(element);
+                    })
+                    .collect(Collectors.joining(", ", " {", "}"));
+            emitter().emit("const %s = %s;", decl, value);
+            return name;
+        } else {
+            return "NULL /* TODO: implement dynamically sized lists */";
+        }
     }
 
     default String evaluateCall(Expression expression) {

@@ -84,7 +84,7 @@ public interface Main {
         emitter().emitNewLine();
 
         // -- Profiling
-        emitter().emit("#ifdef PROFILING");
+        emitter().emit("#ifdef WEIGHT_PROFILING");
         backend().includeUser("profiling_data.h");
         emitter().emit("#endif");
         emitter().emitNewLine();
@@ -312,7 +312,7 @@ public interface Main {
             emitter().emit("#endif");
             emitter().emitNewLine();
 
-            emitter().emit("#ifdef PROFILING");
+            emitter().emit("#ifdef WEIGHT_PROFILING");
             emitter().emit("ProfilingData* profiling_data = new ProfilingData(\"%s\");", backend().task().getIdentifier());
             for (Instance instance : network.getInstances()) {
                 emitter().emit("i_%s->set_profiling_data(profiling_data);", instance.getInstanceName());
@@ -351,7 +351,7 @@ public interface Main {
             emitter().emit("#endif");
             emitter().emitNewLine();
 
-            emitter().emit("#ifdef PROFILING");
+            emitter().emit("#ifdef WEIGHT_PROFILING");
             emitter().emit("profiling_data->generate_results(\"\", false, true);");
             emitter().emit("delete profiling_data;");
             emitter().emit("#endif");

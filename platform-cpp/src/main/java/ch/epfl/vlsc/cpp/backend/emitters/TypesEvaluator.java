@@ -74,15 +74,19 @@ public interface TypesEvaluator {
         return type.getName();
     }
 
-    /*
+
     default String type(ListType type) {
-        return String.format("std::vector< %s >", type(type.getElementType()));
-    }*/
+        if (type.getSize().isPresent()) {
+            return String.format("std::array< %s, %d >", type(type.getElementType()), type.getSize().getAsInt());
+        } else {
+            return String.format("std::vector< %s >", type(type.getElementType()));
+        }
+    }
 
-
+/*
     default String type(ListType type) {
         return String.format("%s", type(type.getElementType()));
-    }
+    }*/
 
 
     default boolean isAlgebraicTypeList(Type type) {

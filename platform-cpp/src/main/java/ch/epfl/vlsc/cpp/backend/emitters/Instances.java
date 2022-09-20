@@ -26,6 +26,8 @@ import se.lth.cs.tycho.ir.entity.am.Transition;
 import se.lth.cs.tycho.ir.expr.*;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.type.CallableType;
+import se.lth.cs.tycho.type.ListType;
+import se.lth.cs.tycho.type.TorchIntArrayRef;
 import se.lth.cs.tycho.type.Type;
 import ch.epfl.vlsc.cpp.backend.CppBackend;
 
@@ -178,7 +180,7 @@ public interface Instances {
             emitter().emit("#endif");
             emitter().emitNewLine();
 
-            emitter().emit("#ifdef PROFILING");
+            emitter().emit("#ifdef WEIGHT_PROFILING");
             backend().includeSystem("string");
             backend().includeUser("profiling_data.h");
             backend().includeUser("cycle.h");
@@ -265,7 +267,7 @@ public interface Instances {
             emitter().emit("#endif");
             emitter().emitNewLine();
 
-            emitter().emit("#ifdef PROFILING");
+            emitter().emit("#ifdef WEIGHT_PROFILING");
             emitter().emit("ProfilingData *profiling_data;");
             emitter().emit("std::string last_selected_action;");
             emitter().emit("#endif");
@@ -310,7 +312,7 @@ public interface Instances {
             emitter().emit("#endif");
             emitter().emitNewLine();
 
-            emitter().emit("#ifdef PROFILING");
+            emitter().emit("#ifdef WEIGHT_PROFILING");
             emitter().emit("void set_profiling_data(ProfilingData *p){");
             emitter().emit("\t profiling_data = p;");
             emitter().emit("}");
@@ -387,7 +389,12 @@ public interface Instances {
                 boolean assigned = false;
                 for (Parameter<Expression, ?> assignment : instance.getValueParameters()) {
                     if (par.getName().equals(assignment.getName())) {
-                        emitter().emit("this->%s = %s;", backend().variables().declarationName(par), backend().expressions().evaluate(assignment.getValue()));
+                        Type type = backend().types().type(par.getType());
+                        if (type instanceof ListType) {
+                            emitter().emit("this->%s = %s;", backend().variables().declarationName(par), backend().expressions().evaluateWithType(assignment.getValue(), type));
+                        } else {
+                            emitter().emit("this->%s = %s;", backend().variables().declarationName(par), backend().expressions().evaluate(assignment.getValue()));
+                        }
                         assigned = true;
                     }
                 }
@@ -522,10 +529,10 @@ public interface Instances {
     default void transition(String instanceName, Transition transition, int index, ActorMachine actor) {
         emitter().emit("#ifndef TRACE_TURNUS");
         backend().profilingbox().set(false);
-        transitionContent(instanceName,transition,index, actor);
+        transitionContent(instanceName, transition, index, actor);
         emitter().emit("#else");
         backend().profilingbox().set(true);
-        transitionContent(instanceName,transition,index, actor);
+        transitionContent(instanceName, transition, index, actor);
         emitter().emit("#endif");
         backend().profilingbox().set(false);
         emitter().emitNewLine();
@@ -544,15 +551,15 @@ public interface Instances {
         {
             emitter().increaseIndentation();
             // Profiling
-            if(!backend().profilingbox().get()) {
-                emitter().emit("#ifdef PROFILING");
+            if (!backend().profilingbox().get()) {
+                emitter().emit("#ifdef WEIGHT_PROFILING");
                 emitter().emit("ticks __start = getticks();");
                 emitter().emit("#endif");
                 emitter().emitNewLine();
             }
 
             // -- Trace
-            if(backend().profilingbox().get()){
+            if (backend().profilingbox().get()) {
                 emitter().emit("std::map<std::string, int> iPortRate;");
                 for (Port port : transition.getInputRates().keySet()) {
                     emitter().emit("iPortRate.insert(std::pair<std::string,int>(\"%s\", %s));", port.getName(), transition.getInputRate(port));
@@ -598,15 +605,15 @@ public interface Instances {
                 emitter().emit("status_%s_ -= %s;", port.getName(), transition.getOutputRate(port));
             }
 
-            if(backend().profilingbox().get()) {
+            if (backend().profilingbox().get()) {
                 emitter().emitNewLine();
                 emitter().emit("auto sstream = tracer->getOutputStream();");
                 emitter().emit("*sstream << __opCounters.profiling().str();");
                 emitter().emit("firingId++;");
             }
 
-            if(!backend().profilingbox().get()) {
-                emitter().emit("#ifdef PROFILING");
+            if (!backend().profilingbox().get()) {
+                emitter().emit("#ifdef WEIGHT_PROFILING");
                 emitter().emit("ticks __end = getticks();");
                 emitter().emit("ticks __elapsed = elapsed(__end, __start);");
                 emitter().emit("profiling_data->addFiring(\"%s\", \"%s\", __elapsed);", instanceName, actionTag);

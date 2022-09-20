@@ -36,7 +36,7 @@ public interface Controllers {
         emitter().emit("bool %s::action_selection(EStatus& status)  {", name);
         emitter().increaseIndentation();
 
-        emitter().emit("#ifdef PROFILING");
+        emitter().emit("#ifdef WEIGHT_PROFILING");
         emitter().emit("last_selected_action = \"\";");
         emitter().emit("ticks ___elapsed;");
         emitter().emit("ticks __start = getticks();");
@@ -141,7 +141,7 @@ public interface Controllers {
         }
 
 
-        emitter().emit("#ifdef PROFILING");
+        emitter().emit("#ifdef WEIGHT_PROFILING");
         emitter().emit("__end = getticks();");
         emitter().emit("___elapsed = elapsed(__end, __start);");
         emitter().emit("profiling_data->addScheduling(\"%s\", last_selected_action, \"%s\", ___elapsed);", instanceName, actionTag);
@@ -153,7 +153,7 @@ public interface Controllers {
         emitter().emit("status = EStatus::hasExecuted;");
         emitter().emitNewLine();
 
-        emitter().emit("#ifdef PROFILING");
+        emitter().emit("#ifdef WEIGHT_PROFILING");
         emitter().emit("last_selected_action = \"%s\";", actionTag);
         emitter().emit("__start = getticks();");
         emitter().emit("#endif");

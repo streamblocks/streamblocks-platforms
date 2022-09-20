@@ -5,7 +5,7 @@ project(sb-cpp-runtime)
 # -- Library options
 option(DISPLAY "Display on the screen." OFF)
 option(TRACE_TURNUS "Generate execution trace for TURNUS." OFF)
-option(PROFILING "Generate profiling weights." OFF)
+option(WEIGHT_PROFILING "Generate profiling weights." OFF)
 option(TORCH "Link and include libtorch" ON)
 
 if(TORCH)
@@ -24,8 +24,8 @@ if(TRACE_TURNUS)
         endif()
 endif()
 
-if(PROFILING)
-    list(APPEND extra_definitions "-DPROFILING")
+if(WEIGHT_PROFILING)
+    list(APPEND extra_definitions "-DWEIGHT_PROFILING")
 endif()
 
 set(sb_native_sources
