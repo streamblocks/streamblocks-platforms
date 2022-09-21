@@ -9,7 +9,9 @@ import se.lth.cs.tycho.compiler.SourceFile;
 import se.lth.cs.tycho.compiler.SourceUnit;
 import se.lth.cs.tycho.ir.QID;
 import se.lth.cs.tycho.ir.decl.VarDecl;
+import se.lth.cs.tycho.ir.expr.ExprList;
 import se.lth.cs.tycho.type.CallableType;
+import se.lth.cs.tycho.type.ListType;
 import se.lth.cs.tycho.type.Type;
 import ch.epfl.vlsc.cpp.backend.CppBackend;
 
@@ -109,7 +111,13 @@ public interface Globals {
                     //emitter().emitNewLine();
                 } else {
                     String d = backend().declarations().declaration(type, backend().variables().declarationName(decl));
-                    String v = backend().expressions().evaluate(decl.getValue());
+                    String v = "";
+                    if(type instanceof ListType){
+                        v = backend().expressions().evaluateWithType(decl.getValue(), type);
+                    } else {
+                        v = backend().expressions().evaluate(decl.getValue());
+                    }
+
                     if (decl.isConstant()) {
                         emitter().emit("const %s = %s;", d, v);
                     } else {
