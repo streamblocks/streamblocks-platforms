@@ -7,6 +7,7 @@ import ch.epfl.vlsc.platformutils.PathUtils;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
+import se.lth.cs.tycho.ir.ToolValueAttribute;
 import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.network.Network;
@@ -103,6 +104,34 @@ public interface Main {
         emitter().emit("using Ms = std::chrono::milliseconds;");
         emitter().emit("template<class Duration>");
         emitter().emit("using TimePoint = std::chrono::time_point<Clock, Duration>;");
+        emitter().emitNewLine();
+
+        // -- Initial tokens
+        emitter().emit("// -- Initial tokens helper funciton");
+        emitter().emit("template<typename T, int size>");
+        emitter().emit("void write_initial_tokens(Fifo<T> *fifo, std::array<T, size> data){");
+
+        emitter().increaseIndentation();
+        {
+            emitter().emit("T* addr = fifo->write_address();");
+            emitter().emit("size_t p = 0;");
+            emitter().emitNewLine();
+
+            emitter().emit("for(const auto& token : data){");
+            emitter().emit("\taddr[p] = token;");
+            emitter().emit("\tp++;");
+            emitter().emit("}");
+            emitter().emitNewLine();
+
+            emitter().emit("if (size==1) {");
+            emitter().emit("\tfifo->write_advance();");
+            emitter().emit("} else {");
+            emitter().emit("\tfifo->write_advance(size);");
+            emitter().emit("}");
+        }
+        emitter().decreaseIndentation();
+
+        emitter().emit("}");
         emitter().emitNewLine();
 
         // -- Partitions Prototype
@@ -225,6 +254,14 @@ public interface Main {
         }
         emitter().emitNewLine();
 
+        for (Connection c : network.getConnections()) {
+            Optional<ToolValueAttribute> attribute = c.getValueAttribute("initialTokens");
+            if (attribute.isPresent()) {
+                emitter().emit("// -- Initial tokens for fifo_%s", connectionId().get(c.getSource()));
+                String evaluate = backend().expressions().evaluate(attribute.get().getValue());
+
+            }
+        }
 
         for (Connection.End source : connectionId().keySet()) {
             int id = connectionId().get(source);
