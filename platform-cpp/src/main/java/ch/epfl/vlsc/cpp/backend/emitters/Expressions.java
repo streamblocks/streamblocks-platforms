@@ -875,7 +875,7 @@ public interface Expressions {
                         }
                         return evaluate(element);
                     })
-                    .collect(Collectors.joining(", ", " {", "}"));
+                    .collect(Collectors.joining(", ", "{", "}"));
             emitter().emit("const %s = %s;", decl, value);
             return name;
         } else {
@@ -1022,7 +1022,7 @@ public interface Expressions {
                 paramTypeExpr = functionTypeExpr.getParameterTypes();
             }
         }
-
+/*
         if (paramTypeExpr == null) {
             for (Expression parameter : apply.getArgs()) {
                 parameters.add(evaluate(parameter));
@@ -1033,6 +1033,15 @@ public interface Expressions {
                 parameters.add(evaluateWithType(parameter, type));
             }
         }
+*/
+        for (Expression parameter : apply.getArgs()) {
+            if (parameter instanceof ExprList){
+                parameters.add(evaluateOnlyValue((ExprList) parameter));
+            }else {
+                parameters.add(evaluate(parameter));
+            }
+        }
+
 
         fn = evaluateCall(apply.getFunction());
 
@@ -1066,13 +1075,33 @@ public interface Expressions {
                         }
                         return evaluate(element);
                     })
-                    .collect(Collectors.joining(", ", " {", "}"));
+                    .collect(Collectors.joining(", ", "{", "}"));
             emitter().emit("const %s = %s;", decl, value);
             return name;
         } else {
             return "NULL /* TODO: implement dynamically sized lists */";
         }
     }
+
+    String evaluateOnlyValue(Expressions expr);
+
+    default String evaluateOnlyValue(ExprList list) {
+        ListType t = (ListType) types().type(list);
+        Type elementType = t.getElementType();
+        String value = list.getElements().stream().sequential()
+                .map(element -> {
+                    if (elementType instanceof AlgebraicType || backend().alias().isAlgebraicType(elementType)) {
+                        String tmp = variables().generateTemp();
+                        emitter().emit("%s = %s;", backend().declarations().declaration(elementType, tmp), backend().defaultValues().defaultValue(elementType));
+                        backend().statements().copy(elementType, tmp, elementType, evaluate(element));
+                        return tmp;
+                    }
+                    return evaluate(element);
+                })
+                .collect(Collectors.joining(", ", "{", "}"));
+        return value;
+    }
+
 
     default String evaluateCall(Expression expression) {
         return evaluate(expression);

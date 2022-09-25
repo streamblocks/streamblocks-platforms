@@ -53,6 +53,10 @@ set(sb_native_headers
 	include/scheduling_miss_logger.h
 )
 
+if(TORCH)
+    list(APPEND sb_native_sources src/sb_native_torch.cpp)
+    list(APPEND sb_native_headers include/sb_native_torch.h)
+endif()
 
 # Try to find SDL on the user system
 find_package(SDL2 QUIET)

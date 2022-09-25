@@ -7,4 +7,8 @@
 #include "sb_native_framerate.h"
 #include "sb_native_counters.h"
 
+#ifdef USE_TORCH
+#include "sb_native_torch.h"
+#endif
+
 #endif

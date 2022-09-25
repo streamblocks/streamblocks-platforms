@@ -8,6 +8,7 @@ import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.ir.ToolValueAttribute;
+import se.lth.cs.tycho.ir.expr.ExprList;
 import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.network.Network;
@@ -258,7 +259,13 @@ public interface Main {
             Optional<ToolValueAttribute> attribute = c.getValueAttribute("initialTokens");
             if (attribute.isPresent()) {
                 emitter().emit("// -- Initial tokens for fifo_%s", connectionId().get(c.getSource()));
+
                 String evaluate = backend().expressions().evaluate(attribute.get().getValue());
+                String type = backend().typeseval().type(backend().channelUtils().sourceEndType(c.getSource()));
+                int size = ((ExprList) attribute.get().getValue()).getElements().size();
+                emitter().emit("write_initial_tokens< %s, %s >(fifo_%s, %s);", type, size, connectionId().get(c.getSource()), evaluate);
+
+                emitter().emitNewLine();
 
             }
         }

@@ -148,11 +148,11 @@ public interface Statements {
                         emitter().emit("auto %s = %s[%s];", declarationName, input.getPort().getName(), input.getOffset());
                     }
                 } else {
-                    emitter().emit("%s = %s;", d, backend().defaultValues().defaultValue(t));
+                    emitter().emit("%s;", d);
                     copy(t, declarationName, types().type(decl.getValue()), expressions().evaluate(decl.getValue()));
                 }
             } else {
-                emitter().emit("%s = %s;", d, backend().defaultValues().defaultValue(t));
+                emitter().emit("%s;", d);
             }
         }
 

@@ -6,15 +6,11 @@ import org.multij.Module;
 import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.network.Connection;
-import se.lth.cs.tycho.type.BoolType;
-import se.lth.cs.tycho.type.ListType;
-import se.lth.cs.tycho.type.RefType;
-import se.lth.cs.tycho.type.StringType;
-import se.lth.cs.tycho.type.Type;
-import se.lth.cs.tycho.type.UnitType;
+import se.lth.cs.tycho.type.*;
 import ch.epfl.vlsc.cpp.backend.CppBackend;
 
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Module
 public interface Declarations {
@@ -33,6 +29,12 @@ public interface Declarations {
 
     default String declaration(Type type, String name) {
         return typeseval().type(type) + " " + name;
+    }
+
+    default String declaration(TupleType type, String name){
+        String tupleTypes = type.getTypes().stream().sequential().map(e -> backend().typeseval().type(e)).collect(Collectors.joining(", "));
+        String ret = String.format("std::tuple< %s > %s", tupleTypes, name);
+        return ret;
     }
 
     default String declaration(UnitType type, String name) {
