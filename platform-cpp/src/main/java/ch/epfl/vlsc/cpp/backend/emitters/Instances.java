@@ -1,6 +1,7 @@
 package ch.epfl.vlsc.cpp.backend.emitters;
 
 
+import ch.epfl.vlsc.cpp.backend.CppBackend;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.PathUtils;
 import org.multij.Binding;
@@ -17,19 +18,12 @@ import se.lth.cs.tycho.ir.decl.ParameterVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
-import se.lth.cs.tycho.ir.entity.am.ActorMachine;
-import se.lth.cs.tycho.ir.entity.am.Condition;
-import se.lth.cs.tycho.ir.entity.am.PortCondition;
-import se.lth.cs.tycho.ir.entity.am.PredicateCondition;
-import se.lth.cs.tycho.ir.entity.am.Scope;
-import se.lth.cs.tycho.ir.entity.am.Transition;
+import se.lth.cs.tycho.ir.entity.am.*;
 import se.lth.cs.tycho.ir.expr.*;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.type.CallableType;
 import se.lth.cs.tycho.type.ListType;
-import se.lth.cs.tycho.type.TorchIntArrayRef;
 import se.lth.cs.tycho.type.Type;
-import ch.epfl.vlsc.cpp.backend.CppBackend;
 
 import java.nio.file.Path;
 import java.util.Optional;
@@ -224,10 +218,12 @@ public interface Instances {
 
             // -- Ports
             for (PortDecl port : actor.getInputPorts()) {
-                emitter().emit("std::uint32_t status_%s_;", port.getName());
+                if (backend().channels().isTargetConnected(backend().instancebox().get().getInstanceName(), port.getName()))
+                    emitter().emit("std::uint32_t status_%s_;", port.getName());
             }
             for (PortDecl port : actor.getOutputPorts()) {
-                emitter().emit("std::uint32_t status_%s_;", port.getName());
+                if (backend().channels().isSourceConnected(backend().instancebox().get().getInstanceName(), port.getName()))
+                    emitter().emit("std::uint32_t status_%s_;", port.getName());
             }
             emitter().emitNewLine();
 
@@ -284,10 +280,12 @@ public interface Instances {
             // -- Ports
             emitter().emit("// -- Ports");
             for (PortDecl port : actor.getInputPorts()) {
-                emitter().emit("Fifo<%s >* port_%s;", backend().typeseval().type(types().type(port.getType())), port.getName());
+                if (backend().channels().isTargetConnected(backend().instancebox().get().getInstanceName(), port.getName()))
+                    emitter().emit("Fifo<%s >* port_%s;", backend().typeseval().type(types().type(port.getType())), port.getName());
             }
             for (PortDecl port : actor.getOutputPorts()) {
-                emitter().emit("Fifo<%s >* port_%s;", backend().typeseval().type(types().type(port.getType())), port.getName());
+                if (backend().channels().isSourceConnected(backend().instancebox().get().getInstanceName(), port.getName()))
+                    emitter().emit("Fifo<%s >* port_%s;", backend().typeseval().type(types().type(port.getType())), port.getName());
             }
             emitter().emitNewLine();
 
@@ -335,10 +333,14 @@ public interface Instances {
             emitter().emit("// -- Ports Status");
             // -- Ports
             for (PortDecl port : actor.getInputPorts()) {
-                emitter().emit("status_%s_ = 0;", port.getName());
+                if (backend().channels().isTargetConnected(backend().instancebox().get().getInstanceName(), port.getName())) {
+                    emitter().emit("status_%s_ = 0;", port.getName());
+                }
             }
             for (PortDecl port : actor.getOutputPorts()) {
-                emitter().emit("status_%s_ = 0;", port.getName());
+                if (backend().channels().isSourceConnected(backend().instancebox().get().getInstanceName(), port.getName())) {
+                    emitter().emit("status_%s_ = 0;", port.getName());
+                }
             }
             emitter().emitNewLine();
 
@@ -521,6 +523,15 @@ public interface Instances {
     }
 
     default String evaluateCondition(PortCondition condition) {
+        if (condition.isInputCondition()) {
+            if (!backend().channels().isTargetConnected(backend().instancebox().get().getInstanceName(), condition.getPortName().getName())) {
+                return "false";
+            }
+        } else {
+            if (!backend().channels().isSourceConnected(backend().instancebox().get().getInstanceName(), condition.getPortName().getName())) {
+                return "true";
+            }
+        }
         return String.format("status_%s_ >= %d", condition.getPortName().getName(), condition.N());
     }
 
@@ -562,47 +573,61 @@ public interface Instances {
             if (backend().profilingbox().get()) {
                 emitter().emit("std::map<std::string, int> iPortRate;");
                 for (Port port : transition.getInputRates().keySet()) {
-                    emitter().emit("iPortRate.insert(std::pair<std::string,int>(\"%s\", %s));", port.getName(), transition.getInputRate(port));
+                    if (backend().channels().isTargetConnected(backend().instancebox().get().getInstanceName(), port.getName())) {
+                        emitter().emit("iPortRate.insert(std::pair<std::string,int>(\"%s\", %s));", port.getName(), transition.getInputRate(port));
+                    }
                 }
                 emitter().emitNewLine();
                 emitter().emit("std::map<std::string, int> oPortRate;");
                 for (Port port : transition.getOutputRates().keySet()) {
-                    emitter().emit("oPortRate.insert(std::pair<std::string,int>(\"%s\", %s));", port.getName(), transition.getOutputRate(port));
+                    if (backend().channels().isSourceConnected(backend().instancebox().get().getInstanceName(), port.getName())) {
+                        emitter().emit("oPortRate.insert(std::pair<std::string,int>(\"%s\", %s));", port.getName(), transition.getOutputRate(port));
+                    }
                 }
                 emitter().emitNewLine();
                 emitter().emit("OpCounters __opCounters(\"%s\", \"%s\", firingId, iPortRate, oPortRate);", instanceName, actionTag);
             }
             for (Port port : transition.getInputRates().keySet()) {
-                PortDecl pDecl = backend().ports().declaration(port);
-                if (transition.getInputRate(port) > 1) {
-                    emitter().emit("auto %s = port_%s->read_address(0, %s);",
-                            pDecl.getName(),
-                            pDecl.getName(),
-                            transition.getInputRate(port));
+                if (backend().channels().isTargetConnected(backend().instancebox().get().getInstanceName(), port.getName())) {
+                    PortDecl pDecl = backend().ports().declaration(port);
+                    if (transition.getInputRate(port) > 1) {
+                        emitter().emit("auto %s = port_%s->read_address(0, %s);",
+                                pDecl.getName(),
+                                pDecl.getName(),
+                                transition.getInputRate(port));
+                    } else {
+                        emitter().emit("auto %s = port_%s->read_address(0);",
+                                pDecl.getName(),
+                                pDecl.getName());
+                    }
                 } else {
-                    emitter().emit("auto %s = port_%s->read_address(0);",
-                            pDecl.getName(),
-                            pDecl.getName());
+                    emitter().emit("// -- FIXME");
                 }
 
             }
             for (Port port : transition.getOutputRates().keySet()) {
-                PortDecl pDecl = backend().ports().declaration(port);
-                emitter().emit("auto %s = port_%s->write_address();",
-                        pDecl.getName(),
-                        pDecl.getName());
+                if (backend().channels().isSourceConnected(backend().instancebox().get().getInstanceName(), port.getName())) {
+                    PortDecl pDecl = backend().ports().declaration(port);
+                    emitter().emit("auto %s = port_%s->write_address();",
+                            pDecl.getName(),
+                            pDecl.getName());
+                } else {
+                    emitter().emit("// -- FIXME");
+                }
             }
 
 
             transition.getBody().forEach(backend().statements()::execute);
 
             for (Port port : transition.getOutputRates().keySet()) {
-                if (transition.getOutputRate(port) > 1) {
-                    emitter().emit("port_%s->write_advance(%s);", port.getName(), transition.getOutputRate(port));
-                } else {
-                    emitter().emit("port_%s->write_advance();", port.getName());
+                if (backend().channels().isSourceConnected(backend().instancebox().get().getInstanceName(), port.getName())) {
+                    if (transition.getOutputRate(port) > 1) {
+                        emitter().emit("port_%s->write_advance(%s);", port.getName(), transition.getOutputRate(port));
+                    } else {
+                        emitter().emit("port_%s->write_advance();", port.getName());
+                    }
+                    emitter().emit("status_%s_ -= %s;", port.getName(), transition.getOutputRate(port));
                 }
-                emitter().emit("status_%s_ -= %s;", port.getName(), transition.getOutputRate(port));
             }
 
             if (backend().profilingbox().get()) {

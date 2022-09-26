@@ -141,4 +141,15 @@ public interface Channels {
         }
     }
 
+    default boolean isTargetConnected(String instance, String port){
+        Connection.End target = new Connection.End(Optional.of(instance), port);
+        return sourceEndConnection(target)  != null;
+    }
+
+    default boolean isSourceConnected(String instance, String port) {
+        Connection.End source = new Connection.End(Optional.of(instance), port);
+        return !targetEndConnections(source).isEmpty();
+    }
+
+
 }

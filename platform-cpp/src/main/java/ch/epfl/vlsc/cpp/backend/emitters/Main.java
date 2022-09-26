@@ -273,9 +273,13 @@ public interface Main {
         for (Connection.End source : connectionId().keySet()) {
             int id = connectionId().get(source);
             List<Connection> targetConnections = backend().channelUtils().targetEndConnections(source);
-            emitter().emit("i_%s->port_%s = fifo_%d;", source.getInstance().get(), source.getPort(), id);
+            if(source.getInstance().isPresent()) {
+                emitter().emit("i_%s->port_%s = fifo_%d;", source.getInstance().get(), source.getPort(), id);
+            }
             for (Connection c : targetConnections) {
-                emitter().emit("i_%s->port_%s = fifo_%d;", c.getTarget().getInstance().get(), c.getTarget().getPort(), id);
+                if(c.getTarget().getInstance().isPresent()) {
+                    emitter().emit("i_%s->port_%s = fifo_%d;", c.getTarget().getInstance().get(), c.getTarget().getPort(), id);
+                }
             }
             emitter().emitNewLine();
         }

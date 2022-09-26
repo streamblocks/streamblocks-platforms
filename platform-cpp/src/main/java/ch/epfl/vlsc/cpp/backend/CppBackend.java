@@ -186,11 +186,6 @@ public interface CppBackend {
         return MultiJ.from(Algebraic.class).bind("backend").to(this).instance();
     }
 
-    @Binding(LAZY)
-    default Tuples tuples() {
-        return MultiJ.from(Tuples.class).bind("backend").to(this).instance();
-    }
-
     default PatternMatching patmat() {
         return MultiJ.from(PatternMatching.class).bind("backend").to(this).instance();
     }

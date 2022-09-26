@@ -51,10 +51,14 @@ public interface Controllers {
         emitter().emit("// -- Status");
         for (PortDecl port : actorMachine.getInputPorts()) {
             // -- FIXME : reader id
-            emitter().emit("status_%s_ = port_%1$s->count(0);", port.getName());
+            if (backend().channels().isTargetConnected(backend().instancebox().get().getInstanceName(), port.getName())) {
+                emitter().emit("status_%s_ = port_%1$s->count(0);", port.getName());
+            }
         }
         for (PortDecl port : actorMachine.getOutputPorts()) {
-            emitter().emit("status_%s_ = port_%1$s->rooms();", port.getName());
+            if (backend().channels().isSourceConnected(backend().instancebox().get().getInstanceName(), port.getName())) {
+                emitter().emit("status_%s_ = port_%1$s->rooms();", port.getName());
+            }
         }
 
         emitter().emitNewLine();

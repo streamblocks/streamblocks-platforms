@@ -313,7 +313,7 @@ public interface PatternMatching {
                 start(pattern.getPatterns().get(i), ctx.withScrutinee(ctx.getScrutinee().withMember(String.format("%s.data[%d]", ctx.getScrutinee().getMember(), i))));
             }
         }
-
+/*
         default void start(PatternTuple pattern, Context ctx) {
             ProductType product = backend().tuples().convert().apply((TupleType) backend().types().type(pattern));
             for (int i = 0; i < product.getFields().size(); ++i) {
@@ -323,7 +323,7 @@ public interface PatternMatching {
                         .withMember(product.getFields().get(i).getName())));
             }
         }
-
+*/
         void end(Pattern pattern);
 
         default void end(PatternDeconstruction pattern) {

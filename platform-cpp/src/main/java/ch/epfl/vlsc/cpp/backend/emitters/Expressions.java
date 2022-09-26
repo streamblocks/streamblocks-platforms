@@ -1,7 +1,7 @@
 package ch.epfl.vlsc.cpp.backend.emitters;
 
-import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.cpp.backend.CppBackend;
+import ch.epfl.vlsc.platformutils.Emitter;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
@@ -9,51 +9,16 @@ import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.ir.IRNode;
 import se.lth.cs.tycho.ir.NamespaceDecl;
 import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
-import se.lth.cs.tycho.ir.decl.GlobalDecl;
 import se.lth.cs.tycho.ir.decl.GlobalVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.am.ActorMachine;
 import se.lth.cs.tycho.ir.entity.am.Scope;
-import se.lth.cs.tycho.ir.expr.ExprApplication;
-import se.lth.cs.tycho.ir.expr.ExprBinaryOp;
-import se.lth.cs.tycho.ir.expr.ExprCase;
-import se.lth.cs.tycho.ir.expr.ExprComprehension;
-import se.lth.cs.tycho.ir.expr.ExprDeref;
-import se.lth.cs.tycho.ir.expr.ExprField;
-import se.lth.cs.tycho.ir.expr.ExprGlobalVariable;
-import se.lth.cs.tycho.ir.expr.ExprIf;
-import se.lth.cs.tycho.ir.expr.ExprIndexer;
-import se.lth.cs.tycho.ir.expr.ExprInput;
-import se.lth.cs.tycho.ir.expr.ExprLambda;
-import se.lth.cs.tycho.ir.expr.ExprLet;
-import se.lth.cs.tycho.ir.expr.ExprList;
-import se.lth.cs.tycho.ir.expr.ExprLiteral;
-import se.lth.cs.tycho.ir.expr.ExprMap;
-import se.lth.cs.tycho.ir.expr.ExprNth;
-import se.lth.cs.tycho.ir.expr.ExprProc;
-import se.lth.cs.tycho.ir.expr.ExprRef;
-import se.lth.cs.tycho.ir.expr.ExprSet;
-import se.lth.cs.tycho.ir.expr.ExprTuple;
-import se.lth.cs.tycho.ir.expr.ExprTypeAssertion;
-import se.lth.cs.tycho.ir.expr.ExprTypeConstruction;
-import se.lth.cs.tycho.ir.expr.ExprUnaryOp;
-import se.lth.cs.tycho.ir.expr.ExprVariable;
-import se.lth.cs.tycho.ir.expr.Expression;
+import se.lth.cs.tycho.ir.expr.*;
 import se.lth.cs.tycho.ir.stmt.StmtCall;
 import se.lth.cs.tycho.ir.type.FunctionTypeExpr;
 import se.lth.cs.tycho.ir.type.TypeExpr;
 import se.lth.cs.tycho.ir.util.ImmutableList;
-import se.lth.cs.tycho.type.AlgebraicType;
-import se.lth.cs.tycho.type.BoolType;
-import se.lth.cs.tycho.type.IntType;
-import se.lth.cs.tycho.type.ListType;
-import se.lth.cs.tycho.type.MapType;
-import se.lth.cs.tycho.type.NumberType;
-import se.lth.cs.tycho.type.RealType;
-import se.lth.cs.tycho.type.SetType;
-import se.lth.cs.tycho.type.StringType;
-import se.lth.cs.tycho.type.TupleType;
-import se.lth.cs.tycho.type.Type;
+import se.lth.cs.tycho.type.*;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -147,21 +112,25 @@ public interface Expressions {
     default String evaluate(ExprInput input) {
         String tmp = variables().generateTemp();
         Type type = types().type(input);
-        if (input.hasRepeat()) {
-            if (input.getOffset() == 0) {
-                emitter().emit("auto %s = input[\"%s\"].peek_range<%s>(%d);", tmp, input.getPort().getName(), typeseval().type(type), input.getRepeat());
+        if (backend().channels().isTargetConnected(backend().instancebox().get().getInstanceName(), input.getPort().getName())) {
+            if (input.hasRepeat()) {
+                if (input.getOffset() == 0) {
+                    emitter().emit("auto %s = input[\"%s\"].peek_range<%s>(%d);", tmp, input.getPort().getName(), typeseval().type(type), input.getRepeat());
+                } else {
+                    throw new RuntimeException("not implemented");
+                }
             } else {
-                throw new RuntimeException("not implemented");
+                emitter().emit("%s = %s;", declarations().declaration(type, tmp), backend().defaultValues().defaultValue(type));
+                if (input.getOffset() == 0) {
+                    emitter().emit("%s = %s[0];", tmp, input.getPort().getName());
+                } else {
+                    String auto = variables().generateTemp();
+                    emitter().emit("auto %s = input[\"%s\"].peek_range<%s>(%s);", auto, input.getPort().getName(), typeseval().type(type), input.getOffset() + 1);
+                    emitter().emit("%s = %s[%s].ele;", tmp, auto, input.getOffset());
+                }
             }
         } else {
-            emitter().emit("%s = %s;", declarations().declaration(type, tmp), backend().defaultValues().defaultValue(type));
-            if (input.getOffset() == 0) {
-                emitter().emit("%s = %s[0];", tmp, input.getPort().getName());
-            } else {
-                String auto = variables().generateTemp();
-                emitter().emit("auto %s = input[\"%s\"].peek_range<%s>(%s);", auto, input.getPort().getName(), typeseval().type(type), input.getOffset() + 1);
-                emitter().emit("%s = %s[%s].ele;", tmp, auto, input.getOffset());
-            }
+            emitter().emit("%s;", declarations().declarationTemp(types().type(input), tmp));
         }
         return tmp;
     }
@@ -971,18 +940,22 @@ public interface Expressions {
     }
 
     default String evaluate(ExprTuple tuple) {
-        String fn = backend().tuples().utils().constructor((TupleType) types().type(tuple));
         List<String> parameters = new ArrayList<>();
         for (Expression parameter : tuple.getElements()) {
             parameters.add(evaluate(parameter));
         }
         String result = variables().generateTemp();
         String decl = backend().declarations().declaration(types().type(tuple), result);
-        emitter().emit("%s = %s(%s);", decl, fn, String.join(", ", parameters));
+        emitter().emit("%s = std::make_tuple(%s);", decl, String.join(", ", parameters));
         return result;
     }
 
     default String evaluate(ExprNth nth) {
+        Type type = types().type(nth.getStructure());
+        if (type instanceof TupleType) {
+            return String.format("std::get<%s>(%s)",  nth.getNth().getNumber() - 1, evaluate(nth.getStructure()));
+        }
+        // -- See if there is somehting else
         return String.format("%s->%s", evaluate(nth.getStructure()), "_" + nth.getNth().getNumber());
     }
 
@@ -1035,9 +1008,9 @@ public interface Expressions {
         }
 */
         for (Expression parameter : apply.getArgs()) {
-            if (parameter instanceof ExprList){
+            if (parameter instanceof ExprList) {
                 parameters.add(evaluateOnlyValue((ExprList) parameter));
-            }else {
+            } else {
                 parameters.add(evaluate(parameter));
             }
         }

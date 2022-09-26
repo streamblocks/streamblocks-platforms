@@ -79,43 +79,47 @@ public interface Statements {
 
     default void execute(StmtConsume consume) {
         // -- FIXME : reader id
-        if (consume.getNumberOfTokens() > 1) {
-            emitter().emit("port_%s->read_advance(0, %s);", consume.getPort().getName(), consume.getNumberOfTokens());
-        } else {
-            emitter().emit("port_%s->read_advance(0);", consume.getPort().getName(), consume.getNumberOfTokens());
+        if (backend().channels().isTargetConnected(backend().instancebox().get().getInstanceName(), consume.getPort().getName())) {
+            if (consume.getNumberOfTokens() > 1) {
+                emitter().emit("port_%s->read_advance(0, %s);", consume.getPort().getName(), consume.getNumberOfTokens());
+            } else {
+                emitter().emit("port_%s->read_advance(0);", consume.getPort().getName(), consume.getNumberOfTokens());
+            }
+            emitter().emit("status_%s_ -= %s;", consume.getPort().getName(), consume.getNumberOfTokens());
         }
-        emitter().emit("status_%s_ -= %s;", consume.getPort().getName(), consume.getNumberOfTokens());
     }
 
     default void execute(StmtWrite write) {
         String portName = write.getPort().getName();
-        if (write.getRepeatExpression() == null) {
-            String tmp = variables().generateTemp();
-            emitter().emit("%s;", declarations().declaration(types().portType(write.getPort()), tmp));
-            for (Expression expr : write.getValues()) {
-                emitter().emit("%s = %s;", tmp, expressions().evaluate(expr));
-                emitter().emit("%s[%s] = %s;", portName, write.getValues().indexOf(expr), tmp);
+        if (backend().channels().isSourceConnected(backend().instancebox().get().getInstanceName(), write.getPort().getName())) {
+            if (write.getRepeatExpression() == null) {
+                String tmp = variables().generateTemp();
+                emitter().emit("%s;", declarations().declaration(types().portType(write.getPort()), tmp));
+                for (Expression expr : write.getValues()) {
+                    emitter().emit("%s = %s;", tmp, expressions().evaluate(expr));
+                    emitter().emit("%s[%s] = %s;", portName, write.getValues().indexOf(expr), tmp);
+                }
+            } else if (write.getValues().size() == 1) {
+                String value = expressions().evaluate(write.getValues().get(0));
+                String repeat = expressions().evaluate(write.getRepeatExpression());
+
+                String tmp = variables().generateTemp();
+                emitter().emit("for(int %s=0; %1$s < %s; %1$s++){", tmp, repeat);
+                {
+                    emitter().increaseIndentation();
+
+                    emitter().emit("%s[%s] = %s[%s];", portName, tmp, value, tmp);
+
+                    emitter().decreaseIndentation();
+                }
+                emitter().emit("}");
+            } else {
+                throw new Error("not implemented");
             }
-        } else if (write.getValues().size() == 1) {
-            String value = expressions().evaluate(write.getValues().get(0));
-            String repeat = expressions().evaluate(write.getRepeatExpression());
 
-            String tmp = variables().generateTemp();
-            emitter().emit("for(int %s=0; %1$s < %s; %1$s++){", tmp, repeat);
-            {
-                emitter().increaseIndentation();
-
-                emitter().emit("%s[%s] = %s[%s];", portName, tmp, value, tmp);
-
-                emitter().decreaseIndentation();
+            if (backend().profilingbox().get()) {
+                emitter().emit("__opCounters.DATAHANDLING_STORE += 1;");
             }
-            emitter().emit("}");
-        } else {
-            throw new Error("not implemented");
-        }
-
-        if (backend().profilingbox().get()) {
-            emitter().emit("__opCounters.DATAHANDLING_STORE += 1;");
         }
     }
 
@@ -142,10 +146,14 @@ public interface Statements {
             if (decl.getValue() != null) {
                 if (decl.getValue() instanceof ExprInput) {
                     ExprInput input = (ExprInput) decl.getValue();
-                    if (input.hasRepeat()) {
-                        emitter().emit("auto *%s = %s;", declarationName, input.getPort().getName());
+                    if (backend().channels().isTargetConnected(backend().instancebox().get().getInstanceName(), input.getPort().getName())) {
+                        if (input.hasRepeat()) {
+                            emitter().emit("auto *%s = %s;", declarationName, input.getPort().getName());
+                        } else {
+                            emitter().emit("auto %s = %s[%s];", declarationName, input.getPort().getName(), input.getOffset());
+                        }
                     } else {
-                        emitter().emit("auto %s = %s[%s];", declarationName, input.getPort().getName(), input.getOffset());
+                        emitter().emit("// -- FIXME");
                     }
                 } else {
                     emitter().emit("%s;", d);
@@ -174,7 +182,7 @@ public interface Statements {
             emitter().decreaseIndentation();
         }
         emitter().emit("}");
-        if(backend().profilingbox().get()){
+        if (backend().profilingbox().get()) {
             emitter().emit("__opCounters.FLOWCONTROL_IF += 1;");
         }
     }
@@ -231,8 +239,9 @@ public interface Statements {
         String proc = name;
         for (Expression parameter : call.getArgs()) {
             String param = expressions().evaluate(parameter);
-            Type type = types().type(parameter);
-            parameters.add(passByValue(param, type));
+            //Type type = types().type(parameter);
+            //parameters.add(passByValue(param, type));
+            parameters.add(param);
         }
         emitter().emit("%s(%s);", proc, String.join(", ", parameters));
         if (backend().profilingbox().get()) {
@@ -312,7 +321,7 @@ public interface Statements {
     default String lvalue(LValueNth nth) {
         return String.format("%s->%s", lvalue(nth.getStructure()), "_" + nth.getNth().getNumber());
     }
-
+/*
     default String passByValue(String param, Type type) {
         return param;
     }
@@ -413,6 +422,8 @@ public interface Statements {
         return returnValue(result, type.getConcreteType());
     }
 
+ */
+
 
     default void copy(Type lvalueType, String lvalue, Type rvalueType, String rvalue) {
         emitter().emit("%s = %s;", lvalue, rvalue);
@@ -450,7 +461,7 @@ public interface Statements {
     }
 
     default void copy(TupleType lvalueType, String lvalue, TupleType rvalueType, String rvalue) {
-        copy(backend().tuples().convert().apply(lvalueType), lvalue, backend().tuples().convert().apply(rvalueType), rvalue);
+        emitter().emit("%s = %s;", lvalue, rvalue);
     }
 
     default String compare(Type lvalueType, String lvalue, Type rvalueType, String rvalue) {
@@ -500,8 +511,9 @@ public interface Statements {
         return compare(lvalueType.getType(), lvalue, rvalueType.getType(), rvalue);
     }
 
+    /*
     default String compare(TupleType lvalueType, String lvalue, TupleType rvalueType, String rvalue) {
         return compare(backend().tuples().convert().apply(lvalueType), lvalue, backend().tuples().convert().apply(rvalueType), rvalue);
-    }
+    }*/
 
 }
