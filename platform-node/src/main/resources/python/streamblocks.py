@@ -36,8 +36,8 @@
 # ------------------------------------------------------------
 
 import socket
-import StringIO
 import sys
+import io
 
 # =============================================================================
 # Python client bindings for supervision of StreamBlocks nodes.
@@ -87,7 +87,7 @@ class Node:
           print ("input not empty: %s.%s (%s tokens)" % (self.name, name, nbr))
         elif tp == 'o' and int(nbr) != 64:
           print ("output not empty: %s.%s (%s slots)" % (self.name, name, nbr))
-          
+
 
     def enable(self):
       self.node.execute("ENABLE %s" % self.name)
@@ -111,9 +111,10 @@ class Node:
     self.address = self.get_address()
 
   def get_result(self):
-    buff = StringIO.StringIO(1024)
+    buff = io.StringIO(None)
     while True:
       data = self.sock.recv(1024)
+      data = data.decode('UTF-8')
       buff.write(data)
       if '\n' in data:
         break
@@ -131,7 +132,8 @@ class Node:
 
   def execute(self, command):
     if self.verbose: print ("--> %s" % command)
-    self.sock.send(command + "\n")
+    cmd = command + "\n"
+    self.sock.send(cmd.encode())
     result = self.get_result()
     if self.verbose: print ("<-- OK %s" % result)
     return result
