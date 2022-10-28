@@ -1,6 +1,5 @@
 /*
- * Copyright (c) Ericsson AB, 2009-2013, EPFL VLSC 2019
- * Author: Endri Bezati (endri.bezati@epfl.ch)
+ * Copyright (c) Ericsson AB, 2009-2013
  * Author: Patrik Persson (patrik.j.persson@ericsson.com)
  * All rights reserved.
  *
@@ -39,12 +38,14 @@
 #ifndef REGISTRY_INCLUSION_GUARD
 #define REGISTRY_INCLUSION_GUARD
 
+#include <stdio.h>
 #include "actors-rts.h"
 
+
 #ifdef _WIN64
-#define CALVIN_LIBEXT "dll"
+//define something for Windows (64-bit)
 #elif _WIN32
-#define CALVIN_LIBEXT "dll"
+//define something for Windows (32-bit)
 #elif __APPLE__
 #define CALVIN_LIBEXT "bundle"
 #elif __linux
@@ -79,6 +80,6 @@ const ActorClass * registryGetClass(const char *name);
 /**
  * List classes, one per line, to a stream. Called by command parser.
  */
-void registryList(struct parser_state *state);
+void registryList(FILE *out);
 
 #endif /* REGISTRY_INCLUSION_GUARD */

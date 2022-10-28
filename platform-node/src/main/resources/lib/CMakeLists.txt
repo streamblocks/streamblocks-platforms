@@ -15,12 +15,10 @@ endif()
 
 include_directories(
         art-node/include
-        art-native/include
 )
 
 
 add_subdirectory(art-node)
-add_subdirectory(art-native)
 
 
 

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) Ericsson AB, 2014
- * Author: Harald Gustafsson (harald.gustafsson@ericsson.com)
+ * Copyright (c) Huawei, 2022
+ * Author: Endri Bezati (endri.bezati@huawei.com)
  * All rights reserved.
  *
  * License terms:
@@ -35,57 +35,12 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <errno.h>
-#include <stdarg.h>
+#pragma once
 
-/** The (debug) log file */
-#define DEBUG_FILE_PATH "/tmp/calvin"
-static FILE* debug_file;
-/* ------------------------------------------------------------------------- */
+#include <cstring>
+#include <torch/torch.h>
 
-/* Open debug/log file */
-void createDebugFile(int port) {
-  char path[128];
-  int err = mkdir(DEBUG_FILE_PATH,0777);
-  if(err<0) {
-    err = errno;
-    if(err!=17)
-      printf("Can't create calvin log file directory %i %s\n",err,strerror(err));
-  }
-  sprintf(path,"%s/calvin%i.log",DEBUG_FILE_PATH,port);
-  debug_file = fopen(path,"a");
-  fprintf(debug_file,"------------------------------------- START SERVER -----------------------------\n");
-  fflush(debug_file);
-}
-
-void closeDebugFile() {
-  if(debug_file!=NULL) {
-    fclose(debug_file);
-  }
-}
-
-void printDebug(const char* format, ...) {
-  va_list args;
-  if(debug_file!=NULL) {
-    va_start(args, format);
-    vfprintf(debug_file,format,args);
-    va_end(args);
-    fflush(debug_file);
-  }
-}
-
-void printDebugType(const char* type, const char* format, ...) {
-  va_list args;
-  if(debug_file!=NULL) {
-    va_start(args, format);
-    fprintf(debug_file,"[%s] ",type);
-    vfprintf(debug_file,format,args);
-    va_end(args);
-    fflush(debug_file);
-  }
-}
+char *serializeTensor(torch::Tensor *tensor, char *buffer);
+char *deserializeTensor(torch::Tensor **tensor, char *buffer, long size);
+long sizeTensor(torch::Tensor *src);
+int freeTensor(torch::Tensor *tensor, int top);

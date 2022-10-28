@@ -1,6 +1,5 @@
 /*
- * Copyright (c) Ericsson AB, 2009-2013, EPFL VLSC, 2019
- * Author: Endri Bezati (endri.bezati@epfl.ch)
+ * Copyright (c) Ericsson AB, 2009-2013
  * Author: Charles Chen Xu (charles.chen.xu@ericsson.com)
  * Author: Patrik Persson (patrik.j.persson@ericsson.com)
  * All rights reserved.
@@ -40,62 +39,38 @@
 #ifndef ACTORS_RTS_H
 #define ACTORS_RTS_H
 
-#define CAL_RT_CALVIN
-
-#include <string.h>
-#include <stdint.h>
-#include <stdbool.h>
-#include <stdlib.h>
-#include <assert.h>
+#include "actors-coder.h"
 #include "actors-typedefs.h"
 #include "dllist.h"
-#include <string>
-#include <stdarg.h>
+#include "io-port.h"
+#include "logging.h"
+#include "slist.h"
+#include <assert.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
 
-#if (defined(_WIN32)) || (defined(_WIN64))
-typedef bool _Bool;
+#ifdef USE_TORCH
+#include <torch/torch.h>
+#include "serialization.h"
+
+typedef torch::Tensor Tensor;
 #endif
 
-#if (defined(_WIN32)) || (defined(_WIN64))
-#define INL __forceinline
-#else
-#define INL inline
-#endif
+/* make the header usable from C++ */
+#ifdef __cplusplus
+extern "C" {
+#endif /* __cplusplus */
 
-
-#define COPY(a)       (a)
-#define MEMCPY(d, s, c) (memcpy(d,s,c))
-
-#define RANGECHK(X, B) ((unsigned)(X)<(unsigned)(B)?(X):RANGEERR(X,B))
-#define RANGEERR(X, B) (rangeError((X),(B),__FILE__,__LINE__))
+#define COPY(a) (a)
+#define MEMCPY(d, s, c) (memcpy(d, s, c))
 
 /*
  * These versioning constants are compiled into actors, and then checked
  * by the runtime.
  */
-#define ACTORS_RTS_MAJOR     2
-#define ACTORS_RTS_MINOR     0
-
-#if (defined(_WIN32)) || (defined(_WIN64))
-void fail(const char* fmt, ...);
-#else
-
-void fail(const char *fmt, ...) __attribute__((noreturn));
-
-#endif
-
-void warn(const char *fmt, ...);
-
-int rangeError(int x, int y, const char *filename, int line);
-
-static void runtimeError(AbstractActorInstance *pInst, const char *format, ...) {
-    va_list ap;
-    va_start(ap, format);
-    vfprintf(stderr, format, ap);
-    fprintf(stderr, "\n");
-    va_end(ap);
-    exit(1);
-}
+#define ACTORS_RTS_MAJOR 2
+#define ACTORS_RTS_MINOR 0
 
 // bool_t represents the CAL-type bool
 typedef int32_t bool_t;
@@ -103,25 +78,28 @@ typedef int32_t bool_t;
 // FIXME: temporary workaround
 typedef void art_action_context_t;
 
-typedef struct LocalOutputPort LocalOutputPort;
-typedef struct LocalInputPort LocalInputPort;
-
 /*
  * ActorClass and related descriptions
  */
 
 typedef struct {
-    const char *name;
-    const char *originalName;
-    const int *consumption;
-    const int *production;
-    const int *uses;
-    const int *defines;
+  const char *name; // action tag
+  const char *originalName;
+  const int *consumption; // token rates of input 0,...,numInputs-1
+  const int *production;  // token rates of output 0,...,numOutputs-1
+  const int *uses;
+  const int *defines;
 } ActionDescription;
 
-enum ConditionKind {
-    INPUT_KIND, OUTPUT_KIND, PREDICATE_KIND
-};
+typedef struct {
+  int dummy;        // FIXME: remove this from generated code
+  const char *name; // port name
+  int tokenSize;    // sizeof token (in bytes)
+  tokenFn *functions;
+} PortDescription;
+
+enum ConditionKind { INPUT_KIND, OUTPUT_KIND, PREDICATE_KIND };
+
 
 /*!\struct ConditionDescription
  * \brief actor machine condition
@@ -137,149 +115,49 @@ typedef struct {
 } ConditionDescription;
 
 typedef struct {
-    char *(*serialize)(void *, char *);
-
-    char *(*deserialize)(void **, char *);
-
-    long (*size)(void *);
-
-    int (*free)(void *, int);
-} tokenFn;
-
-typedef struct {
-    int dummy;                  // FIXME: remove this from generated code
-    const char *name;          // port name
-    int tokenSize;     // sizeof token (in bytes)
-    tokenFn *functions;
-} PortDescription;
-
-typedef struct {
-    const char *name;
-    const char *originalName;
-    int variableSize;
+  const char *name;
+  const char *originalName;
+  int variableSize;
 } StateVariableDescription;
 
 struct ActorClass {
-    unsigned int majorVersion;               // runtime version
-    unsigned int minorVersion;
+  unsigned int majorVersion; // runtime version
+  unsigned int minorVersion;
 
-    char *name;                              // name of actor class
-    int sizeActorInstance;                   // size to be allocated for instance
+  char *name;            // name of actor class
+  int sizeActorInstance; // size to be allocated for instance
 
-    unsigned int numInputPorts;
-    const PortDescription *inputPortDescriptions;
+  int numInputPorts;
+  const PortDescription *inputPortDescriptions;
 
-    unsigned int numOutputPorts;
-    const PortDescription *outputPortDescriptions;
+  int numOutputPorts;
+  const PortDescription *outputPortDescriptions;
 
-    unsigned int numActions;
-    const ActionDescription *actionDescriptions;
+  int numActions;
+  const ActionDescription *actionDescriptions;
 
-    const int *(*action_scheduler)(AbstractActorInstance *);
-
-    void (*constructor)(AbstractActorInstance *);
-
-    void (*destructor)(AbstractActorInstance *);
-
-    void (*set_param)(AbstractActorInstance *, const char *, const char *);
-
-    unsigned int numConditions; //! the number of conditions
-
-    const ConditionDescription *conditionDescription; //! conditions description array
-
-    unsigned int numStateVariables; //! the number of the state variables
-
-    const StateVariableDescription *stateVariableDescription; //! state variable description array
+  const int *(*action_scheduler)(AbstractActorInstance *);
+  void (*constructor)(AbstractActorInstance *);
+  void (*destructor)(AbstractActorInstance *);
+  void (*set_param)(AbstractActorInstance *, const char *, const char *);
+  void (*serialize)(AbstractActorInstance *, ActorCoder *);
+  void (*deserialize)(AbstractActorInstance *, ActorCoder *);
 };
 
 // Creates an ActorClass initializer
 
-#define INIT_ActorClass(aClassName, \
-instance_t, \
-ctor, \
-setParam, \
-sched, \
-dtor, \
-nInputs, inputDescr, \
-nOutputs, outputDescr, \
-nActions, actionDescr, \
-nConditions, conditionDescr, \
-nStateVariables, stateVariableDescr) { \
-.majorVersion=ACTORS_RTS_MAJOR,              \
-.minorVersion=ACTORS_RTS_MINOR,              \
-.name=aClassName,                            \
-.sizeActorInstance=sizeof(instance_t),       \
-.numInputPorts=nInputs,                      \
-.inputPortDescriptions=inputDescr,           \
-.numOutputPorts=nOutputs,                    \
-.outputPortDescriptions=outputDescr,         \
-.numActions=nActions,                        \
-.actionDescriptions=actionDescr,             \
-.action_scheduler=sched,                     \
-.constructor=ctor,                           \
-.destructor=dtor,                            \
-.set_param=setParam,                          \
-.numConditions=nConditions,                   \
-.conditionDescription=conditionDescr,         \
-.numStateVariables=nStateVariables,           \
-.stateVariableDescription= stateVariableDescr \
-}
-
-
-/*
- * LocalInputPort (used by FIFO operations)
- */
-struct LocalInputPort {
-    const void *bufferStart;          // Start of cyclic buffer
-    const void *bufferEnd;            // One past end of cyclic buffer
-    const void *readPtr;              // position in cyclic buffer
-    unsigned available;               // number of available tokens
-};
-
-/*
- * LocalOutputPort (used by FIFO operations)
- */
-
-struct LocalOutputPort {
-    void *bufferStart;          // Start of cyclic buffer
-    void *bufferEnd;            // One past end of cyclic buffer
-    void *writePtr;             // position in cyclic buffer
-    unsigned spaceLeft;         // number of available tokens
-};
-
-/*
- * InputPort
- * Extends LocalInputPort, computes available tokens in pre-fire step,
- * updates tokensConsumed in post-fire step
- */
-struct InputPort {
-    dllist_element_t asConsumer;        // member of producer's 'consumers' list
-
-    OutputPort *producer;
-
-    LocalInputPort localInputPort;
-    unsigned tokensConsumed;          // number of tokens consumed
-    unsigned drainedAt;               // point at which all tokensConsumed
-    unsigned capacity;                // minimum capacity of buffer (in tokens)
-
-    tokenFn functions;                // functions to handle structured tokens
-};
-
-/*
- * OutputPort
- * Extends LocalOutputPort: computes spaceLeft in pre-fire step,
- * updates tokensProduced in post-fire step
- */
-struct OutputPort {
-    LocalOutputPort localOutputPort;
-    unsigned capacity;                   // capacity of buffer (in tokens)
-    unsigned tokensProduced;             // number of tokens produced
-    unsigned fullAt;                     // tokensProduced when FIFO is full
-
-    tokenFn functions;                   // functions to handle structured tokens
-
-    dllist_head_t consumers;
-};
+#define INIT_ActorClass(aClassName, instance_t, ctor, setParam, serlize,       \
+                        deserlize, sched, dtor, nInputs, inputDescr, nOutputs, \
+                        outputDescr, nActions, actionDescr)                    \
+  {                                                                            \
+    .majorVersion = ACTORS_RTS_MAJOR, .minorVersion = ACTORS_RTS_MINOR,        \
+    .name = aClassName, .sizeActorInstance = sizeof(instance_t),               \
+    .numInputPorts = nInputs, .inputPortDescriptions = inputDescr,             \
+    .numOutputPorts = nOutputs, .outputPortDescriptions = outputDescr,         \
+    .numActions = nActions, .actionDescriptions = actionDescr,                 \
+    .action_scheduler = sched, .constructor = ctor, .destructor = dtor,        \
+    .set_param = setParam, .serialize = serlize, .deserialize = deserlize      \
+  }
 
 /*
  * AbstractActorInstance, the "base class" which is common
@@ -287,41 +165,43 @@ struct OutputPort {
  */
 
 struct AbstractActorInstance {
-    dllist_element_t listEntry;           // to keep instance in list
+  slist_node listEntry; // to keep instance in list
 
-    const ActorClass *actorClass;
-    const char *instanceName;
+  const ActorClass *actorClass;
+  char *instanceName;
 
-    int numInputPorts;
-    InputPort *inputPort;
+  int numInputPorts;
+  InputPort *inputPort;
 
-    int numOutputPorts;
-    OutputPort *outputPort;
+  int numOutputPorts;
+  OutputPort *outputPort;
 
-    const int *(*action_scheduler)(AbstractActorInstance *);
+  const int *(*action_scheduler)(AbstractActorInstance *);
+  int enabled;
+  char *sender_name;
+  char *receiver_name;
 };
 
-#define ART_INPUT(index) &(thisActor->base.inputPort[index].localInputPort)
-
-#define ART_OUTPUT(index) &(thisActor->base.outputPort[index].localOutputPort)
-
+// #define ART_INPUT(index)
+// input_port_local_port(input_port_array_get(thisActor->base.inputPort, index))
+#define ART_INPUT(index) input_port_array_get(thisActor->base.inputPort, index)
+// #define ART_OUTPUT(index)
+// output_port_local_port(output_port_array_get(thisActor->base.outputPort,
+// index))
+#define ART_OUTPUT(index)                                                      \
+  output_port_array_get(thisActor->base.outputPort, index)
 
 // Action-scheduler exit code (first element of array)
 // EXITCODE_TERMINATE = actor is dead
 // EXITCODE_BLOCK(n)  = actor blocks on either of n ports
 // EXITCODE_YIELD     = actor yielded, but may be fireable
 
-//extern "C" const int exit_code_terminate[];
-//extern "C" const int exit_code_yield[];
-
-const int exit_code_terminate[] = {-1};
-const int exit_code_yield[] = {-2};
+extern const int exit_code_terminate[];
+extern const int exit_code_yield[];
 
 #define EXITCODE_TERMINATE exit_code_terminate
-#define EXITCODE_BLOCK(n)  (n)
-#define EXIT_CODE_YIELD    exit_code_yield
-#define EXITCODE_PREDICATE(n) (n)
-#define EXIT_CODE_PREDICATE -2
+#define EXITCODE_BLOCK(n) (n)
+#define EXIT_CODE_YIELD exit_code_yield
 
 /*
  * The following macros provide a mechanism that allows
@@ -330,11 +210,12 @@ const int exit_code_yield[] = {-2};
  */
 #define ART_ACTION_CONTEXT(numInputs, numOutputs)
 
-#define ART_ACTION_SCHEDULER(name)        \
- const int *name(AbstractActorInstance *pBase)
+#define ART_ACTION_SCHEDULER(name)                                             \
+  static const int *name(AbstractActorInstance *pBase)
 
-#define ART_ACTION_SCHEDULER_ENTER(numInputs, numOutputs) \
-  void *context = NULL; context = context;
+#define ART_ACTION_SCHEDULER_ENTER(numInputs, numOutputs)                      \
+  void *context = NULL;                                                        \
+  context = context;
 
 #define ART_ACTION_SCHEDULER_EXIT(numInputs, numOutputs)
 
@@ -343,7 +224,7 @@ const int exit_code_yield[] = {-2};
  * the loop within the action scheduler to be customized
  * (not used in the present implementation)
  */
-#define ART_ACTION_SCHEDULER_LOOP          while (1)
+#define ART_ACTION_SCHEDULER_LOOP while (1)
 #define ART_ACTION_SCHEDULER_LOOP_TOP
 #define ART_ACTION_SCHEDULER_LOOP_BOTTOM
 
@@ -352,56 +233,52 @@ const int exit_code_yield[] = {-2};
  * to be customized
  */
 
-#define ART_ACTION(name, thistype)          \
-    INL void name(thistype *thisActor)
+#define ART_ACTION(name, thistype) static void name(thistype *thisActor)
 
-#define ART_INIT_SCOPE(name, thistype)                    \
-    INL  void name(thistype *thisActor)
-
-#define ART_SCOPE(name, thistype)                    \
-    INL void name(art_action_context_t *context, thistype *thisActor)
-
-#define ART_CONDITION(name, thistype)            \
-    INL bool name(art_action_context_t *context, thistype *thisActor)
-
-#define ART_FIRE_ACTION(name)      \
-  name(thisActor)
-
+#define ART_FIRE_ACTION(name) name(thisActor)
 
 #define ART_EXEC_TRANSITION(name)        \
   name(thisActor)
 
-#define ART_TEST_CONDITION(name)         \
-  name(context, thisActor)
-
 #ifdef TRACE
-#define ART_ACTION_ENTER(name, index)   \
-  actionTrace((AbstractActorInstance*)thisActor,index,#name)
+#define ART_ACTION_ENTER(name, index)                                          \
+  actionTrace((AbstractActorInstance *)thisActor, index, #name)
 #else
 #define ART_ACTION_ENTER(name, index)
 #endif
 
 #define ART_ACTION_EXIT(name, index)
 
-#ifdef TRACE
-#define ART_CONDITION_ENTER(name, index)   \
- unsigned int __timestamp = timestamp(); \
 
-#else
+#define ART_INIT_SCOPE(name, thistype)                    \
+    static void name(thistype *thisActor)
+
+#define ART_SCOPE(name, thistype)                    \
+    static void name(art_action_context_t *context, thistype *thisActor)
+
+#define ART_CONDITION(name, thistype)            \
+    static bool name(art_action_context_t *context, thistype *thisActor)
+
 #define ART_CONDITION_ENTER(name, index)        \
 
-#endif
 
-#ifdef TRACE
-#define ART_CONDITION_EXIT(name, index) \
-conditionTrace((AbstractActorInstance*)thisActor,__timestamp, index,#name);
-#else
 #define ART_CONDITION_EXIT(name, index) \
 
-#endif
+
+#define ART_TEST_CONDITION(name)         \
+  name(context, thisActor)
+
 
 //#define dprint1(x,y)
 //#define dprint2(x,y,z)
+
+// FIXME: workarounds to handle System.bitops in RVC
+static inline int32_t _bitand(int32_t x, int32_t y) { return x & y; }
+static inline int32_t _bitor(int32_t x, int32_t y) { return x | y; }
+static inline int32_t bitxor(int32_t x, int32_t y) { return x ^ y; }
+static inline int32_t bitnot(int32_t x) { return ~x; }
+static inline int32_t lshift(int32_t x, int32_t n) { return x << n; }
+static inline int32_t rshift(int32_t x, int32_t n) { return x >> n; }
 
 /*
  * FIFO operations:
@@ -418,97 +295,44 @@ conditionTrace((AbstractActorInstance*)thisActor,__timestamp, index,#name);
  */
 
 #define FIFO_TYPE int32_t
-
 #include "actors-fifo.h"
-
 #undef FIFO_TYPE
+
 #define FIFO_TYPE int16_t
-
 #include "actors-fifo.h"
-
 #undef FIFO_TYPE
-#define FIFO_TYPE bool
 
-#include "actors-fifo.h"
-
-#undef FIFO_TYPE
-#define FIFO_TYPE double
-
-#include "actors-fifo.h"
-
-#undef FIFO_TYPE
 #define FIFO_TYPE int8_t
-#define BYTES
-
 #include "actors-fifo.h"
-
 #undef FIFO_TYPE
-#undef BYTES
-#define REF
 
+#define FIFO_TYPE bool_t
 #include "actors-fifo.h"
+#undef FIFO_TYPE
 
+#define FIFO_TYPE double
+#include "actors-fifo.h"
+#undef FIFO_TYPE
+
+#define REF
+#include "actors-fifo.h"
 #undef FIFO_TYPE
 #undef REF
 
 // Define uint32_t FIFO operations in terms of int32_t operations
-#define pinAvailIn_uint32_t(port)   pinAvailIn_int32_t(port)
-#define pinAvailOut_uint32_t(port)  pinAvailOut_int32_t(port)
+#define pinAvailIn_uint32_t(port) pinAvailIn_int32_t(port)
+#define pinAvailOut_uint32_t(port) pinAvailOut_int32_t(port)
 
-#define pinWrite_uint32_t(port, token) pinWrite_int32_t(port,(int32_t)(token))
-#define pinWriteRepeat_uint32_t(port, buf, n) \
-                                 pinWriteRepeat_int32_t(port,(int32_t*)(buf),n)
+#define pinWrite_uint32_t(port, token) pinWrite_int32_t(port, (int32_t)(token))
+#define pinWriteRepeat_uint32_t(port, buf, n)                                  \
+  pinWriteRepeat_int32_t(port, (int32_t *)(buf), n)
 
-#define pinRead_uint32_t(port)        ((uint32_t) pinRead_int32_t(port))
-#define pinReadRepeat_uint32_t(port, buf, n)  \
-                                 pinReadRepeat_int32_t(port,(int32_t*)buf,n)
+#define pinRead_uint32_t(port) ((uint32_t)pinRead_int32_t(port))
+#define pinReadRepeat_uint32_t(port, buf, n)                                   \
+  pinReadRepeat_int32_t(port, (int32_t *)buf, n)
 
-#define pinPeekRepeat_uint32_t(port, buf, n) \
-                                 pinPeekRepeat_int32_t(port,(int32_t*)buf,n)
-#define pinPeekFront_uint32_t(port)   ((uint32_t) pinPeekFront_int32_t(port))
-#define pinPeek_uint32_t(port, offset) ((uint32_t) pinPeek_int32_t(port,offset))
-
-#define pinConsume_uint32_t(port)   pinConsume_int32_t(port)
-#define pinConsumeRepeat_uint32_t(port, n)   pinConsumeRepeat_int32_t(port, n)
-
-
-// Define uint16_t FIFO operations in terms of int16_t operations
-#define pinAvailIn_uint16_t(port)   pinAvailIn_int16_t(port)
-#define pinAvailOut_uint16_t(port)  pinAvailOut_int16_t(port)
-#define pinWrite_uint16_t(port, token) pinWrite_int16_t(port,(int16_t)(token))
-#define pinWriteRepeat_uint16_t(port, buf, n) \
-                                 pinWriteRepeat_int16_t(port,(int16_t*)(buf),n)
-
-#define pinRead_uint16_t(port)        ((uint16_t) pinRead_int16_t(port))
-#define pinReadRepeat_uint16_t(port, buf, n)  \
-                                 pinReadRepeat_int16_t(port,(int16_t*)buf,n)
-
-#define pinPeekRepeat_uint16_t(port, buf, n) \
-                                 pinPeekRepeat_int16_t(port,(int16_t*)buf,n)
-#define pinPeekFront_uint16_t(port)   ((uint16_t) pinPeekFront_int16_t(port))
-#define pinPeek_uint16_t(port, offset) ((uint16_t) pinPeek_int16_t(port,offset))
-
-#define pinConsume_uint16_t(port)   pinConsume_int16_t(port)
-#define pinConsumeRepeat_uint16_t(port, n)   pinConsumeRepeat_int16_t(port, n)
-
-// Define uint8_t FIFO operations in terms of int8_t operations
-#define pinAvailIn_uint8_t(port)   pinAvailIn_int8_t(port)
-#define pinAvailOut_uint8_t(port)  pinAvailOut_int8_t(port)
-#define pinWrite_uint8_t(port, token) pinWrite_int8_t(port,(int8_t)(token))
-#define pinWriteRepeat_uint8_t(port, buf, n) \
-                                 pinWriteRepeat_int8_t(port,(int8_t*)(buf),n)
-
-#define pinRead_uint8_t(port)        ((uint8_t) pinRead_int8_t(port))
-#define pinReadRepeat_uint8_t(port, buf, n)  \
-                                 pinReadRepeat_int8_t(port,(int8_t*)buf,n)
-
-#define pinPeekRepeat_uint8_t(port, buf, n) \
-                                 pinPeekRepeat_int8_t(port,(int8_t*)buf,n)
-#define pinPeekFront_uint8_t(port)   ((uint8_t) pinPeekFront_int8_t(port))
-#define pinPeek_uint8_t(port, offset) ((uint8_t) pinPeek_int8_t(port,offset))
-
-#define pinConsume_uint8_t(port)   pinConsume_int8_t(port)
-#define pinConsumeRepeat_uint8_t(port, n)   pinConsumeRepeat_int8_t(port, n)
+#define pinPeekFront_uint32_t(port) ((uint32_t)pinPeekFront_int32_t(port))
+#define pinPeek_uint32_t(port, offset) ((uint32_t)pinPeek_int32_t(port, offset))
 
 /*
  * Operations for dynamically sized tokens (socket
@@ -518,118 +342,26 @@ conditionTrace((AbstractActorInstance*)thisActor,__timestamp, index,#name);
  * runtime.
  */
 
-static INL unsigned pinAvailIn_dyn(const LocalInputPort *p) {
-    return p->available;
+static inline unsigned pinAvailIn_dyn(const InputPort *p) {
+  return input_port_available(p);
 }
 
-static inline void pinRead_dyn(LocalInputPort *p,
-                               void *token,       /* output */
+static inline void pinRead_dyn(InputPort *p, void *token, /* output */
                                size_t tokenSize) {
-    const char *readPtr = (const char *) p->readPtr;
-    assert(p->available > 0);
-
-    memcpy(token, readPtr, tokenSize);
-    readPtr += tokenSize;
-
-    if (readPtr >= (char *) p->bufferEnd)
-        readPtr = (const char *) p->bufferStart;
-    p->readPtr = readPtr;
-    p->available--;
+  input_port_read(p, tokenSize, token);
 }
 
-
-static INL void pinRead_dynRepeat(LocalInputPort *p,
-                                  void *token,       /* output */
-                                  size_t tokenSize,
-                                  unsigned int n) {
-    const char *startPtr = (char *) p->readPtr;
-    const char *endPtr = (char *) ((char *) startPtr + n * tokenSize);
-    const char *bufferEnd = (char *) p->bufferEnd;
-
-    assert(p->available >= n);
-    p->available -= n;
-
-    if (endPtr >= bufferEnd) {
-        // Buffer wrap
-        size_t numBytes = bufferEnd - startPtr;
-        memcpy(token, startPtr, numBytes);
-        token = (char *) ((char *) token + numBytes);
-        startPtr = (const char *) p->bufferStart;
-        endPtr = startPtr + (endPtr - bufferEnd);
-    }
-    memcpy(token, startPtr, endPtr - startPtr);
-    p->readPtr = endPtr;
+static inline unsigned pinAvailOut_dyn(const OutputPort *p) {
+  return output_port_space_left(p);
 }
 
-
-static INL unsigned pinAvailOut_dyn(const LocalOutputPort *p) {
-    return p->spaceLeft;
-}
-
-static inline void pinWrite_dyn(LocalOutputPort *p,
-                                const void *token,
+static inline void pinWrite_dyn(OutputPort *p, const void *token,
                                 size_t tokenSize) {
-    char *writePtr = (char *) p->writePtr;
-    assert(p->spaceLeft > 0);
-
-    /* FIXME: this is not terribly efficient for small tokens */
-    memcpy(writePtr, token, tokenSize);
-    writePtr += tokenSize;
-
-    if (writePtr >= (char *) p->bufferEnd)
-        writePtr = (char *) p->bufferStart;
-    p->writePtr = writePtr;
-    p->spaceLeft--;
+  output_port_write(p, tokenSize, token);
 }
 
-
-static INL void pinWrite_dynRepeat(LocalOutputPort *p,
-                                   const void *token,
-                                   size_t tokenSize,
-                                   unsigned int n) {
-    char *startPtr = (char *) p->writePtr;
-    char *endPtr = (char *) ((char *) startPtr + n * tokenSize);
-    char *bufferEnd = (char *) p->bufferEnd;
-
-    assert(p->spaceLeft >= n);
-
-    if (endPtr >= bufferEnd) {
-        // Buffer wrap
-        size_t numBytes = bufferEnd - startPtr;
-        memcpy(startPtr, token, numBytes);
-        token = (char *) ((char *) token + numBytes);
-        startPtr = (char *) p->bufferStart;
-        endPtr = startPtr + (endPtr - bufferEnd);
-    }
-
-    memcpy(startPtr, token, endPtr - startPtr);
-    p->writePtr = endPtr;
-    p->spaceLeft -= n;
+#ifdef __cplusplus
 }
-
-static INL void pinWrite_dynRepeat_offset(LocalOutputPort *p,
-                                          const void *token,
-                                          size_t tokenSize,
-                                          int offset,
-                                          unsigned int n) {
-    char *startPtr = (char *) p->writePtr;
-    char *endPtr = (char *) ((char *) startPtr + n * tokenSize);
-    char *bufferEnd = (char *) p->bufferEnd;
-
-    char *t = (char *) token;
-
-    if (endPtr >= bufferEnd) {
-        // Buffer wrap
-        size_t numBytes = bufferEnd - startPtr;
-        memcpy(startPtr, &t[offset * tokenSize], numBytes);
-        t = (char *) ((char *) token + numBytes);
-        startPtr = (char *) p->bufferStart;
-        endPtr = startPtr + (endPtr - bufferEnd);
-    }
-
-    memcpy(startPtr, &t[offset * tokenSize], endPtr - startPtr);
-    p->writePtr = endPtr;
-    p->spaceLeft -= n;
-}
+#endif
 
 #endif

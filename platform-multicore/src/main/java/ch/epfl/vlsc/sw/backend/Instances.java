@@ -397,7 +397,7 @@ public interface Instances {
 
     default void portDescriptionByPort(String name, Type type) {
         String evaluatedType;
-        if (type instanceof ProductType | type instanceof SumType) {
+        if (type instanceof ProductType | type instanceof SumType | type instanceof TensorType) {
             evaluatedType = "void*";
         } else {
             evaluatedType = backend().typeseval().type(type);
@@ -772,17 +772,36 @@ public interface Instances {
         }
 
         emitter().emit("// -- Actor Class");
+        Instance instance = backend().instancebox().get();
 
         emitter().emit("#ifdef CAL_RT_CALVIN");
         emitter().emit("ActorClass klass");
-        emitter().emit("#else");
-        emitter().emit("ActorClass ActorClass_%s", instanceQID);
-        emitter().emit("#endif");
         emitter().increaseIndentation();
         emitter().emit("= INIT_ActorClass(");
         emitter().increaseIndentation();
 
-        Instance instance = backend().instancebox().get();
+        emitter().emit("(char*) \"%s\",", instance.getEntityName().toString());
+        emitter().emit("ActorInstance_%s,", instanceQID);
+        emitter().emit("ActorInstance_%s_constructor,", instanceQID);
+        emitter().emit("0, // -- setParam not needed anymore (we instantiate with params)");
+        emitter().emit("NULL, // -- TODO : actor serializer");
+        emitter().emit("NULL, // -- TODO : actor deserializer");
+        emitter().emit("%s_scheduler,", instanceQID);
+        emitter().emit("ActorInstance_%s_destructor,", instanceQID);
+        emitter().emit("%d, %s,", sizeIN, am.getInputPorts().size() == 0 ? "NULL" : "inputPortDescriptions");
+        emitter().emit("%d, %s,", sizeOUT, am.getOutputPorts().size() == 0 ? "NULL" : "outputPortDescriptions");
+        emitter().emit("%d, actionDescriptions", am.getTransitions().size());
+
+        emitter().decreaseIndentation();
+        emitter().emit(");");
+        emitter().decreaseIndentation();
+        emitter().emit("#else");
+
+        emitter().emit("ActorClass ActorClass_%s", instanceQID);
+        emitter().increaseIndentation();
+        emitter().emit("= INIT_ActorClass(");
+        emitter().increaseIndentation();
+
         emitter().emit("(char*) \"%s\",", instance.getEntityName().toString());
         emitter().emit("ActorInstance_%s,", instanceQID);
         emitter().emit("ActorInstance_%s_constructor,", instanceQID);
@@ -798,6 +817,7 @@ public interface Instances {
         emitter().decreaseIndentation();
         emitter().emit(");");
         emitter().decreaseIndentation();
+        emitter().emit("#endif");
         emitter().emitNewLine();
     }
 

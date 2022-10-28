@@ -45,8 +45,8 @@
 #define ACTORS_TYPEDEFS_H
 
 typedef struct ActorClass ActorClass;
-typedef struct OutputPort OutputPort;
-typedef struct InputPort InputPort;
+// typedef struct OutputPort OutputPort;
+// typedef struct InputPort InputPort;
 typedef struct AbstractActorInstance AbstractActorInstance;
 
 #endif

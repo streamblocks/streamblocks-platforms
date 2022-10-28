@@ -83,11 +83,11 @@ public class NodePhase implements Phase {
         // -- Code Generation paths
         codeGenPath = PathUtils.createDirectory(targetPath, "code-gen");
         codeGenPathCC = PathUtils.createDirectory(codeGenPath, "cc");
-        codeGenPathHW = PathUtils.createDirectory(codeGenPath, "hls");
+        //codeGenPathHW = PathUtils.createDirectory(codeGenPath, "acc");
         PathUtils.createDirectory(codeGenPathCC, "src");
         PathUtils.createDirectory(codeGenPathCC, "include");
-        PathUtils.createDirectory(codeGenPathHW, "src");
-        PathUtils.createDirectory(codeGenPathHW, "include");
+        //PathUtils.createDirectory(codeGenPathHW, "src");
+        //PathUtils.createDirectory(codeGenPathHW, "include");
 
         // -- Library paths
         libPath = PathUtils.createDirectory(targetPath, "lib");
@@ -170,7 +170,7 @@ public class NodePhase implements Phase {
             } else {
                 Path libResourcePath = Paths.get(url.toURI());
                 PathUtils.copyDirTree(libResourcePath, libPath, StandardCopyOption.REPLACE_EXISTING);
-                // -- Copy streamblcoks.py
+                // -- Copy streamblocks.py
                 Files.copy(getClass().getResourceAsStream("/python/streamblocks.py"), PathUtils.getTargetBin(context).resolve("streamblocks.py"), StandardCopyOption.REPLACE_EXISTING);
             }
         } catch (IOException e) {

@@ -39,52 +39,33 @@
 #ifndef ACTORS_CONFIG_H
 #define ACTORS_CONFIG_H
 
-#if (defined(_WIN32)) || (defined(_WIN64))
-#include <ws2tcpip.h>
-#else
-typedef int SOCKET;
-#endif
-
 #include "actors-typedefs.h"
-
- /* ------------------------------------------------------------------------- */
-
- /* Each parser instance (from file, tty, or socket) maintains this state */
-struct parser_state {
-	int quit_flag;         /* true if we're about to stop parsing */
-	int echo_input_flag;   /* true if command input is echoed */
-
-	FILE* out;
-
-	SOCKET client_socket;
-
-	bool is_local;
-
-	/* state for getline() */
-	char* buffer_ptr;
-	size_t buffer_size;
-
-	/* keeping track of next word in command line */
-	char* next_word;
-};
+#include "actors-coder.h"
+#include <stdio.h>
+#include <stdint.h>
 
 /* make the header usable from C++ */
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
+  
+  #define MAX_PARAMS 16
 
   /**
    * Initialize actor list and launch worker thread
    */
-  void initActorNetwork(void);
+  void initActorNetwork(int delay);
 
   /**
-   * Called by parser. Creates an actor instance.  The actor will not
-   * execute until enableActorInstance() below is called.
+   * Called by parser. Creates an actor instance. Runs the constructor.
+   * The actor will not execute until enableActorInstance() below is called.
    * @param actorClass an ActorClass
+   * @param actor_name the name of the ActorClass
+   * @param params a NULL-terminated array of alternating keys and values.
    */
   AbstractActorInstance * createActorInstance(const ActorClass *actorClass,
-                                              const char *actor_name);
+                                              const char *actor_name,
+                                              char **params);
 
   /**
    * Called by parser. Sets an actor parameter.
@@ -98,8 +79,14 @@ extern "C" {
                      const char *value);
 
   /**
-   * Called by parser. Runs constructor and enables an actor for
-   * execution. If the worker thread is idle, it will be woken up.
+   * Called by parser. Prevents an actor from executing.
+   */
+  void disableActorInstance(const char *actor_name);
+
+    
+  /**
+   * Called by parser. Enables an actor for execution. 
+   * If the worker thread is idle, it will be woken up.
    */
   void enableActorInstance(const char *actor_name);
 
@@ -120,6 +107,8 @@ extern "C" {
                              const char *dst_actor,
                              const char *dst_port);
 
+  void dropLocalConnection(const char *, const char *, 
+      const char *, const char *);
   /**
    * Called by parser. Create a FIFO between a local output and a
    * remote input. If the worker thread is idle, it will be woken up.
@@ -128,6 +117,9 @@ extern "C" {
                               const char *src_port,
                               const char *remote_host,
                               const char *remote_port);
+
+  void dropRemoteConnection(const char *, const char *,
+      const char *, const char *);
 
   /**
    * Called by parser. Creates a socket listener for the indicated
@@ -151,18 +143,25 @@ extern "C" {
   /**
    * Called by parser. Lists names of all actors to the given stream.
    */
-  void listActors(struct parser_state* state);
+  void listActors(FILE *out);
   
   /**
-  * Called by parser. Error printing.
-  */
-  void error(struct parser_state* state, const char* fmt, ...);
+   * Serialize actor state using the supplied coder. May not be called on 
+   * enabled actors.
+   */
+  void serializeActor(const char *name, ActorCoder *coder);
+    
+  /**
+   * De-serialize actor state using the supplied coder. May not be called on
+   * enabled actors.
+   */
+  void deserializeActor(const char *name, ActorCoder *coder);
 
   /**
    * Called by parser. Displays an actor and its FIFO states to the
    * given stream.
    */
-  void showActor(struct parser_state* state, const char *name);
+  void showActor(FILE *out, const char *name);
   
   /** Thread-safe generation of unique hash id. */
   uint32_t getUniqueHashid(void);

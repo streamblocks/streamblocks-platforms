@@ -31,55 +31,45 @@ public interface CMakeLists {
 
 
         // -- Set C++ Standard
-        emitter().emit("if(MSVC)");
-        {
-            emitter().increaseIndentation();
+        emitter().emit("set (CMAKE_CXX_STANDARD 14)");
 
-            emitter().emit("if (MSVC_VERSION GREATER_EQUAL \"1900\")");
-            {
-                emitter().increaseIndentation();
-
-                emitter().emit("include(CheckCXXCompilerFlag)");
-                emitter().emit("CHECK_CXX_COMPILER_FLAG(\"/std:c++latest\" _cpp_latest_flag_supported)");
-                emitter().emit("if (_cpp_latest_flag_supported)");
-                {
-                    emitter().increaseIndentation();
-                    emitter().emit("add_compile_options(\"/std:c++latest\")");
-                    emitter().decreaseIndentation();
-                }
-                emitter().emit("endif()");
-
-                emitter().decreaseIndentation();
-            }
-            emitter().emit("endif()");
-
-            emitter().decreaseIndentation();
-        }
-        emitter().emit("else()");
-        {
-            emitter().increaseIndentation();
-            emitter().emit("set (CMAKE_CXX_STANDARD 17)");
-            emitter().decreaseIndentation();
-        }
-        emitter().emit("endif()");
-        emitter().emitNewLine();
 
         // -- Binary output folder
         emitter().emit("# -- Configure output Folder for generated binary");
         emitter().emit("set(EXECUTABLE_OUTPUT_PATH ${CMAKE_SOURCE_DIR}/bin)");
         emitter().emitNewLine();
 
-        // -- Definitions used in sub directories
+        // -- Definitions used in subdirectories
         emitter().emit("# -- Definitions used in sub directories");
         emitter().emit("set(extra_definitions)");
         emitter().emit("set(extra_includes)");
+        emitter().emitNewLine();
+        emitter().emit("list(APPEND extra_definitions \"-DCAL_RT_CALVIN\")");
+        emitter().emitNewLine();
+
+
+        // -- Torch
+        emitter().emit("# -- Activate TORCH");
+        emitter().emit("option(TORCH \"Link and include libtorch\" ON)");
+        emitter().emitNewLine();
+
+        emitter().emit("if(TORCH)");
+        emitter().increaseIndentation();
+
+        emitter().emit("find_package(Torch REQUIRED)");
+        emitter().emit("list(APPEND extra_definitions \"-DUSE_TORCH\")");
+        emitter().emit("list(APPEND extra_libraries \"${TORCH_LIBRARIES}\")");
+        emitter().emit("list(APPEND CMAKE_CXX_FLAGS \"${TORCH_CXX_FLAGS}\")");
+
+        emitter().decreaseIndentation();
+        emitter().emit("endif()");
         emitter().emitNewLine();
 
         emitter().emit("include_directories(");
         {
             emitter().increaseIndentation();
             emitter().emit("lib/art-node/include");
-            emitter().emit("lib/art-native/include");
+            emitter().emit("#lib/art-native/include");
             emitter().decreaseIndentation();
         }
         emitter().emit(")");
@@ -101,7 +91,7 @@ public interface CMakeLists {
         // -- Add sub directories
         emitter().emit("# -- Add sub directories ");
         emitter().emit("add_subdirectory(cc)");
-        emitter().emit("# add_subdirectory(hls)");
+        emitter().emit("# add_subdirectory(acc)");
         emitter().emitNewLine();
 
         emitter().close();

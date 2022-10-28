@@ -12,6 +12,7 @@ import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Network;
 import se.lth.cs.tycho.type.AlgebraicType;
+import se.lth.cs.tycho.type.TensorType;
 import se.lth.cs.tycho.type.Type;
 
 import java.util.List;
@@ -47,6 +48,8 @@ public interface ChannelsUtils {
         Type type = targetEndType(new Connection.End(Optional.of(backend().instancebox().get().getInstanceName()), port.getName()));
         if (type instanceof AlgebraicType) {
             return "ref";
+        } else if(type instanceof TensorType) {
+            return "ref";
         } else {
             return backend().typeseval().type(type);
         }
@@ -56,6 +59,8 @@ public interface ChannelsUtils {
         Connection.End source = new Connection.End(Optional.of(backend().instancebox().get().getInstanceName()), port.getName());
         Type type = sourceEndType(source);
         if (type instanceof AlgebraicType) {
+            return "ref";
+        } else if(type instanceof TensorType) {
             return "ref";
         } else {
             return backend().typeseval().type(type);

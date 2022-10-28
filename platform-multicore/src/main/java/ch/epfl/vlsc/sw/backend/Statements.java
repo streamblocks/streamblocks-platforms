@@ -101,7 +101,7 @@ public interface Statements {
             if (write.getRepeatExpression() == null) {
                 Type type = types().portType(write.getPort());
                 String portType;
-                if (type instanceof AlgebraicType) {
+                if (type instanceof AlgebraicType | type instanceof TensorType) {
                     portType = "ref";
 
                 } else {

@@ -166,7 +166,7 @@ public interface NodeScripts {
         emitter().emit("# expects a streamblocks node to be running at localhost:9000");
         emitter().emitNewLine();
 
-        emitter().emit("n = streamblocks.Node(\"localhost\", 9000);");
+        emitter().emit("n = streamblocks.Node(\"localhost\", 9000)");
         emitter().emitNewLine();
 
 
@@ -234,6 +234,13 @@ public interface NodeScripts {
         emitter().emit("for actor in actors:");
         emitter().increaseIndentation();
         emitter().emit("actor.enable()");
+        emitter().decreaseIndentation();
+        emitter().emitNewLine();
+
+        // -- Disable
+        emitter().emit("for actor in actors:");
+        emitter().increaseIndentation();
+        emitter().emit("actor.disable()");
         emitter().decreaseIndentation();
         emitter().emitNewLine();
 

@@ -35,17 +35,11 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if (defined(_WIN32)) || (defined(_WIN64))
-#include <Windows.h>
-#else
 #include <dlfcn.h>
-#endif
-
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
-#include <actors-network.h>
 
+#include "logging.h"
 #include "actors-registry.h"
 #include "dllist.h"
 
@@ -61,96 +55,84 @@ static unsigned int nbr_classes;
 
 /* ------------------------------------------------------------------------- */
 
-void registryInit(void) {
-    classes = static_cast<const ActorClass **> (malloc(MAX_CLASSES * sizeof(classes[0])));
-    nbr_classes = 0;
+void registryInit(void)
+{
+  classes = static_cast<const ActorClass**>(calloc(MAX_CLASSES, sizeof(classes[0])));
+  nbr_classes = 0;
 }
 
 /* ------------------------------------------------------------------------- */
 
-const ActorClass *registryLoadClass(const char *filename) {
-    char filenameext[256];
-    const ActorClass *klass;
+const ActorClass * registryLoadClass(const char *filename)
+{
+  char filenameext[256];
+  void *lib_handle;
+  const ActorClass *klass;
 
-    sprintf(filenameext, "%s.%s", filename, CALVIN_LIBEXT);
+  sprintf(filenameext,"%s.%s",filename,CALVIN_LIBEXT);
+  
+  lib_handle = dlopen(filenameext, RTLD_LAZY);
 
-#if (defined(_WIN32)) || (defined(_WIN64))
-    HMODULE  lib_handle = LoadLibrary(LPCTSTR( filenameext));
-#else
-    void *lib_handle = dlopen(filenameext, RTLD_LAZY);
-#endif
+  if (! lib_handle) {
+    m_critical("failed loading %s: %s", filename, dlerror());
+  }
+  klass = static_cast<ActorClass *>(dlsym(lib_handle, "klass"));
+  if (! klass) {
+    m_critical("failed accessing class in %s: %s",
+         filename, dlerror());
+  }
 
-#if (defined(_WIN32)) || (defined(_WIN64))
-    if (lib_handle == NULL) {
-        fail("failed loading %s: %s\n", filename, GetLastError());
-    }
+  /*
+   * Changes in major version require re-compilation of actors.
+   * Changes in minor version are backwards compatible within the
+   * current major version.
+   *
+   * Example: a runtime of version 7.3 will accept actors compiled for
+   * versions 7.3 and 7.2, but not 6.3, 7.4 or 8.2.
+   */
+  if (klass->majorVersion != ACTORS_RTS_MAJOR
+      || klass->minorVersion > ACTORS_RTS_MINOR)
+  {
+    m_critical("incompatible object '%s' "
+         "(expects runtime %u.%u, current is %u.%u).",
+         filename, /* cannot access '->name' -- struct layout is unknown! */
+         klass->majorVersion, klass->minorVersion,
+         ACTORS_RTS_MAJOR, ACTORS_RTS_MINOR);
+  }
 
-    FARPROC fp = (GetProcAddress(lib_handle, LPCSTR("klass")));
-    if (!fp) {
-        fail("failed accessing class in %s: %s\n",
-            filename, GetLastError());
-    }
-
-    klass = static_cast<ActorClass*>((void*)(intptr_t)fp);
-#else
-    if (!lib_handle) {
-        fail("failed loading %s: %s\n", filename, dlerror());
-    }
-
-    klass = static_cast<ActorClass *>(dlsym(lib_handle, "klass"));
-
-    if (!klass) {
-        fail("failed accessing class in %s: %s\n",
-             filename, dlerror());
-    }
-#endif
-    /*
-     * Changes in major version require re-compilation of actors.
-     * Changes in minor version are backwards compatible within the
-     * current major version.
-     *
-     * Example: a runtime of version 7.3 will accept actors compiled for
-     * versions 7.3 and 7.2, but not 6.3, 7.4 or 8.2.
-     */
-    if (klass->majorVersion != ACTORS_RTS_MAJOR
-        || klass->minorVersion > ACTORS_RTS_MINOR) {
-        fail("incompatible object '%s' "
-             "(expects runtime %u.%u, current is %u.%u).\n",
-             filename, /* cannot access '->name' -- struct layout is unknown! */
-             klass->majorVersion, klass->minorVersion,
-             ACTORS_RTS_MAJOR, ACTORS_RTS_MINOR);
-    }
-
-    return klass;
+  return klass;
 }
 
 /* ------------------------------------------------------------------------- */
 
-void registryAddClass(const ActorClass *klass) {
-    classes[nbr_classes++] = klass;
+void registryAddClass(const ActorClass *klass)
+{
+  classes[nbr_classes++] = klass;
 }
 
 /* ------------------------------------------------------------------------- */
 
-const ActorClass *registryGetClass(const char *name) {
-    unsigned int i;
-    for (i = 0; i < nbr_classes; i++) {
-        if (strcmp(classes[i]->name, name) == 0) {
-            return classes[i];
-        }
+const ActorClass * registryGetClass(const char *name)
+{
+  unsigned int i;
+  for (i = 0; i < nbr_classes; i++) {
+    if(strcmp(classes[i]->name, name) == 0) {
+      return classes[i];
     }
+  }
 
-    fail("failed looking up actor class '%s'\n", name);
-    return NULL; /* won't be executed, but keeps compiler happy */
+  m_critical("failed looking up actor class '%s'", name);
+  return NULL; /* won't be executed, but keeps compiler happy */
 }
 
 /* ------------------------------------------------------------------------- */
 
-void registryList(struct parser_state *state) {
-    unsigned int i;
-    for (i = 0; i < nbr_classes; i++) {
-        fprintf(state->out, " %s", classes[i]->name);
-    }
+void registryList(FILE *out)
+{
+  unsigned int i;
+  for (i = 0; i < nbr_classes; i++) {
+    fprintf(out, " %s", classes[i]->name);
+  }
 }
 
 /* ------------------------------------------------------------------------- */

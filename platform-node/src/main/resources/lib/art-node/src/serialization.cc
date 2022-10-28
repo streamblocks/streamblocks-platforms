@@ -1,6 +1,6 @@
 /*
- * Copyright (c) Ericsson AB, 2014
- * Author: Harald Gustafsson (harald.gustafsson@ericsson.com)
+ * Copyright (c) Huawei, 2022
+ * Author: Endri Bezati (endri.bezati@huawei.com)
  * All rights reserved.
  *
  * License terms:
@@ -35,57 +35,42 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <errno.h>
-#include <stdarg.h>
+#include "serialization.h"
 
-/** The (debug) log file */
-#define DEBUG_FILE_PATH "/tmp/calvin"
-static FILE* debug_file;
-/* ------------------------------------------------------------------------- */
+char *serializeTensor(torch::Tensor *tensor, char *buffer) {
+  char *p = buffer;
+  std::stringstream ss;
+  torch::save(*tensor, ss);
+  long size = ss.str().size();
+  std::memcpy(p, ss.str().c_str(), size);
 
-/* Open debug/log file */
-void createDebugFile(int port) {
-  char path[128];
-  int err = mkdir(DEBUG_FILE_PATH,0777);
-  if(err<0) {
-    err = errno;
-    if(err!=17)
-      printf("Can't create calvin log file directory %i %s\n",err,strerror(err));
-  }
-  sprintf(path,"%s/calvin%i.log",DEBUG_FILE_PATH,port);
-  debug_file = fopen(path,"a");
-  fprintf(debug_file,"------------------------------------- START SERVER -----------------------------\n");
-  fflush(debug_file);
+  return p + size;
 }
 
-void closeDebugFile() {
-  if(debug_file!=NULL) {
-    fclose(debug_file);
+char *deserializeTensor(torch::Tensor **tensor, char *buffer, long size) {
+  char *p = buffer;
+  std::stringstream ss;
+  
+  *tensor = new torch::Tensor[1];
+  for (long i = 0; i < size; i++) {
+    ss << buffer[i];
   }
+
+  torch::load(**tensor, ss);
+
+  return p + size;
 }
 
-void printDebug(const char* format, ...) {
-  va_list args;
-  if(debug_file!=NULL) {
-    va_start(args, format);
-    vfprintf(debug_file,format,args);
-    va_end(args);
-    fflush(debug_file);
-  }
+long sizeTensor(torch::Tensor *src) {
+  std::stringstream ss;
+  torch::save(*src, ss);
+  return ss.str().size();
 }
 
-void printDebugType(const char* type, const char* format, ...) {
-  va_list args;
-  if(debug_file!=NULL) {
-    va_start(args, format);
-    fprintf(debug_file,"[%s] ",type);
-    vfprintf(debug_file,format,args);
-    va_end(args);
-    fflush(debug_file);
+int freeTensor(torch::Tensor *tensor, int top) {
+  if (tensor == nullptr) {
+    return 0;
   }
+  delete tensor;
+  return 1;
 }

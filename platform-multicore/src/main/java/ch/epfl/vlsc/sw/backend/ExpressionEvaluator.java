@@ -209,10 +209,18 @@ public interface ExpressionEvaluator {
                     throw new RuntimeException("not implemented");
                 }
             } else {
-                if (input.getOffset() == 0) {
-                    emitter().emit("%s = pinPeekFront_%s(%s);", tmp, channelsutils().inputPortTypeSize(input.getPort()), channelsutils().definedInputPort(input.getPort()));
-                } else {
-                    emitter().emit("%s = pinPeek_%s(%s, %d);", tmp, channelsutils().inputPortTypeSize(input.getPort()), channelsutils().definedInputPort(input.getPort()), input.getOffset());
+                if(type instanceof TensorType){
+                    if (input.getOffset() == 0) {
+                        emitter().emit("%s = (Tensor*) pinPeekFront_ref(%s);", tmp, channelsutils().definedInputPort(input.getPort()));
+                    } else {
+                        emitter().emit("%s = (Tensor*) pinPeek_ref(%s, %d);", tmp, channelsutils().definedInputPort(input.getPort()), input.getOffset());
+                    }
+                }else {
+                    if (input.getOffset() == 0) {
+                        emitter().emit("%s = pinPeekFront_%s(%s);", tmp, channelsutils().inputPortTypeSize(input.getPort()), channelsutils().definedInputPort(input.getPort()));
+                    } else {
+                        emitter().emit("%s = pinPeek_%s(%s, %d);", tmp, channelsutils().inputPortTypeSize(input.getPort()), channelsutils().definedInputPort(input.getPort()), input.getOffset());
+                    }
                 }
             }
         }
@@ -225,6 +233,9 @@ public interface ExpressionEvaluator {
     default void evaluateWithLvalue(String lvalue, ExprInput input) {
         Type type = types().type(input);
         String sType = backend().typeseval().type(type);
+        if((type instanceof TensorType) || (type instanceof AlgebraicType)){
+            sType = "ref";
+        }
 
         if (backend().channelsutils().isTargetConnected(backend().instancebox().get().getInstanceName(), input.getPort().getName())) {
             if (input.hasRepeat()) {
@@ -234,11 +245,20 @@ public interface ExpressionEvaluator {
                     throw new RuntimeException("not implemented");
                 }
             } else {
-                if (input.getOffset() == 0) {
-                    emitter().emit("%s = pinPeekFront_%s(%s);", lvalue, sType, channelsutils().definedInputPort(input.getPort()));
-                } else {
-                    emitter().emit("%s = pinPeek_%s(%s, %d);", lvalue, sType, channelsutils().definedInputPort(input.getPort()), input.getOffset());
+                if(type instanceof TensorType){
+                    if (input.getOffset() == 0) {
+                        emitter().emit("%s = (Tensor*) pinPeekFront_ref(%s);", lvalue, channelsutils().definedInputPort(input.getPort()));
+                    } else {
+                        emitter().emit("%s = (Tensor*) pinPeek_ref(%s, %d);", lvalue, channelsutils().definedInputPort(input.getPort()), input.getOffset());
+                    }
+                }else{
+                    if (input.getOffset() == 0) {
+                        emitter().emit("%s = pinPeekFront_%s(%s);", lvalue, sType, channelsutils().definedInputPort(input.getPort()));
+                    } else {
+                        emitter().emit("%s = pinPeek_%s(%s, %d);", lvalue, sType, channelsutils().definedInputPort(input.getPort()), input.getOffset());
+                    }
                 }
+
             }
         }
     }

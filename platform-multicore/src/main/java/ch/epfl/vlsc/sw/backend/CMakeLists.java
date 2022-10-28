@@ -283,7 +283,7 @@ public interface CMakeLists {
                 }
                 emitter().emit("endif()");
 
-                emitter().emit("target_link_libraries(%s art-node art-native ${extra_libraries})", name);
+                emitter().emit("target_link_libraries(%s art-node ${extra_libraries})", name);
 
                 emitter().emitNewLine();
             }

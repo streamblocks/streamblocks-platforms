@@ -53,6 +53,6 @@ void parseInteractively(void);
 /**
  * Spawn command server at the given port.
  */
-void spawnServer(unsigned int port);
+void spawnServer(short port);
 
 #endif /* PARSER_INCLUSION_GUARD */
