@@ -955,7 +955,7 @@ public interface Expressions {
         if (type instanceof TupleType) {
             return String.format("std::get<%s>(%s)",  nth.getNth().getNumber() - 1, evaluate(nth.getStructure()));
         }
-        // -- See if there is somehting else
+        // -- See if there is something else
         return String.format("%s->%s", evaluate(nth.getStructure()), "_" + nth.getNth().getNumber());
     }
 

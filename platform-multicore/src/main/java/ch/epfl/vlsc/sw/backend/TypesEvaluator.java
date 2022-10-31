@@ -8,6 +8,7 @@ import se.lth.cs.tycho.type.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Module
 public interface TypesEvaluator {
@@ -57,7 +58,7 @@ public interface TypesEvaluator {
     }
 
     default String type(TensorType type) {
-        return "Tensor*";
+        return "Tensor";
     }
 
     default String type(ListType type) {
@@ -80,7 +81,12 @@ public interface TypesEvaluator {
     }
 
     default String type(StringType type) {
-        return "string_t";
+        return "std::string";
+    }
+
+    default String type(TupleType type) {
+        String tupleTypes = type.getTypes().stream().sequential().map(e -> backend().typeseval().type(e)).collect(Collectors.joining(", "));
+        return String.format("std::tuple< %s >", tupleTypes);
     }
 
     default String type(CharType type) {

@@ -359,6 +359,16 @@ public interface Instances {
     default void portDescription(String instanceName, Entity entity) {
         emitter().emit("// -- Input & Output Port Description");
 
+        emitter().emit("#ifdef CAL_RT_CALVIN");
+        emitter().emit("static struct tokenFn serDesTensor = {");
+        emitter().increaseIndentation();
+        emitter().emit("(char *(*)(void *, char *))serializeTensor,");
+        emitter().emit("(char *(*)(void **, char *, long))deserializeTensor,");
+        emitter().emit("(long (*)(void *))sizeTensor, (int (*)(void *, int))freeTensor};");
+        emitter().decreaseIndentation();
+        emitter().emit("#endif");
+        emitter().emitNewLine();
+
         // -- Input Port Descriptions
         if (!entity.getInputPorts().isEmpty()) {
             emitter().emit("static const PortDescription inputPortDescriptions[]={");
@@ -404,7 +414,11 @@ public interface Instances {
         }
         emitter().emit("{0, \"%s\", (sizeof(%s))", name, evaluatedType);
         emitter().emit("#ifdef CAL_RT_CALVIN");
-        emitter().emit(", NULL");
+        if(type instanceof TensorType){
+            emitter().emit(", &serDesTensor");
+        }else{
+            emitter().emit(", NULL");
+        }
         emitter().emit("#endif");
         emitter().emit("},");
     }
@@ -883,7 +897,7 @@ public interface Instances {
         emitter().emitNewLine();
 
         emitter().emit("#ifdef CAL_RT_CALVIN");
-        emitter().emit("init_global_variables();");
+        emitter().emit("//init_global_variables();");
         emitter().emit("#endif");
         emitter().emitNewLine();
 

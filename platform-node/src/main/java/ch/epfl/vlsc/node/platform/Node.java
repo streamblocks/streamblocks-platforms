@@ -1,10 +1,7 @@
 package ch.epfl.vlsc.node.platform;
 
 import ch.epfl.vlsc.node.phase.NodePhase;
-import ch.epfl.vlsc.phases.EmbedRepeatIO;
-import ch.epfl.vlsc.phases.ExprOutputToAssignment;
-import ch.epfl.vlsc.phases.ExprToStmtAssignment;
-import ch.epfl.vlsc.phases.ListComprehensionToStmtWhile;
+import ch.epfl.vlsc.phases.*;
 import se.lth.cs.tycho.compiler.Compiler;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.phase.Phase;
@@ -29,6 +26,7 @@ public class Node implements Platform {
             .addAll(Compiler.frontendPhases())
             .addAll(Compiler.templatePhases())
             .addAll(Compiler.networkElaborationPhases())
+            .add(new AddFanoutPhase())
             .addAll(Compiler.nameAndTypeAnalysis())
             .addAll(Compiler.actorMachinePhases())
             .add(new RemoveUnusedEntityDeclsPhase())

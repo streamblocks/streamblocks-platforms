@@ -259,7 +259,7 @@ public interface CMakeLists {
             if (!entityDecl.getExternal()) {
                 String name = instance.getInstanceName();
                 emitter().emit("# -- Actor : %s", name);
-                emitter().emit("add_library(%s MODULE src/%1$s.cc src/globals.cc)", name);
+                emitter().emit("add_library(%s MODULE src/%1$s.cc)", name);
                 emitter().emit("set_target_properties(%s PROPERTIES PREFIX \"\")", name);
                 emitter().emit("set_target_properties(%s PROPERTIES LIBRARY_OUTPUT_DIRECTORY \"${CMAKE_SOURCE_DIR}/bin/modules\")", name);
                 emitter().emit("if(MSVC)");

@@ -47,6 +47,12 @@ public interface Declarations {
         }
     }
 
+    default String declaration(TupleType type, String name){
+        String tupleTypes = type.getTypes().stream().sequential().map(e -> backend().typeseval().type(e)).collect(Collectors.joining(", "));
+        String ret = String.format("std::tuple< %s > %s", tupleTypes, name);
+        return ret;
+    }
+
     default String persistentDeclaration(Type type, String name) {
         return declaration(type, name);
     }
@@ -79,11 +85,11 @@ public interface Declarations {
     }
 
     default String declaration(BoolType type, String name) {
-        return "_Bool " + name;
+        return "bool " + name;
     }
 
     default String declaration(StringType type, String name) {
-        return "char *" + name;
+        return "std::string " + name;
     }
 
     default String declarationTemp(Type type, String name) {

@@ -102,6 +102,7 @@ public interface ExpressionEvaluator {
                 }
             }
         }
+
         return variables().name(variable.getVariable());
     }
 
@@ -195,7 +196,8 @@ public interface ExpressionEvaluator {
         //    String maxIndex = typeseval().sizeByDimension((ListType) type).stream().map(Object::toString).collect(Collectors.joining("*"));
         //    emitter().emit("%s = malloc(sizeof(%s) * (%s));", declarations().declaration(types().type(input), tmp), maxIndex);
         //} else {
-        emitter().emit("%s = %s;", declarations().declarationTemp(types().type(input), tmp), backend().defaultValues().defaultValue(types().type(input)));
+        emitter().emit("%s;", declarations().declarationTemp(types().type(input), tmp));
+        //emitter().emit("%s = %s;", declarations().declarationTemp(types().type(input), tmp), backend().defaultValues().defaultValue(types().type(input)));
         //}
         if (type instanceof AlgebraicType) {
             // memoryStack().trackPointer(tmp, type);
@@ -210,11 +212,13 @@ public interface ExpressionEvaluator {
                 }
             } else {
                 if(type instanceof TensorType){
+                    String tensor_tmp = variables().generateTemp();
                     if (input.getOffset() == 0) {
-                        emitter().emit("%s = (Tensor*) pinPeekFront_ref(%s);", tmp, channelsutils().definedInputPort(input.getPort()));
+                        emitter().emit("Tensor *%s = (Tensor*) pinPeekFront_ref(%s);", tensor_tmp, channelsutils().definedInputPort(input.getPort()));
                     } else {
-                        emitter().emit("%s = (Tensor*) pinPeek_ref(%s, %d);", tmp, channelsutils().definedInputPort(input.getPort()), input.getOffset());
+                        emitter().emit("Tensor *%s = (Tensor*) pinPeek_ref(%s, %d);", tensor_tmp, channelsutils().definedInputPort(input.getPort()), input.getOffset());
                     }
+                    emitter().emit("%s = *%s;", tmp, tensor_tmp);
                 }else {
                     if (input.getOffset() == 0) {
                         emitter().emit("%s = pinPeekFront_%s(%s);", tmp, channelsutils().inputPortTypeSize(input.getPort()), channelsutils().definedInputPort(input.getPort()));
@@ -246,11 +250,13 @@ public interface ExpressionEvaluator {
                 }
             } else {
                 if(type instanceof TensorType){
+                    String tmp = variables().generateTemp();
                     if (input.getOffset() == 0) {
-                        emitter().emit("%s = (Tensor*) pinPeekFront_ref(%s);", lvalue, channelsutils().definedInputPort(input.getPort()));
+                        emitter().emit("Tensor *%s = (Tensor*) pinPeekFront_ref(%s);", tmp, channelsutils().definedInputPort(input.getPort()));
                     } else {
-                        emitter().emit("%s = (Tensor*) pinPeek_ref(%s, %d);", lvalue, channelsutils().definedInputPort(input.getPort()), input.getOffset());
+                        emitter().emit("Tensor *%s = (Tensor*) pinPeek_ref(%s, %d);", tmp, channelsutils().definedInputPort(input.getPort()), input.getOffset());
                     }
+                    emitter().emit("%s = *%s;", lvalue, tmp);
                 }else{
                     if (input.getOffset() == 0) {
                         emitter().emit("%s = pinPeekFront_%s(%s);", lvalue, sType, channelsutils().definedInputPort(input.getPort()));
@@ -309,10 +315,12 @@ public interface ExpressionEvaluator {
     default String compare(AliasType lvalueType, String lvalue, AliasType rvalueType, String rvalue) {
         return compare(lvalueType.getType(), lvalue, rvalueType.getType(), rvalue);
     }
-
+/*
     default String compare(TupleType lvalueType, String lvalue, TupleType rvalueType, String rvalue) {
         return compare(backend().tuples().convert().apply(lvalueType), lvalue, backend().tuples().convert().apply(rvalueType), rvalue);
     }
+
+ */
 
 
     /**
@@ -401,8 +409,8 @@ public interface ExpressionEvaluator {
         String tmp = variables().generateTemp();
         Expression left = binaryOp.getOperands().get(0);
         Expression right = binaryOp.getOperands().get(1);
-        emitter().emit("%s;", declarations().declaration(lhs, tmp));
-        emitter().emit("%1$s = concat_%2$s_%2$s(%3$s, %4$s);", tmp, typeseval().type(lhs), evaluate(left), evaluate(right));
+        emitter().emit("%s;", backend().declarations().declaration(lhs, tmp));
+        emitter().emit("%1$s = %2$s + %3$s;", tmp, evaluate(left), evaluate(right));
         return tmp;
     }
 
@@ -410,8 +418,8 @@ public interface ExpressionEvaluator {
         String tmp = variables().generateTemp();
         Expression left = binaryOp.getOperands().get(0);
         Expression right = binaryOp.getOperands().get(1);
-        emitter().emit("%s;", declarations().declaration(rhs, tmp));
-        emitter().emit("%1$s = concat_%2$s_%3$s(%4$s, %5$s);", tmp, typeseval().type(lhs), typeseval().type(rhs), evaluate(left), evaluate(right));
+        emitter().emit("%s;", backend().declarations().declaration(rhs, tmp));
+        emitter().emit("%1$s = std::to_string(%2$s), %3$s;", tmp, evaluate(left), evaluate(right));
         return tmp;
     }
 
@@ -419,8 +427,8 @@ public interface ExpressionEvaluator {
         String tmp = variables().generateTemp();
         Expression left = binaryOp.getOperands().get(0);
         Expression right = binaryOp.getOperands().get(1);
-        emitter().emit("%s;", declarations().declaration(lhs, tmp));
-        emitter().emit("%1$s = concat_%2$s_%3$s(%4$s, %5$s);", tmp, typeseval().type(lhs), typeseval().type(rhs), evaluate(left), evaluate(right));
+        emitter().emit("%s;", backend().declarations().declaration(lhs, tmp));
+        emitter().emit("%1$s = %2$s + std::to_string(%2$s);", tmp, evaluate(left), evaluate(right));
         return tmp;
     }
 
@@ -428,8 +436,8 @@ public interface ExpressionEvaluator {
         String tmp = variables().generateTemp();
         Expression left = binaryOp.getOperands().get(0);
         Expression right = binaryOp.getOperands().get(1);
-        emitter().emit("%s;", declarations().declaration(rhs, tmp));
-        emitter().emit("%1$s = concat_%2$s_%3$s(%4$s, %5$s);", tmp, typeseval().type(RealType.f64), typeseval().type(rhs), evaluate(left), evaluate(right));
+        emitter().emit("%s;", backend().declarations().declaration(rhs, tmp));
+        emitter().emit("%1$s = concat_%2$s_%3$s(%4$s, %5$s);", tmp, backend().typeseval().type(RealType.f64), backend().typeseval().type(rhs), evaluate(left), evaluate(right));
         return tmp;
     }
 
@@ -437,8 +445,8 @@ public interface ExpressionEvaluator {
         String tmp = variables().generateTemp();
         Expression left = binaryOp.getOperands().get(0);
         Expression right = binaryOp.getOperands().get(1);
-        emitter().emit("%s;", declarations().declaration(lhs, tmp));
-        emitter().emit("%1$s = concat_%2$s_%3$s(%4$s, %5$s);", tmp, typeseval().type(lhs), typeseval().type(RealType.f64), evaluate(left), evaluate(right));
+        emitter().emit("%s;", backend().declarations().declaration(lhs, tmp));
+        emitter().emit("%1$s = concat_%2$s_%3$s(%4$s, %5$s);", tmp, backend().typeseval().type(lhs), backend().typeseval().type(RealType.f64), evaluate(left), evaluate(right));
         return tmp;
     }
 
@@ -447,8 +455,8 @@ public interface ExpressionEvaluator {
         Type type = lhs.isSigned() ? new IntType(OptionalInt.empty(), true) : new IntType(OptionalInt.empty(), false);
         Expression left = binaryOp.getOperands().get(0);
         Expression right = binaryOp.getOperands().get(1);
-        emitter().emit("%s;", declarations().declaration(rhs, tmp));
-        emitter().emit("%1$s = concat_%2$s_%3$s(%4$s, %5$s);", tmp, typeseval().type(type), typeseval().type(rhs), evaluate(left), evaluate(right));
+        emitter().emit("%s;", backend().declarations().declaration(rhs, tmp));
+        emitter().emit("%1$s = std::to_string(%2$s) + %3$s;", tmp, evaluate(left), evaluate(right));
         return tmp;
     }
 
@@ -457,8 +465,8 @@ public interface ExpressionEvaluator {
         Type type = rhs.isSigned() ? new IntType(OptionalInt.empty(), true) : new IntType(OptionalInt.empty(), false);
         Expression left = binaryOp.getOperands().get(0);
         Expression right = binaryOp.getOperands().get(1);
-        emitter().emit("%s;", declarations().declaration(lhs, tmp));
-        emitter().emit("%1$s = concat_%2$s_%3$s(%4$s, %5$s);", tmp, typeseval().type(lhs), typeseval().type(type), evaluate(left), evaluate(right));
+        emitter().emit("%s;", backend().declarations().declaration(lhs, tmp));
+        emitter().emit("%1$s = %2$s + std::to_string(%3$s);", tmp, evaluate(left), evaluate(right));
         return tmp;
     }
 
@@ -1193,6 +1201,15 @@ public interface ExpressionEvaluator {
         return indexByDim;
     }
 
+    default String evaluate(ExprNth nth) {
+        Type type = types().type(nth.getStructure());
+        if (type instanceof TupleType) {
+            return String.format("std::get<%s>(%s)",  nth.getNth().getNumber() - 1, evaluate(nth.getStructure()));
+        }
+        // -- See if there is something else
+        return String.format("%s->%s", evaluate(nth.getStructure()), "_" + nth.getNth().getNumber());
+    }
+
     /**
      * Evaluate expression if
      *
@@ -1203,7 +1220,8 @@ public interface ExpressionEvaluator {
         Type type = types().type(expr);
         String temp = variables().generateTemp();
         String decl = declarations().declarationTemp(type, temp);
-        emitter().emit("%s = %s;", decl, backend().defaultValues().defaultValue(type));
+        emitter().emit("%s", decl);
+        //emitter().emit("%s = %s;", decl, backend().defaultValues().defaultValue(type));
         emitter().emit("if (%s) {", evaluate(expr.getCondition()));
         emitter().increaseIndentation();
         Type thenType = types().type(expr.getThenExpr());
@@ -1235,9 +1253,6 @@ public interface ExpressionEvaluator {
         if (!directlyCallable) {
             parameters.add("thisActor");
         }
-        for (Expression parameter : apply.getArgs()) {
-            parameters.add(evaluate(parameter));
-        }
 
         if (!backend().profilingbox().isEmpty()) {
             boolean isExternal = false;
@@ -1250,14 +1265,85 @@ public interface ExpressionEvaluator {
                 parameters.add("__opCounters");
         }
 
+        for (Expression parameter : apply.getArgs()) {
+            if (parameter instanceof ExprList) {
+                parameters.add(evaluateOnlyValue((ExprList) parameter));
+            } else {
+                if (parameter instanceof ExprGlobalVariable){
+                    VarDecl decl = backend().varDecls().declaration((ExprGlobalVariable) parameter);
+                    if(decl.getValue() instanceof ExprList){
+                        parameters.add(evaluateOnlyValue((ExprList) decl.getValue()));
+                    }else{
+                        parameters.add(evaluate(parameter));
+                    }
+                }else{
+                    parameters.add(evaluate(parameter));
+                }
+            }
+        }
+
+
         fn = evaluateCall(apply.getFunction());
         Type type = types().type(apply);
         String result = variables().generateTemp();
         String decl = declarations().declarationTemp(types().type(apply), result);
-        emitter().emit("%s = %s(%s);", decl, fn, String.join(", ", parameters));
+        if(type instanceof TensorType){
+            emitter().emit("%s = %s(%s);", decl, fn, String.join(", ", parameters));
+        }else{
+            emitter().emit("%s = %s(%s);", decl, fn, String.join(", ", parameters));
+        }
         backend().statements().profilingOp().add("__opCounters->prof_DATAHANDLING_CALL += 1;");
         return result;
     }
+
+    default String evaluateOnlyValue(ExprList list) {
+        ListType t = (ListType) types().type(list);
+        Type elementType = t.getElementType();
+        String value = list.getElements().stream().sequential()
+                .map(element -> {
+                    if (elementType instanceof AlgebraicType || backend().alias().isAlgebraicType(elementType)) {
+                        String tmp = variables().generateTemp();
+                        emitter().emit("%s;", backend().declarations().declaration(elementType, tmp));
+                        //emitter().emit("%s = %s;", backend().declarations().declaration(elementType, tmp), backend().defaultValues().defaultValue(elementType));
+                        backend().statements().copy(elementType, tmp, elementType, evaluate(element));
+                        return tmp;
+                    }
+                    return evaluate(element);
+                })
+                .collect(Collectors.joining(", ", "{", "}"));
+        return value;
+    }
+
+    default String evaluateWithType(Expression expr, Type type) {
+        return evaluate(expr);
+    }
+
+
+    default String evaluateWithType(ExprList list, Type type) {
+        ListType t = (ListType) type;
+        if (t.getSize().isPresent()) {
+            String name = variables().generateTemp();
+            Type elementType = t.getElementType();
+            String decl = backend().declarations().declaration(t, name);
+            String value = list.getElements().stream().sequential()
+                    .map(element -> {
+                        if (elementType instanceof AlgebraicType || backend().alias().isAlgebraicType(elementType)) {
+                            String tmp = variables().generateTemp();
+                            emitter().emit("%s;", backend().declarations().declaration(elementType, tmp));
+                            emitter().emit("%s = %s;", backend().declarations().declaration(elementType, tmp), backend().defaultValues().defaultValue(elementType));
+                            backend().statements().copy(elementType, tmp, elementType, evaluate(element));
+                            return tmp;
+                        }
+                        return evaluate(element);
+                    })
+                    .collect(Collectors.joining(", ", "{", "}"));
+            emitter().emit("const %s = %s;", decl, value);
+            return name;
+        } else {
+            return "NULL /* TODO: implement dynamically sized lists */";
+        }
+    }
+
 
     /**
      * Evaluate expression lambda
@@ -1316,7 +1402,8 @@ public interface ExpressionEvaluator {
         for (VarDecl decl : let.getVarDecls()) {
             Type type = types().declaredType(decl);
             String name = variables().declarationName(decl);
-            emitter().emit("%s = %s;", declarations().declaration(type, name), backend().defaultValues().defaultValue(type));
+            emitter().emit("%s;", declarations().declaration(type, name));
+            //emitter().emit("%s = %s;", declarations().declaration(type, name), backend().defaultValues().defaultValue(type));
             emitter().emit("{");
             emitter().increaseIndentation();
             String eval = evaluate(decl.getValue());
@@ -1336,6 +1423,17 @@ public interface ExpressionEvaluator {
         String result = variables().generateTemp();
         String decl = backend().declarations().declaration(types().type(construction), result);
         emitter().emit("%s = %s(%s);", decl, fn, String.join(", ", parameters));
+        return result;
+    }
+
+    default String evaluate(ExprTuple tuple) {
+        List<String> parameters = new ArrayList<>();
+        for (Expression parameter : tuple.getElements()) {
+            parameters.add(evaluate(parameter));
+        }
+        String result = variables().generateTemp();
+        String decl = backend().declarations().declaration(types().type(tuple), result);
+        emitter().emit("%s = std::make_tuple(%s);", decl, String.join(", ", parameters));
         return result;
     }
 

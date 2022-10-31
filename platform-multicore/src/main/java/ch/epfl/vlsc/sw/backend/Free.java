@@ -35,10 +35,6 @@ public interface Free {
         emitter().emit("free_%s(%s);", typeseval().type(type), pointer);
     }
 
-    default void apply(TupleType type, String pointer) {
-        apply(backend().tuples().convert().apply(type), pointer);
-    }
-
     default void apply(StringType type, String pointer) {
         emitter().emit("free_%s(%s);", typeseval().type(type), pointer);
     }

@@ -463,7 +463,7 @@ extern unsigned int timestamp();
     static void name(art_action_context_t *context, thistype *thisActor)
 
 #define ART_CONDITION(name, thistype)            \
-  static _Bool name(art_action_context_t *context, thistype *thisActor)
+  static bool name(art_action_context_t *context, thistype *thisActor)
 
 #define ART_ACTION(name, thistype)                    \
   static void name(art_action_context_t *context, thistype *thisActor)

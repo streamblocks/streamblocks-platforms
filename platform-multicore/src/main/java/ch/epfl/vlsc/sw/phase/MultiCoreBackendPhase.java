@@ -233,10 +233,10 @@ public class MultiCoreBackendPhase implements Phase {
      */
     public static void generateGlobals(MulticoreBackend multicoreBackend) {
         // -- Globals Source
-        multicoreBackend.globals().globalSource();
+        //multicoreBackend.globals().globalSource();
 
         // -- Globals Header
-        multicoreBackend.globals().globalHeader();
+        multicoreBackend.globals().generateHeader();
     }
 
     /**

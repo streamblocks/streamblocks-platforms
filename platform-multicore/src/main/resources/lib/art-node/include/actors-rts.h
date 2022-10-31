@@ -291,7 +291,7 @@ static void name(thistype *thisActor)
     static void name(art_action_context_t *context, thistype *thisActor)
 
 #define ART_CONDITION(name, thistype)            \
-  static _Bool name(art_action_context_t *context, thistype *thisActor)
+  static bool name(art_action_context_t *context, thistype *thisActor)
 
 #define ART_FIRE_ACTION(name)      \
   name(thisActor)
@@ -347,7 +347,7 @@ static void name(thistype *thisActor)
 #include "actors-fifo.h"
 
 #undef FIFO_TYPE
-#define FIFO_TYPE _Bool
+#define FIFO_TYPE bool
 
 #include "actors-fifo.h"
 

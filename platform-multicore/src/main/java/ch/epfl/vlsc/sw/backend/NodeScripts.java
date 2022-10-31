@@ -237,15 +237,16 @@ public interface NodeScripts {
         emitter().decreaseIndentation();
         emitter().emitNewLine();
 
+        // -- Sleep
+        emitter().emit("time.sleep(5)");
+        emitter().emitNewLine();
+
+
         // -- Disable
         emitter().emit("for actor in actors:");
         emitter().increaseIndentation();
         emitter().emit("actor.disable()");
         emitter().decreaseIndentation();
-        emitter().emitNewLine();
-
-        // -- Sleep
-        emitter().emit("time.sleep(5)");
         emitter().emitNewLine();
 
         // -- Destroy

@@ -113,7 +113,8 @@ static inline FIFO_TYPE FIFO_NAME(pinPeek)(const InputPort *p,
   return token;
 }
 
-static inline void FIFO_NAME(pinConsume)(InputPort *p)
+static inline FIFO_TYPE FIFO_NAME(pinConsume)(InputPort *p)
 {
-  input_port_consume(p);
+  FIFO_TYPE token;
+  input_port_consume(p, sizeof token);
 }

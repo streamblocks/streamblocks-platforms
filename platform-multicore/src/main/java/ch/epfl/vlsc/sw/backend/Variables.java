@@ -54,10 +54,7 @@ public interface Variables {
         } else if (parent instanceof ActorMachine) {
             return "a_" + escape(decl.getName());
         } else if (parent instanceof NamespaceDecl) {
-            QID ns = ((NamespaceDecl) parent).getQID();
-            return Stream.concat(ns.parts().stream(), Stream.of(decl.getName()))
-                    .map(this::escape)
-                    .collect(Collectors.joining("_", "g_", ""));
+            return decl.getName();
         } else {
             return "l_" + escape(decl.getName());
         }
@@ -71,9 +68,13 @@ public interface Variables {
      */
 
     default String globalName(ExprGlobalVariable var) {
+        /*
         return var.getGlobalName().parts().stream()
                 .map(this::escape)
                 .collect(Collectors.joining("_", "g_", ""));
+                */
+        return var.getGlobalName().parts().stream()
+                .collect(Collectors.joining("::", "", ""));
     }
 
     /**

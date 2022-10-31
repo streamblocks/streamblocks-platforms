@@ -197,11 +197,6 @@ public interface MulticoreBackend {
         return MultiJ.from(Algebraic.class).bind("backend").to(this).instance();
     }
 
-    @Binding(LAZY)
-    default Tuples tuples() {
-        return MultiJ.from(Tuples.class).bind("backend").to(this).instance();
-    }
-
 
     @Binding(LAZY)
     default SizeOf sizeof() {
@@ -224,11 +219,6 @@ public interface MulticoreBackend {
                 .bind("emitter").to(emitter())
                 .bind("sizeof").to(sizeof())
                 .instance();
-    }
-
-    @Binding(LAZY)
-    default Strings strings() {
-        return MultiJ.from(Strings.class).bind("backend").to(this).instance();
     }
 
     @Binding(LAZY)

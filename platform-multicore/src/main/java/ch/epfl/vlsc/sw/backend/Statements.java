@@ -109,9 +109,22 @@ public interface Statements {
 
                 }
                 String tmp = variables().generateTemp();
-                emitter().emit("%s = %s;", declarartions().declaration(types().portType(write.getPort()), tmp), backend().defaultValues().defaultValue(type));
+
+                if (type instanceof TensorType) {
+                    emitter().emit("Tensor* %s = nullptr;", tmp);
+                } else {
+                    emitter().emit("%s;", declarartions().declaration(types().portType(write.getPort()), tmp));
+                    //emitter().emit("%s = %s;", declarartions().declaration(types().portType(write.getPort()), tmp), backend().defaultValues().defaultValue(type));
+                }
+
                 for (Expression expr : write.getValues()) {
-                    emitter().emit("%s = %s;", tmp, expressioneval().evaluate(expr));
+
+                    if (type instanceof TensorType) {
+                        emitter().emit("%s = new Tensor(%s);", tmp, expressioneval().evaluate(expr));
+                    } else {
+                        emitter().emit("%s = %s;", tmp, expressioneval().evaluate(expr));
+                    }
+
                     emitter().emit("pinWrite_%s(%s, %s);", portType, channelsutils().definedOutputPort(write.getPort()), tmp);
                     profilingOp().add("__opCounters->prof_DATAHANDLING_STORE += 1;");
                 }
@@ -156,32 +169,20 @@ public interface Statements {
         //if (assign.getExpression() instanceof ExprComprehension) {
         //    expressioneval().evaluate(assign.getExpression());
         //} else {
-            if (assign.getLValue() instanceof LValueIndexer) {
-                LValueIndexer indexer = (LValueIndexer) assign.getLValue();
-                if (lvalues().subIndexAccess(indexer)) {
-                    String varName = variables().name(lvalues().evalLValueIndexerVar(indexer));
-                    String index = lvalues().singleDimIndex(indexer);
+        if (assign.getLValue() instanceof LValueIndexer) {
+            LValueIndexer indexer = (LValueIndexer) assign.getLValue();
+            if (lvalues().subIndexAccess(indexer)) {
+                String varName = variables().name(lvalues().evalLValueIndexerVar(indexer));
+                String index = lvalues().singleDimIndex(indexer);
 
-                    emitter().emit("{");
-                    emitter().increaseIndentation();
-                    String eval = expressioneval().evaluate(assign.getExpression());
-                    Type exprType = types().type(assign.getExpression());
+                emitter().emit("{");
+                emitter().increaseIndentation();
+                String eval = expressioneval().evaluate(assign.getExpression());
+                Type exprType = types().type(assign.getExpression());
 
-                    copySubAccess((ListType) type, varName, (ListType) exprType, eval, index);
-                    emitter().decreaseIndentation();
-                    emitter().emit("}");
-                } else {
-                    if (assign.getExpression() instanceof ExprComprehension) {
-                        emitter().emit("{");
-                        emitter().increaseIndentation();
-                        String eval = expressioneval().evaluate(assign.getExpression());
-                        copy(type, lvalue, types().type(assign.getExpression()), eval);
-                        emitter().decreaseIndentation();
-                        emitter().emit("}");
-                    } else {
-                        copy(type, lvalue, types().type(assign.getExpression()), expressioneval().evaluate(assign.getExpression()));
-                    }
-                }
+                copySubAccess((ListType) type, varName, (ListType) exprType, eval, index);
+                emitter().decreaseIndentation();
+                emitter().emit("}");
             } else {
                 if (assign.getExpression() instanceof ExprComprehension) {
                     emitter().emit("{");
@@ -194,6 +195,18 @@ public interface Statements {
                     copy(type, lvalue, types().type(assign.getExpression()), expressioneval().evaluate(assign.getExpression()));
                 }
             }
+        } else {
+            if (assign.getExpression() instanceof ExprComprehension) {
+                emitter().emit("{");
+                emitter().increaseIndentation();
+                String eval = expressioneval().evaluate(assign.getExpression());
+                copy(type, lvalue, types().type(assign.getExpression()), eval);
+                emitter().decreaseIndentation();
+                emitter().emit("}");
+            } else {
+                copy(type, lvalue, types().type(assign.getExpression()), expressioneval().evaluate(assign.getExpression()));
+            }
+        }
         //}
         profilingOp().add("__opCounters->prof_DATAHANDLING_ASSIGN += 1;");
     }
@@ -236,7 +249,7 @@ public interface Statements {
     }
 
     default void copy(StringType lvalueType, String lvalue, StringType rvalueType, String rvalue) {
-        emitter().emit("copy_%1$s(&(%2$s), %3$s);", typeseval().type(lvalueType), lvalue, rvalue);
+        emitter().emit("%2$s = %3$s;", typeseval().type(lvalueType), lvalue, rvalue);
     }
 
     default void copy(AlgebraicType lvalueType, String lvalue, AlgebraicType rvalueType, String rvalue) {
@@ -248,7 +261,7 @@ public interface Statements {
     }
 
     default void copy(TupleType lvalueType, String lvalue, TupleType rvalueType, String rvalue) {
-        copy(backend().tuples().convert().apply(lvalueType), lvalue, backend().tuples().convert().apply(rvalueType), rvalue);
+        emitter().emit("%2$s = %3$s;", typeseval().type(lvalueType), lvalue, rvalue);
     }
 
     /*
@@ -305,7 +318,13 @@ public interface Statements {
             Type t = types().declaredType(decl);
             String declarationName = variables().declarationName(decl);
             String d = declarartions().declarationTemp(t, declarationName);
-            emitter().emit("%s = %s;", d, backend().defaultValues().defaultValue(t));
+            if (t instanceof TensorType) {
+                emitter().emit("%s;", d);
+            } else {
+                emitter().emit("%s;", d);
+                //emitter().emit("%s = %s;", d, backend().defaultValues().defaultValue(t));
+            }
+
             if (decl.getValue() != null) {
                 emitter().emit("{");
                 emitter().increaseIndentation();

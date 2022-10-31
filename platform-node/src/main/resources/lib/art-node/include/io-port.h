@@ -48,7 +48,7 @@ unsigned int output_port_space_left(const OutputPort *self);
 void input_port_peek(const InputPort *self, int pos, unsigned int token_Size, void *token);
 void input_port_read(InputPort *self, unsigned int token_size, void *token);
 void output_port_write(OutputPort *self, unsigned int token_size, const void *token);
-void input_port_consume(InputPort *self);
+void input_port_consume(InputPort *self, unsigned int token_size);
 
 //#include "actors-rts.h"
 

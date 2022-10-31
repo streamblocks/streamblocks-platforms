@@ -359,7 +359,11 @@ void input_port_read(InputPort *self, unsigned int token_size, void *token) {
   assert(self->localInputPort->available >= 0);
 }
 
-void input_port_consume(InputPort *self){
+void input_port_consume(InputPort *self, unsigned int token_size){
+
+  self->localInputPort->readPtr =
+      ((char *)self->localInputPort->readPtr) + token_size;
+
   if (self->localInputPort->readPtr >= self->localInputPort->bufferEnd) {
     self->localInputPort->readPtr = self->localInputPort->bufferStart;
   }
