@@ -51,6 +51,7 @@
 #include <arpa/inet.h>
 
 #include "actors-network.h"
+#include "actors-rts.h"
 #include "actors-teleport.h"
 #include "dllist.h"
 
@@ -157,7 +158,7 @@ static void initTokenMonitor(struct TokenMonitor *mon, int tokenSize) {
     mon->status = 0;
     mon->rest = 0;
 
-    mon->tokenBuffer = calloc(1, tokenSize * MAX_BUFFER_SIZE);
+    mon->tokenBuffer = static_cast<char *>(calloc(1, tokenSize * MAX_BUFFER_SIZE));
 
     mon->serializeBufferSize = 0;
     mon->serializeBuffer = NULL;
@@ -252,7 +253,7 @@ static void *receiver_thread(void *arg) {
                     bytesRead = 0;
                     if (instance->tokenMon.serializeBufferSize < sz) {
                         //Need more memory to handle the serialization
-                        instance->tokenMon.serializeBuffer = realloc(instance->tokenMon.serializeBuffer, sz);
+                        instance->tokenMon.serializeBuffer = static_cast<char * >(realloc(instance->tokenMon.serializeBuffer, sz));
                         instance->tokenMon.serializeBufferSize = sz;
                     }
                     do {
@@ -277,7 +278,7 @@ static void *receiver_thread(void *arg) {
                         //Deserialize the incoming token (will allocate it on the heap) and write the reference to the tokenBuffer
                         //Also assert that the deserialization used all the data
                         assert((functions->deserialize((void **) instance->tokenMon.tokenBuffer,
-                                                       instance->tokenMon.serializeBuffer) -
+                                                       instance->tokenMon.serializeBuffer, sz) -
                                 instance->tokenMon.serializeBuffer) == sz);
                     }
                 } else {
@@ -544,7 +545,7 @@ static void *sender_thread(void *arg) {
             int32_t sz = functions->size(*((void **) instance->tokenMon.tokenBuffer));
             if (instance->tokenMon.serializeBufferSize < (sz + sizeof(int32_t))) {
                 //Need more memory to handle the serialization
-                instance->tokenMon.serializeBuffer = realloc(instance->tokenMon.serializeBuffer, sz + sizeof(int32_t));
+                instance->tokenMon.serializeBuffer = static_cast<char *>(realloc(instance->tokenMon.serializeBuffer, sz + sizeof(int32_t)));
                 instance->tokenMon.serializeBufferSize = sz + sizeof(int32_t);
             }
             //Write the size first
@@ -731,7 +732,7 @@ const ActorClass *getReceiverClass(int tokenSize, tokenFn *functions) {
     }
 
     /* no class found -- we need to create one */
-    struct extended_class *xclass = calloc(1, sizeof(struct extended_class));
+    struct extended_class *xclass = static_cast<struct extended_class *>(calloc(1, sizeof(struct extended_class)));
 
     /* make up a name */
     if (needSerialization)
@@ -742,7 +743,7 @@ const ActorClass *getReceiverClass(int tokenSize, tokenFn *functions) {
     xclass->portDescription.name = "out";
     xclass->portDescription.tokenSize = tokenSize;
     if (needSerialization) {
-        xclass->portDescription.functions = calloc(1, sizeof(tokenFn));
+        xclass->portDescription.functions = static_cast<tokenFn *>(calloc(1, sizeof(tokenFn)));
         memcpy(xclass->portDescription.functions, functions, sizeof(tokenFn));
     }
 
@@ -792,7 +793,7 @@ const ActorClass *getSenderClass(int tokenSize, tokenFn *functions) {
     }
 
     /* no class found -- we need to create one */
-    struct extended_class *xclass = calloc(1, sizeof(struct extended_class));
+    struct extended_class *xclass = static_cast<struct extended_class *>(calloc(1, sizeof(struct extended_class)));
 
     /* make up a name */
     if (needSerialization)
@@ -803,7 +804,7 @@ const ActorClass *getSenderClass(int tokenSize, tokenFn *functions) {
     xclass->portDescription.name = "in";
     xclass->portDescription.tokenSize = tokenSize;
     if (needSerialization) {
-        xclass->portDescription.functions = calloc(1, sizeof(tokenFn));
+        xclass->portDescription.functions = static_cast<tokenFn *>(calloc(1, sizeof(tokenFn)));
         memcpy(xclass->portDescription.functions, functions, sizeof(tokenFn));
     }
     xclass->actorClass.majorVersion = ACTORS_RTS_MAJOR;

@@ -51,6 +51,7 @@
 #include "actors-network.h"
 #include "actors-teleport.h"
 #include "actors-rts.h"
+#include "actors-typedefs.h"
 
 /* ------------------------------------------------------------------------- */
 
@@ -72,6 +73,13 @@ static dllist_head_t disabled_instances;/* disabled, non-executing instances */
 
 /* ------------------------------------------------------------------------- */
 
+
+  enum state {
+    ACTOR_THREAD_LOCKED_BUSY,       /* executing actors and continue polling them even when none fired */
+    ACTOR_THREAD_BUSY,              /* executing actors */
+    ACTOR_THREAD_IDLE               /* waiting for wakeup_cond */
+  };
+
 /*
  * Synchronization state for worker thread
  */
@@ -85,11 +93,7 @@ static struct {
   pthread_cond_t idle_cond;         /* signaled by thread when it goes idle */
   pthread_cond_t wakeup_cond;       /* signaled by parser to wake up thread */
 
-  enum {
-    ACTOR_THREAD_LOCKED_BUSY,       /* executing actors and continue polling them even when none fired */
-    ACTOR_THREAD_BUSY,              /* executing actors */
-    ACTOR_THREAD_IDLE               /* waiting for wakeup_cond */
-  } state;
+  enum state state;
 #endif
 } thread_state;
 
@@ -362,10 +366,10 @@ static void * workerThreadMain(void *unused_arg)
     /* no actor fired on last iteration -- go idle if not locked busy, wait for trigger */
     {
       pthread_mutex_lock(&thread_state.signaling_mutex);
-      if(thread_state.state != ACTOR_THREAD_LOCKED_BUSY) {
-        thread_state.state = ACTOR_THREAD_IDLE;
+      if(thread_state.state != state::ACTOR_THREAD_LOCKED_BUSY) {
+        thread_state.state = state::ACTOR_THREAD_IDLE;
         pthread_cond_signal(&thread_state.idle_cond);
-        while (thread_state.state == ACTOR_THREAD_IDLE) {
+        while (thread_state.state == state::ACTOR_THREAD_IDLE) {
           pthread_cond_wait(&thread_state.wakeup_cond,
                             &thread_state.signaling_mutex);
         }
@@ -406,13 +410,13 @@ void initActorNetwork(void)
 AbstractActorInstance * createActorInstance(const ActorClass *actorClass,
                                             const char *actor_name)
 {
-  AbstractActorInstance *instance = malloc(actorClass->sizeActorInstance);
+  AbstractActorInstance *instance = static_cast<AbstractActorInstance *> (malloc(actorClass->sizeActorInstance));
   unsigned int i;
 
   instance->actorClass = actorClass;
   instance->instanceName = strdup(actor_name);
-  instance->inputPort = calloc(actorClass->numInputPorts, sizeof(InputPort));
-  instance->outputPort = calloc(actorClass->numOutputPorts, sizeof(OutputPort));
+  instance->inputPort = static_cast<InputPort *>(calloc(actorClass->numInputPorts, sizeof(InputPort)));
+  instance->outputPort = static_cast<OutputPort *>(calloc(actorClass->numOutputPorts, sizeof(OutputPort)));
   instance->action_scheduler = actorClass->action_scheduler;
 
   instance->numInputPorts = actorClass->numInputPorts;
@@ -434,7 +438,7 @@ AbstractActorInstance * createActorInstance(const ActorClass *actorClass,
      */
     static const unsigned int capacity = FIFO_CAPACITY;
     unsigned int size = capacity * descr->tokenSize;
-    char *buffer = malloc(size);
+    char *buffer = static_cast<char *>(malloc(size));
 
     output->localOutputPort.bufferStart =
     output->localOutputPort.writePtr = buffer;
@@ -693,7 +697,8 @@ static inline uint32_t hashmurmur3_32(const void *data, size_t nbytes)
   
   const int nblocks = nbytes / 4;
   const uint32_t *blocks = (const uint32_t *)(data);
-  const uint8_t *tail = (const uint8_t *)(data + (nblocks * 4));
+    const uint8_t *tail =
+      (const uint8_t *)((const uint8_t *)data + (nblocks * 4));
   
   uint32_t h = 0;
   

@@ -35,6 +35,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <cstdio>
 #include <stdlib.h>
 #include <time.h>
 #include <sys/timeb.h>
@@ -194,6 +195,20 @@ static const ActionDescription actionDescriptions[] = {
 // -- Condition Description
 static const ConditionDescription conditionDescription[] = {};
 
+
+#ifdef CAL_RT_CALVIN
+ActorClass ActorClass_art_Display_yuv = INIT_ActorClass(
+        (char*) "ART.art_Display_yuv",
+        ActorInstance_art_Display_yuv,
+        art_Display_yuv_constructor,
+        art_Display_yuv_setParam,
+        art_Display_yuv_action_scheduler,
+        art_Display_yuv_destructor,
+        1, inputPortDescriptions,
+        0, 0,
+        1, actionDescriptions
+);
+#else
 ActorClass ActorClass_art_Display_yuv = INIT_ActorClass(
         "ART.art_Display_yuv",
         ActorInstance_art_Display_yuv,
@@ -207,3 +222,4 @@ ActorClass ActorClass_art_Display_yuv = INIT_ActorClass(
         0, conditionDescription,
         0, stateVariableDescription
 );
+#endif

@@ -129,11 +129,13 @@ char *get_next_word(struct parser_state *state)
  *
  * Syntax: actor.port   OR   host:port
  */
-static enum {
+enum PortRef {
   PORT_REF_INVALID,
   PORT_REF_LOCAL,
   PORT_REF_REMOTE
-} parse_port_ref(struct parser_state *state,
+}; 
+
+PortRef parse_port_ref(struct parser_state *state,
                  const char **actor,   /* output */
                  const char **port)    /* output */
 {
@@ -414,7 +416,7 @@ static void new_handler(struct parser_state *state)
 
   /* check for actor parameters, if any */
   for(;;) {
-    const char *arg = get_next_word(state);
+    char *arg = get_next_word(state);
     if (! arg) {
       break;
     }
@@ -549,7 +551,7 @@ static void parserLoop(struct parser_state *state, FILE *in)
 
 static void * client_thread(void *arg)
 {
-  FILE *f = fdopen((int) arg, "r+");
+  FILE *f = fdopen((long) arg, "r+");
 
   struct parser_state state = {
     .quit_flag = 0,
@@ -579,7 +581,7 @@ static void * server_main_thread(void *arg)
   struct sockaddr_in server_addr;
   static const int one = 1;
 
-  unsigned int server_port = (unsigned int) arg;
+  short server_port = *(short *)arg;
 
   server_socket = socket(AF_INET, SOCK_STREAM, 0);
   if (server_socket < 0) {
@@ -675,6 +677,9 @@ void parseInteractively(void)
 void spawnServer(unsigned int port)
 {
   pthread_t pid;
+  short *s_ptr = static_cast<short *>(malloc(sizeof port));
+  *s_ptr = port;
+
   
-  pthread_create(&pid, NULL, &server_main_thread, (void *) (long) port);
+  pthread_create(&pid, NULL, &server_main_thread, s_ptr);
 }

@@ -1,11 +1,11 @@
 # ART Runtime sources
 set(art_node_sources
-        src/actors-debug.c
-        src/actors-network.c
-        src/actors-parser.c
-        src/actors-registry.c
-        src/actors-teleport.c
-        src/actors-rts.c
+        src/actors-debug.cc
+        src/actors-network.cc
+        src/actors-parser.cc
+        src/actors-registry.cc
+        src/actors-teleport.cc
+        src/actors-rts.cc
 )
 
 # ART Runtime includes
@@ -21,6 +21,7 @@ set(art_node_header
         include/dllist.h
         include/natives.h
 )
+
 
 include_directories(${extra_includes})
 add_definitions(${extra_definitions})

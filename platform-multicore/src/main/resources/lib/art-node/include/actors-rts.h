@@ -82,23 +82,54 @@ extern "C" {
   typedef struct LocalOutputPort LocalOutputPort;
   typedef struct LocalInputPort LocalInputPort;
 
+  typedef struct {
+      const char *name;
+      const char *originalName;
+      int variableSize;
+  } StateVariableDescription;
+
+
   /*
    * ActorClass and related descriptions
    */
 
   typedef struct {
     const char  *name;          // action tag
+    const char  *originalName;   // original name
     const int   *consumption;   // token rates of input 0,...,numInputs-1
     const int   *production;    // token rates of output 0,...,numOutputs-1
+    const int   *uses;
+    const int   *defines;
   } ActionDescription;
 
+  enum ConditionKind {
+    INPUT_KIND, OUTPUT_KIND, PREDICATE_KIND
+  };
+
+  /*!\struct ConditionDescription
+  * \brief actor machine condition
+  *
+  * Describes an actor mahcine condition.
+  */
   typedef struct {
+      const char *name;
+      const enum ConditionKind kind;
+      const int port;
+      const int count;
+      const int *stateVariables;
+  } ConditionDescription;
+
+
+
+  struct tokenFn{
     char * (*serialize)(void *, char*);
-    char * (*deserialize)(void **, char*);
+    char * (*deserialize)(void **, char*, long);
     long (*size)(void *);
     int  (*free)(void *, int);
-  } tokenFn;
+  };
   
+  typedef struct tokenFn tokenFn;
+
   typedef struct {
     int dummy;                  // FIXME: remove this from generated code
     const char  *name;          // port name
@@ -312,12 +343,18 @@ static void name(thistype *thisActor)
 
 #define ART_ACTION_EXIT(name, index)
 
+
+
+#define ART_CONDITION_ENTER(name, index)  
+
+#define ART_CONDITION_EXIT(name, index)
+
 //#define dprint1(x,y)
 //#define dprint2(x,y,z)
 
 // FIXME: workarounds to handle System.bitops in RVC
-  static inline int32_t bitand(int32_t x, int32_t y) { return x & y; }
-  static inline int32_t bitor(int32_t x, int32_t y) { return x | y; }
+  static inline int32_t _bitand(int32_t x, int32_t y) { return x & y; }
+  static inline int32_t _bitor(int32_t x, int32_t y) { return x | y; }
   static inline int32_t bitxor(int32_t x, int32_t y) { return x ^ y; }
   static inline int32_t bitnot(int32_t x) { return ~x; }
   static inline int32_t lshift(int32_t x, int32_t n) { return x << n; }
@@ -446,14 +483,14 @@ static void name(thistype *thisActor)
                                  void *token,       /* output */
                                  size_t tokenSize)
   {
-    const char * readPtr = p->readPtr;
+    const char * readPtr = (const char *) p->readPtr;
     assert(p->available > 0);
 
     memcpy(token, readPtr, tokenSize);
     readPtr += tokenSize;
 
     if (readPtr >= (char *) p->bufferEnd)
-      readPtr = p->bufferStart;
+      readPtr = (const char *) p->bufferStart;
     p->readPtr = readPtr;
     p->available --;
   }
@@ -476,7 +513,7 @@ static inline void pinRead_dynRepeat(LocalInputPort *p,
         int numBytes = bufferEnd - startPtr;
         memcpy(token, startPtr, numBytes);
         token = (char *) ((char *) token + numBytes);
-        startPtr = p->bufferStart;
+        startPtr = (const char *) p->bufferStart;
         endPtr = startPtr + (endPtr - bufferEnd);
     }
     memcpy(token, startPtr, endPtr - startPtr);
@@ -493,7 +530,7 @@ static inline void pinRead_dynRepeat(LocalInputPort *p,
                                   const void *token,
                                   size_t tokenSize)
   {
-    char *writePtr = p->writePtr;
+    char *writePtr = (char *) p->writePtr;
     assert(p->spaceLeft > 0);
 
     /* FIXME: this is not terribly efficient for small tokens */
@@ -501,7 +538,7 @@ static inline void pinRead_dynRepeat(LocalInputPort *p,
     writePtr += tokenSize;
 
     if (writePtr >= (char *) p->bufferEnd)
-      writePtr = p->bufferStart;
+      writePtr = (char *) p->bufferStart;
     p->writePtr = writePtr;
     p->spaceLeft --;
   }
@@ -523,7 +560,7 @@ static inline void pinWrite_dynRepeat(LocalOutputPort *p,
         int numBytes = bufferEnd - startPtr;
         memcpy(startPtr, token, numBytes);
         token = (char *) ((char *) token + numBytes);
-        startPtr = p->bufferStart;
+        startPtr = (char *) p->bufferStart;
         endPtr = startPtr + (endPtr - bufferEnd);
     }
 
@@ -549,7 +586,7 @@ static inline void pinWrite_dynRepeat_offset(LocalOutputPort *p,
         int numBytes = bufferEnd - startPtr;
         memcpy(startPtr, &t[offset*tokenSize], numBytes);
         t = (char *) ((char *) token + numBytes);
-        startPtr = p->bufferStart;
+        startPtr = (char *) p->bufferStart;
         endPtr = startPtr + (endPtr - bufferEnd);
     }
 

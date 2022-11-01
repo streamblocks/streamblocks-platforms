@@ -17,7 +17,7 @@ set(art_native_source
     src/display.cc
     src/art_utils.cc
     src/orcc-compareyuv.cc
-    src/orcc-source.cc)
+    )
 
 set(art_native_header
         include/display.h)
@@ -27,14 +27,20 @@ if(LINUX)
   list(APPEND art_native_source src/speaker.cc)
 endif()
 
+if(NOT ART_NODE)
+  list(APPEND art_native_source src/orcc-source.cc)
+endif()
+
 
 find_package(SDL2 QUIET)
 if(SDL2_FOUND)
     if(DISPLAY)
       list(APPEND art_native_source src/display-sdl.cc)
+
+    if(NOT ART_NODE)
       list(APPEND art_native_source src/orcc-display-sdl2.cc)
       list(APPEND art_native_source src/orcc-framerate-sdl2.cc)
-
+      endif()
       list(APPEND extra_includes ${SDL2_INCLUDE_DIRS})
       string(STRIP ${SDL2_LIBRARIES} SDL2_LIBRARIES)
       list(APPEND extra_libraries ${SDL2_LIBRARIES})

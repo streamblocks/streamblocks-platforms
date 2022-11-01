@@ -128,6 +128,20 @@ static const ActionDescription actionDescriptions[] = {{"action", "action", 0,
 // -- Condition Description
 static const ConditionDescription conditionDescription[] = {};
 
+
+#ifdef CAL_RT_CALVIN
+ActorClass ActorClass_art_Source_32bit_bin = INIT_ActorClass(
+        (char*) "ART.art_Source_32bit_bin",
+        ActorInstance_art_Source,
+        constructor,
+        setParam,
+        art_Source_bin_action_scheduler,
+        destructor,
+        0, 0,
+        1, outputPortDescriptions,
+        1, actionDescriptions
+);
+#else
 ActorClass ActorClass_art_Source_32bit_bin = INIT_ActorClass(
         "ART.art_Source_32bit_bin",
         ActorInstance_art_Source,
@@ -141,3 +155,4 @@ ActorClass ActorClass_art_Source_32bit_bin = INIT_ActorClass(
         0, conditionDescription,
         0, stateVariableDescription
 );
+#endif

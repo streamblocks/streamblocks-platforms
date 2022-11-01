@@ -40,6 +40,7 @@
 #include <stdlib.h>
 
 #include "actors-registry.h"
+#include "actors-typedefs.h"
 #include "dllist.h"
 
 /*
@@ -56,7 +57,7 @@ static unsigned int nbr_classes;
 
 void registryInit(void)
 {
-  classes = malloc(MAX_CLASSES * sizeof(classes[0]));
+  classes = static_cast<const ActorClass **>(malloc(MAX_CLASSES * sizeof(classes[0])));
   nbr_classes = 0;
 }
 
@@ -75,7 +76,7 @@ const ActorClass * registryLoadClass(const char *filename)
   if (! lib_handle) {
     fail("failed loading %s: %s\n", filename, dlerror());
   }
-  klass = dlsym(lib_handle, "klass");
+  klass =  static_cast<ActorClass *>(dlsym(lib_handle, "klass"));
   if (! klass) {
     fail("failed accessing class in %s: %s\n",
          filename, dlerror());
