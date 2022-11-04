@@ -393,72 +393,99 @@ static void receiver_constructor(AbstractActorInstance *pBase) {
 
 /* ------------------------------------------------------------------------- */
 
-ART_ACTION_SCHEDULER(receiver_action_scheduler) {
-    ActorInstance_art_SocketReceiver *instance
-            = (ActorInstance_art_SocketReceiver *) pBase;
-    int tokenSize = pBase->actorClass->outputPortDescriptions[0].tokenSize;
+// ART_ACTION_SCHEDULER(receiver_action_scheduler) {
+//     ActorInstance_art_SocketReceiver *instance
+//             = (ActorInstance_art_SocketReceiver *) pBase;
+//     int tokenSize = pBase->actorClass->outputPortDescriptions[0].tokenSize;
 
-    ART_ACTION_SCHEDULER_ENTER(0, 1);
+//     ART_ACTION_SCHEDULER_ENTER(0, 1);
 
-    LocalOutputPort *output = &pBase->outputPort[0].localOutputPort;
-    int avail = pinAvailOut_dyn(output);
-    if (avail > 0) {
-        /* If there is a new token in the monitor, take it */
-        {
-            pthread_mutex_lock(&instance->tokenMon.lock);
+//     LocalOutputPort *output = &pBase->outputPort[0].localOutputPort;
+//     int avail = pinAvailOut_dyn(output);
+//     if (avail > 0) {
+//         /* If there is a new token in the monitor, take it */
+//         {
+//             pthread_mutex_lock(&instance->tokenMon.lock);
 
-            if (instance->tokenMon.full) {
+//             if (instance->tokenMon.full) {
 
-                int readBySocket = instance->tokenMon.status / tokenSize;
+//                 int readBySocket = instance->tokenMon.status / tokenSize;
 
-                switch (instance->program_counter) {
-                    case 0: {
-                        if (avail >= readBySocket) {
-                            pinWrite_dynRepeat(output, instance->tokenMon.tokenBuffer, tokenSize, readBySocket);
-                            instance->tokenMon.status = 0;
-                            instance->program_counter = 0;
-                            instance->tokenMon.full = 0;
-                            pthread_cond_signal(&instance->tokenMon.empty);
-                        } else {
-                            pinWrite_dynRepeat(output, instance->tokenMon.tokenBuffer, tokenSize, avail);
-                            int rest = readBySocket - avail;
-                            instance->tokenMon.status = rest;
-                            instance->buf_pointer = avail;
-                            instance->rest = rest;
-                            instance->program_counter = 1;
-                        }
-                    }
-                        break;
-                    case 1: {
-                        if (avail >= instance->rest) {
-                            pinWrite_dynRepeat_offset(output, instance->tokenMon.tokenBuffer, tokenSize,
-                                                      instance->buf_pointer, instance->rest);
-                            instance->buf_pointer = 0;
-                            instance->rest = 0;
-                            instance->tokenMon.status = 0;
-                            instance->program_counter = 0;
-                            instance->tokenMon.full = 0;
-                            pthread_cond_signal(&instance->tokenMon.empty);
-                        } else {
-                            pinWrite_dynRepeat_offset(output, instance->tokenMon.tokenBuffer, tokenSize,
-                                                      instance->buf_pointer, avail);
-                            int rest = instance->rest - avail;
-                            instance->tokenMon.status = rest;
-                            instance->buf_pointer += avail;
-                            instance->rest = rest;
-                            instance->program_counter = 1;
-                        }
-                    }
-                        break;
-                }
-            }
-            pthread_mutex_unlock(&instance->tokenMon.lock);
-        }
+//                 switch (instance->program_counter) {
+//                     case 0: {
+//                         if (avail >= readBySocket) {
+//                             pinWrite_dynRepeat(output, instance->tokenMon.tokenBuffer, tokenSize, readBySocket);
+//                             instance->tokenMon.status = 0;
+//                             instance->program_counter = 0;
+//                             instance->tokenMon.full = 0;
+//                             pthread_cond_signal(&instance->tokenMon.empty);
+//                         } else {
+//                             pinWrite_dynRepeat(output, instance->tokenMon.tokenBuffer, tokenSize, avail);
+//                             int rest = readBySocket - avail;
+//                             instance->tokenMon.status = rest;
+//                             instance->buf_pointer = avail;
+//                             instance->rest = rest;
+//                             instance->program_counter = 1;
+//                         }
+//                     }
+//                         break;
+//                     case 1: {
+//                         if (avail >= instance->rest) {
+//                             pinWrite_dynRepeat_offset(output, instance->tokenMon.tokenBuffer, tokenSize,
+//                                                       instance->buf_pointer, instance->rest);
+//                             instance->buf_pointer = 0;
+//                             instance->rest = 0;
+//                             instance->tokenMon.status = 0;
+//                             instance->program_counter = 0;
+//                             instance->tokenMon.full = 0;
+//                             pthread_cond_signal(&instance->tokenMon.empty);
+//                         } else {
+//                             pinWrite_dynRepeat_offset(output, instance->tokenMon.tokenBuffer, tokenSize,
+//                                                       instance->buf_pointer, avail);
+//                             int rest = instance->rest - avail;
+//                             instance->tokenMon.status = rest;
+//                             instance->buf_pointer += avail;
+//                             instance->rest = rest;
+//                             instance->program_counter = 1;
+//                         }
+//                     }
+//                         break;
+//                 }
+//             }
+//             pthread_mutex_unlock(&instance->tokenMon.lock);
+//         }
+//     }
+
+//     ART_ACTION_SCHEDULER_EXIT(0, 1);
+//     return EXIT_CODE_YIELD;
+// }
+
+ART_ACTION_SCHEDULER(receiver_action_scheduler)
+{
+  ActorInstance_art_SocketReceiver *instance
+  = (ActorInstance_art_SocketReceiver *) pBase;
+  int tokenSize = pBase->actorClass->outputPortDescriptions[0].tokenSize;
+
+  ART_ACTION_SCHEDULER_ENTER(0, 1);
+
+  LocalOutputPort *output = &pBase->outputPort[0].localOutputPort;
+  if (pinAvailOut_dyn(output) > 0) {
+    /* If there is a new token in the monitor, take it */
+    {
+      pthread_mutex_lock(&instance->tokenMon.lock);
+      if (instance->tokenMon.full) {
+        pinWrite_dyn(output, instance->tokenMon.tokenBuffer, tokenSize);
+        instance->tokenMon.full = 0;
+        pthread_cond_signal(&instance->tokenMon.empty);
+      }
+      pthread_mutex_unlock(&instance->tokenMon.lock);
     }
+  }
 
-    ART_ACTION_SCHEDULER_EXIT(0, 1);
-    return EXIT_CODE_YIELD;
+  ART_ACTION_SCHEDULER_EXIT(0, 1);
+  return EXIT_CODE_YIELD;
 }
+
 
 /* ------------------------------------------------------------------------- */
 
@@ -621,7 +648,6 @@ static void sender_constructor(AbstractActorInstance *pBase) {
         warn("could not open client socket: %s", strerror(errno));
         return;
     }
-
     /* don't touch remoteHost here: it was set in
      setSenderRemoteAddress() below */
 
@@ -638,45 +664,83 @@ static void sender_constructor(AbstractActorInstance *pBase) {
 
 /* ------------------------------------------------------------------------- */
 
-ART_ACTION_SCHEDULER(sender_action_scheduler) {
-    ActorInstance_art_SocketSender *instance
-            = (ActorInstance_art_SocketSender *) pBase;
-    int tokenSize = pBase->actorClass->inputPortDescriptions[0].tokenSize;
+// ART_ACTION_SCHEDULER(sender_action_scheduler) {
+//     ActorInstance_art_SocketSender *instance
+//             = (ActorInstance_art_SocketSender *) pBase;
+//     int tokenSize = pBase->actorClass->inputPortDescriptions[0].tokenSize;
 
-    ART_ACTION_SCHEDULER_ENTER(0, 1);
+//     ART_ACTION_SCHEDULER_ENTER(0, 1);
 
-    LocalInputPort *input = &pBase->inputPort[0].localInputPort;
+//     LocalInputPort *input = &pBase->inputPort[0].localInputPort;
 
-    int avail = pinAvailIn_dyn(input);
-    if (avail > 0) {
-        /* We have data to send keep the scheduler loop locked busy, keep track locally of toggling */
-        if (!instance->lockedBusy) {
-            lockedBusyNetworkToggle(instance->hashId);
-            instance->lockedBusy = 1;
-        }
-        /* If there is room for a new token in the monitor, push one there */
-        {
-            pthread_mutex_lock(&instance->tokenMon.lock);
-            if (!instance->tokenMon.full) {
-                //pinRead_dyn(input, instance->tokenMon.tokenBuffer, tokenSize);
-                instance->tokenMon.status = avail;
-                pinRead_dynRepeat(input, instance->tokenMon.tokenBuffer, tokenSize, avail);
-                instance->tokenMon.full = 1;
-                pthread_cond_signal(&instance->tokenMon.available);
-            }
-            pthread_mutex_unlock(&instance->tokenMon.lock);
-        }
-    } else {
-        /* We don't have data to send no need to have the scheduler loop locked busy, keep track locally of toggling */
-        if (instance->lockedBusy) {
-            lockedBusyNetworkToggle(instance->hashId);
-            instance->lockedBusy = 0;
-        }
+//     int avail = pinAvailIn_dyn(input);
+//     if (avail > 0) {
+//         /* We have data to send keep the scheduler loop locked busy, keep track locally of toggling */
+//         if (!instance->lockedBusy) {
+//             lockedBusyNetworkToggle(instance->hashId);
+//             instance->lockedBusy = 1;
+//         }
+//         /* If there is room for a new token in the monitor, push one there */
+//         {
+//             pthread_mutex_lock(&instance->tokenMon.lock);
+//             if (!instance->tokenMon.full) {
+//                 //pinRead_dyn(input, instance->tokenMon.tokenBuffer, tokenSize);
+//                 instance->tokenMon.status = avail;
+//                 pinRead_dynRepeat(input, instance->tokenMon.tokenBuffer, tokenSize, avail);
+//                 instance->tokenMon.full = 1;
+//                 pthread_cond_signal(&instance->tokenMon.available);
+//             }
+//             pthread_mutex_unlock(&instance->tokenMon.lock);
+//         }
+//     } else {
+//         /* We don't have data to send no need to have the scheduler loop locked busy, keep track locally of toggling */
+//         if (instance->lockedBusy) {
+//             lockedBusyNetworkToggle(instance->hashId);
+//             instance->lockedBusy = 0;
+//         }
+//     }
+
+//     ART_ACTION_SCHEDULER_EXIT(0, 1);
+//     return EXIT_CODE_YIELD;
+// }
+
+ART_ACTION_SCHEDULER(sender_action_scheduler)
+{
+  ActorInstance_art_SocketSender *instance
+  = (ActorInstance_art_SocketSender *) pBase;
+  int tokenSize = pBase->actorClass->inputPortDescriptions[0].tokenSize;
+
+  ART_ACTION_SCHEDULER_ENTER(0, 1);
+
+  LocalInputPort *input = &pBase->inputPort[0].localInputPort;
+  if (pinAvailIn_dyn(input) > 0) {
+    /* We have data to send keep the scheduler loop locked busy, keep track locally of toggling */
+    if(!instance->lockedBusy) {
+      lockedBusyNetworkToggle(instance->hashId);
+      instance->lockedBusy=1;
     }
+    /* If there is room for a new token in the monitor, push one there */
+    {
+      pthread_mutex_lock(&instance->tokenMon.lock);
+      if (! instance->tokenMon.full) {
+        pinRead_dyn(input, instance->tokenMon.tokenBuffer, tokenSize);
+        instance->tokenMon.full = 1;
+        pthread_cond_signal(&instance->tokenMon.available);
+      }
+      pthread_mutex_unlock(&instance->tokenMon.lock);
+    }
+  } else {
+    /* We don't have data to send no need to have the scheduler loop locked busy, keep track locally of toggling */
+    if(instance->lockedBusy) {
+      lockedBusyNetworkToggle(instance->hashId);
+      instance->lockedBusy=0;
+    }
+  }
 
-    ART_ACTION_SCHEDULER_EXIT(0, 1);
-    return EXIT_CODE_YIELD;
+  ART_ACTION_SCHEDULER_EXIT(0, 1);
+  return EXIT_CODE_YIELD;
 }
+
 
 /* ------------------------------------------------------------------------- */
 

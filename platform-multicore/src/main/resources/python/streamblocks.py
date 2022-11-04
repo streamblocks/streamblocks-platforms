@@ -1,5 +1,4 @@
-# Copyright (c) Ericsson AB, 2013, EPFL VLSC 2018
-# Author: Endri Bezati (endir.bezati@epfl.ch)
+# Copyright (c) Ericsson AB, 2013
 # Author: Patrik Persson (patrik.j.persson@ericsson.com)
 # All rights reserved.
 #
@@ -39,16 +38,18 @@ import socket
 import sys
 
 # =============================================================================
-# Python client bindings for supervision of StreamBlocks nodes.
+# Python client bindings for supervision of Calvin nodes.
 # -----------------------------------------------------------------------------
 
 class Node:
-  """Represents a remote StreamBlocks node."""
+  """Represents a remote Calvin node."""
 
   # ---------------------------------------------------------------------------
 
   class Port:
     """Represents a port on an actor."""
+    listening_port = 0
+
     def __init__(self, name, node, actor):
       self.name = name
       self.node = node
@@ -61,14 +62,23 @@ class Node:
       else:
         listening_port = i.node.execute("LISTEN %s.%s" % (i.actor.name, i.name))
         self.node.execute("CONNECT %s.%s %s:%s" % (self.actor.name, self.name, i.node.address, listening_port))
+        self.listening_port = listening_port
 
     def __lshift__(self, o): o.connectToInput(self)
     def __rshift__(self, i): self.connectToInput(i)
 
+    def disconnectFromInput(self, i) :
+        if self.node == i.node :
+            self.node.execute("DISCONNECT %s.%s %s.%s" %
+                    (self.actor.name, self.name, i.actor.name, i.name))
+        else :
+            self.node.execute("DISCONNECT %s.%s %s:%s" %
+                    (self.actor.name, self.name, i.node.address, self.listening_port))
+
   # ---------------------------------------------------------------------------
 
   class Actor:
-    """Represents an actor on a remote StreamBlocks node."""
+    """Represents an actor on a remote Calvin node."""
     def __init__(self, node, name):
       self.name = name
       self.node = node
@@ -80,16 +90,19 @@ class Node:
       for port in self.ports():
         tp, name, nbr = port.split(":")
         if nbr == '-':
-          print ("port not connected: %s.%s" % (self.name, name))
+          print("port not connected: %s.%s" % (self.name, name))
           # raise RuntimeError("port not connected: %s.%s" % (self.name, name))
         elif tp == 'i' and int(nbr) != 0:
-          print ("input not empty: %s.%s (%s tokens)" % (self.name, name, nbr))
+          print("input not empty: %s.%s (%s tokens)" % (self.name, name, nbr))
         elif tp == 'o' and int(nbr) != 64:
-          print ("output not empty: %s.%s (%s slots)" % (self.name, name, nbr))
-          
+          print("output not empty: %s.%s (%s slots)" % (self.name, name, nbr))
+
 
     def enable(self):
       self.node.execute("ENABLE %s" % self.name)
+
+    def disable(self):
+      pass
 
     def destroy(self):
       self.node.execute("DESTROY %s" % self.name)
@@ -102,7 +115,7 @@ class Node:
   def __init__(self, host, port, verbose = True):
     sock = socket.socket()
     sock.connect((host, port))
-    self.conn = sock.makefile()
+    self.conn = sock.makefile(mode='rw')
     self.verbose = verbose
     self.actors = []
     self.get_result()  # TODO: check version ID returned by server here
@@ -122,12 +135,12 @@ class Node:
     return self.execute("ADDRESS").split(" ")[0]
 
   def execute(self, command):
-    if self.verbose: print ("--> %s" % command)
+    if self.verbose: print("--> %s" % command)
     self.conn.write(command)
     self.conn.write("\n")
     self.conn.flush()
     result = self.get_result()
-    if self.verbose: print ("<-- OK %s" % result)
+    if self.verbose: print("<-- OK %s" % result)
     return result
 
   def load(self, file_name): return self.execute("LOAD %s" % file_name)
@@ -136,7 +149,7 @@ class Node:
     instance_name = _class_name
     if _instance_name:
       instance_name = _instance_name
-    serialized_args = " ".join(["%s=\"%s\"" % (k,v) for (k,v) in args.items()])
+    serialized_args = " ".join(["%s=\"%s\"" % (k,v) for (k,v) in list(args.items())])
     self.execute("NEW %s %s %s" % (_class_name, instance_name, serialized_args))
     actor = Node.Actor(self, instance_name)
     self.actors.append(actor)
@@ -144,6 +157,8 @@ class Node:
 
   def destroyAll(self):
     """Destroys all actors created from this Node."""
-    for actor in self.actors: actor.destroy()
+    for actor in self.actors:
+        actor.destroy()
 
   def join(self): self.execute("JOIN")
+

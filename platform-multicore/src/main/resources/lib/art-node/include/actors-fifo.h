@@ -113,6 +113,7 @@ static inline FIFO_TYPE FIFO_NAME(pinRead)(LocalInputPort *p) {
 
 static inline void FIFO_NAME(pinConsume)(LocalInputPort *p) {
     const FIFO_TYPE *readPtr = (const FIFO_TYPE *) p->readPtr;
+    
     FIFO_TYPE result;
 
     assert(p->available > 0);
@@ -136,7 +137,7 @@ static inline void FIFO_NAME(pinConsumeRepeat)(LocalInputPort *p,
 
     if (endPtr >= bufferEnd) {
         // Buffer wrap
-        int numBytes = bufferEnd - startPtr;
+        //int numBytes = bufferEnd - startPtr;
         startPtr = (const char*) p->bufferStart;
         endPtr = startPtr + (endPtr - bufferEnd);
     }

@@ -335,6 +335,90 @@ public interface Globals {
 //        });
 //    }
 
+
+default void globalSource() {
+
+        Path globalSourcePath;
+        if(backend().context().getConfiguration().get(PlatformSettings.runOnNode)){
+            globalSourcePath = PathUtils.getTargetCodeGenSourceCC(backend().context()).resolve("globals.cc");
+        }else{
+            globalSourcePath = PathUtils.getTargetCodeGenSource(backend().context()).resolve("globals.cc");
+        }
+
+        emitter().open(globalSourcePath);
+
+        emitter().emit("#include \"globals.h\"");
+
+        emitter().emit("#ifdef USE_TORCH");
+        emitter().emitNewLine();
+
+        emitter().emit("char *serializeTensor(torch::Tensor *tensor, char *buffer) {");
+        emitter().increaseIndentation();
+
+        emitter().emit("char *p = buffer;");
+        emitter().emit("std::stringstream ss;");
+        emitter().emit("torch::save(*tensor, ss);");
+        emitter().emit("long size = ss.str().size();");
+        emitter().emit("std::memcpy(p, ss.str().c_str(), size);");
+        emitter().emitNewLine();
+        emitter().emit("return p + size;");
+
+        emitter().decreaseIndentation();
+        emitter().emit("}");
+
+        emitter().emitNewLine();
+
+        emitter().emit("char *deserializeTensor(torch::Tensor **tensor, char *buffer, long size) {");
+        emitter().increaseIndentation();
+
+        emitter().emit("char *p = buffer;");
+        emitter().emit("std::stringstream ss;");
+        emitter().emitNewLine();
+
+        emitter().emit("*tensor = new torch::Tensor[1];");
+        emitter().emit("for (long i = 0; i < size; i++) {");
+        emitter().emit("\tss << buffer[i];");
+        emitter().emit("}");
+
+        emitter().emitNewLine();
+
+        emitter().emit("torch::load(**tensor, ss);");
+        emitter().emit("return p + size;");
+
+        emitter().decreaseIndentation();
+        emitter().emit("}");
+        emitter().emitNewLine();
+
+        emitter().emit("long sizeTensor(torch::Tensor *src) {");
+        emitter().increaseIndentation();
+
+        emitter().emit("std::stringstream ss;");
+        emitter().emit("torch::save(*src, ss);");
+        emitter().emit("return ss.str().size();");
+
+        emitter().decreaseIndentation();
+        emitter().emit("}");
+        emitter().emitNewLine();
+
+        emitter().emit("int freeTensor(torch::Tensor *tensor, int top) {");
+        emitter().increaseIndentation();
+
+        emitter().emit("if (tensor == nullptr) {");
+        emitter().emit("\treturn 0;");
+        emitter().emit("}");
+
+        emitter().emitNewLine();
+        emitter().emit("delete tensor;");
+        emitter().emit("return 1;");
+
+        emitter().decreaseIndentation();
+        emitter().emit("}");
+
+
+        emitter().emit("#endif");
+        emitter().close();
+    }
+
     default void generateHeader() {
         Path mainTarget;
         if (backend().context().getConfiguration().get(PlatformSettings.runOnNode)) {
@@ -352,8 +436,38 @@ public interface Globals {
 
         emitter().emit("#ifdef USE_TORCH");
         backend().includeSystem("torch/torch.h");
+        emitter().emitNewLine();
+
+        emitter().emit("typedef torch::Tensor Tensor;");
+
+        emitter().emit("// -- Ser/Des Tensor functions");
+        emitter().emit("char *serializeTensor(torch::Tensor *tensor, char *buffer);");
+        emitter().emit("char *deserializeTensor(torch::Tensor **tensor, char *buffer, long size);");
+        emitter().emit("long sizeTensor(torch::Tensor *src);");
+        emitter().emit("int freeTensor(torch::Tensor *tensor, int top);");
+        emitter().emitNewLine();
+
         emitter().emit("#endif");
         emitter().emitNewLine();
+
+        // -- Prelude
+        emitter().emit("// -- Prelude");
+        emitter().emit("namespace prelude {");
+        {
+            emitter().increaseIndentation();
+
+            emitter().emit("inline void print(std::string s) {");
+            emitter().emit("\tstd::cout << s;");
+            emitter().emit("}");
+            emitter().emitNewLine();
+
+            emitter().emit("inline void println(std::string s) {");
+            emitter().emit("\tstd::cout << s << std::endl;");
+            emitter().emit("}");
+
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("}");
 
         Map<QID, List<SourceUnit>> sourceunitbyQID = getSourceUnitbyQid();
 

@@ -63,16 +63,17 @@ public interface CMakeLists {
         emitter().emit("option(ART_NODE \"Run actors on ART Node.\" OFF)");
         emitter().emitNewLine();
 
+        // -- USE Torch
+        emitter().emit("option(TORCH \"Link and include libtorch\" ON)");
+        emitter().emitNewLine();
+
         // -- Default C Flags
         emitter().emit("# -- Default C Flags");
         emitter().emit("set(CMAKE_C_FLAGS \"-Wall -Wno-unused-variable -Wno-missing-braces -fno-common\")");
         emitter().emitNewLine();
 
-        // -- CXX APPLE FLAGS
-
-        emitter().emit("if(CMAKE_CXX_COMPILER_ID STREQUAL Clang OR CMAKE_CXX_COMPILER_ID STREQUAL AppleClang)");
-        emitter().emit("\tstring(APPEND CMAKE_CXX_FLAGS \" -Wno-c++11-narrowing -fno-common\")");
-        emitter().emit(" endif()");
+        // -- Module Path
+        emitter().emit("set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/lib/cmake)");
         emitter().emitNewLine();
 
 
@@ -81,10 +82,31 @@ public interface CMakeLists {
         emitter().emit("set(EXECUTABLE_OUTPUT_PATH ${CMAKE_SOURCE_DIR}/bin)");
         emitter().emitNewLine();
 
+
         // -- Definitions used in sub directories
         emitter().emit("# -- Definitions used in sub directories");
         emitter().emit("set(extra_definitions)");
         emitter().emit("set(extra_includes)");
+        emitter().emitNewLine();
+
+        emitter().emit("if(ART_NODE)");
+        emitter().emit("\tlist(APPEND extra_definitions \"-DCAL_RT_CALVIN\")");
+        emitter().emit("endif()");
+        emitter().emitNewLine();
+
+        emitter().emit("# -- Configure for Torch");
+        emitter().emit("if(TORCH)");
+        {
+            emitter().increaseIndentation();
+
+            emitter().emit("find_package(Torch REQUIRED)");
+            emitter().emit("list(APPEND extra_definitions \"-DUSE_TORCH\")");
+            emitter().emit("list(APPEND extra_libraries \"${TORCH_LIBRARIES}\")");
+            emitter().emit("list(APPEND CMAKE_CXX_FLAGS \"${TORCH_CXX_FLAGS}\")");
+
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("endif()");
         emitter().emitNewLine();
 
         // -- Include directories
@@ -163,7 +185,7 @@ public interface CMakeLists {
         emitter().emit("# -- Generated code headers");
         emitter().emit("set(multicore_headers");
         emitter().increaseIndentation();
-        emitter().emit("include/__arrayCopy.h");
+        //emitter().emit("include/__arrayCopy.h");
         emitter().emit("include/globals.h");
         emitter().decreaseIndentation();
         emitter().emit(")");
@@ -194,7 +216,7 @@ public interface CMakeLists {
                 if (!entityDecl.getExternal()) {
                     String name = instance.getInstanceName();
 
-                    emitter().emit("add_library(%s MODULE src/%1$s.c src/globals.c)", name);
+                    emitter().emit("add_library(%s MODULE src/%1$s.cc src/globals.cc)", name);
                     emitter().emit("set_target_properties(%s PROPERTIES COMPILE_FLAGS \"-Wall -fPIC\")", name);
                     emitter().emit("set_target_properties(%s PROPERTIES PREFIX \"\")", name);
                     emitter().emit("set_target_properties(%s PROPERTIES LIBRARY_OUTPUT_DIRECTORY \"${CMAKE_SOURCE_DIR}/bin/modules\")", name);

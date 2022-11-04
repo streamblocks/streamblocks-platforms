@@ -798,8 +798,10 @@ public interface Instances {
         emitter().emit("ActorInstance_%s,", instanceQID);
         emitter().emit("ActorInstance_%s_constructor,", instanceQID);
         emitter().emit("0, // -- setParam not needed anymore (we instantiate with params)");
+        emitter().emit("#ifdef CAL_RT_CALVIN_SERIALIZE");
         emitter().emit("NULL, // -- TODO : actor serializer");
         emitter().emit("NULL, // -- TODO : actor deserializer");
+        emitter().emit("#endif");
         emitter().emit("%s_scheduler,", instanceQID);
         emitter().emit("ActorInstance_%s_destructor,", instanceQID);
         emitter().emit("%d, %s,", sizeIN, am.getInputPorts().size() == 0 ? "NULL" : "inputPortDescriptions");

@@ -40,7 +40,6 @@
 #ifndef ACTORS_RTS_H
 #define ACTORS_RTS_H
 
-#define CAL_RT_CALVIN
 
 #include <string.h>
 #include <stdint.h>
