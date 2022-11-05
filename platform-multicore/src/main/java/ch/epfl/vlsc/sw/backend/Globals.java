@@ -413,7 +413,22 @@ default void globalSource() {
 
         emitter().decreaseIndentation();
         emitter().emit("}");
+        emitter().emitNewLine();
 
+        emitter().emit("torch::Tensor torch::load_tensor_from_file(std::string fileName) {");
+        {
+            emitter().increaseIndentation();
+
+            emitter().emit("std::ifstream file(fileName, std::ios::binary);");
+            emitter().emit("std::vector<char> data((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());");
+            emitter().emit("torch::IValue ivalue = torch::pickle_load(data);");
+            emitter().emit("torch::Tensor tensor = ivalue.toTensor();");
+            emitter().emit("return tensor;");
+
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("}");
+        emitter().emitNewLine();
 
         emitter().emit("#endif");
         emitter().close();
@@ -445,6 +460,11 @@ default void globalSource() {
         emitter().emit("char *deserializeTensor(torch::Tensor **tensor, char *buffer, long size);");
         emitter().emit("long sizeTensor(torch::Tensor *src);");
         emitter().emit("int freeTensor(torch::Tensor *tensor, int top);");
+
+        emitter().emit("namespace torch {");
+        emitter().emit("\ttorch::Tensor load_tensor_from_file(std::string fileName);");
+        emitter().emit("}");
+
         emitter().emitNewLine();
 
         emitter().emit("#endif");

@@ -280,6 +280,9 @@ extern const int exit_code_yield[];
 #define EXITCODE_TERMINATE exit_code_terminate
 #define EXITCODE_BLOCK(n)  (n)
 #define EXIT_CODE_YIELD    exit_code_yield
+#define EXITCODE_PREDICATE(n) (n)
+#define EXIT_CODE_PREDICATE -2
+
 
   /*
    * The following macros provide a mechanism that allows

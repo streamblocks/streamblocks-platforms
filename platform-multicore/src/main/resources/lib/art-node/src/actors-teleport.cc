@@ -277,9 +277,10 @@ static void *receiver_thread(void *arg) {
                     } else {
                         //Deserialize the incoming token (will allocate it on the heap) and write the reference to the tokenBuffer
                         //Also assert that the deserialization used all the data
-                        assert((functions->deserialize((void **) instance->tokenMon.tokenBuffer,
-                                                       instance->tokenMon.serializeBuffer, sz) -
-                                instance->tokenMon.serializeBuffer) == sz);
+                        char *sz_des = functions->deserialize((void **) instance->tokenMon.tokenBuffer,
+                                                       instance->tokenMon.serializeBuffer, sz);
+
+                        assert( (sz_des - instance->tokenMon.serializeBuffer)  == sz);
                     }
                 } else {
                     /* if we failed reading, break out of this loop to and wait for
@@ -581,9 +582,10 @@ static void *sender_thread(void *arg) {
             sz += sizeof(int32_t);
             //Serialize the outgoing token and write the data into the serialization buffer
             //Also assert that the serialization wrote all the data
-            assert((functions->serialize(*((void **) instance->tokenMon.tokenBuffer),
-                                         instance->tokenMon.serializeBuffer + sizeof(int32_t)) -
-                    instance->tokenMon.serializeBuffer) == sz);
+            char * sz_ser = functions->serialize(*((void **) instance->tokenMon.tokenBuffer),
+                                         instance->tokenMon.serializeBuffer + sizeof(int32_t));
+
+            assert(( sz_ser - instance->tokenMon.serializeBuffer) == sz);
             //FIXME we free the token here, but that only works if the port has no fan-out,
             //that limitation also exist in the Caltoopia generated code.
             functions->free(*((void **) instance->tokenMon.tokenBuffer), 1/*TRUE*/);
