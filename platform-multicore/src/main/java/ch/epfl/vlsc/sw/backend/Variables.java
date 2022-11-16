@@ -11,6 +11,8 @@ import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.am.ActorMachine;
 import se.lth.cs.tycho.ir.entity.am.Scope;
 import se.lth.cs.tycho.ir.expr.ExprGlobalVariable;
+import se.lth.cs.tycho.type.TensorType;
+import se.lth.cs.tycho.type.Type;
 
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -103,7 +105,12 @@ public interface Variables {
         VarDecl decl = backend().varDecls().declaration(var);
         IRNode parent = backend().tree().parent(decl);
         if (parent instanceof Scope || parent instanceof ActorMachine) {
-            return "thisActor->" + declarationName(decl);
+            Type type = backend().types().type(decl.getType());
+            if(type instanceof TensorType){
+                return "*thisActor->" + declarationName(decl);
+            }else{
+                return "thisActor->" + declarationName(decl);
+            }
         } else {
             return declarationName(decl);
         }
