@@ -269,6 +269,56 @@ public interface ExpressionEvaluator {
         }
     }
 
+    default void evaluateWithLvalue(String lvalue, ExprApplication apply){
+        boolean directlyCallable = backend().callablesInActor().directlyCallable(apply.getFunction());
+        String fn;
+        List<String> parameters = new ArrayList<>();
+
+        if (!directlyCallable) {
+            parameters.add("thisActor");
+        }
+
+        if (!backend().profilingbox().isEmpty()) {
+            boolean isExternal = false;
+            if (apply.getFunction() instanceof ExprGlobalVariable) {
+                VarDecl declaration = backend().varDecls().declaration((ExprGlobalVariable) apply.getFunction());
+                isExternal = declaration.isExternal();
+            }
+
+            if (!isExternal)
+                parameters.add("__opCounters");
+        }
+
+        for (Expression parameter : apply.getArgs()) {
+            if (parameter instanceof ExprList) {
+                parameters.add(evaluateOnlyValue((ExprList) parameter));
+            } else {
+                if (parameter instanceof ExprGlobalVariable){
+                    VarDecl decl = backend().varDecls().declaration((ExprGlobalVariable) parameter);
+                    if(decl.getValue() instanceof ExprList){
+                        parameters.add(evaluateOnlyValue((ExprList) decl.getValue()));
+                    }else{
+                        parameters.add(evaluate(parameter));
+                    }
+                }else{
+                    parameters.add(evaluate(parameter));
+                }
+            }
+        }
+
+
+        fn = evaluateCall(apply.getFunction());
+        Type type = types().type(apply);
+        String result = variables().generateTemp();
+        String decl = declarations().declarationTemp(types().type(apply), result);
+
+        if(type instanceof TensorType){
+            emitter().emit("%s = new Tensor(%s(%s));", lvalue, fn, String.join(", ", parameters));
+        }else{
+            emitter().emit("%s = %s(%s);", decl, fn, String.join(", ", parameters));
+        }
+    }
+
     default String compare(Type lvalueType, String lvalue, Type rvalueType, String rvalue) {
         return String.format("(%s == %s)", lvalue, rvalue);
     }

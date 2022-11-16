@@ -700,9 +700,13 @@ public interface Instances {
         if (var.getValue() instanceof ExprInput) {
             expressioneval().evaluateWithLvalue("thisActor->" + backend().variables().declarationName(var), (ExprInput) var.getValue());
         } else {
-            statements().copy(types().declaredType(var), "thisActor->" + backend().variables().declarationName(var), types().type(var.getValue()), expressioneval().evaluate(var.getValue()));
+            Type type = types().declaredType(var);
+            if (type instanceof TensorType) {
+                expressioneval().evaluateWithLvalue("thisActor->" + backend().variables().declarationName(var), var.getValue());
+            } else {
+                statements().copy(types().declaredType(var), "thisActor->" + backend().variables().declarationName(var), types().type(var.getValue()), expressioneval().evaluate(var.getValue()));
+            }
         }
-
         if (!backend().profilingbox().isEmpty()) {
             emitter().emit("delete __opCounters;");
         }

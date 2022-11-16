@@ -1228,7 +1228,7 @@ static void generate_config(FILE *f,
                         inputBandwidth /= tokenSize;
                     }
 
-                    fprintf(f, "\t\t<fifo-connection source=\"%s\" source-port=\"%s\" "
+                    fprintf(f, "\t\t<connection source=\"%s\" source-port=\"%s\" "
                                "target=\"%s\" target-port=\"%s\" size=\"%u\" "
                                "token-size=\"%u\"",
                             producer->name, outputPortName,

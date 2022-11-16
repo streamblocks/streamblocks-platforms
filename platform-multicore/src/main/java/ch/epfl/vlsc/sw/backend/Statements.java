@@ -5,9 +5,13 @@ import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.Types;
+import se.lth.cs.tycho.ir.IRNode;
+import se.lth.cs.tycho.ir.NamespaceDecl;
 import se.lth.cs.tycho.ir.Variable;
 import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
+import se.lth.cs.tycho.ir.entity.am.ActorMachine;
+import se.lth.cs.tycho.ir.entity.am.Scope;
 import se.lth.cs.tycho.ir.expr.ExprBinaryOp;
 import se.lth.cs.tycho.ir.expr.ExprComprehension;
 import se.lth.cs.tycho.ir.expr.ExprGlobalVariable;
@@ -120,7 +124,17 @@ public interface Statements {
                 for (Expression expr : write.getValues()) {
 
                     if (type instanceof TensorType) {
-                        emitter().emit("%s = new Tensor(%s);", tmp, expressioneval().evaluate(expr));
+                        if (expr instanceof ExprVariable) {
+                            VarDecl decl = backend().varDecls().declaration((ExprVariable) expr);
+                            IRNode parent = backend().tree().parent(decl);
+                            if (parent instanceof Scope) {
+                                emitter().emit("%s = %s;", tmp, expressioneval().evaluate(expr));
+                            }else{
+                                emitter().emit("%s = new Tensor(%s);", tmp, expressioneval().evaluate(expr));
+                            }
+                        } else {
+                            emitter().emit("%s = new Tensor(%s);", tmp, expressioneval().evaluate(expr));
+                        }
                     } else {
                         emitter().emit("%s = %s;", tmp, expressioneval().evaluate(expr));
                     }
