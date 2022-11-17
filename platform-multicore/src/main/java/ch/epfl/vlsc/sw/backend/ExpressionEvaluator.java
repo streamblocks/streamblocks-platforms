@@ -487,7 +487,7 @@ public interface ExpressionEvaluator {
         Expression left = binaryOp.getOperands().get(0);
         Expression right = binaryOp.getOperands().get(1);
         emitter().emit("%s;", backend().declarations().declaration(rhs, tmp));
-        emitter().emit("%1$s = concat_%2$s_%3$s(%4$s, %5$s);", tmp, backend().typeseval().type(RealType.f64), backend().typeseval().type(rhs), evaluate(left), evaluate(right));
+        emitter().emit("%s = %s + std::to_string(%s);", tmp, evaluate(left), evaluate(right));
         return tmp;
     }
 
@@ -496,7 +496,7 @@ public interface ExpressionEvaluator {
         Expression left = binaryOp.getOperands().get(0);
         Expression right = binaryOp.getOperands().get(1);
         emitter().emit("%s;", backend().declarations().declaration(lhs, tmp));
-        emitter().emit("%1$s = concat_%2$s_%3$s(%4$s, %5$s);", tmp, backend().typeseval().type(lhs), backend().typeseval().type(RealType.f64), evaluate(left), evaluate(right));
+        emitter().emit("%s = %s + std::to_string(%s);", tmp, evaluate(left), evaluate(right));
         return tmp;
     }
 
@@ -506,7 +506,7 @@ public interface ExpressionEvaluator {
         Expression left = binaryOp.getOperands().get(0);
         Expression right = binaryOp.getOperands().get(1);
         emitter().emit("%s;", backend().declarations().declaration(rhs, tmp));
-        emitter().emit("%1$s = std::to_string(%2$s) + %3$s;", tmp, evaluate(left), evaluate(right));
+        emitter().emit("%s = std::to_string(%s) + %s;", tmp, evaluate(left), evaluate(right));
         return tmp;
     }
 

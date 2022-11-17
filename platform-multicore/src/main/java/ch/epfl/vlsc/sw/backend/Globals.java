@@ -449,6 +449,9 @@ default void globalSource() {
         emitter().emit("#include  <cstdint>");
         emitter().emitNewLine();
 
+        backend().includeUser("art_time.h");
+        emitter().emitNewLine();
+
         emitter().emit("#ifdef USE_TORCH");
         backend().includeSystem("torch/torch.h");
         emitter().emitNewLine();
