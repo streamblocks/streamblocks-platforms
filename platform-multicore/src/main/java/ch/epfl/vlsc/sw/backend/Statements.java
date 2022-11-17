@@ -128,7 +128,8 @@ public interface Statements {
                             VarDecl decl = backend().varDecls().declaration((ExprVariable) expr);
                             IRNode parent = backend().tree().parent(decl);
                             if (parent instanceof Scope) {
-                                emitter().emit("%s = %s;", tmp, expressioneval().evaluate(expr));
+                                // -- No need for defer
+                                emitter().emit("%s = thisActor->%s;", tmp, backend().variables().declarationName(decl));
                             }else{
                                 emitter().emit("%s = new Tensor(%s);", tmp, expressioneval().evaluate(expr));
                             }
