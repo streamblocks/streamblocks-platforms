@@ -454,9 +454,14 @@ default void globalSource() {
 
         emitter().emit("#ifdef USE_TORCH");
         backend().includeSystem("torch/torch.h");
+        backend().includeSystem("ATen/TensorIndexing.h");
         emitter().emitNewLine();
 
+
+        emitter().emit("using namespace torch::indexing;");
         emitter().emit("typedef torch::Tensor Tensor;");
+        emitter().emit("#define sb_null None");
+        emitter().emitNewLine();
 
         emitter().emit("// -- Ser/Des Tensor functions");
         emitter().emit("char *serializeTensor(torch::Tensor *tensor, char *buffer);");

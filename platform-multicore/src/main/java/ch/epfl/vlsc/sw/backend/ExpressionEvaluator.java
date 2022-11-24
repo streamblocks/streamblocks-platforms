@@ -178,6 +178,8 @@ public interface ExpressionEvaluator {
                 return literal.getText();
             case String:
                 return literal.getText();
+            case Null:
+                return "sb_null";
             default:
                 throw new UnsupportedOperationException(literal.getText());
         }
