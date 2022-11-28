@@ -92,6 +92,10 @@ public interface Statements {
             } else {
                 emitter().emit("pinConsume_%s(%s);", channelsutils().inputPortTypeSize(consume.getPort()), channelsutils().definedInputPort(consume.getPort()));
                 backend().statements().profilingOp().add("__opCounters->prof_DATAHANDLING_LOAD += 1;");
+                Type type = channelsutils().inputPortType(consume.getPort());
+                if(type instanceof TensorType){
+                    emitter().emit("delete %s;", channelsutils().definedInputPort(consume.getPort()) + "_peek");
+                }
             }
         }
     }
@@ -341,8 +345,6 @@ public interface Statements {
             }
 
             if (decl.getValue() != null) {
-                emitter().emit("{");
-                emitter().increaseIndentation();
                 if (decl.getValue() instanceof ExprInput) {
                     ExprInput input = (ExprInput) decl.getValue();
                     if (backend().channelsutils().isTargetConnected(backend().instancebox().get().getInstanceName(), input.getPort().getName())) {
@@ -353,8 +355,7 @@ public interface Statements {
                 } else {
                     copy(t, declarationName, types().type(decl.getValue()), expressioneval().evaluate(decl.getValue()));
                 }
-                emitter().decreaseIndentation();
-                emitter().emit("}");
+                emitter().emitNewLine();
             }
             if (!backend().profilingbox().isEmpty()) {
                 profilingOp().forEach(s -> emitter().emit((String) s));

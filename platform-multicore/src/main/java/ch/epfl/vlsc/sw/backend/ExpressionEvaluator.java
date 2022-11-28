@@ -214,7 +214,7 @@ public interface ExpressionEvaluator {
                 }
             } else {
                 if(type instanceof TensorType){
-                    String tensor_tmp = variables().generateTemp();
+                    String tensor_tmp = channelsutils().definedInputPort(input.getPort()) + "_peek";
                     if (input.getOffset() == 0) {
                         emitter().emit("Tensor *%s = (Tensor*) pinPeekFront_ref(%s);", tensor_tmp, channelsutils().definedInputPort(input.getPort()));
                     } else {
@@ -252,7 +252,7 @@ public interface ExpressionEvaluator {
                 }
             } else {
                 if(type instanceof TensorType){
-                    String tmp = variables().generateTemp();
+                    String tmp = channelsutils().definedInputPort(input.getPort()) + "_peek";
                     if (input.getOffset() == 0) {
                         emitter().emit("Tensor *%s = (Tensor*) pinPeekFront_ref(%s);", tmp, channelsutils().definedInputPort(input.getPort()));
                     } else {

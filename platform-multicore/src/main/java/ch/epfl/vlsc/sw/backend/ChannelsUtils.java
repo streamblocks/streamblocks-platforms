@@ -44,6 +44,11 @@ public interface ChannelsUtils {
         return type;
     }
 
+    default Type inputPortType(Port port) {
+        return targetEndType(new Connection.End(Optional.of(backend().instancebox().get().getInstanceName()), port.getName()));
+    }
+
+
     default String inputPortTypeSize(Port port) {
         Type type = targetEndType(new Connection.End(Optional.of(backend().instancebox().get().getInstanceName()), port.getName()));
         if (type instanceof AlgebraicType) {

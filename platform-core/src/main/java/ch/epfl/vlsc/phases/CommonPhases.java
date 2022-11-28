@@ -12,7 +12,8 @@ public class CommonPhases {
             new ResolveGlobalVariableNamesPhase(),
             //new ConnectivityAnalysisPhase(),
             new ElaborateNetworkPhase(),
-            new RemoveUnusedGlobalDeclarations()
+            new RemoveUnusedGlobalDeclarations(),
+            new AddFanoutPhase()
     );
 
 
