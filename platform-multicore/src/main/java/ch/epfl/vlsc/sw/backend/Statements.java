@@ -126,24 +126,11 @@ public interface Statements {
                 }
 
                 for (Expression expr : write.getValues()) {
-
                     if (type instanceof TensorType) {
-                        if (expr instanceof ExprVariable) {
-                            VarDecl decl = backend().varDecls().declaration((ExprVariable) expr);
-                            IRNode parent = backend().tree().parent(decl);
-                            if (parent instanceof Scope) {
-                                // -- No need for defer
-                                emitter().emit("%s = thisActor->%s;", tmp, backend().variables().declarationName(decl));
-                            }else{
-                                emitter().emit("%s = new Tensor(%s);", tmp, expressioneval().evaluate(expr));
-                            }
-                        } else {
-                            emitter().emit("%s = new Tensor(%s);", tmp, expressioneval().evaluate(expr));
-                        }
+                        emitter().emit("%s = new Tensor(%s);", tmp, expressioneval().evaluate(expr));
                     } else {
                         emitter().emit("%s = %s;", tmp, expressioneval().evaluate(expr));
                     }
-
                     emitter().emit("pinWrite_%s(%s, %s);", portType, channelsutils().definedOutputPort(write.getPort()), tmp);
                     profilingOp().add("__opCounters->prof_DATAHANDLING_STORE += 1;");
                 }
