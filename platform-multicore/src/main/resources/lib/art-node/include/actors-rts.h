@@ -501,7 +501,7 @@ static void name(thistype *thisActor)
 static inline void pinRead_dynRepeat(LocalInputPort *p,
                                      void *token,       /* output */
                                      size_t tokenSize,
-                                     int n)
+                                     unsigned int n)
 {
     const char *startPtr = (char *) p->readPtr;
     const char *endPtr = (char *) ((char *) startPtr + n*tokenSize);

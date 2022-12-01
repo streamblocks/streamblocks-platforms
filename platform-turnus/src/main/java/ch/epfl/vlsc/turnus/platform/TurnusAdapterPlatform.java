@@ -15,7 +15,7 @@ public class TurnusAdapterPlatform implements Platform {
             .addAll(Compiler.frontendPhases())
             .addAll(Compiler.templatePhases())
             .addAll(Compiler.networkElaborationPhases())
-            //.add(new AddFanoutPhase())
+            .add(new AddFanoutPhase())
             .addAll(Compiler.nameAndTypeAnalysis())
             .addAll(prepareActorPhases())
             .add(new VerilogNameCheckerPhase())

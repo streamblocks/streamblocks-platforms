@@ -74,7 +74,7 @@ static inline void FIFO_NAME(pinWrite)(LocalOutputPort *p, FIFO_TYPE token) {
 
 static inline void FIFO_NAME(pinWriteRepeat)(LocalOutputPort *p,
                                              FIFO_TYPE *buf,
-                                             int n) {
+                                             unsigned int n) {
     char *startPtr = (char *) p->writePtr;
     char *endPtr = (char *) ((FIFO_TYPE *) startPtr + n);
     char *bufferEnd = (char *) p->bufferEnd;
@@ -127,7 +127,7 @@ static inline void FIFO_NAME(pinConsume)(LocalInputPort *p) {
 }
 
 static inline void FIFO_NAME(pinConsumeRepeat)(LocalInputPort *p,
-                                               int n) {
+                                               unsigned int n) {
     const char *startPtr = (char *) p->readPtr;
     const char *endPtr = (char *) ((FIFO_TYPE *) startPtr + n);
     const char *bufferEnd = (char *) p->bufferEnd;
@@ -147,7 +147,7 @@ static inline void FIFO_NAME(pinConsumeRepeat)(LocalInputPort *p,
 
 static inline void FIFO_NAME(pinReadRepeat)(LocalInputPort *p,
                                             FIFO_TYPE *buf,
-                                            int n) {
+                                            unsigned int n) {
     const char *startPtr = (char *) p->readPtr;
     const char *endPtr = (char *) ((FIFO_TYPE *) startPtr + n);
     const char *bufferEnd = (char *) p->bufferEnd;
@@ -186,7 +186,7 @@ static inline FIFO_TYPE FIFO_NAME(pinPeek)(const LocalInputPort *p,
 
 static inline void FIFO_NAME(pinPeekRepeat)(LocalInputPort *p,
                                             FIFO_TYPE *buf,
-                                            int n) {
+                                            unsigned int n) {
 
     const char *startPtr = (char *) p->readPtr;
     const char *endPtr = (char *) ((FIFO_TYPE *) startPtr + n);

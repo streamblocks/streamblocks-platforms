@@ -375,14 +375,19 @@ default void globalSource() {
         emitter().emit("std::stringstream ss;");
         emitter().emitNewLine();
 
-        emitter().emit("*tensor = new torch::Tensor[1];");
+
         emitter().emit("for (long i = 0; i < size; i++) {");
         emitter().emit("\tss << buffer[i];");
         emitter().emit("}");
 
         emitter().emitNewLine();
+        emitter().emit("Tensor load;");
+        emitter().emit("torch::load(load, ss);");
+        emitter().emit("Tensor* p_load = new Tensor(load);");
+        emitter().emit("*tensor = new torch::Tensor[1];");
+        emitter().emit("tensor[0] = p_load;");
+        emitter().emitNewLine();
 
-        emitter().emit("torch::load(**tensor, ss);");
         emitter().emit("return p + size;");
 
         emitter().decreaseIndentation();

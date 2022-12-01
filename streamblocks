@@ -12,14 +12,14 @@ function readlink_rec {
 }
 
 root=`dirname "$(readlink_rec $0)"`
-lib="$root/platform-cpp/target/lib"
+lib="$root/platform-multicore/target/lib"
 #libs="$lib/core-1.0-SNAPSHOT.jar:$lib/multij-core-0.1.jar:$lib/platform-core-1.0-SNAPSHOT.jar:$lib/jaxb-runtime-2.3.2.jar"
 
 
-comp="$root/platform-cpp/target/lib/compiler-1.0-SNAPSHOT.jar"
+comp="$root/platform-multicore/target/lib/compiler-1.0-SNAPSHOT.jar"
 #platforms="$root/platform-multicore/target/platform-multicore-1.0-SNAPSHOT.jar:$root/platform-vivadohls/target/platform-vivadohls-1.0-SNAPSHOT.jar:$root/platform-node/target/platform-node-1.0-SNAPSHOT.jar:$root/platform-orcc/target/platform-orcc-1.0-SNAPSHOT.jar:$root/platform-cpp/target/platform-cpp-1.0-SNAPSHOT.jar"
 
-platforms="$root/platform-core/target/classes:$root/platform-cpp/target/classes"
+platforms="$root/platform-core/target/classes:$root/platform-multicore/target/classes"
 
 if [ -f "$comp" ]
 then

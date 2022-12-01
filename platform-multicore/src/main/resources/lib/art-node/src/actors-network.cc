@@ -64,7 +64,7 @@ static dllist_head_t instances;   /* active, executing instances */
 static dllist_head_t disabled_instances;/* disabled, non-executing instances */
 
 /* TODO: make it possible to configure this on a per-connection basis */
-#define FIFO_CAPACITY  (4096)
+#define FIFO_CAPACITY  (8)
 
 /* ------------------------------------------------------------------------- */
 
