@@ -12,6 +12,7 @@ import org.multij.MultiJ;
 import se.lth.cs.tycho.attribute.GlobalNames;
 import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.ir.Annotation;
+import se.lth.cs.tycho.ir.AnnotationParameter;
 import se.lth.cs.tycho.ir.Parameter;
 import se.lth.cs.tycho.ir.Port;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
@@ -352,10 +353,27 @@ public interface Instances {
 
     }
 
+
+    default String getDynamicShapeAnnotation(String annotationName, String portName, List<Annotation> annotations){
+
+        List<Annotation> shapes = Annotation.getAnnotationsWithName(annotationName, annotations);
+        if (!shapes.isEmpty()){
+            for (Annotation ann : shapes){
+                List<AnnotationParameter> params = ann.getParameters();
+                AnnotationParameter port = params.get(0);
+                ExprLiteral literal = (ExprLiteral) port.getExpression();
+                if(literal.getText().replaceAll("\"", "").equals(portName)){
+                    return ((ExprLiteral) params.get(1).getExpression()).getText().replaceAll("\"", "");
+                }
+            }
+        }
+
+        return "0";
+    }
+
     /*
      * Port Descriptions
      */
-
     default void portDescription(String instanceName, Entity entity) {
         emitter().emit("// -- Input & Output Port Description");
 
@@ -369,6 +387,11 @@ public interface Instances {
         emitter().emit("#endif");
         emitter().emitNewLine();
 
+        List<Annotation> annotations = new ArrayList<>();
+        if(!entity.getAnnotations().isEmpty()){
+            annotations = entity.getAnnotations();
+        }
+
         // -- Input Port Descriptions
         if (!entity.getInputPorts().isEmpty()) {
             emitter().emit("static const PortDescription inputPortDescriptions[]={");
@@ -377,7 +400,8 @@ public interface Instances {
             for (PortDecl inputPort : entity.getInputPorts()) {
                 if (backend().channelsutils().isTargetConnected(backend().instancebox().get().getInstanceName(), inputPort.getName())) {
                     Type type = channelutils().targetEndType(new Connection.End(Optional.of(instanceName), inputPort.getName()));
-                    portDescriptionByPort(inputPort.getName(), type);
+                    String dynamic_size =  getDynamicShapeAnnotation("input_dynamic_shape", inputPort.getName(), annotations);
+                    portDescriptionByPort(inputPort.getName(), type, dynamic_size);
                 }
             }
 
@@ -394,7 +418,8 @@ public interface Instances {
                 if (backend().channelsutils().isSourceConnected(backend().instancebox().get().getInstanceName(), outputPort.getName())) {
                     Connection.End source = new Connection.End(Optional.of(instanceName), outputPort.getName());
                     Type type = channelutils().sourceEndType(source);
-                    portDescriptionByPort(outputPort.getName(), type);
+                    String dynamic_size =  getDynamicShapeAnnotation("output_dynamic_shape", outputPort.getName(), annotations);
+                    portDescriptionByPort(outputPort.getName(), type, dynamic_size);
                 }
             }
 
@@ -405,14 +430,15 @@ public interface Instances {
 
     }
 
-    default void portDescriptionByPort(String name, Type type) {
+    default void portDescriptionByPort(String name, Type type, String dynamic_size) {
         String evaluatedType;
         if (type instanceof ProductType | type instanceof SumType | type instanceof TensorType) {
             evaluatedType = "void*";
         } else {
             evaluatedType = backend().typeseval().type(type);
         }
-        emitter().emit("{0, \"%s\", (sizeof(%s))", name, evaluatedType);
+
+        emitter().emit("{0, \"%s\", (sizeof(%s)), %s", name, evaluatedType, dynamic_size);
         emitter().emit("#ifdef CAL_RT_CALVIN");
         if(type instanceof TensorType){
             emitter().emit(", &serDesTensor");

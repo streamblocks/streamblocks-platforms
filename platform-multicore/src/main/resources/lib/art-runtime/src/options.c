@@ -66,7 +66,7 @@ void pre_parse_args(int argc, char *argv[], RuntimeOptions *options) {
     options->enable_display = 1;
     options->nbr_loops=-1;
     options->nbr_frames = -1;
-
+    options->arg_loopmax = INT_MAX;
     options->no_cfile_connections = 0;
     options->buffer_depth = DEFAULT_FIFO_LENGTH;
 

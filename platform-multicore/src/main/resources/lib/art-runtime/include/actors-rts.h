@@ -254,6 +254,7 @@ typedef struct {
     int isBytes; //! means struct tokens capacity is measured in bytes and has to be a multiple of the struct size
     const char *name; //! name of the port
     int tokenSize; //! the size of the port token
+    int dynamic_size;
 } PortDescription;
 
 /*! \struct ActorClass

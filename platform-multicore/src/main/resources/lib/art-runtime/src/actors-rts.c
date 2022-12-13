@@ -1235,6 +1235,10 @@ static void generate_config(FILE *f,
                             consumer->name, inputPortName,
                             inputCapacity, tokenSize);
 
+                    if (producer->actor->outputPortDescriptions[k].dynamic_size > 0) {
+                         fprintf(f, " dynamic-size=\"%u\"", producer->actor->outputPortDescriptions[k].dynamic_size);
+                    }
+
                     if (with_bandwidth) {
                         fprintf(f, " bandwidth=\"%u\"/>\n", inputBandwidth);
                     } else {
@@ -1330,6 +1334,7 @@ int executeNetwork(int argc,
                                         arg_fifo_size);
     }
     if (result == 0) {
+        arg_loopmax = options->arg_loopmax;
         if (generate_trace)
             enable_tracing(runtime_data, numInstances, argv[0]);
         if (generate_turnus_trace)

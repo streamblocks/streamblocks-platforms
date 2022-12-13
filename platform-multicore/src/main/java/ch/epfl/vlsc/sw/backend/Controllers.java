@@ -63,6 +63,9 @@ public interface Controllers {
         String actorInstanceName = "ActorInstance_" + name;
         emitter().emit("%s *thisActor = (%1$s*) pBase;", actorInstanceName);
         emitter().emit("ART_ACTION_SCHEDULER_ENTER(%d, %d)", sizeIN, sizeOUT);
+        emitter().emit("context->loop = 0;");
+        emitter().emitNewLine();
+
 
         // -- Controller
         jumpInto(waitTargets.stream().mapToInt(stateMap::get).collect(BitSet::new, BitSet::set, BitSet::or));
@@ -77,11 +80,28 @@ public interface Controllers {
 
         for (State s : stateList) {
             emitter().emit("S%d:", stateMap.get(s));
-            Instruction instruction = s.getInstructions().get(0);
-            initialize.apply(instruction).stream().forEach(scope ->
-                    emitter().emit("%s_init_scope_%d(context, thisActor);", name, scope)
-            );
-            emitInstruction(actorMachine, name, instruction, s, stateMap);
+            if(stateMap.get(s) == 0){
+                emitter().emit("if (context->loop < maxloops){");
+                emitter().increaseIndentation();
+
+                Instruction instruction = s.getInstructions().get(0);
+                initialize.apply(instruction).stream().forEach(scope ->
+                        emitter().emit("%s_init_scope_%d(context, thisActor);", name, scope)
+                );
+                emitInstruction(actorMachine, name, instruction, s, stateMap);
+
+                emitter().decreaseIndentation();
+                emitter().emit("} else {");
+                emitter().emit("\tgoto out;");
+                emitter().emit("}");
+                emitter().emitNewLine();
+            }else{
+                Instruction instruction = s.getInstructions().get(0);
+                initialize.apply(instruction).stream().forEach(scope ->
+                        emitter().emit("%s_init_scope_%d(context, thisActor);", name, scope)
+                );
+                emitInstruction(actorMachine, name, instruction, s, stateMap);
+            }
         }
 
         emitter().emit("out:");
@@ -142,6 +162,9 @@ public interface Controllers {
 
     default void emitInstruction(ActorMachine am, String name, Exec exec, State from, Map<State, Integer> stateNumbers) {
         emitter().emit("ART_EXEC_TRANSITION(%s_transition_%d);", name, exec.transition());
+        if(stateNumbers.get(exec.target()) == 0){
+            emitter().emit("context->loop++;");
+        }
         emitter().emit("goto S%d;", stateNumbers.get(exec.target()));
         emitter().emit("");
     }
