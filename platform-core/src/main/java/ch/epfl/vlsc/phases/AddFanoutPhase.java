@@ -3,6 +3,7 @@ package ch.epfl.vlsc.phases;
 import se.lth.cs.tycho.compiler.*;
 import se.lth.cs.tycho.ir.*;
 import se.lth.cs.tycho.ir.decl.*;
+import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.entity.cal.*;
 import se.lth.cs.tycho.ir.expr.ExprCase;
@@ -108,7 +109,7 @@ public class AddFanoutPhase implements Phase {
             PortDecl port = networkInputPorts.stream().filter(p -> p.getName().equals(portName)).findAny().orElse(null);
 
             // -- Create actor
-            CalActor fanout = getFanoutActor(port, portInFanouts.get(portName).size());
+            CalActor fanout = getFanoutActor(port, portInFanouts.get(portName).size(), -1);
 
             // -- Names
             String fanoutInstanceName = uniqueInstanceName(task.getNetwork(), name);
@@ -177,11 +178,14 @@ public class AddFanoutPhase implements Phase {
                 Instance instance = network.getInstances().stream().filter(i -> i.getInstanceName().equals(instanceName)).findAny().orElse(null);
                 GlobalEntityDecl entity = GlobalDeclarations.getEntity(task, instance.getEntityName());
 
+
                 // -- Get output port
                 PortDecl port = entity.getEntity().getOutputPorts().stream().filter(p -> p.getName().equals(portName)).findAny().orElse(null);
 
+                int dynamic_size = getDynamicSizeAnnotation(entity.getEntity(), port);
+
                 // -- Create actor
-                CalActor fanout = getFanoutActor(port, instancePortFanout.get(instanceName).get(portName).size());
+                CalActor fanout = getFanoutActor(port, instancePortFanout.get(instanceName).get(portName).size(), dynamic_size);
 
                 // -- Names
                 String fanoutInstanceName = uniqueInstanceName(task.getNetwork(), name);
@@ -369,7 +373,7 @@ public class AddFanoutPhase implements Phase {
     }
 
 
-    private CalActor getFanoutActor(PortDecl port, int fanoutSize) {
+    private CalActor getFanoutActor(PortDecl port, int fanoutSize, int dynamicSize) {
         // -- Fanout Actor Ports
         PortDecl in = new PortDecl("F_IN", (TypeExpr) port.getType().deepClone());
         ImmutableList.Builder<PortDecl> fanoutInputPorts = ImmutableList.builder();
@@ -435,9 +439,34 @@ public class AddFanoutPhase implements Phase {
         );
         actions.add(action);
 
+        // -- Dynamic size annotations
+        ImmutableList.Builder<Annotation> annotations = ImmutableList.builder();
+        if (dynamicSize != -1) {
+            // -- F_IN dynamic size
+            ImmutableList.Builder<AnnotationParameter> input_parameters = ImmutableList.builder();
+            AnnotationParameter input_port_name = new AnnotationParameter("port", new ExprLiteral(ExprLiteral.Kind.String, "F_IN"));
+            AnnotationParameter input_port_size = new AnnotationParameter("size", new ExprLiteral(ExprLiteral.Kind.Integer, String.valueOf(dynamicSize)));
+            input_parameters.addAll(input_port_name, input_port_size);
+
+            Annotation in_port = new Annotation("input_dynamic_shape", input_parameters.build());
+            annotations.add(in_port);
+
+            // -- F_OUT_N dynamic_size
+            for (int i = 0; i < fanoutSize; i++) {
+                ImmutableList.Builder<AnnotationParameter> output_parameters = ImmutableList.builder();
+                AnnotationParameter output_port_name = new AnnotationParameter("port", new ExprLiteral(ExprLiteral.Kind.String, "F_OUT_" + i));
+                AnnotationParameter output_port_size = new AnnotationParameter("size", new ExprLiteral(ExprLiteral.Kind.Integer, String.valueOf(dynamicSize)));
+                output_parameters.addAll(output_port_name, output_port_size);
+
+                Annotation out_port = new Annotation("output_dynamic_shape", output_parameters.build());
+                annotations.add(out_port);
+            }
+        }
+
+
         // -- Cal Actor
         CalActor fanout = new CalActor(
-                ImmutableList.empty(),
+                annotations.build(),
                 ImmutableList.empty(),
                 ImmutableList.empty(),
                 ImmutableList.empty(),
@@ -455,6 +484,35 @@ public class AddFanoutPhase implements Phase {
         return fanout;
     }
 
+    private int getDynamicSizeAnnotation(Entity entity, PortDecl port) {
+        List<Annotation> annotations = entity.getAnnotations();
+        for (Annotation annotation : annotations) {
+            if (annotation.getName().equals("output_dynamic_shape")){
+                for (AnnotationParameter parameter : annotation.getParameters()){
+                    if(parameter.getName().equals("port")){
+                        if(parameter.getExpression() instanceof ExprLiteral){
+                            ExprLiteral literal = (ExprLiteral) parameter.getExpression();
+                            Optional<String> portValue = literal.asString();
+                            if (portValue.isPresent()){
+                                String portName = portValue.get();
+                                if(portName.equals(port.getName())){
+                                    AnnotationParameter sizeParameter = annotation.getParameters().get(1);
+                                    ExprLiteral size = (ExprLiteral) sizeParameter.getExpression();
+                                    OptionalInt value =  size.asInt();
+                                    if (value.isPresent()){
+                                        return value.getAsInt();
+                                    }
+                                }
+                            }
+
+                        }
+                    }
+                }
+            }
+        }
+
+        return -1;
+    }
 
     private String uniqueInstanceName(Network network, String base) {
         Set<String> names = network.getInstances().stream()
