@@ -52,6 +52,7 @@ public interface Main {
         backend().includeUser("actors-rts.h");
         backend().includeUser("natives.h");
         backend().includeUser("globals.h");
+        backend().includeSystem("chrono");
         if (isSimulated)
             backend().includeUser("systemc.h");
         emitter().emitNewLine();
@@ -72,8 +73,17 @@ public interface Main {
         emitter().emit("pre_parse_args(argc, argv, options);");
         emitter().emit("AbstractActorInstance **instances;");
         emitter().emit("initNetwork(&instances, &numberOfInstances, options);");
-        emitter().emit("return executeNetwork(argc, argv, options, instances, numberOfInstances);");
+        emitter().emitNewLine();
 
+        emitter().emit("auto start = std::chrono::steady_clock::now();");
+        emitter().emit("int ret = executeNetwork(argc, argv, options, instances, numberOfInstances);");
+        emitter().emit("auto end = std::chrono::steady_clock::now();");
+        emitter().emitNewLine();
+
+        emitter().emit("std::cout << \"Elapsed time in miliseconds: \" << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << \" msec\" << std::endl;");
+        emitter().emitNewLine();
+
+        emitter().emit("return ret;");
         emitter().decreaseIndentation();
         emitter().emit("}");
         emitter().close();

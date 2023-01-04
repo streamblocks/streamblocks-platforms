@@ -1385,7 +1385,8 @@ int executeNetwork(int argc,
     if (result == 0) {
         deallocate_network(runtime_data);
     }
-    exit(result);
+
+    return result;
 }
 
 /*
