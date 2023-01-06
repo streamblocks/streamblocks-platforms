@@ -155,7 +155,7 @@ public interface Main {
         }
 
         emitter().emit("// -- Initialize Global Variables");
-        emitter().emit("//init_global_variables();");
+        emitter().emit("init_global_variables();");
         emitter().emitNewLine();
 
         emitter().emit("// -- Instances instantiation");

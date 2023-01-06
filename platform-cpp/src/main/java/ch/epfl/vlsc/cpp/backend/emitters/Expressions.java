@@ -104,6 +104,8 @@ public interface Expressions {
             }
             case Char:
                 return literal.getText();
+            case Null:
+                return "null";
             default:
                 throw new UnsupportedOperationException(literal.getText());
         }

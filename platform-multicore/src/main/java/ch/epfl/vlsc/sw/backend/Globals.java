@@ -20,6 +20,7 @@ import se.lth.cs.tycho.type.Type;
 
 import java.nio.file.Path;
 import java.util.*;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Module
@@ -336,12 +337,12 @@ public interface Globals {
 //    }
 
 
-default void globalSource() {
+    default void globalSource() {
 
         Path globalSourcePath;
-        if(backend().context().getConfiguration().get(PlatformSettings.runOnNode)){
+        if (backend().context().getConfiguration().get(PlatformSettings.runOnNode)) {
             globalSourcePath = PathUtils.getTargetCodeGenSourceCC(backend().context()).resolve("globals.cc");
-        }else{
+        } else {
             globalSourcePath = PathUtils.getTargetCodeGenSource(backend().context()).resolve("globals.cc");
         }
 
@@ -435,6 +436,27 @@ default void globalSource() {
         emitter().emit("}");
         emitter().emitNewLine();
 
+        Map<QID, List<SourceUnit>> sourceunitbyQID = getSourceUnitbyQid();
+        emitter().emit("// -- Global variables");
+
+        for (QID qid : sourceunitbyQID.keySet()) {
+            globalVariableDefinition(sourceunitbyQID.get(qid).stream().flatMap(unit -> unit.getTree().getVarDecls().stream()), qid);
+        }
+        emitter().emitNewLine();
+
+        emitter().emit("void init_global_variables(){");
+        {
+            emitter().increaseIndentation();
+
+            for (QID qid : sourceunitbyQID.keySet()) {
+                globalVariableInitialization(sourceunitbyQID.get(qid).stream().flatMap(unit -> unit.getTree().getVarDecls().stream()), qid);
+            }
+
+            emitter().decreaseIndentation();
+        }
+        emitter().emit("}");
+        emitter().emitNewLine();
+
         emitter().emit("#endif");
         emitter().close();
     }
@@ -505,6 +527,11 @@ default void globalSource() {
         Map<QID, List<SourceUnit>> sourceunitbyQID = getSourceUnitbyQid();
 
         namespaceDeclaration(sourceunitbyQID);
+        emitter().emitNewLine();
+
+        emitter().emit("// -- Init global variables");
+        emitter().emit("void init_global_variables();");
+        emitter().emitNewLine();
 
         emitter().emit("#endif // __GLOBALS__");
         emitter().emitNewLine();
@@ -522,7 +549,7 @@ default void globalSource() {
             }
 
             // -- Global var declaration
-            globalVariableDeclarations(sourceUnitByQID.get(qid).stream().flatMap(unit -> unit.getTree().getVarDecls().stream()));
+            globalVariableExternalDefinition(sourceUnitByQID.get(qid).stream().flatMap(unit -> unit.getTree().getVarDecls().stream()));
 
             //-- Ending namespace
             for (int i = 0; i < qid.getNameCount(); i++) {
@@ -556,6 +583,75 @@ default void globalSource() {
 
         return qidUnits;
     }
+
+    default void globalVariableExternalDefinition(Stream<VarDecl> varDecls) {
+        varDecls.forEach(decl -> {
+            if (!decl.isExternal()) {
+                Type type = backend().types().declaredType(decl);
+                if (type instanceof CallableType) {
+                    backend().callablesInActor().callableDefinition("", decl.getValue());
+                    //emitter().emitNewLine();
+                } else {
+                    String d = backend().declarations().declaration(type, backend().variables().declarationName(decl));
+                    emitter().emit("extern %s;", d);
+                    //emitter().emitNewLine();
+                }
+            }
+        });
+    }
+
+    default void globalVariableDefinition(Stream<VarDecl> varDecls, QID qid) {
+        varDecls.forEach(decl -> {
+            if (!decl.isExternal()) {
+                Type type = backend().types().declaredType(decl);
+                if (type instanceof CallableType) {
+                    // -- Do nothing
+                } else {
+                    if (decl.isConstant()) {
+                        String parts = qid.parts().stream()
+                                .collect(Collectors.joining("::", "", ""));
+                        String d = backend().variables().declarationName(decl);
+                        String dType = backend().typeseval().type(type);
+
+                        emitter().emit("%s %s%s;",dType,  parts.isEmpty() ? "" : parts + "::", d);
+                    }
+                }
+            }
+        });
+    }
+
+    default void globalVariableInitialization(Stream<VarDecl> varDecls, QID qid) {
+        varDecls.forEach(decl -> {
+            if (!decl.isExternal()) {
+                Type type = backend().types().declaredType(decl);
+                if (type instanceof CallableType) {
+                    // -- Do nothing
+                } else {
+                    String d = backend().variables().declarationName(decl);
+                    String v = "";
+                    if (decl.getValue() instanceof ExprComprehension) {
+                        Interpreter interpreter = backend().interpreter();
+                        Environment environment = new Environment();
+                        Value value = interpreter.eval((ExprComprehension) decl.getValue(), environment);
+                        Expression expression = backend().converter().apply(value);
+                        v = backend().expressionEval().evaluateOnlyValue((ExprList) expression);
+                    } else if (type instanceof ListType) {
+                        v = backend().expressionEval().evaluateOnlyValue((ExprList) decl.getValue());
+                    } else {
+                        v = backend().expressionEval().evaluate(decl.getValue());
+                    }
+
+                    if (decl.isConstant()) {
+                        String parts = qid.parts().stream()
+                                .collect(Collectors.joining("::", "", ""));
+                        emitter().emit("%s%s = %s;", parts.isEmpty() ? "" : parts + "::", d, v);
+                    }
+                    //emitter().emitNewLine();
+                }
+            }
+        });
+    }
+
 
     default void globalVariableDeclarations(Stream<VarDecl> varDecls) {
         varDecls.forEach(decl -> {
