@@ -56,8 +56,8 @@ extern "C" {
 #define    LOG_EXEC            4            //also log func exec
 #define    LOG_STOP            (-99)        //disable log file
 
-#define MAX_ACTOR_NUM       2048
-#define MAX_CONNECTS        8192
+#define MAX_ACTOR_NUM       16384
+#define MAX_CONNECTS        65536
 
 typedef struct _ThreadID {
     int id;
