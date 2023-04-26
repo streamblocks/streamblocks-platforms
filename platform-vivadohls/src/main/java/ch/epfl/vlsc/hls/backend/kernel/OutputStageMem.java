@@ -64,17 +64,18 @@ public interface OutputStageMem {
         emitter().emitNewLine();
 //        emitter().emit("using namespace iostage;");
         emitter().emitNewLine();
+
+        emitter().emit("static iostage::OutputMemoryStage< %s , %d > i_%s_output_stage_mem;", typeStr, bufferSize, port.getName());
+        emitter().emitNewLine();
+
         emitter().emit("uint32_t %s_output_stage(%s) {", port.getName(), entityPorts(port, typeStr));
         emitter().emit("#pragma HLS INTERFACE m_axi port=ocl_buffer_data_buffer offset=direct bundle=ocl_bundle max_write_burst_length=256", port.getName());
         emitter().emit("#pragma HLS INTERFACE m_axi port=ocl_buffer_meta_buffer offset=direct bundle=ocl_bundle", port.getName());
-        emitter().emit("#pragma HLS INTERFACE ap_fifo port=data_stream");
-        emitter().emit("#pragma HLS INTERFACE ap_fifo port=meta_stream");
+        //emitter().emit("#pragma HLS INTERFACE ap_fifo port=data_stream");
+        //emitter().emit("#pragma HLS INTERFACE ap_fifo port=meta_stream");
         emitter().emit("#pragma HLS INTERFACE ap_ctrl_hs register port=return");
         {
             emitter().increaseIndentation();
-
-            emitter().emit("static iostage::OutputMemoryStage< %s , %d > i_%s_output_stage_mem;", typeStr, bufferSize, port.getName());
-            emitter().emitNewLine();
 
             emitter().emit("return i_%s_output_stage_mem(ocl_buffer_data_buffer, ocl_buffer_meta_buffer, " +
                     "ocl_buffer_alloc_size, ocl_buffer_head, ocl_buffer_tail, fifo_count, " +

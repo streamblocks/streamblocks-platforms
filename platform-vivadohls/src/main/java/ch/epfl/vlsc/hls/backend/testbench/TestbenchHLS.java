@@ -349,24 +349,28 @@ public interface TestbenchHLS {
                     Entity entity = entityDecl.getEntity();
 
                     for (PortDecl port : entity.getInputPorts()) {
-                        Connection.End target = new Connection.End(Optional.of(instance.getInstanceName()), port.getName());
-                        Connection connection = backend().task().getNetwork().getConnections().stream()
-                                .filter(c -> c.getTarget().equals(target)).findAny().orElse(null);
-                        String queueName = backend().vnetwork().queueNames().get(connection);
+                        if (backend().channelsutils().isTargetConnected(instance.getInstanceName(), port.getName())) {
+                            Connection.End target = new Connection.End(Optional.of(instance.getInstanceName()), port.getName());
+                            Connection connection = backend().task().getNetwork().getConnections().stream()
+                                    .filter(c -> c.getTarget().equals(target)).findAny().orElse(null);
+                            String queueName = backend().vnetwork().queueNames().get(connection);
 
-                        emitter().emit("io_%s.%s_count = %s.size();", instance.getInstanceName(), port.getName(), queueName);
-                        emitter().emit("if(io_%s.%s_count)", instance.getInstanceName(), port.getName());
-                        emitter().emit("\tio_%s.%s_peek = %s._data[0];", instance.getInstanceName(), port.getName(), queueName);
+                            emitter().emit("io_%s.%s_count = %s.size();", instance.getInstanceName(), port.getName(), queueName);
+                            emitter().emit("if(io_%s.%s_count)", instance.getInstanceName(), port.getName());
+                            emitter().emit("\tio_%s.%s_peek = %s._data[0];", instance.getInstanceName(), port.getName(), queueName);
+                        }
                     }
                     for (PortDecl port : entity.getOutputPorts()) {
-                        String portName = port.getName();
-                        Connection.End source = new Connection.End(Optional.of(instance.getInstanceName()), portName);
-                        Connection connection = backend().task().getNetwork().getConnections().stream()
-                                .filter(c -> c.getSource().equals(source)).findAny().orElse(null);
-                        String queueName = backend().vnetwork().queueNames().get(connection);
+                        if (backend().channelsutils().isSourceConnected(instance.getInstanceName(), port.getName())) {
+                            String portName = port.getName();
+                            Connection.End source = new Connection.End(Optional.of(instance.getInstanceName()), portName);
+                            Connection connection = backend().task().getNetwork().getConnections().stream()
+                                    .filter(c -> c.getSource().equals(source)).findAny().orElse(null);
+                            String queueName = backend().vnetwork().queueNames().get(connection);
 
-                        emitter().emit("io_%s.%s_count = %s.size();", instance.getInstanceName(), port.getName(), queueName);
-                        emitter().emit("io_%s.%s_size = %s;", instance.getInstanceName(), port.getName(), backend().channelsutils().connectionBufferSize(connection));
+                            emitter().emit("io_%s.%s_count = %s.size();", instance.getInstanceName(), port.getName(), queueName);
+                            emitter().emit("io_%s.%s_size = %s;", instance.getInstanceName(), port.getName(), backend().channelsutils().connectionBufferSize(connection));
+                        }
                     }
                     emitter().emitNewLine();
 
@@ -378,19 +382,23 @@ public interface TestbenchHLS {
                                     .getExternalMemories(entity).map(v -> backend().externalMemory().name(instance, v)));
 
                     for (PortDecl port : entity.getInputPorts()) {
-                        Connection.End target = new Connection.End(Optional.of(instance.getInstanceName()), port.getName());
-                        Connection connection = backend().task().getNetwork().getConnections().stream()
-                                .filter(c -> c.getTarget().equals(target)).findAny().orElse(null);
-                        String queueName = backend().vnetwork().queueNames().get(connection);
-                        ports.add(queueName);
+                        if (backend().channelsutils().isTargetConnected(instance.getInstanceName(), port.getName())) {
+                            Connection.End target = new Connection.End(Optional.of(instance.getInstanceName()), port.getName());
+                            Connection connection = backend().task().getNetwork().getConnections().stream()
+                                    .filter(c -> c.getTarget().equals(target)).findAny().orElse(null);
+                            String queueName = backend().vnetwork().queueNames().get(connection);
+                            ports.add(queueName);
+                        }
                     }
                     for (PortDecl port : entity.getOutputPorts()) {
-                        String portName = port.getName();
-                        Connection.End source = new Connection.End(Optional.of(instance.getInstanceName()), portName);
-                        Connection connection = backend().task().getNetwork().getConnections().stream()
-                                .filter(c -> c.getSource().equals(source)).findAny().orElse(null);
-                        String queueName = backend().vnetwork().queueNames().get(connection);
-                        ports.add(queueName);
+                        if (backend().channelsutils().isSourceConnected(instance.getInstanceName(), port.getName())) {
+                            String portName = port.getName();
+                            Connection.End source = new Connection.End(Optional.of(instance.getInstanceName()), portName);
+                            Connection connection = backend().task().getNetwork().getConnections().stream()
+                                    .filter(c -> c.getSource().equals(source)).findAny().orElse(null);
+                            String queueName = backend().vnetwork().queueNames().get(connection);
+                            ports.add(queueName);
+                        }
                     }
 
                     emitter().emit("end_of_execution |= %s(%s, io_%1$s) != RETURN_WAIT;", instance.getInstanceName(), String.join(", ", ports));

@@ -14,7 +14,7 @@ find_path(VIVADO_HLS_PATH
 )
 
 if(NOT EXISTS ${VIVADO_HLS_PATH})
-  message(WARNING "Vivado HLS not found.")
+  message(STATUS "Vivado HLS not found.")
 else()
 
   get_filename_component(VIVADO_HLS_ROOT_DIR ${VIVADO_HLS_PATH} DIRECTORY)

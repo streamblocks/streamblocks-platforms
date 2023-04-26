@@ -59,20 +59,21 @@ public interface InputStageMem {
         backend().includeUser("iostage.h");
         emitter().emitNewLine();
 //        emitter().emit("using namespace iostage;");
+        
+        emitter().emit("static iostage::InputMemoryStage< %s , %d> i_%s_input_stage_mem;", typeStr, bufferSize, port.getName());
+        emitter().emitNewLine();
+
         emitter().emitNewLine();
         emitter().emit("uint32_t %s_input_stage(%s) {", port.getName(), entityPorts(port, typeStr));
         //emitter().emit("#pragma HLS INTERFACE m_axi port=%s_size offset=direct bundle=%1$s max_read_burst_length=256 max_write_burst_length=256", port.getName());
         //emitter().emit("#pragma HLS INTERFACE m_axi port=%s_buffer offset=direct bundle=%1$s max_read_burst_length=256 max_write_burst_length=256", port.getName());
         emitter().emit("#pragma HLS INTERFACE m_axi port=ocl_buffer_data_buffer offset=direct bundle=ocl_bundle max_read_burst_length=256");
         emitter().emit("#pragma HLS INTERFACE m_axi port=ocl_buffer_meta_buffer offset=direct bundle=ocl_bundle");
-        emitter().emit("#pragma HLS INTERFACE ap_fifo port=data_stream");
-        emitter().emit("#pragma HLS INTERFACE ap_fifo port=meta_stream");
+        //emitter().emit("#pragma HLS INTERFACE ap_fifo port=data_stream");
+        //emitter().emit("#pragma HLS INTERFACE ap_fifo port=meta_stream");
         emitter().emit("#pragma HLS INTERFACE ap_ctrl_hs register port=return");
         {
             emitter().increaseIndentation();
-
-            emitter().emit("static iostage::InputMemoryStage< %s , %d> i_%s_input_stage_mem;", typeStr, bufferSize, port.getName());
-            emitter().emitNewLine();
 
             emitter().emit("return i_%s_input_stage_mem(ocl_buffer_data_buffer, ocl_buffer_meta_buffer, " +
                     "ocl_buffer_alloc_size, ocl_buffer_head, ocl_buffer_tail, fifo_count, data_stream, meta_stream);", port.getName());

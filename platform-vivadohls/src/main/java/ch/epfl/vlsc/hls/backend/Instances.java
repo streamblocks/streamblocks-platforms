@@ -198,6 +198,12 @@ public interface Instances {
 
         String name = instance.getInstanceName();
         emitter().emitClikeBlockComment("HLS Top Function");
+        emitter().emitNewLine();
+
+        // -- Static call
+        String className = "class_" + instance.getInstanceName();
+        emitter().emit("static %s i_%s;", className, name);
+        emitter().emitNewLine();
         emitter().emit("int %s(%s) {", name, entityPorts(name, withIO, true));
 
         // -- Data pack I/O with algebraic types
@@ -246,10 +252,6 @@ public interface Instances {
         ports.addAll(entity.getInputPorts().stream().map(PortDecl::getName).collect(Collectors.toList()));
         ports.addAll(entity.getOutputPorts().stream().map(PortDecl::getName).collect(Collectors.toList()));
 
-
-        // -- Static call
-        String className = "class_" + instance.getInstanceName();
-        emitter().emit("static %s i_%s;", className, name);
         // -- Instance based Directive
         for (Annotation ann : annotations) {
             backend().annotations().emitInstance(ann);

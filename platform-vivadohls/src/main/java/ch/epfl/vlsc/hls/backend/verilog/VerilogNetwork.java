@@ -23,9 +23,7 @@ import se.lth.cs.tycho.ir.network.Network;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.reporting.CompilationException;
 import se.lth.cs.tycho.reporting.Diagnostic;
-import se.lth.cs.tycho.type.IntType;
-import se.lth.cs.tycho.type.ListType;
-import se.lth.cs.tycho.type.Type;
+import se.lth.cs.tycho.type.*;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -592,6 +590,8 @@ public interface VerilogNetwork {
             }
 
             if (entity instanceof ActorMachine) {
+
+                List<String> io = new ArrayList<>();
                 // -- IO for Inputs
                 for (PortDecl port : entity.getInputPorts()) {
                     String portName = port.getName();
@@ -599,19 +599,25 @@ public interface VerilogNetwork {
                     Connection connection = backend().task().getNetwork().getConnections().stream()
                             .filter(c -> c.getTarget().equals(target)).findAny().orElse(null);
                     String queueName = queueNames().get(connection);
+                    Type type = backend().types().declaredPortType(port);
                     if (backend().context().getConfiguration().get(PlatformSettings.arbitraryPrecisionIntegers)) {
-                        Type type = backend().types().declaredPortType(port);
                         if (type instanceof IntType) {
-                            emitter().emit(".io_%s_peek_V(%s),", portName, String.format("%s_peek", queueName));
+                            //emitter().emit(".io_%s_peek_V(%s),", portName, String.format("%s_peek", queueName));
+                            io.add(String.format("%s_peek", queueName));
                         } else {
-                            emitter().emit(".io_%s_peek(%s),", portName, String.format("%s_peek", queueName));
+                            //emitter().emit(".io_%s_peek(%s),", portName, String.format("%s_peek", queueName));
+                            io.add(String.format("%s_peek", queueName));
                         }
                     } else {
-                        emitter().emit(".io_%s_peek(%s),", portName, String.format("%s_peek", queueName));
+                        //emitter().emit(".io_%s_peek(%s),", portName, String.format("%s_peek", queueName));
+                        io.add(String.format("%s_peek", queueName));
                     }
-                    emitter().emit(".io_%s_count(%s),", portName, String.format("%s_count", queueName));
+                    io.add(peekValueByType(type, String.format("%s_peek", queueName)));
 
-                    emitter().emitNewLine();
+                    //emitter().emit(".io_%s_count(%s),", portName, String.format("%s_count", queueName));
+                    io.add(String.format("%s_count", queueName));
+
+                    //emitter().emitNewLine();
                 }
 
                 // -- IO for Outputs
@@ -622,11 +628,15 @@ public interface VerilogNetwork {
                             .filter(c -> c.getSource().equals(source)).findAny().orElse(null);
                     String queueName = queueNames().get(connection);
 
-                    emitter().emit(".io_%s_size(%s),", portName, String.format("%s_size", queueName));
-                    emitter().emit(".io_%s_count(%s),", portName, String.format("%s_count", queueName));
-
-                    emitter().emitNewLine();
+                    //emitter().emit(".io_%s_size(%s),", portName, String.format("%s_size", queueName));
+                    //emitter().emit(".io_%s_count(%s),", portName, String.format("%s_count", queueName));
+                    io.add(String.format("%s_size", queueName));
+                    io.add(String.format("%s_count", queueName));
+                    //emitter().emitNewLine();
                 }
+
+                Collections.reverse(io);
+                emitter().emit(".io({%s}),", String.join(", ", io));
             }
 
             // -- Vivado HLS control signals
@@ -643,6 +653,34 @@ public interface VerilogNetwork {
         }
         emitter().emit(");");
         emitter().emitNewLine();
+        return name;
+    }
+
+    default String peekValueByType(Type type, String name) {
+        if (type instanceof IntType) {
+            if (backend().context().getConfiguration().get(PlatformSettings.arbitraryPrecisionIntegers)) {
+                if (((IntType) type).getSize().isPresent()) {
+                    int size = ((IntType) type).getSize().getAsInt();
+                    if (size < 32) {
+                        return String.format("{%s'b0, %s}", 32 - size, name);
+                    } else {
+                        return name;
+                    }
+                } else {
+                    return name;
+                }
+            } else {
+                int size = backend().typeseval().bitPerType(type);
+                if (size < 32) {
+                    return String.format("{%s'b0, %s}", 32 - size, name);
+                } else {
+                    return name;
+                }
+            }
+        } else if (type instanceof BoolType) {
+            return String.format("{31'b0, %s}", name);
+        } // -- TODO : missing algebraic type
+
         return name;
     }
 
