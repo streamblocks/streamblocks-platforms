@@ -3,6 +3,7 @@ package ch.epfl.vlsc.raft.platform;
 import ch.epfl.vlsc.phases.AddFanoutPhase;
 import se.lth.cs.tycho.compiler.Compiler;
 import se.lth.cs.tycho.ir.util.ImmutableList;
+import ch.epfl.vlsc.phases.*;
 import se.lth.cs.tycho.phase.Phase;
 import se.lth.cs.tycho.phase.RemoveUnusedEntityDeclsPhase;
 import se.lth.cs.tycho.platform.Platform;
@@ -24,6 +25,7 @@ public class Raft implements Platform {
     private static final List<Phase> phases = ImmutableList.<Phase>builder()
             .addAll(Compiler.frontendPhases())
             .addAll(Compiler.templatePhases())
+            .addAll(CommonPhases.portEnumerationPhases)
             .addAll(Compiler.networkElaborationPhases())
             .add(new AddFanoutPhase())
             .addAll(Compiler.nameAndTypeAnalysis())

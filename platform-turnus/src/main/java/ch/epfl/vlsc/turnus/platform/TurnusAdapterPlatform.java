@@ -2,6 +2,7 @@ package ch.epfl.vlsc.turnus.platform;
 
 import ch.epfl.vlsc.phases.VerilogNameCheckerPhase;
 import ch.epfl.vlsc.turnus.phase.TurnusAdapterPhase;
+import ch.epfl.vlsc.phases.*;
 import se.lth.cs.tycho.compiler.Compiler;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.phase.*;
@@ -13,6 +14,7 @@ public class TurnusAdapterPlatform implements Platform {
     private static final List<Phase> phases = ImmutableList.<Phase>builder()
             .addAll(Compiler.frontendPhases())
             .addAll(Compiler.templatePhases())
+            .addAll(CommonPhases.portEnumerationPhases)
             .addAll(Compiler.networkElaborationPhases())
             .addAll(Compiler.nameAndTypeAnalysis())
             .addAll(prepareActorPhases())
