@@ -57,7 +57,7 @@ public interface Globals {
         backend().task().walk().forEach(backend().callablesInActor()::externalCallableDefinition);
         emitter().emitNewLine();
 
-        emitter().emit("// -- Glabal Variable Initialization");
+        emitter().emit("// -- Global Variable Initialization");
         globalVariableInitializer(getGlobalVarDecls());
         globalCallables(getGlobalVarDecls());
         emitter().close();

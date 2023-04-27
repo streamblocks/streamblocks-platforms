@@ -38,6 +38,7 @@ public interface Globals {
         emitter().emit("#include <iostream>");
         emitter().emit("#include <stdint.h>");
         emitter().emit("#include \"ap_int.h\"");
+        emitter().emit("#include \"hls_math.h\"");
         emitter().emitNewLine();
 
         // -- Return
@@ -185,11 +186,11 @@ public interface Globals {
 
         // -- Global Variables Declaration
         emitter().emit("// -- External Callables Definition");
-        backend().task().walk().forEach(backend().callables()::externalCallableDeclaration);
+        backend().task().walk().forEach(backend().callables()::externalCallableDefinition);
         emitter().emitNewLine();
 
         emitter().emit("// -- External Callables Declaration");
-        backend().task().walk().forEach(backend().callables()::externalCallableDefinition);
+        backend().task().walk().forEach(backend().callables()::externalCallableDeclaration);
         emitter().emitNewLine();
 
         emitter().emit("// -- Global variable prototypes");

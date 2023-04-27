@@ -216,6 +216,8 @@ public interface CallablesInActors {
     default void externalCallableDeclaration(IRNode varDecl) {
     }
 
+    String[] mathIgnoreExternals = {"sqrt"};
+
     default void externalCallableDeclaration(VarDecl varDecl) {
         if (varDecl.isExternal()) {
             if (!VivadoHLS.externalsToIgnore.contains(varDecl.getName())) {
@@ -226,7 +228,9 @@ public interface CallablesInActors {
                 for (int i = 0; i < callable.getParameterTypes().size(); i++) {
                     parameterNames.add("p_" + i);
                 }
-                backend().emitter().emit("%s;", externalCallableHeader(varDecl.getOriginalName(), callable, parameterNames));
+                if(!Arrays.stream(mathIgnoreExternals).anyMatch(s->varDecl.getOriginalName().equals(s))) {
+                    backend().emitter().emit("%s;", externalCallableHeader(varDecl.getOriginalName(), callable, parameterNames));
+                }
                 String name = externalWrapperFunctionName(varDecl);
                 backend().emitter().emit("%s;", externalCallableHeader(name, callable, parameterNames));
             }

@@ -41,7 +41,6 @@ public class VivadoHLS implements Platform {
             "print",
             "println",
             "cos",
-            "sqrt",
             "fabs",
             "sin",
             "rand",
