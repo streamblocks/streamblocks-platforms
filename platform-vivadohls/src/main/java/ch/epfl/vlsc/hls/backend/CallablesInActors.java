@@ -216,7 +216,7 @@ public interface CallablesInActors {
     default void externalCallableDeclaration(IRNode varDecl) {
     }
 
-    String[] mathIgnoreExternals = {"sqrt"};
+    String[] mathIgnoreExternals = {"sqrt", "sin", "cos", "log", "exp", "round", "floor", "fabs", "abs"};
 
     default void externalCallableDeclaration(VarDecl varDecl) {
         if (varDecl.isExternal()) {
@@ -252,6 +252,9 @@ public interface CallablesInActors {
                 }
                 String name = externalWrapperFunctionName(varDecl);
                 backend().emitter().emit("static %s {", externalCallableHeader(name, callable, parameterNames));
+                if(Arrays.stream(mathIgnoreExternals).anyMatch(s->varDecl.getOriginalName().equals(s))) {
+                    backend().emitter().emit("#pragma HLS INLINE");
+                }
                 backend().emitter().increaseIndentation();
                 String call = varDecl.getOriginalName() + "(" + String.join(", ", parameterNames) + ")";
                 if (callable.getReturnType().equals(UnitType.INSTANCE)) {
