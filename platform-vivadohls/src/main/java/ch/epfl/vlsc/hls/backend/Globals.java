@@ -193,6 +193,37 @@ public interface Globals {
         backend().task().walk().forEach(backend().callables()::externalCallableDeclaration);
         emitter().emitNewLine();
 
+
+        /**
+         * @author: Gareth Callanan
+         *
+         * TODO: Need to confirm that this works as intended
+         *
+         * Vitis HLS, does not provide a random function so I have implemented a rudimentary A linear congruential generator (LCG) to generate rands.
+         * I do not completely understand how vitis-hls works, but I think that each function becomes its own hardware block. Multiple calles to the
+         * same function will try access the same hardware block leading to a massive bottleneck.
+         *
+         * By declaring randInt as static, its scope is restricted only to the file it is defined in. From what I can tell if this is the global.h file,
+         * then each actor will have its own implementation of randInt which means that a different hardware block is generated for each actor. This is ideal.
+         * However, each randInt function needs a different random seen, and as such they all need to make a call to the same initialSeed() function which
+         * should only have one hardware block available in the design.
+         */
+        emitter().emit("// NOTE: This initial seed function needs to be tested. See comments in: streamblocks-platforms/platform-vivadohls/src/main/java/ch/epfl/vlsc/hls/backend/Globals.java\n" +
+                "int initialSeed() \n" +
+                "{\n" +
+                "    static int seed = 1111111; \n" +
+                "    seed = (seed * 1103515245U + 12345U) & 0x7fffffffU;\n"+
+                "    return seed;\n"+
+                "}\n");
+
+        emitter().emit("// NOTE: This rand function needs to be tested. See comments in: streamblocks-platforms/platform-vivadohls/src/main/java/ch/epfl/vlsc/hls/backend/Globals.java\n" +
+                "static int randInt(int n) \n" +
+                "{\n" +
+                "    static int seed = initialSeed(); \n" +
+                "    seed = (seed * 1103515245U + 12345U) & 0x7fffffffU;\n"+
+                "    return (seed %% n);\n"+
+                "}\n");
+
         emitter().emit("// -- Global variable prototypes");
         globalVariableDeclarations(getGlobalVarDecls());
 
