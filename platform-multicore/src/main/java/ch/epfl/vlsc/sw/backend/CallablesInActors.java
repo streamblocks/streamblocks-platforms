@@ -231,7 +231,7 @@ public interface CallablesInActors {
     default void externalCallableDeclaration(IRNode varDecl) {
     }
 
-    String[] mathIgnoreExternals = {"cos", "sin", "sqrt", "fabs"};
+    String[] mathIgnoreExternals = {"cos", "sin", "sqrt", "fabs", "log", "exp"};
 
     default void externalCallableDeclaration(VarDecl varDecl) {
         if (varDecl.isExternal()) {
