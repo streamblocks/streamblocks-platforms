@@ -38,6 +38,11 @@ public class VivadoHLS implements Platform {
             "source_decrementNbLoops",
             "source_isMaxLoopsReached",
             "source_exit",
+            "print",
+            "println",
+            "cos",
+            "sqrt",
+            "fabs",
             "sin",
             "rand",
             "timeMSec",
@@ -111,6 +116,7 @@ public class VivadoHLS implements Platform {
             .addAll(Compiler.templatePhases())
             .add(new RemovePrintPhase())
             .add(new RecursiveTypeDetectionPhase())
+            .addAll(CommonPhases.portEnumerationPhases)
             .addAll(CommonPhases.networkElaborationPhases)
             .add(new VerilogNameCheckerPhase())
             .addAll(Compiler.nameAndTypeAnalysis())

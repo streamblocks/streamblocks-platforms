@@ -25,6 +25,7 @@ public class Node implements Platform {
     private static final List<Phase> phases = ImmutableList.<Phase>builder()
             .addAll(Compiler.frontendPhases())
             .addAll(Compiler.templatePhases())
+            .addAll(CommonPhases.portEnumerationPhases)
             .addAll(Compiler.networkElaborationPhases())
             .add(new AddFanoutPhase())
             .addAll(Compiler.nameAndTypeAnalysis())

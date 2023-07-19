@@ -36,4 +36,10 @@ public class CommonPhases {
             .build();
 
 
+    public static final ImmutableList<Phase> portEnumerationPhases = ImmutableList.of(
+            new ActionGeneratorEnumeration(),
+            new PortArrayCollectionExpansion(),
+            new PortArrayEnumeration(),
+            new PostPortArrayEnumerationNameAnalysis()
+    );
 }
