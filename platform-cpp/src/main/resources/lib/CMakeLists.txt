@@ -6,7 +6,7 @@ project(sb-cpp-runtime)
 option(DISPLAY "Display on the screen." OFF)
 option(TRACE_TURNUS "Generate execution trace for TURNUS." OFF)
 option(WEIGHT_PROFILING "Generate profiling weights." OFF)
-option(TORCH "Link and include libtorch" ON)
+option(TORCH "Link and include libtorch" OFF)
 
 if(TORCH)
     find_package(Torch REQUIRED)

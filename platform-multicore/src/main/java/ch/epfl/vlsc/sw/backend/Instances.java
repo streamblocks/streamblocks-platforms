@@ -432,7 +432,8 @@ public interface Instances {
 
     default void portDescriptionByPort(String name, Type type, String dynamic_size) {
         String evaluatedType;
-        if (type instanceof ProductType | type instanceof SumType | type instanceof TensorType) {
+//        if (type instanceof ProductType | type instanceof SumType | type instanceof TensorType) {
+        if (type instanceof ProductType | type instanceof SumType) {
             evaluatedType = "void*";
         } else {
             evaluatedType = backend().typeseval().type(type);
@@ -440,11 +441,11 @@ public interface Instances {
 
         emitter().emit("{0, \"%s\", (sizeof(%s)), %s", name, evaluatedType, dynamic_size);
         emitter().emit("#ifdef CAL_RT_CALVIN");
-        if(type instanceof TensorType){
-            emitter().emit(", &serDesTensor");
-        }else{
+//        if(type instanceof TensorType){
+//            emitter().emit(", &serDesTensor");
+//        }else{
             emitter().emit(", NULL");
-        }
+//        }
         emitter().emit("#endif");
         emitter().emit("},");
     }
@@ -727,11 +728,11 @@ public interface Instances {
             expressioneval().evaluateWithLvalue("thisActor->" + backend().variables().declarationName(var), (ExprInput) var.getValue());
         } else {
             Type type = types().declaredType(var);
-            if (type instanceof TensorType) {
-                expressioneval().evaluateWithLvalue("thisActor->" + backend().variables().declarationName(var), var.getValue());
-            } else {
+//            if (type instanceof TensorType) {
+//                expressioneval().evaluateWithLvalue("thisActor->" + backend().variables().declarationName(var), var.getValue());
+//            } else {
                 statements().copy(types().declaredType(var), "thisActor->" + backend().variables().declarationName(var), types().type(var.getValue()), expressioneval().evaluate(var.getValue()));
-            }
+//            }
         }
         if (!backend().profilingbox().isEmpty()) {
             emitter().emit("delete __opCounters;");

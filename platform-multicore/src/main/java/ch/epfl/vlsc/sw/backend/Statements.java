@@ -93,9 +93,9 @@ public interface Statements {
                 emitter().emit("pinConsume_%s(%s);", channelsutils().inputPortTypeSize(consume.getPort()), channelsutils().definedInputPort(consume.getPort()));
                 backend().statements().profilingOp().add("__opCounters->prof_DATAHANDLING_LOAD += 1;");
                 Type type = channelsutils().inputPortType(consume.getPort());
-                if(type instanceof TensorType){
-                    emitter().emit("delete %s;", channelsutils().definedInputPort(consume.getPort()) + "_peek");
-                }
+//                if(type instanceof TensorType){
+//                    emitter().emit("delete %s;", channelsutils().definedInputPort(consume.getPort()) + "_peek");
+//                }
             }
         }
     }
@@ -109,28 +109,27 @@ public interface Statements {
             if (write.getRepeatExpression() == null) {
                 Type type = types().portType(write.getPort());
                 String portType;
-                if (type instanceof AlgebraicType | type instanceof TensorType) {
+//                if (type instanceof AlgebraicType | type instanceof TensorType) {
+                if (type instanceof AlgebraicType) {
                     portType = "ref";
-
                 } else {
                     portType = typeseval().type(type);
-
                 }
                 String tmp = variables().generateTemp();
 
-                if (type instanceof TensorType) {
-                    emitter().emit("Tensor* %s = nullptr;", tmp);
-                } else {
+//                if (type instanceof TensorType) {
+//                    emitter().emit("Tensor* %s = nullptr;", tmp);
+//                } else {
                     emitter().emit("%s;", declarartions().declaration(types().portType(write.getPort()), tmp));
                     //emitter().emit("%s = %s;", declarartions().declaration(types().portType(write.getPort()), tmp), backend().defaultValues().defaultValue(type));
-                }
+//                }
 
                 for (Expression expr : write.getValues()) {
-                    if (type instanceof TensorType) {
-                        emitter().emit("%s = new Tensor(%s);", tmp, expressioneval().evaluate(expr));
-                    } else {
+//                    if (type instanceof TensorType) {
+//                        emitter().emit("%s = new Tensor(%s);", tmp, expressioneval().evaluate(expr));
+//                    } else {
                         emitter().emit("%s = %s;", tmp, expressioneval().evaluate(expr));
-                    }
+//                    }
                     emitter().emit("pinWrite_%s(%s, %s);", portType, channelsutils().definedOutputPort(write.getPort()), tmp);
                     profilingOp().add("__opCounters->prof_DATAHANDLING_STORE += 1;");
                 }
@@ -324,12 +323,9 @@ public interface Statements {
             Type t = types().declaredType(decl);
             String declarationName = variables().declarationName(decl);
             String d = declarartions().declarationTemp(t, declarationName);
-            if (t instanceof TensorType) {
-                emitter().emit("%s;", d);
-            } else {
-                emitter().emit("%s;", d);
-                //emitter().emit("%s = %s;", d, backend().defaultValues().defaultValue(t));
-            }
+
+            emitter().emit("%s;", d);
+            //emitter().emit("%s = %s;", d, backend().defaultValues().defaultValue(t));
 
             if (decl.getValue() != null) {
                 if (decl.getValue() instanceof ExprInput) {

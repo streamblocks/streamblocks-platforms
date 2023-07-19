@@ -57,9 +57,9 @@ public interface TypesEvaluator {
         return "void";
     }
 
-    default String type(TensorType type) {
-        return "Tensor";
-    }
+//    default String type(TensorType type) {
+//        return "Tensor";
+//    }
 
     default String type(ListType type) {
 

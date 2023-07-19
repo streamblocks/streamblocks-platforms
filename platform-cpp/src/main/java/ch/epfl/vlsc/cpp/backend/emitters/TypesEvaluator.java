@@ -42,13 +42,13 @@ public interface TypesEvaluator {
         }
     }
 
-    default String type(TensorType type){
-        return "torch::Tensor";
-    }
-
-    default String type(TorchIntArrayRef type){
-        return "torch::IntArrayRef";
-    }
+//    default String type(TensorType type){
+//        return "torch::Tensor";
+//    }
+//
+//    default String type(TorchIntArrayRef type){
+//        return "torch::IntArrayRef";
+//    }
 
     default String type(UnitType type) {
         return "void";

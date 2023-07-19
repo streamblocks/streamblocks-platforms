@@ -213,21 +213,21 @@ public interface ExpressionEvaluator {
                     throw new RuntimeException("not implemented");
                 }
             } else {
-                if(type instanceof TensorType){
-                    String tensor_tmp = channelsutils().definedInputPort(input.getPort()) + "_peek";
-                    if (input.getOffset() == 0) {
-                        emitter().emit("Tensor *%s = (Tensor*) pinPeekFront_ref(%s);", tensor_tmp, channelsutils().definedInputPort(input.getPort()));
-                    } else {
-                        emitter().emit("Tensor *%s = (Tensor*) pinPeek_ref(%s, %d);", tensor_tmp, channelsutils().definedInputPort(input.getPort()), input.getOffset());
-                    }
-                    emitter().emit("%s = *%s;", tmp, tensor_tmp);
-                }else {
+//                if(type instanceof TensorType){
+//                    String tensor_tmp = channelsutils().definedInputPort(input.getPort()) + "_peek";
+//                    if (input.getOffset() == 0) {
+//                        emitter().emit("Tensor *%s = (Tensor*) pinPeekFront_ref(%s);", tensor_tmp, channelsutils().definedInputPort(input.getPort()));
+//                    } else {
+//                        emitter().emit("Tensor *%s = (Tensor*) pinPeek_ref(%s, %d);", tensor_tmp, channelsutils().definedInputPort(input.getPort()), input.getOffset());
+//                    }
+//                    emitter().emit("%s = *%s;", tmp, tensor_tmp);
+//                }else {
                     if (input.getOffset() == 0) {
                         emitter().emit("%s = pinPeekFront_%s(%s);", tmp, channelsutils().inputPortTypeSize(input.getPort()), channelsutils().definedInputPort(input.getPort()));
                     } else {
                         emitter().emit("%s = pinPeek_%s(%s, %d);", tmp, channelsutils().inputPortTypeSize(input.getPort()), channelsutils().definedInputPort(input.getPort()), input.getOffset());
                     }
-                }
+//                }
             }
         }
 
@@ -239,7 +239,8 @@ public interface ExpressionEvaluator {
     default void evaluateWithLvalue(String lvalue, ExprInput input) {
         Type type = types().type(input);
         String sType = backend().typeseval().type(type);
-        if((type instanceof TensorType) || (type instanceof AlgebraicType)){
+//        if((type instanceof TensorType) || (type instanceof AlgebraicType)){
+        if(type instanceof AlgebraicType){
             sType = "ref";
         }
 
@@ -251,21 +252,21 @@ public interface ExpressionEvaluator {
                     throw new RuntimeException("not implemented");
                 }
             } else {
-                if(type instanceof TensorType){
-                    String tmp = channelsutils().definedInputPort(input.getPort()) + "_peek";
-                    if (input.getOffset() == 0) {
-                        emitter().emit("Tensor *%s = (Tensor*) pinPeekFront_ref(%s);", tmp, channelsutils().definedInputPort(input.getPort()));
-                    } else {
-                        emitter().emit("Tensor *%s = (Tensor*) pinPeek_ref(%s, %d);", tmp, channelsutils().definedInputPort(input.getPort()), input.getOffset());
-                    }
-                    emitter().emit("%s = *%s;", lvalue, tmp);
-                }else{
+//                if(type instanceof TensorType){
+//                    String tmp = channelsutils().definedInputPort(input.getPort()) + "_peek";
+//                    if (input.getOffset() == 0) {
+//                        emitter().emit("Tensor *%s = (Tensor*) pinPeekFront_ref(%s);", tmp, channelsutils().definedInputPort(input.getPort()));
+//                    } else {
+//                        emitter().emit("Tensor *%s = (Tensor*) pinPeek_ref(%s, %d);", tmp, channelsutils().definedInputPort(input.getPort()), input.getOffset());
+//                    }
+//                    emitter().emit("%s = *%s;", lvalue, tmp);
+//                }else{
                     if (input.getOffset() == 0) {
                         emitter().emit("%s = pinPeekFront_%s(%s);", lvalue, sType, channelsutils().definedInputPort(input.getPort()));
                     } else {
                         emitter().emit("%s = pinPeek_%s(%s, %d);", lvalue, sType, channelsutils().definedInputPort(input.getPort()), input.getOffset());
                     }
-                }
+//                }
 
             }
         }
@@ -314,11 +315,11 @@ public interface ExpressionEvaluator {
         String result = variables().generateTemp();
         String decl = declarations().declarationTemp(types().type(apply), result);
 
-        if(type instanceof TensorType){
-            emitter().emit("%s = new Tensor(%s(%s));", lvalue, fn, String.join(", ", parameters));
-        }else{
+//        if(type instanceof TensorType){
+//            emitter().emit("%s = new Tensor(%s(%s));", lvalue, fn, String.join(", ", parameters));
+//        }else{
             emitter().emit("%s = %s(%s);", decl, fn, String.join(", ", parameters));
-        }
+//        }
     }
 
     default String compare(Type lvalueType, String lvalue, Type rvalueType, String rvalue) {
@@ -1339,11 +1340,11 @@ public interface ExpressionEvaluator {
         Type type = types().type(apply);
         String result = variables().generateTemp();
         String decl = declarations().declarationTemp(types().type(apply), result);
-        if(type instanceof TensorType){
+//        if(type instanceof TensorType){
+//            emitter().emit("%s = %s(%s);", decl, fn, String.join(", ", parameters));
+//        }else{
             emitter().emit("%s = %s(%s);", decl, fn, String.join(", ", parameters));
-        }else{
-            emitter().emit("%s = %s(%s);", decl, fn, String.join(", ", parameters));
-        }
+//        }
         backend().statements().profilingOp().add("__opCounters->prof_DATAHANDLING_CALL += 1;");
         return result;
     }

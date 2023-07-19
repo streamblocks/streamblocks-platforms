@@ -28,9 +28,9 @@ public interface DefaultValues {
         return "0";
     }
 
-    default String defaultValue(TensorType t) {
-        return "nullptr";
-    }
+//    default String defaultValue(TensorType t) {
+//        return "nullptr";
+//    }
 
     default String defaultValue(ListType t) {
         if (t.getSize().isPresent()) {

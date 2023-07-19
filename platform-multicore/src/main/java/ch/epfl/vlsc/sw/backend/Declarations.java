@@ -62,10 +62,10 @@ public interface Declarations {
         return backend().typeseval().type(type) + " *" + name;
     }
 
-    default String persistentDeclaration(TensorType type, String name) {
-        //return String.format("%s %s%s", backend().typeseval().type(type), getPointerDims(type), name);
-        return backend().typeseval().type(type) + " *" + name;
-    }
+//    default String persistentDeclaration(TensorType type, String name) {
+//        //return String.format("%s %s%s", backend().typeseval().type(type), getPointerDims(type), name);
+//        return backend().typeseval().type(type) + " *" + name;
+//    }
 
     default String getPointerDims(ListType type){
         if(type.getElementType() instanceof ListType){
