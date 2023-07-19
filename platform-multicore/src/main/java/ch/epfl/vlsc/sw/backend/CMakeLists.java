@@ -64,7 +64,7 @@ public interface CMakeLists {
         emitter().emitNewLine();
 
         // -- USE Torch
-        emitter().emit("option(TORCH \"Link and include libtorch\" ON)");
+        emitter().emit("option(TORCH \"Link and include libtorch\" OFF)");
         emitter().emitNewLine();
 
         // -- Default C Flags

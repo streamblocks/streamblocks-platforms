@@ -435,6 +435,7 @@ public interface Globals {
         }
         emitter().emit("}");
         emitter().emitNewLine();
+        emitter().emit("#endif");
 
         Map<QID, List<SourceUnit>> sourceunitbyQID = getSourceUnitbyQid();
         emitter().emit("// -- Global variables");
@@ -457,7 +458,7 @@ public interface Globals {
         emitter().emit("}");
         emitter().emitNewLine();
 
-        emitter().emit("#endif");
+
         emitter().close();
     }
 
@@ -473,7 +474,8 @@ public interface Globals {
         emitter().emit("#ifndef __GLOBAL__");
         emitter().emit("#define __GLOBAL__");
         emitter().emitNewLine();
-        emitter().emit("#include  <cstdint>");
+        emitter().emit("#include <cstdint>");
+        emitter().emit("#include <set>");
         emitter().emitNewLine();
 
         backend().includeUser("art_time.h");

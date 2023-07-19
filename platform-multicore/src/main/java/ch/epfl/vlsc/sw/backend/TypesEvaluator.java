@@ -26,6 +26,10 @@ public interface TypesEvaluator {
         return type.getName() + "_t*";
     }
 
+    default String type(SetType type){
+        return "std::set<" + type(type.getElementType()) + ">";
+    }
+
     default String type(IntType type) {
         if (type.getSize().isPresent()) {
             int originalSize = type.getSize().getAsInt();
@@ -167,6 +171,10 @@ public interface TypesEvaluator {
         }else{
             return "*";
         }
+    }
+
+    default boolean isScalar(Type type){
+        return (type instanceof BoolType) || (type instanceof RealType) || (type instanceof CharType);
     }
 
 }

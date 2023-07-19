@@ -106,7 +106,7 @@ public interface Variables {
         IRNode parent = backend().tree().parent(decl);
         if (parent instanceof Scope || parent instanceof ActorMachine) {
             Type type = backend().types().type(decl.getType());
-//            if(type instanceof TensorType){
+//            if(!backend().typeseval().isScalar(type)){
 //                return "*thisActor->" + declarationName(decl);
 //            }else{
                 return "thisActor->" + declarationName(decl);

@@ -51,10 +51,9 @@ public interface ChannelsUtils {
 
     default String inputPortTypeSize(Port port) {
         Type type = targetEndType(new Connection.End(Optional.of(backend().instancebox().get().getInstanceName()), port.getName()));
-        if (type instanceof AlgebraicType) {
+
+        if(!backend().typeseval().isScalar(type)){
             return "ref";
-//        } else if(type instanceof TensorType) {
-//            return "ref";
         } else {
             return backend().typeseval().type(type);
         }
@@ -63,10 +62,8 @@ public interface ChannelsUtils {
     default String outputPortTypeSize(Port port) {
         Connection.End source = new Connection.End(Optional.of(backend().instancebox().get().getInstanceName()), port.getName());
         Type type = sourceEndType(source);
-        if (type instanceof AlgebraicType) {
+        if(!backend().typeseval().isScalar(type)){
             return "ref";
-//        } else if(type instanceof TensorType) {
-//            return "ref";
         } else {
             return backend().typeseval().type(type);
         }

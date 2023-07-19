@@ -433,7 +433,7 @@ public interface Instances {
     default void portDescriptionByPort(String name, Type type, String dynamic_size) {
         String evaluatedType;
 //        if (type instanceof ProductType | type instanceof SumType | type instanceof TensorType) {
-        if (type instanceof ProductType | type instanceof SumType) {
+        if (!backend().typeseval().isScalar(type)) {
             evaluatedType = "void*";
         } else {
             evaluatedType = backend().typeseval().type(type);
@@ -728,11 +728,11 @@ public interface Instances {
             expressioneval().evaluateWithLvalue("thisActor->" + backend().variables().declarationName(var), (ExprInput) var.getValue());
         } else {
             Type type = types().declaredType(var);
-//            if (type instanceof TensorType) {
-//                expressioneval().evaluateWithLvalue("thisActor->" + backend().variables().declarationName(var), var.getValue());
-//            } else {
+            if (!backend().typeseval().isScalar(type)) {
+                expressioneval().evaluateWithLvalue("thisActor->" + backend().variables().declarationName(var), var.getValue());
+            } else {
                 statements().copy(types().declaredType(var), "thisActor->" + backend().variables().declarationName(var), types().type(var.getValue()), expressioneval().evaluate(var.getValue()));
-//            }
+            }
         }
         if (!backend().profilingbox().isEmpty()) {
             emitter().emit("delete __opCounters;");
@@ -1012,7 +1012,7 @@ public interface Instances {
     void destructorDefinition(String instanceName, Entity entity);
 
     default void destructorDefinition(String instanceName, ActorMachine am) {
-        emitter().emit("// -- Constructor Definitions");
+        emitter().emit("// -- Deconstructor Definitions");
 
         String actorInstanceName = "ActorInstance_" + instanceName;
         emitter().emit("static void %s_destructor(AbstractActorInstance *pBase){", actorInstanceName);
@@ -1022,10 +1022,10 @@ public interface Instances {
         for (Scope scope : am.getScopes()) {
             for (VarDecl decl : scope.getDeclarations()) {
                 Type t = types().declaredType(decl);
-                if (t instanceof ListType) {
+                if (!backend().typeseval().isScalar(t)) {
                     String name = String.format("thisActor->%s", backend().variables().declarationName(decl));
                     //backend().free().apply(t, name);
-                    emitter().emit("free(%s);", name);
+                    emitter().emit("delete %s;", name);
                 }
             }
         }

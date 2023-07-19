@@ -222,11 +222,11 @@ public interface ExpressionEvaluator {
 //                    }
 //                    emitter().emit("%s = *%s;", tmp, tensor_tmp);
 //                }else {
-                    if (input.getOffset() == 0) {
-                        emitter().emit("%s = pinPeekFront_%s(%s);", tmp, channelsutils().inputPortTypeSize(input.getPort()), channelsutils().definedInputPort(input.getPort()));
-                    } else {
-                        emitter().emit("%s = pinPeek_%s(%s, %d);", tmp, channelsutils().inputPortTypeSize(input.getPort()), channelsutils().definedInputPort(input.getPort()), input.getOffset());
-                    }
+                if (input.getOffset() == 0) {
+                    emitter().emit("%s = pinPeekFront_%s(%s);", tmp, channelsutils().inputPortTypeSize(input.getPort()), channelsutils().definedInputPort(input.getPort()));
+                } else {
+                    emitter().emit("%s = pinPeek_%s(%s, %d);", tmp, channelsutils().inputPortTypeSize(input.getPort()), channelsutils().definedInputPort(input.getPort()), input.getOffset());
+                }
 //                }
             }
         }
@@ -239,8 +239,8 @@ public interface ExpressionEvaluator {
     default void evaluateWithLvalue(String lvalue, ExprInput input) {
         Type type = types().type(input);
         String sType = backend().typeseval().type(type);
-//        if((type instanceof TensorType) || (type instanceof AlgebraicType)){
-        if(type instanceof AlgebraicType){
+
+        if (backend().typeseval().isScalar(type)) {
             sType = "ref";
         }
 
@@ -261,18 +261,22 @@ public interface ExpressionEvaluator {
 //                    }
 //                    emitter().emit("%s = *%s;", lvalue, tmp);
 //                }else{
-                    if (input.getOffset() == 0) {
-                        emitter().emit("%s = pinPeekFront_%s(%s);", lvalue, sType, channelsutils().definedInputPort(input.getPort()));
-                    } else {
-                        emitter().emit("%s = pinPeek_%s(%s, %d);", lvalue, sType, channelsutils().definedInputPort(input.getPort()), input.getOffset());
-                    }
+                if (input.getOffset() == 0) {
+                    emitter().emit("%s = pinPeekFront_%s(%s);", lvalue, sType, channelsutils().definedInputPort(input.getPort()));
+                } else {
+                    emitter().emit("%s = pinPeek_%s(%s, %d);", lvalue, sType, channelsutils().definedInputPort(input.getPort()), input.getOffset());
+                }
 //                }
 
             }
         }
     }
 
-    default void evaluateWithLvalue(String lvalue, ExprApplication apply){
+    default void evaluateWithLvalue(String lvalue, ExprSet set){
+        Type type = types().type(set);
+    }
+
+    default void evaluateWithLvalue(String lvalue, ExprApplication apply) {
         boolean directlyCallable = backend().callablesInActor().directlyCallable(apply.getFunction());
         String fn;
         List<String> parameters = new ArrayList<>();
@@ -296,14 +300,14 @@ public interface ExpressionEvaluator {
             if (parameter instanceof ExprList) {
                 parameters.add(evaluateOnlyValue((ExprList) parameter));
             } else {
-                if (parameter instanceof ExprGlobalVariable){
+                if (parameter instanceof ExprGlobalVariable) {
                     VarDecl decl = backend().varDecls().declaration((ExprGlobalVariable) parameter);
-                    if(decl.getValue() instanceof ExprList){
+                    if (decl.getValue() instanceof ExprList) {
                         parameters.add(evaluateOnlyValue((ExprList) decl.getValue()));
-                    }else{
+                    } else {
                         parameters.add(evaluate(parameter));
                     }
-                }else{
+                } else {
                     parameters.add(evaluate(parameter));
                 }
             }
@@ -318,7 +322,7 @@ public interface ExpressionEvaluator {
 //        if(type instanceof TensorType){
 //            emitter().emit("%s = new Tensor(%s(%s));", lvalue, fn, String.join(", ", parameters));
 //        }else{
-            emitter().emit("%s = %s(%s);", decl, fn, String.join(", ", parameters));
+        emitter().emit("%s = %s(%s);", decl, fn, String.join(", ", parameters));
 //        }
     }
 
@@ -933,7 +937,7 @@ public interface ExpressionEvaluator {
 
     default String evaluateUnarySize(SetType type, ExprUnaryOp expr) {
         String tmp = variables().generateTemp();
-        emitter().emit("%s = %s->size;", declarations().declaration(types().type(expr), tmp), evaluate(expr.getOperand()));
+        emitter().emit("%s = %s->size();", declarations().declaration(types().type(expr), tmp), evaluate(expr.getOperand()));
         return tmp;
     }
 
@@ -1163,6 +1167,27 @@ public interface ExpressionEvaluator {
         return value;
     }
 
+    default String evaluate(ExprSet set) {
+        SetType t = (SetType) types().type(set);
+        String name = variables().generateTemp();
+        String decl = declarations().declarationTemp(t, name);
+        String value = evaluateExprSet(set);
+
+        String init = "{" + value + " }";
+        emitter().emit("%s = %s;", decl, init);
+        return name;
+    }
+
+    default String evaluateExprSet(Expression expr) {
+        return evaluate(expr);
+    }
+
+    default String evaluateExprSet(ExprSet collection) {
+        String value = collection.getElements().stream().sequential()
+                .map(this::evaluateExprSet)
+                .collect(Collectors.joining(", "));
+        return value;
+    }
 
     /*
    default String evaluate(ExprIndexer indexer) {
@@ -1257,7 +1282,7 @@ public interface ExpressionEvaluator {
     default String evaluate(ExprNth nth) {
         Type type = types().type(nth.getStructure());
         if (type instanceof TupleType) {
-            return String.format("std::get<%s>(%s)",  nth.getNth().getNumber() - 1, evaluate(nth.getStructure()));
+            return String.format("std::get<%s>(%s)", nth.getNth().getNumber() - 1, evaluate(nth.getStructure()));
         }
         // -- See if there is something else
         return String.format("%s->%s", evaluate(nth.getStructure()), "_" + nth.getNth().getNumber());
@@ -1322,14 +1347,14 @@ public interface ExpressionEvaluator {
             if (parameter instanceof ExprList) {
                 parameters.add(evaluateOnlyValue((ExprList) parameter));
             } else {
-                if (parameter instanceof ExprGlobalVariable){
+                if (parameter instanceof ExprGlobalVariable) {
                     VarDecl decl = backend().varDecls().declaration((ExprGlobalVariable) parameter);
-                    if(decl.getValue() instanceof ExprList){
+                    if (decl.getValue() instanceof ExprList) {
                         parameters.add(evaluateOnlyValue((ExprList) decl.getValue()));
-                    }else{
+                    } else {
                         parameters.add(evaluate(parameter));
                     }
-                }else{
+                } else {
                     parameters.add(evaluate(parameter));
                 }
             }
@@ -1343,7 +1368,7 @@ public interface ExpressionEvaluator {
 //        if(type instanceof TensorType){
 //            emitter().emit("%s = %s(%s);", decl, fn, String.join(", ", parameters));
 //        }else{
-            emitter().emit("%s = %s(%s);", decl, fn, String.join(", ", parameters));
+        emitter().emit("%s = %s(%s);", decl, fn, String.join(", ", parameters));
 //        }
         backend().statements().profilingOp().add("__opCounters->prof_DATAHANDLING_CALL += 1;");
         return result;
@@ -1396,6 +1421,7 @@ public interface ExpressionEvaluator {
             return "NULL /* TODO: implement dynamically sized lists */";
         }
     }
+
 
 
     /**

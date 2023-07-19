@@ -93,9 +93,9 @@ public interface Statements {
                 emitter().emit("pinConsume_%s(%s);", channelsutils().inputPortTypeSize(consume.getPort()), channelsutils().definedInputPort(consume.getPort()));
                 backend().statements().profilingOp().add("__opCounters->prof_DATAHANDLING_LOAD += 1;");
                 Type type = channelsutils().inputPortType(consume.getPort());
-//                if(type instanceof TensorType){
-//                    emitter().emit("delete %s;", channelsutils().definedInputPort(consume.getPort()) + "_peek");
-//                }
+                if(!backend().typeseval().isScalar(type)){
+                    emitter().emit("delete %s;", channelsutils().definedInputPort(consume.getPort()) + "_peek");
+                }
             }
         }
     }
