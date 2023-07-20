@@ -447,4 +447,26 @@ public interface Statements {
         emitter().emit("}");
     }
 
+    default void forEach(ExprVariable var, List<GeneratorVarDecl> varDecls, Runnable action){
+        emitter().emit("{");
+        emitter().increaseIndentation();
+        String access = ".";
+        if(variables().isScopeVariable(var.getVariable())){
+            access = "->";
+        }
+        Type type = types().declaredType(varDecls.get(0));
+        for (VarDecl d : varDecls) {
+            emitter().emit("%s::iterator it_%s = %s%sbegin();",typeseval().type(types().type(var)), variables().declarationName(d),variables().name(var.getVariable()), access);
+            emitter().emit("%s;", declarartions().declaration(type, variables().declarationName(d)));
+        }
+
+        action.run();
+        emitter().decreaseIndentation();
+        emitter().emit("}");
+
+
+        emitter().decreaseIndentation();
+        emitter().emit("}");
+    }
+
 }
