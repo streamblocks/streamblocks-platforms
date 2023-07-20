@@ -272,9 +272,6 @@ public interface ExpressionEvaluator {
         }
     }
 
-    default void evaluateWithLvalue(String lvalue, ExprSet set){
-        Type type = types().type(set);
-    }
 
     default void evaluateWithLvalue(String lvalue, ExprApplication apply) {
         boolean directlyCallable = backend().callablesInActor().directlyCallable(apply.getFunction());
@@ -458,7 +455,26 @@ public interface ExpressionEvaluator {
         Expression left = binaryOp.getOperands().get(0);
         Expression right = binaryOp.getOperands().get(1);
         emitter().emit("%s;", declarations().declaration(lhs, tmp));
-        emitter().emit("%1$s = union_%2$s(%3$s, %4$s);", tmp, typeseval().type(lhs), evaluate(left), evaluate(right));
+
+        String leftAccess = ".";
+        if (left instanceof ExprVariable) {
+            ExprVariable var = (ExprVariable) left;
+            if(variables().isScopeVariable(var.getVariable())){
+                leftAccess = "->";
+            }
+        }
+
+        String rightAccess = ".";
+        if (right instanceof ExprVariable) {
+            ExprVariable var = (ExprVariable) left;
+            if(variables().isScopeVariable(var.getVariable())){
+                leftAccess = "->";
+            }
+        }
+
+        emitter().emit("std::set_union(%1$s%2$sbegin(), %1$s%2$send(), %3$s%4$sbegin(), %3$s%4$send(), std::inserter(%5$s, %5$s.begin()));", evaluate(left), leftAccess, evaluate(right), rightAccess, tmp);
+
+
         return tmp;
     }
 
@@ -1396,6 +1412,25 @@ public interface ExpressionEvaluator {
         return evaluate(expr);
     }
 
+    default String evaluateWithType(ExprSet set, Type type) {
+        SetType t = (SetType) type;
+        String name = variables().generateTemp();
+        String decl = declarations().declarationTemp(type, name);
+        if (t.getElementType() instanceof SetType) {
+            String value = set.getElements().stream().sequential()
+                    .map(ele -> evaluateWithType(ele, t.getElementType()))
+                    .collect(Collectors.joining(", "));
+            String init = "{" + value + " }";
+            emitter().emit("%s = %s;", decl, init);
+        } else {
+            String value = evaluateExprSet(set);
+            String init = "{" + value + " }";
+            emitter().emit("%s = %s;", decl, init);
+        }
+
+        return name;
+    }
+
 
     default String evaluateWithType(ExprList list, Type type) {
         ListType t = (ListType) type;
@@ -1421,7 +1456,6 @@ public interface ExpressionEvaluator {
             return "NULL /* TODO: implement dynamically sized lists */";
         }
     }
-
 
 
     /**

@@ -476,6 +476,7 @@ public interface Globals {
         emitter().emitNewLine();
         emitter().emit("#include <cstdint>");
         emitter().emit("#include <set>");
+        emitter().emit("#include <algorithm>");
         emitter().emitNewLine();
 
         backend().includeUser("art_time.h");

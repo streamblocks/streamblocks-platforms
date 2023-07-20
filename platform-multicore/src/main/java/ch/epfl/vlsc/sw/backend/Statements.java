@@ -246,7 +246,8 @@ public interface Statements {
 
 
     default void copy(SetType lvalueType, String lvalue, SetType rvalueType, String rvalue) {
-        emitter().emit("copy_%1$s(&(%2$s), %3$s);", typeseval().type(lvalueType), lvalue, rvalue);
+        emitter().emit("delete %s;", lvalue);
+        emitter().emit("%s = new %s(%s);", lvalue, typeseval().type(lvalueType), rvalue);
     }
 
     default void copy(MapType lvalueType, String lvalue, MapType rvalueType, String rvalue) {

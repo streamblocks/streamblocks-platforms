@@ -109,11 +109,21 @@ public interface Variables {
 //            if(!backend().typeseval().isScalar(type)){
 //                return "*thisActor->" + declarationName(decl);
 //            }else{
-                return "thisActor->" + declarationName(decl);
+            return "thisActor->" + declarationName(decl);
 //            }
         } else {
             return declarationName(decl);
         }
+    }
+
+    default boolean isScopeVariable(Variable var) {
+        VarDecl decl = backend().varDecls().declaration(var);
+        IRNode parent = backend().tree().parent(decl);
+        if ((parent instanceof Scope) || (parent instanceof ActorMachine)) {
+            return true;
+        }
+
+        return false;
     }
 
     default String name(VarDecl decl) {

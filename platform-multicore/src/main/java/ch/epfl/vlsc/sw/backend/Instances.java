@@ -729,7 +729,7 @@ public interface Instances {
         } else {
             Type type = types().declaredType(var);
             if (!backend().typeseval().isScalar(type)) {
-                expressioneval().evaluateWithLvalue("thisActor->" + backend().variables().declarationName(var), var.getValue());
+                emitter().emit("thisActor->%s = new %s(%s);", backend().variables().declarationName(var), typeseval().type(type), expressioneval().evaluateWithType(var.getValue(), type));
             } else {
                 statements().copy(types().declaredType(var), "thisActor->" + backend().variables().declarationName(var), types().type(var.getValue()), expressioneval().evaluate(var.getValue()));
             }
