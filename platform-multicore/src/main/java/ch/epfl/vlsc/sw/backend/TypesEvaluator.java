@@ -174,7 +174,7 @@ public interface TypesEvaluator {
     }
 
     default boolean isScalar(Type type){
-        return (type instanceof BoolType) || (type instanceof RealType) || (type instanceof CharType);
+        return (type instanceof BoolType) || (type instanceof RealType) || (type instanceof CharType) || (type instanceof IntType);
     }
 
 }

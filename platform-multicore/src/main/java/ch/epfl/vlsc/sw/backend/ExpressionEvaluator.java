@@ -10,6 +10,8 @@ import se.lth.cs.tycho.ir.NamespaceDecl;
 import se.lth.cs.tycho.ir.Variable;
 import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
+import se.lth.cs.tycho.ir.entity.Entity;
+import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.entity.am.ActorMachine;
 import se.lth.cs.tycho.ir.entity.am.Scope;
 import se.lth.cs.tycho.ir.expr.*;
@@ -237,10 +239,16 @@ public interface ExpressionEvaluator {
     void evaluateWithLvalue(String lvalue, Expression expr);
 
     default void evaluateWithLvalue(String lvalue, ExprInput input) {
-        Type type = types().type(input);
-        String sType = backend().typeseval().type(type);
+        //Type type = types().type(input);
 
-        if (backend().typeseval().isScalar(type)) {
+
+        Entity entity = backend().entitybox().get();
+        PortDecl portDecl = entity.getInputPorts().stream().filter(p -> p.getName().equals(input.getPort().getName())).findAny().orElse(null);
+        assert portDecl != null;
+        Type type = types().type(portDecl.getType());
+
+        String sType = backend().typeseval().type(type);
+        if (!backend().typeseval().isScalar(type)) {
             sType = "ref";
         }
 
