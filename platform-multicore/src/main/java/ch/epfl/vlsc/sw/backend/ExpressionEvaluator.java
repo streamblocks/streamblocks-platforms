@@ -18,6 +18,7 @@ import se.lth.cs.tycho.ir.expr.*;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.stmt.StmtAssignment;
 import se.lth.cs.tycho.ir.stmt.StmtCall;
+import se.lth.cs.tycho.ir.stmt.StmtWrite;
 import se.lth.cs.tycho.ir.stmt.lvalue.LValueVariable;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.type.*;
@@ -215,21 +216,21 @@ public interface ExpressionEvaluator {
                     throw new RuntimeException("not implemented");
                 }
             } else {
-//                if(type instanceof TensorType){
-//                    String tensor_tmp = channelsutils().definedInputPort(input.getPort()) + "_peek";
-//                    if (input.getOffset() == 0) {
-//                        emitter().emit("Tensor *%s = (Tensor*) pinPeekFront_ref(%s);", tensor_tmp, channelsutils().definedInputPort(input.getPort()));
-//                    } else {
-//                        emitter().emit("Tensor *%s = (Tensor*) pinPeek_ref(%s, %d);", tensor_tmp, channelsutils().definedInputPort(input.getPort()), input.getOffset());
-//                    }
-//                    emitter().emit("%s = *%s;", tmp, tensor_tmp);
-//                }else {
-                if (input.getOffset() == 0) {
-                    emitter().emit("%s = pinPeekFront_%s(%s);", tmp, channelsutils().inputPortTypeSize(input.getPort()), channelsutils().definedInputPort(input.getPort()));
+                if (!backend().typeseval().isScalar(type)) {
+                    String non_scalar_tmp = channelsutils().definedInputPort(input.getPort()) + "_peek";
+                    if (input.getOffset() == 0) {
+                        emitter().emit("%s *%s = (%1$s*) pinPeekFront_ref(%s);", typeseval().type(typeseval().innerType(type)), non_scalar_tmp, channelsutils().definedInputPort(input.getPort()));
+                    } else {
+                        emitter().emit("%s *%s = (%1$s*) pinPeek_ref(%s, %d);", typeseval().type(typeseval().innerType(type)), non_scalar_tmp, channelsutils().definedInputPort(input.getPort()), input.getOffset());
+                    }
+                    emitter().emit("%s = *%s;", tmp, non_scalar_tmp);
                 } else {
-                    emitter().emit("%s = pinPeek_%s(%s, %d);", tmp, channelsutils().inputPortTypeSize(input.getPort()), channelsutils().definedInputPort(input.getPort()), input.getOffset());
+                    if (input.getOffset() == 0) {
+                        emitter().emit("%s = pinPeekFront_%s(%s);", tmp, channelsutils().inputPortTypeSize(input.getPort()), channelsutils().definedInputPort(input.getPort()));
+                    } else {
+                        emitter().emit("%s = pinPeek_%s(%s, %d);", tmp, channelsutils().inputPortTypeSize(input.getPort()), channelsutils().definedInputPort(input.getPort()), input.getOffset());
+                    }
                 }
-//                }
             }
         }
 
@@ -255,26 +256,38 @@ public interface ExpressionEvaluator {
         if (backend().channelsutils().isTargetConnected(backend().instancebox().get().getInstanceName(), input.getPort().getName())) {
             if (input.hasRepeat()) {
                 if (input.getOffset() == 0) {
-                    emitter().emit("pinPeekRepeat_%s(%s, %s, %d);", sType, channelsutils().definedInputPort(input.getPort()), lvalue, input.getRepeat());
+                    String tmp = channelsutils().definedInputPort(input.getPort()) + "_peek";
+                    emitter().emit("void* %s[%d];", tmp, input.getRepeat());
+                    emitter().emit("pinPeekRepeat_%s(%s, %s, %d);", sType, channelsutils().definedInputPort(input.getPort()), tmp, input.getRepeat());
+                    emitter().emit("// -- Cast");
+                    String idx = variables().generateTemp();
+                    emitter().emit("for(size_t %s = 0; %1$s < %s; %1$s++){", idx, input.getRepeat());
+                    emitter().emit("\t%s[%s] = (%s*) %s[%2$s];", lvalue, idx, typeseval().type(typeseval().innerType(type)), tmp);
+                    emitter().emit("}");
+
                 } else {
                     throw new RuntimeException("not implemented");
                 }
             } else {
-//                if(type instanceof TensorType){
-//                    String tmp = channelsutils().definedInputPort(input.getPort()) + "_peek";
-//                    if (input.getOffset() == 0) {
-//                        emitter().emit("Tensor *%s = (Tensor*) pinPeekFront_ref(%s);", tmp, channelsutils().definedInputPort(input.getPort()));
-//                    } else {
-//                        emitter().emit("Tensor *%s = (Tensor*) pinPeek_ref(%s, %d);", tmp, channelsutils().definedInputPort(input.getPort()), input.getOffset());
-//                    }
-//                    emitter().emit("%s = *%s;", lvalue, tmp);
-//                }else{
-                if (input.getOffset() == 0) {
-                    emitter().emit("%s = pinPeekFront_%s(%s);", lvalue, sType, channelsutils().definedInputPort(input.getPort()));
+                if (!backend().typeseval().isScalar(type)) {
+                    String tmp = channelsutils().definedInputPort(input.getPort()) + "_peek";
+                    if (input.getOffset() == 0) {
+                        emitter().emit("%s *%s = (%1$s*) pinPeekFront_ref(%s);", typeseval().type(typeseval().innerType(type)), tmp, channelsutils().definedInputPort(input.getPort()));
+                    } else {
+                        emitter().emit("%s *%s = (%1$s*) pinPeek_ref(%s, %d);", typeseval().type(typeseval().innerType(type)), tmp, channelsutils().definedInputPort(input.getPort()), input.getOffset());
+                    }
+                    if (type instanceof ListType) {
+                        emitter().emit("%s = %s;", lvalue, tmp);
+                    } else {
+                        emitter().emit("%s = *%s;", lvalue, tmp);
+                    }
                 } else {
-                    emitter().emit("%s = pinPeek_%s(%s, %d);", lvalue, sType, channelsutils().definedInputPort(input.getPort()), input.getOffset());
+                    if (input.getOffset() == 0) {
+                        emitter().emit("%s = pinPeekFront_%s(%s);", lvalue, sType, channelsutils().definedInputPort(input.getPort()));
+                    } else {
+                        emitter().emit("%s = pinPeek_%s(%s, %d);", lvalue, sType, channelsutils().definedInputPort(input.getPort()), input.getOffset());
+                    }
                 }
-//                }
 
             }
         }
@@ -467,7 +480,7 @@ public interface ExpressionEvaluator {
         String leftAccess = ".";
         if (left instanceof ExprVariable) {
             ExprVariable var = (ExprVariable) left;
-            if(variables().isScopeVariable(var.getVariable())){
+            if (variables().isScopeVariable(var.getVariable())) {
                 leftAccess = "->";
             }
         }
@@ -475,7 +488,7 @@ public interface ExpressionEvaluator {
         String rightAccess = ".";
         if (right instanceof ExprVariable) {
             ExprVariable var = (ExprVariable) left;
-            if(variables().isScopeVariable(var.getVariable())){
+            if (variables().isScopeVariable(var.getVariable())) {
                 leftAccess = "->";
             }
         }
@@ -1054,6 +1067,7 @@ public interface ExpressionEvaluator {
 
     default String evaluateComprehension(ExprComprehension comprehension, ListType t) {
         Type typeForTmp = t;
+        boolean pointerCopy = false;
         IRNode parent = backend().tree().parent(comprehension);
         String name;
         if (parent instanceof StmtAssignment) {
@@ -1066,37 +1080,60 @@ public interface ExpressionEvaluator {
                 String decl = declarations().declarationTemp(t, name);
                 emitter().emit("%s;", decl);
             }
+        } else if (parent instanceof StmtWrite) {
+            StmtWrite write = (StmtWrite) parent;
+            Type type = types().portType(write.getPort());
+            name = variables().generateTemp();
+            if ((type instanceof ListType) && (write.getRepeatExpression() != null)) {
+                emitter().emit("void* %s[%s];", name, evaluate(write.getRepeatExpression()));
+                pointerCopy = true;
+            } else {
+                String decl = declarations().declarationTemp(t, name);
+                emitter().emit("%s;", decl);
+            }
         } else {
             name = variables().generateTemp();
             String decl = declarations().declarationTemp(t, name);
             emitter().emit("%s;", decl);
         }
 
+
         String index = variables().generateTemp();
-        emitter().emit("size_t %s = 0;", index);
-        evaluateListComprehension(comprehension, name, index);
+
+        emitter().
+
+                emit("size_t %s = 0;", index);
+
+        evaluateListComprehension(comprehension, name, index, pointerCopy);
         return name;
     }
 
 
-    void evaluateListComprehension(Expression comprehension, String result, String index);
+    void evaluateListComprehension(Expression comprehension, String result, String index, boolean pointerCopy);
 
-    default void evaluateListComprehension(ExprComprehension comprehension, String result, String index) {
+    default void evaluateListComprehension(ExprComprehension comprehension, String result, String index, boolean pointerCopy) {
         if (!comprehension.getFilters().isEmpty()) {
             throw new UnsupportedOperationException("Filters in comprehensions not supported.");
         }
         withGenerator(comprehension.getGenerator().getCollection(), comprehension.getGenerator().getVarDecls(), () -> {
-            evaluateListComprehension(comprehension.getCollection(), result, index);
+            evaluateListComprehension(comprehension.getCollection(), result, index, pointerCopy);
         });
     }
 
-    default void evaluateListComprehension(ExprList list, String result, String index) {
+    default void evaluateListComprehension(ExprList list, String result, String index, boolean pointerCopy) {
         list.getElements().forEach(element -> {
                     if (element instanceof ExprComprehension) {
                         //emitter().emit("%s[%2$s] = %3$s[%2$s++];", result, index, evaluate(element));
                         ListType type = (ListType) backend().types().type(element);
                         String name = evaluate(element);
                         emitter().emit("memcpy(%s + %s*(%s++), %s, sizeof(%4$s));", result, type.getSize().getAsInt(), index, name);
+                    } else if (pointerCopy) {
+                        Type type = types().type(element);
+                        String tmp = variables().generateTemp();
+                        String maxIndex = backend().typeseval().sizeByDimension((ListType) type).stream().map(Object::toString).collect(Collectors.joining("*"));
+                        emitter().emit("%s* %s = new %1$s[%s];", typeseval().type(typeseval().innerType(type)), tmp, maxIndex);
+                        emitter().emit("std::memcpy(%s, %s, sizeof(%s) * %s);", tmp, evaluate(element), typeseval().type(typeseval().innerType(type)), maxIndex);
+                        emitter().emit("%s[%s++] = %s;", result, index, tmp);
                     } else {
                         emitter().emit("%s[%s++] = %s;", result, index, evaluate(element));
                     }
@@ -1217,16 +1254,25 @@ public interface ExpressionEvaluator {
    default String evaluate(ExprIndexer indexer) {
        return exprIndexing(types().type(indexer.getStructure()), indexer);
    }
-
-   String exprIndexing(Type type, ExprIndexer indexer);
-
-   default String exprIndexing(ListType type, ExprIndexer indexer) {
-       return String.format("%s[%s]", evaluate(indexer.getStructure()), evaluate(indexer.getIndex()));
-   }
 */
 
+
+    default String exprIndexing(ExprIndexer indexer) {
+        return String.format("%s[%s]", evaluate(indexer.getStructure()), evaluate(indexer.getIndex()));
+    }
+
     default String evaluate(ExprIndexer indexer) {
+
         VarDecl varDecl = evalExprIndexVar(indexer);
+        if (varDecl.getValue() != null) {
+            if (varDecl.getValue() instanceof ExprInput) {
+                ExprInput in = (ExprInput) varDecl.getValue();
+                Type type = types().portType(in.getPort());
+                if ((type instanceof ListType) && in.hasRepeat()) {
+                    return exprIndexing(indexer);
+                }
+            }
+        }
 
         Optional<String> str = Optional.empty();
         String ind;

@@ -36,7 +36,7 @@ public class Multicore implements Platform {
 //            .add(new RemoveUnusedEntityDeclsPhase()) // This can not happen after network elaboration because the hardware partition entities get removed.
             .add(new CreatePartitionLinkPhase())
             .add(new FixListInitialValue())
-            .add(new ExprOutputToAssignment())
+//            .add(new ExprOutputToAssignment())
             .add(new ExprToStmtAssignment())
             .add(new ListComprehensionToStmtWhile())
             .add(new MultiCoreBackendPhase())

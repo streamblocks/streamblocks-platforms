@@ -5,28 +5,10 @@ import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.Types;
-import se.lth.cs.tycho.ir.IRNode;
-import se.lth.cs.tycho.ir.NamespaceDecl;
-import se.lth.cs.tycho.ir.Variable;
 import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
-import se.lth.cs.tycho.ir.entity.am.ActorMachine;
-import se.lth.cs.tycho.ir.entity.am.Scope;
-import se.lth.cs.tycho.ir.expr.ExprBinaryOp;
-import se.lth.cs.tycho.ir.expr.ExprComprehension;
-import se.lth.cs.tycho.ir.expr.ExprGlobalVariable;
-import se.lth.cs.tycho.ir.expr.ExprInput;
-import se.lth.cs.tycho.ir.expr.ExprVariable;
-import se.lth.cs.tycho.ir.expr.Expression;
-import se.lth.cs.tycho.ir.stmt.Statement;
-import se.lth.cs.tycho.ir.stmt.StmtAssignment;
-import se.lth.cs.tycho.ir.stmt.StmtBlock;
-import se.lth.cs.tycho.ir.stmt.StmtCall;
-import se.lth.cs.tycho.ir.stmt.StmtConsume;
-import se.lth.cs.tycho.ir.stmt.StmtForeach;
-import se.lth.cs.tycho.ir.stmt.StmtIf;
-import se.lth.cs.tycho.ir.stmt.StmtWhile;
-import se.lth.cs.tycho.ir.stmt.StmtWrite;
+import se.lth.cs.tycho.ir.expr.*;
+import se.lth.cs.tycho.ir.stmt.*;
 import se.lth.cs.tycho.ir.stmt.lvalue.LValueIndexer;
 import se.lth.cs.tycho.type.*;
 
@@ -85,15 +67,23 @@ public interface Statements {
      */
 
     default void execute(StmtConsume consume) {
+        Type type = channelsutils().inputPortType(consume.getPort());
         if (backend().channelsutils().isTargetConnected(backend().instancebox().get().getInstanceName(), consume.getPort().getName())) {
             if (consume.getNumberOfTokens() > 1) {
                 emitter().emit("pinConsumeRepeat_%s(%s, %d);", channelsutils().inputPortTypeSize(consume.getPort()), channelsutils().definedInputPort(consume.getPort()), consume.getNumberOfTokens());
                 backend().statements().profilingOp().add("__opCounters->prof_DATAHANDLING_LIST_LOAD += 1;");
+                if (!backend().typeseval().isScalar(type)) {
+                    String tmp = variables().generateTemp();
+                    emitter().emit("for(size_t %s = 0; %1$s < %d; %1$s++){", tmp, consume.getNumberOfTokens());
+
+                    emitter().emit("\tdelete (%s*) %s[%s];", typeseval().type(typeseval().innerType(type)), channelsutils().definedInputPort(consume.getPort()) + "_peek", tmp);
+                    emitter().emit("}");
+                }
             } else {
                 emitter().emit("pinConsume_%s(%s);", channelsutils().inputPortTypeSize(consume.getPort()), channelsutils().definedInputPort(consume.getPort()));
                 backend().statements().profilingOp().add("__opCounters->prof_DATAHANDLING_LOAD += 1;");
-                Type type = channelsutils().inputPortType(consume.getPort());
-                if(!backend().typeseval().isScalar(type)){
+
+                if (!backend().typeseval().isScalar(type)) {
                     emitter().emit("delete %s;", channelsutils().definedInputPort(consume.getPort()) + "_peek");
                 }
             }
@@ -106,30 +96,35 @@ public interface Statements {
 
     default void execute(StmtWrite write) {
         if (backend().channelsutils().isSourceConnected(backend().instancebox().get().getInstanceName(), write.getPort().getName())) {
+            emitter().emitNewLine();
             if (write.getRepeatExpression() == null) {
                 Type type = types().portType(write.getPort());
                 String portType;
-//                if (type instanceof AlgebraicType | type instanceof TensorType) {
-                if (type instanceof AlgebraicType) {
+                if (!backend().typeseval().isScalar(type)) {
                     portType = "ref";
                 } else {
                     portType = typeseval().type(type);
                 }
                 String tmp = variables().generateTemp();
 
-//                if (type instanceof TensorType) {
-//                    emitter().emit("Tensor* %s = nullptr;", tmp);
-//                } else {
+                if (!backend().typeseval().isScalar(type)) {
+                    if (type instanceof ListType) {
+                        String maxIndex = backend().typeseval().sizeByDimension((ListType) type).stream().map(Object::toString).collect(Collectors.joining("*"));
+                        emitter().emit("%s* %s = new %1$s[%s];", typeseval().type(typeseval().innerType(type)), tmp, maxIndex);
+                    } else {
+                        emitter().emit("%s* %s = nullptr;", typeseval().type(typeseval().innerType(type)), tmp);
+                    }
+                } else {
                     emitter().emit("%s;", declarartions().declaration(types().portType(write.getPort()), tmp));
-                    //emitter().emit("%s = %s;", declarartions().declaration(types().portType(write.getPort()), tmp), backend().defaultValues().defaultValue(type));
-//                }
+                }
 
                 for (Expression expr : write.getValues()) {
-//                    if (type instanceof TensorType) {
-//                        emitter().emit("%s = new Tensor(%s);", tmp, expressioneval().evaluate(expr));
-//                    } else {
+                    if (type instanceof ListType) {
+                        String maxIndex = backend().typeseval().sizeByDimension((ListType) type).stream().map(Object::toString).collect(Collectors.joining("*"));
+                        emitter().emit("std::memcpy(%s,%s, sizeof(%s) * %s);", tmp, expressioneval().evaluate(expr), typeseval().type(typeseval().innerType(type)), maxIndex);
+                    } else {
                         emitter().emit("%s = %s;", tmp, expressioneval().evaluate(expr));
-//                    }
+                    }
                     emitter().emit("pinWrite_%s(%s, %s);", portType, channelsutils().definedOutputPort(write.getPort()), tmp);
                     profilingOp().add("__opCounters->prof_DATAHANDLING_STORE += 1;");
                 }
@@ -232,7 +227,8 @@ public interface Statements {
         //}
     }
 
-    default void copySubAccess(ListType lvalueType, String lvalue, ListType rvalueType, String rvalue, String singleDimIndex) {
+    default void copySubAccess(ListType lvalueType, String lvalue, ListType rvalueType, String rvalue, String
+            singleDimIndex) {
         //if (!lvalueType.equals(rvalueType)) {
         String maxIndex = typeseval().sizeByDimension(lvalueType).stream().map(Object::toString).collect(Collectors.joining(" * "));
         String index = variables().generateTemp();
@@ -321,25 +317,42 @@ public interface Statements {
             if (!backend().profilingbox().isEmpty()) {
                 profilingOp().clear();
             }
-            Type t = types().declaredType(decl);
             String declarationName = variables().declarationName(decl);
-            String d = declarartions().declarationTemp(t, declarationName);
-
-            emitter().emit("%s;", d);
-            //emitter().emit("%s = %s;", d, backend().defaultValues().defaultValue(t));
 
             if (decl.getValue() != null) {
                 if (decl.getValue() instanceof ExprInput) {
                     ExprInput input = (ExprInput) decl.getValue();
+                    Type pType = types().portType(input.getPort());
+                    Type t = types().declaredType(decl);
+
+
+                    if (pType instanceof ListType) {
+                        String maxIndex = backend().typeseval().sizeByDimension((ListType) pType).stream().map(Object::toString).collect(Collectors.joining("*"));
+
+                        if (input.hasRepeat()) {
+                            emitter().emit("%s* %s[%s];", typeseval().type(typeseval().innerType(pType)), declarationName, input.getRepeat());
+                        } else {
+                            emitter().emit("%s* %s;", typeseval().type(typeseval().innerType(pType)), declarationName, maxIndex);
+                        }
+                    } else {
+                        String d = declarartions().declarationTemp(t, declarationName);
+                        emitter().emit("%s;", d);
+                    }
+
                     if (backend().channelsutils().isTargetConnected(backend().instancebox().get().getInstanceName(), input.getPort().getName())) {
                         expressioneval().evaluateWithLvalue(backend().variables().declarationName(decl), (ExprInput) decl.getValue());
                     } else {
                         copy(t, declarationName, types().type(decl.getValue()), expressioneval().evaluate(decl.getValue()));
                     }
                 } else {
+                    Type t = types().declaredType(decl);
                     copy(t, declarationName, types().type(decl.getValue()), expressioneval().evaluate(decl.getValue()));
                 }
                 emitter().emitNewLine();
+            } else {
+                Type t = types().declaredType(decl);
+                String d = declarartions().declarationTemp(t, declarationName);
+                emitter().emit("%s;", d);
             }
             if (!backend().profilingbox().isEmpty()) {
                 profilingOp().forEach(s -> emitter().emit((String) s));
@@ -447,16 +460,16 @@ public interface Statements {
         emitter().emit("}");
     }
 
-    default void forEach(ExprVariable var, List<GeneratorVarDecl> varDecls, Runnable action){
+    default void forEach(ExprVariable var, List<GeneratorVarDecl> varDecls, Runnable action) {
         emitter().emit("{");
         emitter().increaseIndentation();
         String access = ".";
-        if(variables().isScopeVariable(var.getVariable())){
+        if (variables().isScopeVariable(var.getVariable())) {
             access = "->";
         }
         Type type = types().declaredType(varDecls.get(0));
         for (VarDecl d : varDecls) {
-            emitter().emit("%s::iterator it_%s = %s%sbegin();",typeseval().type(types().type(var)), variables().declarationName(d),variables().name(var.getVariable()), access);
+            emitter().emit("%s::iterator it_%s = %s%sbegin();", typeseval().type(types().type(var)), variables().declarationName(d), variables().name(var.getVariable()), access);
             emitter().emit("%s;", declarartions().declaration(type, variables().declarationName(d)));
         }
 
