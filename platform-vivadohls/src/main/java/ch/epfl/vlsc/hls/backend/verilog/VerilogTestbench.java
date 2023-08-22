@@ -196,7 +196,7 @@ public interface VerilogTestbench {
 
     default void ioRegWires(PortDecl port, boolean isInput) {
         Type type = backend().types().declaredPortType(port);
-        int bitSize = backend().typeseval().sizeOfBits(type);
+        int bitSize = (int) backend().typeseval().sizeOfBits(type);
         boolean isSigned = false;
 
         if (type instanceof IntType) {
@@ -253,7 +253,7 @@ public interface VerilogTestbench {
         String portName = port.getName();
         String queueName = "q_" + name + "_" + portName;
         Type type = backend().types().declaredPortType(port);
-        int bitSize = backend().typeseval().sizeOfBits(type);
+        int bitSize = (int) backend().typeseval().sizeOfBits(type);
 
         emitter().emit("// -- Queue wires for port : %s", portName);
         if (isInput) {
@@ -519,7 +519,7 @@ public interface VerilogTestbench {
         String portName = port.getName();
         String queueName = "q_" + name + "_" + portName;
         Type type = backend().types().declaredPortType(port);
-        int bitSize = backend().typeseval().sizeOfBits(type);
+        int bitSize = (int) backend().typeseval().sizeOfBits(type);
 
 
         emitter().emit("// -- Queue FIFO for port : %s", portName);

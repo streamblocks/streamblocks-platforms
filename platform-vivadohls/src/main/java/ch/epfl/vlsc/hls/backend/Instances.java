@@ -215,7 +215,7 @@ public interface Instances {
         // -- Large state variables to external memories
         for (VarDecl decl : backend().externalMemory().getExternalMemories(entity)) {
             ListType listType = (ListType) types().declaredType(decl);
-            List<Integer> dim = backend().typeseval().sizeByDimension(listType);
+            List<Long> dim = backend().typeseval().sizeByDimension(listType);
             Long listDepth = backend().externalMemory().memories().listDepth(listType);
             String memoryName = backend().externalMemory().name(instance, decl);
             emitter().emit("#pragma HLS INTERFACE m_axi depth=%d port=%s offset=direct bundle=%2$s", listDepth, memoryName);

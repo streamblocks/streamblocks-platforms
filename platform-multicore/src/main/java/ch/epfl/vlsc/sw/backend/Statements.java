@@ -75,8 +75,11 @@ public interface Statements {
                 if (!backend().typeseval().isScalar(type)) {
                     String tmp = variables().generateTemp();
                     emitter().emit("for(size_t %s = 0; %1$s < %d; %1$s++){", tmp, consume.getNumberOfTokens());
-
-                    emitter().emit("\tdelete (%s*) %s[%s];", typeseval().type(typeseval().innerType(type)), channelsutils().definedInputPort(consume.getPort()) + "_peek", tmp);
+                    if(type instanceof ListType){
+                        emitter().emit("\tdelete[] (%s*) %s[%s];", typeseval().type(typeseval().innerType(type)), channelsutils().definedInputPort(consume.getPort()) + "_peek", tmp);
+                    }else{
+                        emitter().emit("\tdelete (%s*) %s[%s];", typeseval().type(typeseval().innerType(type)), channelsutils().definedInputPort(consume.getPort()) + "_peek", tmp);
+                    }
                     emitter().emit("}");
                 }
             } else {
@@ -84,7 +87,11 @@ public interface Statements {
                 backend().statements().profilingOp().add("__opCounters->prof_DATAHANDLING_LOAD += 1;");
 
                 if (!backend().typeseval().isScalar(type)) {
-                    emitter().emit("delete %s;", channelsutils().definedInputPort(consume.getPort()) + "_peek");
+                    if(type instanceof ListType){
+                        emitter().emit("delete[] %s;", channelsutils().definedInputPort(consume.getPort()) + "_peek");
+                    }else{
+                        emitter().emit("delete %s;", channelsutils().definedInputPort(consume.getPort()) + "_peek");
+                    }
                 }
             }
         }

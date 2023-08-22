@@ -352,7 +352,7 @@ public interface ExpressionEvaluator {
         String tmp = variables().generateTemp();
         String index = variables().generateTemp();
         emitter().emit("%s = true;", declarations().declaration(BoolType.INSTANCE, tmp));
-        emitter().emit("for (size_t %1$s = 0; (%1$s < %2$s) && %3$s; %1$s++) {", index, lvalueType.getSize().getAsInt(), tmp);
+        emitter().emit("for (size_t %1$s = 0; (%1$s < %2$s) && %3$s; %1$s++) {", index, lvalueType.getSize().getAsLong(), tmp);
         emitter().increaseIndentation();
         emitter().emit("%s &= %s;", tmp, compare(lvalueType.getElementType(), String.format("%s.data[%s]", lvalue, index), rvalueType.getElementType(), String.format("%s.data[%s]", rvalue, index)));
         emitter().decreaseIndentation();
@@ -864,7 +864,7 @@ public interface ExpressionEvaluator {
         String elem = evaluate(binaryOp.getOperands().get(0));
         String list = evaluate(binaryOp.getOperands().get(1));
         emitter().emit("%s = false;", declarations().declaration(BoolType.INSTANCE, tmp));
-        emitter().emit("for (size_t %1$s = 0; (%1$s < %2$s) && !(%3$s); %1$s++) {", index, rhs.getSize().getAsInt(), tmp);
+        emitter().emit("for (size_t %1$s = 0; (%1$s < %2$s) && !(%3$s); %1$s++) {", index, rhs.getSize().getAsLong(), tmp);
         emitter().increaseIndentation();
         emitter().emit("%s |= %s;", tmp, compare(lhs, elem, rhs.getElementType(), String.format("%s.data[%s]", list, index)));
         emitter().decreaseIndentation();
@@ -969,7 +969,7 @@ public interface ExpressionEvaluator {
     }
 
     default String evaluateUnarySize(ListType type, ExprUnaryOp expr) {
-        return "" + type.getSize().getAsInt();
+        return "" + type.getSize().getAsLong();
     }
 
     default String evaluateUnarySize(SetType type, ExprUnaryOp expr) {
@@ -1126,7 +1126,7 @@ public interface ExpressionEvaluator {
                         //emitter().emit("%s[%2$s] = %3$s[%2$s++];", result, index, evaluate(element));
                         ListType type = (ListType) backend().types().type(element);
                         String name = evaluate(element);
-                        emitter().emit("memcpy(%s + %s*(%s++), %s, sizeof(%4$s));", result, type.getSize().getAsInt(), index, name);
+                        emitter().emit("memcpy(%s + %s*(%s++), %s, sizeof(%4$s));", result, type.getSize().getAsLong(), index, name);
                     } else if (pointerCopy) {
                         Type type = types().type(element);
                         String tmp = variables().generateTemp();
@@ -1286,7 +1286,7 @@ public interface ExpressionEvaluator {
                 listType = (ListType) ((RefType) t).getType();
             }
 
-            List<Integer> sizeByDim = typeseval().sizeByDimension((ListType) listType.getElementType());
+            List<Long> sizeByDim = typeseval().sizeByDimension((ListType) listType.getElementType());
             List<String> indexByDim = getListIndexes((ExprIndexer) indexer.getStructure());
             Collections.reverse(indexByDim);
 
@@ -1294,7 +1294,7 @@ public interface ExpressionEvaluator {
             for (int i = 0; i < indexByDim.size(); i++) {
                 List<String> dims = new ArrayList<>();
                 for (int j = i; j < sizeByDim.size(); j++) {
-                    dims.add(Integer.toString(sizeByDim.get(j)));
+                    dims.add(Long.toString(sizeByDim.get(j)));
                 }
                 structureIndex.add(String.format("%s*%s", String.join("*", dims), indexByDim.get(i)));
             }

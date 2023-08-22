@@ -65,7 +65,7 @@ public interface KernelXml {
                     // -- Input and output ports
                     for (PortDecl port : ImmutableList.concat(network.getInputPorts(), network.getOutputPorts())) {
                         Type type = backend().types().declaredPortType(port);
-                        int bitSize = backend().typeseval().sizeOfBits(type);
+                        int bitSize = (int) backend().typeseval().sizeOfBits(type);
                         xmlPort("m_axi_" + port.getName(), "master", "0xFFFFFFFF",
                                 AxiConstants.getAxiDataWidth(bitSize).orElseThrow(
                                         () -> new CompilationException(new Diagnostic(Diagnostic.Kind.ERROR,

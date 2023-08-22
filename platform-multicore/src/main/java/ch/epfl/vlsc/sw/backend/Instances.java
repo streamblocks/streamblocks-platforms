@@ -944,7 +944,8 @@ public interface Instances {
                         emitter().increaseIndentation();
                         String maxIndex = typeseval().sizeByDimension((ListType) type).stream().map(Object::toString).collect(Collectors.joining("*"));
                         //emitter().emit("thisActor->%s = malloc(sizeof(%s) * (%s));", backend().variables().declarationName(var), typeseval().type(type), maxIndex);
-                        emitter().emit("thisActor->%s = (%s*) calloc(%s, sizeof(%2$s));", backend().variables().declarationName(var), typeseval().type(type), maxIndex);
+                        //emitter().emit("thisActor->%s = (%s*) calloc(%s, sizeof(%2$s));", backend().variables().declarationName(var), typeseval().type(type), maxIndex);
+                        emitter().emit("thisActor->%s = new %s[%s];", backend().variables().declarationName(var), typeseval().type(type), maxIndex);
                         emitter().decreaseIndentation();
                         emitter().emit("}");
                     }
@@ -1025,7 +1026,11 @@ public interface Instances {
                 if (!backend().typeseval().isScalar(t)) {
                     String name = String.format("thisActor->%s", backend().variables().declarationName(decl));
                     //backend().free().apply(t, name);
-                    emitter().emit("delete %s;", name);
+                    if(t instanceof ListType){
+                        emitter().emit("delete[] %s;", name);
+                    }else {
+                        emitter().emit("delete %s;", name);
+                    }
                 }
             }
         }

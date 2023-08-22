@@ -205,9 +205,9 @@ public interface SystemCNetwork {
         if (queues().containsKey(connection)) {
             return queues().get(connection);
         } else {
-            int bitWidth = backend().typeseval().sizeOfBits(getConnectionType(connection));
+            long bitWidth = backend().typeseval().sizeOfBits(getConnectionType(connection));
             int bufferDepth = backend().channelsutils().connectionBufferSize(connection);
-            Queue queue = new Queue(connection, bitWidth, bufferDepth);
+            Queue queue = new Queue(connection, (int) bitWidth, bufferDepth);
             queues().put(connection, queue);
             return queue;
         }

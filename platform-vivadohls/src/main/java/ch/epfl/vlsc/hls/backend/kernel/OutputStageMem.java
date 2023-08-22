@@ -31,7 +31,7 @@ public interface OutputStageMem {
         Type type = backend().types().declaredPortType(port);
         String typeStr = backend().typeseval().axiType(type);
 
-        int bitWidth = backend().typeseval().sizeOfBits(type);
+        int bitWidth = (int) backend().typeseval().sizeOfBits(type);
 
         Optional<Connection> inputConnection =  backend().task().getNetwork().getConnections().stream().filter(
                 c -> !c.getTarget().getInstance().isPresent() && c.getTarget().getPort().equals(port.getName())

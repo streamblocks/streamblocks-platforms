@@ -138,13 +138,13 @@ public interface TypesEvaluator {
         return dim;
     }
 
-    default List<Integer> sizeByDimension(ListType type) {
-        List<Integer> sizeByDim = new ArrayList<>();
+    default List<Long> sizeByDimension(ListType type) {
+        List<Long> sizeByDim = new ArrayList<>();
         if (type.getElementType() instanceof ListType) {
-            sizeByDim.add(type.getSize().getAsInt());
+            sizeByDim.add(type.getSize().getAsLong());
             sizeByDimension(((ListType) type.getElementType())).stream().forEachOrdered(sizeByDim::add);
         } else {
-            sizeByDim.add(type.getSize().getAsInt());
+            sizeByDim.add(type.getSize().getAsLong());
         }
 
         return sizeByDim;

@@ -186,7 +186,7 @@ public interface VerilogNetwork {
 
     default void getPortDeclaration(PortDecl port, boolean isInput) {
         Type type = backend().types().declaredPortType(port);
-        int bitSize = backend().typeseval().sizeOfBits(type);
+        long bitSize = backend().typeseval().sizeOfBits(type);
         if (isInput) {
             emitter().emit("input  wire [%d:0] %s_din,", bitSize - 1, port.getName());
             emitter().emit("output wire %s_full_n,", port.getName());
@@ -1027,7 +1027,7 @@ public interface VerilogNetwork {
     }
 
     default int getQueueDataWidth(Connection connection) {
-        return backend().typeseval().sizeOfBits(getQueueType(connection));
+        return (int) backend().typeseval().sizeOfBits(getQueueType(connection));
     }
 
     default Type getQueueType(Connection connection) {

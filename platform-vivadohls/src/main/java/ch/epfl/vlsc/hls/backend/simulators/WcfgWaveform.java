@@ -97,7 +97,7 @@ public interface WcfgWaveform {
     default void wvObjectArrayPort(String hierarchy, PortDecl port, boolean isInput, boolean hasExtension) {
         String portName = port.getName();
         Type type = backend().types().declaredPortType(port);
-        int bitSize = backend().typeseval().sizeOfBits(type);
+        int bitSize = (int) backend().typeseval().sizeOfBits(type);
         emitter().emit("<wvobject type=\"array\" fp_name=\"/%s/%s%s%s\">", hierarchy, portName, getPortExtension(hasExtension), isInput ? "_dout" : "_din");
         {
             emitter().increaseIndentation();
@@ -289,7 +289,7 @@ public interface WcfgWaveform {
         int currentGroupCounter = groupCounter;
         currentGroupCounter++;
         Type type = backend().types().declaredPortType(port);
-        int bitSize = backend().typeseval().sizeOfBits(type);
+        int bitSize = (int) backend().typeseval().sizeOfBits(type);
         emitter().emit("<wvobject type=\"group\" fp_name=\"%d\">", currentGroupCounter);
         {
             emitter().increaseIndentation();

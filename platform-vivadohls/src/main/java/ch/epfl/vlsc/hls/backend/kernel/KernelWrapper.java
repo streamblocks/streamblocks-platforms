@@ -109,7 +109,7 @@ public interface KernelWrapper {
     }
     default ImmutableList<String> getPortParameters(PortDecl port) {
         Type type = backend().types().declaredPortType(port);
-        int bitSize = backend().typeseval().sizeOfBits(type);
+        int bitSize = (int) backend().typeseval().sizeOfBits(type);
         String portName = port.getName().toUpperCase();
         ImmutableList.Builder<String> params  = ImmutableList.builder();
         if (bitSize > 512) {

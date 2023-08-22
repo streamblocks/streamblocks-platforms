@@ -253,13 +253,13 @@ public interface TypesEvaluator {
         return dim;
     }
 
-    default List<Integer> sizeByDimension(ListType type) {
-        List<Integer> sizeByDim = new ArrayList<>();
+    default List<Long> sizeByDimension(ListType type) {
+        List<Long> sizeByDim = new ArrayList<>();
         if (type.getElementType() instanceof ListType) {
-            sizeByDim.add(type.getSize().getAsInt());
+            sizeByDim.add(type.getSize().getAsLong());
             sizeByDimension(((ListType) type.getElementType())).stream().forEachOrdered(sizeByDim::add);
         } else {
-            sizeByDim.add(type.getSize().getAsInt());
+            sizeByDim.add(type.getSize().getAsLong());
         }
 
         return sizeByDim;
@@ -271,7 +271,7 @@ public interface TypesEvaluator {
      * @param type
      * @return
      */
-    default int sizeOfBits(Type type) {
+    default long sizeOfBits(Type type) {
         if (type instanceof IntType) {
             IntType t = (IntType) type;
             OptionalInt size = t.getSize();
@@ -303,7 +303,7 @@ public interface TypesEvaluator {
         } else if (type instanceof ListType) {
             ListType l = (ListType) type;
             if (l.getSize().isPresent()) {
-                return l.getSize().getAsInt() * sizeOfBits(l.getElementType());
+                return l.getSize().getAsLong() * sizeOfBits(l.getElementType());
             } else {
                 throw new UnsupportedOperationException("Size of the list should be given.");
             }

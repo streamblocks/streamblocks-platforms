@@ -215,7 +215,7 @@ struct AbstractActorInstance {
 typedef struct {
     const char *name;
     const char *originalName;
-    int variableSize;
+    long unsigned int variableSize;
 } StateVariableDescription;
 
 

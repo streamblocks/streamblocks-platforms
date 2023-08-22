@@ -135,7 +135,7 @@ public class FixListInitialValue implements Phase {
         default Expression defaultValue(ListType type) {
             ImmutableList.Builder<Expression> value = ImmutableList.builder();
             if (type.getSize().isPresent()) {
-                for (int i = 0; i < type.getSize().getAsInt(); i++) {
+                for (int i = 0; i < type.getSize().getAsLong(); i++) {
                     value.add(defaultValue(type.getElementType()));
                 }
             } else {
@@ -159,7 +159,7 @@ public class FixListInitialValue implements Phase {
                     t++;
                 }
 
-                for (int i = t; i < type.getSize().getAsInt(); i++) {
+                for (int i = t; i < type.getSize().getAsLong(); i++) {
                     value.add(defaultValue(type.getElementType()));
                 }
             } else {

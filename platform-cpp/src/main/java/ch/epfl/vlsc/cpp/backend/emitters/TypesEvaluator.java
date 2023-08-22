@@ -77,7 +77,7 @@ public interface TypesEvaluator {
 
     default String type(ListType type) {
         if (type.getSize().isPresent()) {
-            return String.format("std::array< %s, %d >", type(type.getElementType()), type.getSize().getAsInt());
+            return String.format("std::array< %s, %d >", type(type.getElementType()), type.getSize().getAsLong());
         } else {
             return String.format("std::vector< %s >", type(type.getElementType()));
         }

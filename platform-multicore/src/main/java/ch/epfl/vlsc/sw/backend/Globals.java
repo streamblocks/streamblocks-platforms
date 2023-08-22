@@ -475,6 +475,7 @@ public interface Globals {
         emitter().emit("#define __GLOBAL__");
         emitter().emitNewLine();
         emitter().emit("#include <cstdint>");
+        emitter().emit("#include <cstring>");
         emitter().emit("#include <set>");
         emitter().emit("#include <algorithm>");
         emitter().emitNewLine();

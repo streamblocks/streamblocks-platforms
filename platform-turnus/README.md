@@ -18,7 +18,7 @@ cd ../bin
 - Launch the platform-turnus for generating the final TURNUS trace
 
 ``
----set etracez-path=<Path>/trace_0.etracez --source-path <Same source path as the design>  --target-path <a target path> <name of the Top>
+--set etracez-path=<Path>/trace_0.etracez --source-path <Same source path as the design>  --target-path <a target path> <name of the Top>
 ``
 
 - The turnus trace is now stored on the given target path

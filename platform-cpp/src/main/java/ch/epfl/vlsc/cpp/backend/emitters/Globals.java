@@ -40,6 +40,7 @@ public interface Globals {
         emitter().emit("#define __GLOBAL__");
         emitter().emitNewLine();
         emitter().emit("#include  <cstdint>");
+        emitter().emit("#include  <array>");
         emitter().emitNewLine();
 
         emitter().emit("#ifdef USE_TORCH");

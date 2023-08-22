@@ -177,4 +177,18 @@ public interface ChannelsUtils {
         }
     }
 
+    default boolean isDefaultBufferSize(Connection connection) {
+        Optional<ToolValueAttribute> attribute = connection.getValueAttribute("buffersize");
+        if (!attribute.isPresent()) {
+            attribute = connection.getValueAttribute("bufferSize");
+        }
+        if (attribute.isPresent()) {
+            return false;
+        } else if (backend().context().getConfiguration().isDefined(PlatformSettings.defaultBufferDepth)){
+            return true;
+        } else {
+            return true;
+        }
+    }
+
 }

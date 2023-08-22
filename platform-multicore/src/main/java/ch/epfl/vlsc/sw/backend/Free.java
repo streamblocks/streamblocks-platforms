@@ -51,7 +51,7 @@ public interface Free {
         String temp = backend().variables().generateTemp();
         String dim = String.format("%s[%s]", index, temp);
 
-        emitter().emit("for(int %1$s = 0; %1$s < %2$s; %1$s++){", temp, type.getSize().getAsInt());
+        emitter().emit("for(int %1$s = 0; %1$s < %2$s; %1$s++){", temp, type.getSize().getAsLong());
         emitter().increaseIndentation();
 
         if(type.getElementType() instanceof ListType){
