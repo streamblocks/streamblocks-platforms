@@ -138,6 +138,10 @@ public class TurnusModelAdapter {
                     Variable stateVar = factory.createVariable();
                     stateVar.setName(localVarDecl.getOriginalName());
                     stateVar.setType(getTurnusType(localVarDecl));
+                    stateVar.setPersistent(true);
+                    if (localVarDecl.isConstant()){
+                        stateVar.setConstant(true);
+                    }
                     actor.getVariables().add(stateVar);
                 }
 

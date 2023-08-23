@@ -199,7 +199,7 @@ public interface Statements {
     default void copy(ListType lvalueType, String lvalue, ListType rvalueType, String rvalue) {
 
         String index = variables().generateTemp();
-        emitter().emit("for (size_t %1$s = 0; %1$s < %2$s; %1$s++) {", index, lvalueType.getSize().getAsInt());
+        emitter().emit("for (size_t %1$s = 0; %1$s < %2$s; %1$s++) {", index, lvalueType.getSize().getAsLong());
         emitter().increaseIndentation();
         copy(lvalueType.getElementType(), String.format("%s[%s]", lvalue, index), rvalueType.getElementType(), String.format("%s[%s]", rvalue, index));
         emitter().decreaseIndentation();

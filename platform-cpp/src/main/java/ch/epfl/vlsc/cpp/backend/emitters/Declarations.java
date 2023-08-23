@@ -63,9 +63,9 @@ public interface Declarations {
 
     default String getListDims(ListType type){
         if(type.getElementType() instanceof ListType){
-            return String.format("[%s]%s", type.getSize().getAsInt(), getListDims((ListType)type.getElementType()));
+            return String.format("[%s]%s", type.getSize().getAsLong(), getListDims((ListType)type.getElementType()));
         }else{
-            return String.format("[%s]", type.getSize().getAsInt());
+            return String.format("[%s]", type.getSize().getAsLong());
         }
     }
 

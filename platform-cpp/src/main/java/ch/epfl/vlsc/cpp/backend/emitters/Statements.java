@@ -432,7 +432,7 @@ public interface Statements {
     default void copy(ListType lvalueType, String lvalue, ListType rvalueType, String rvalue) {
 
         String index = variables().generateTemp();
-        emitter().emit("for (size_t %1$s = 0; %1$s < %2$s; %1$s++) {", index, lvalueType.getSize().getAsInt());
+        emitter().emit("for (size_t %1$s = 0; %1$s < %2$s; %1$s++) {", index, lvalueType.getSize().getAsLong());
         emitter().increaseIndentation();
         copy(lvalueType.getElementType(), String.format("%s[%s]", lvalue, index), rvalueType.getElementType(), String.format("%s[%s]", rvalue, index));
         emitter().decreaseIndentation();
@@ -472,7 +472,7 @@ public interface Statements {
         String tmp = variables().generateTemp();
         String index = variables().generateTemp();
         emitter().emit("%s = true;", declarations().declaration(BoolType.INSTANCE, tmp));
-        emitter().emit("for (size_t %1$s = 0; (%1$s < %2$s) && %3$s; %1$s++) {", index, lvalueType.getSize().getAsInt(), tmp);
+        emitter().emit("for (size_t %1$s = 0; (%1$s < %2$s) && %3$s; %1$s++) {", index, lvalueType.getSize().getAsLong(), tmp);
         emitter().increaseIndentation();
         emitter().emit("%s &= %s;", tmp, compare(lvalueType.getElementType(), String.format("%s[%s]", lvalue, index), rvalueType.getElementType(), String.format("%s[%s]", rvalue, index)));
         emitter().decreaseIndentation();

@@ -55,7 +55,7 @@ public interface Free {
     }
 
     default void apply(ListType type, String pointer) {
-        emitter().emit("for (size_t i = 0; i < %s; ++i) {", type.getSize().getAsInt());
+        emitter().emit("for (size_t i = 0; i < %s; ++i) {", type.getSize().getAsLong());
         emitter().increaseIndentation();
         apply(type.getElementType(), String.format("%s.data[i]", pointer));
         emitter().decreaseIndentation();
