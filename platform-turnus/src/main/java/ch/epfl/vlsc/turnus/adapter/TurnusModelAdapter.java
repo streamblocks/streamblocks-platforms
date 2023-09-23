@@ -123,6 +123,7 @@ public class TurnusModelAdapter {
                 for (PortDecl decl : calActor.getInputPorts()) {
                     Port port = factory.createPort();
                     port.setName(decl.getName());
+                    port.setType(getTurnusType(decl));
                     actor.getInputPorts().add(port);
                 }
 
@@ -130,6 +131,7 @@ public class TurnusModelAdapter {
                 for (PortDecl decl : calActor.getOutputPorts()) {
                     Port port = factory.createPort();
                     port.setName(decl.getName());
+                    port.setType(getTurnusType(decl));
                     actor.getOutputPorts().add(port);
                 }
 
