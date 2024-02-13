@@ -593,7 +593,7 @@ public interface Globals {
             if (!decl.isExternal()) {
                 Type type = backend().types().declaredType(decl);
                 if (type instanceof CallableType) {
-                    backend().callablesInActor().callableDefinition("", decl.getValue());
+                    backend().callablesInActor().callableDefinition(decl.getName(), decl.getValue());
                     //emitter().emitNewLine();
                 } else {
                     String d = backend().declarations().declaration(type, backend().variables().declarationName(decl));

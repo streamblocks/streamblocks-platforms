@@ -256,15 +256,18 @@ public interface ExpressionEvaluator {
         if (backend().channelsutils().isTargetConnected(backend().instancebox().get().getInstanceName(), input.getPort().getName())) {
             if (input.hasRepeat()) {
                 if (input.getOffset() == 0) {
-                    String tmp = channelsutils().definedInputPort(input.getPort()) + "_peek";
-                    emitter().emit("void* %s[%d];", tmp, input.getRepeat());
-                    emitter().emit("pinPeekRepeat_%s(%s, %s, %d);", sType, channelsutils().definedInputPort(input.getPort()), tmp, input.getRepeat());
-                    emitter().emit("// -- Cast");
-                    String idx = variables().generateTemp();
-                    emitter().emit("for(size_t %s = 0; %1$s < %s; %1$s++){", idx, input.getRepeat());
-                    emitter().emit("\t%s[%s] = (%s*) %s[%2$s];", lvalue, idx, typeseval().type(typeseval().innerType(type)), tmp);
-                    emitter().emit("}");
-
+                    if (!backend().typeseval().isScalar(type)) {
+                        String tmp = channelsutils().definedInputPort(input.getPort()) + "_peek";
+                        emitter().emit("void* %s[%d];", tmp, input.getRepeat());
+                        emitter().emit("pinPeekRepeat_%s(%s, %s, %d);", sType, channelsutils().definedInputPort(input.getPort()), tmp, input.getRepeat());
+                        emitter().emit("// -- Cast");
+                        String idx = variables().generateTemp();
+                        emitter().emit("for(size_t %s = 0; %1$s < %s; %1$s++){", idx, input.getRepeat());
+                        emitter().emit("\t%s[%s] = (%s*) %s[%2$s];", lvalue, idx, typeseval().type(typeseval().innerType(type)), tmp);
+                        emitter().emit("}");
+                    } else {
+                        emitter().emit("pinPeekRepeat_%s(%s, %s, %d);", sType, channelsutils().definedInputPort(input.getPort()), lvalue, input.getRepeat());
+                    }
                 } else {
                     throw new RuntimeException("not implemented");
                 }

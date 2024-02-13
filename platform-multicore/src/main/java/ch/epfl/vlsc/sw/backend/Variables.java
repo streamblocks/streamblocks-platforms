@@ -105,7 +105,7 @@ public interface Variables {
         VarDecl decl = backend().varDecls().declaration(var);
         IRNode parent = backend().tree().parent(decl);
         if (parent instanceof Scope || parent instanceof ActorMachine) {
-            Type type = backend().types().type(decl.getType());
+           // Type type = backend().types().type(decl.getType());
 //            if(!backend().typeseval().isScalar(type)){
 //                return "*thisActor->" + declarationName(decl);
 //            }else{
