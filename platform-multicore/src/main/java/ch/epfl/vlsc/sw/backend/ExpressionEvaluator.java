@@ -1118,9 +1118,13 @@ public interface ExpressionEvaluator {
         if (!comprehension.getFilters().isEmpty()) {
             throw new UnsupportedOperationException("Filters in comprehensions not supported.");
         }
+        emitter().emit("{");
+        emitter().increaseIndentation();
         withGenerator(comprehension.getGenerator().getCollection(), comprehension.getGenerator().getVarDecls(), () -> {
             evaluateListComprehension(comprehension.getCollection(), result, index, pointerCopy);
         });
+        emitter().decreaseIndentation();
+        emitter().emit("}");
     }
 
     default void evaluateListComprehension(ExprList list, String result, String index, boolean pointerCopy) {
