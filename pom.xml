@@ -14,7 +14,6 @@
         <module>platform-core</module>
         <module>platform-multicore</module>
         <module>platform-vivadohls</module>
-        <module>platform-mlir</module>
         <module>platform-node</module>
         <module>platform-orcc</module>
         <module>platform-raft</module>
