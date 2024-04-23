@@ -3,6 +3,7 @@ package ch.epfl.vlsc.mlir.phase;
 import ch.epfl.vlsc.mlir.backend.MlirBackend;
 import ch.epfl.vlsc.platformutils.PathUtils;
 import ch.epfl.vlsc.settings.PlatformSettings;
+import ch.epfl.vlsc.sw.backend.MulticoreBackend;
 import ch.epfl.vlsc.sw.phase.MultiCoreBackendPhase;
 import org.multij.MultiJ;
 import se.lth.cs.tycho.compiler.CompilationTask;
@@ -58,6 +59,15 @@ public class MlirPhase implements Phase {
         codeGenPath = PathUtils.createDirectory(targetPath, "code-gen");
     }
 
+    /**
+     * Generates main and the initialization of the network
+     *
+     * @param mlirBackend
+     */
+    private void generateMain(MlirBackend mlirBackend) {
+        mlirBackend.main().main();
+    }
+
     @Override
     public CompilationTask execute(CompilationTask task, Context context) throws CompilationException {
         // -- Get Reporter
@@ -74,6 +84,8 @@ public class MlirPhase implements Phase {
                 .bind("task").to(task)
                 .bind("context").to(context)
                 .instance();
+
+        generateMain(mlirBackend);
 
         // -- Set the multicore platform to run on Node
         context.getConfiguration().set(PlatformSettings.runOnNode, true);
