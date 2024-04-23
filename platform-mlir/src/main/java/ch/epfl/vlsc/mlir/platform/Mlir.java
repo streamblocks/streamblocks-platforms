@@ -1,10 +1,7 @@
-package ch.epfl.vlsc.node.platform;
+package ch.epfl.vlsc.mlir.platform;
 
-import ch.epfl.vlsc.node.phase.NodePhase;
-import ch.epfl.vlsc.phases.EmbedRepeatIO;
-import ch.epfl.vlsc.phases.ExprOutputToAssignment;
-import ch.epfl.vlsc.phases.ExprToStmtAssignment;
-import ch.epfl.vlsc.phases.ListComprehensionToStmtWhile;
+import ch.epfl.vlsc.mlir.phase.MlirPhase;
+import ch.epfl.vlsc.phases.*;
 import se.lth.cs.tycho.compiler.Compiler;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.phase.Phase;
@@ -13,26 +10,27 @@ import se.lth.cs.tycho.platform.Platform;
 
 import java.util.List;
 
-public class Node implements Platform {
+public class Mlir implements Platform {
 
     @Override
     public String name() {
-        return "node";
+        return "mlir";
     }
 
     @Override
     public String description() {
-        return "StreamBlocks code-generator for Node runtime.";
+        return "StreamBlocks code-generator for Mlir runtime.";
     }
 
     private static final List<Phase> phases = ImmutableList.<Phase>builder()
             .addAll(Compiler.frontendPhases())
             .addAll(Compiler.templatePhases())
+            .addAll(CommonPhases.portEnumerationPhases)
             .addAll(Compiler.networkElaborationPhases())
             .addAll(Compiler.nameAndTypeAnalysis())
             .addAll(Compiler.actorMachinePhases())
             .add(new RemoveUnusedEntityDeclsPhase())
-            .add(new NodePhase())
+            .add(new MlirPhase())
             .build();
 
     @Override
