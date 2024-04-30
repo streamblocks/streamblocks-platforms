@@ -22,78 +22,84 @@ public interface TypesEvaluator {
     String type(Type type);
 
     default String type(AlgebraicType type) {
-        return type.getName() + "_t*";
+        throw new UnsupportedOperationException("Type not implemented in MLIR.");
+        //return type.getName() + "_t*";
     }
 
     default String type(IntType type) {
         if (type.getSize().isPresent()) {
             int originalSize = type.getSize().getAsInt();
-            int targetSize = 8;
+            /*int targetSize = 8;
             while (originalSize > targetSize) {
                 targetSize = targetSize * 2;
-            }
-            if(targetSize > 64){
+            }*/
+            /*if(targetSize > 64){
                 targetSize = 64;
-            }
-            return String.format(type.isSigned() ? "int%d_t" : "uint%d_t", targetSize);
+            }*/
+            return String.format(type.isSigned() ? "i%d" : "u%d", originalSize);
         } else {
-            return type.isSigned() ? "int32_t" : "uint32_t";
+            return type.isSigned() ? "i32" : "u32";
         }
     }
 
     default String type(RealType type) {
         switch (type.getSize()) {
             case 32:
-                return "float";
+                return "f32";
             case 64:
-                return "double";
+                return "f64";
             default:
                 throw new UnsupportedOperationException("Unknown real type.");
         }
     }
 
     default String type(UnitType type) {
-        return "void";
+        throw new UnsupportedOperationException("Type not implemented in MLIR.");
+        //return "void";
     }
 
     default String type(ListType type) {
+        throw new UnsupportedOperationException("Type not implemented in MLIR.");
+        //Type innerType = innerType(type.getElementType());
 
-        Type innerType = innerType(type.getElementType());
-
-        return type(innerType);
+        //return type(innerType);
     }
 
-    default String pointerType(Type type){
+    default String pointerType(Type type) {
         return type(type);
     }
 
-    default String pointerType(ListType type){
-        String dims = getPointerDims(type.getElementType());
+    default String pointerType(ListType type) {
+        throw new UnsupportedOperationException("Type not implemented in MLIR.");
+        /*String dims = getPointerDims(type.getElementType());
         if(dims.equals("")){
             return type(type);
         }
-        return String.format("%s %s", type(type), dims );
+        return String.format("%s %s", type(type), dims );*/
     }
 
     default String type(StringType type) {
-        return "string_t";
+        throw new UnsupportedOperationException("Type not implemented in MLIR.");
+        //return "string_t";
     }
 
     default String type(CharType type) {
-        return "char";
+        return "u8";
     }
 
 
     default String type(BoolType type) {
-        return "bool";
+        return "i1";
     }
 
     default String type(CallableType type) {
-        return type(type.getReturnType());
+        throw new UnsupportedOperationException("Type not implemented in MLIR.");
+        //return type(type.getReturnType());
     }
 
     default String type(RefType type) {
-        return type(type.getType()) + "*";
+        throw new UnsupportedOperationException("Type not implemented in MLIR.");
+        //return type(type.getType()) + "*";
     }
 
 
@@ -147,14 +153,14 @@ public interface TypesEvaluator {
     }
 
 
-    default String getPointerDims(Type type){
+    default String getPointerDims(Type type) {
         return "";
     }
 
-    default String getPointerDims(ListType type){
-        if(type.getElementType() instanceof ListType){
-            return String.format("*%s", getPointerDims((ListType)type.getElementType()));
-        }else{
+    default String getPointerDims(ListType type) {
+        if (type.getElementType() instanceof ListType) {
+            return String.format("*%s", getPointerDims((ListType) type.getElementType()));
+        } else {
             return "*";
         }
     }

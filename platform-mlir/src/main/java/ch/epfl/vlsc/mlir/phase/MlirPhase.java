@@ -3,8 +3,6 @@ package ch.epfl.vlsc.mlir.phase;
 import ch.epfl.vlsc.mlir.backend.MlirBackend;
 import ch.epfl.vlsc.platformutils.PathUtils;
 import ch.epfl.vlsc.settings.PlatformSettings;
-import ch.epfl.vlsc.sw.backend.MulticoreBackend;
-import ch.epfl.vlsc.sw.phase.MultiCoreBackendPhase;
 import org.multij.MultiJ;
 import se.lth.cs.tycho.compiler.CompilationTask;
 import se.lth.cs.tycho.compiler.Compiler;
@@ -16,11 +14,7 @@ import se.lth.cs.tycho.reporting.Diagnostic;
 import se.lth.cs.tycho.reporting.Reporter;
 import se.lth.cs.tycho.settings.Setting;
 
-import java.io.File;
-import java.io.IOException;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.nio.file.*;
+import java.nio.file.Path;
 import java.util.List;
 
 public class MlirPhase implements Phase {
@@ -43,7 +37,10 @@ public class MlirPhase implements Phase {
 
     @Override
     public List<Setting<?>> getPhaseSettings() {
-        return ImmutableList.of(PlatformSettings.scopeLivenessAnalysis, PlatformSettings.runOnNode);
+        return ImmutableList.of(
+                PlatformSettings.scopeLivenessAnalysis,
+                PlatformSettings.defaultBufferDepth
+        );
     }
 
 
@@ -86,9 +83,6 @@ public class MlirPhase implements Phase {
                 .instance();
 
         generateMain(mlirBackend);
-
-        // -- Set the multicore platform to run on Node
-        context.getConfiguration().set(PlatformSettings.runOnNode, true);
 
         return task;
     }
