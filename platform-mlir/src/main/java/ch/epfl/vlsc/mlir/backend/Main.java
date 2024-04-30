@@ -80,8 +80,6 @@ public interface Main {
                     .add(tgt);
         }
 
-        System.out.println(srcToTgt);
-
         // 2. Generate the list of input operands for the %top operation:
         //  In the example: "func.func @top(%in1: i32, %in2: i32, %in3: i32)", %in3: i32, is one input operand
         //  with both the name and return type specified. We generate the list op operands in this format
@@ -156,11 +154,12 @@ public interface Main {
         for (Map.Entry<Connection.End, List<Connection.End>> entry : srcToTgt.entrySet()) {
             // 1. Channel instantiation
             String channelInput = "", channelOutput = "", type = "";
-            int channelSize;
+            int channelSize = -1;
             Connection.End src = entry.getKey();
             if (src.getInstance().isPresent()) {
                 channelInput = src.getInstance().get() + "_";
                 type = backend().typeseval().type(backend().channelsutils().sourceEndType(src)).toString();
+                channelSize = backend().channelsutils().sourceEndSize(src);
             }
             channelInput = channelInput + src.getPort();
 
@@ -168,13 +167,13 @@ public interface Main {
                 if (tgt.getInstance().isPresent()) {
                     channelOutput = tgt.getInstance().get() + "_";
 
-                    // Type is checked in two places because sometimes the src is missing from the channel and sometimes
-                    // the target is missing but never both, if we check on both the src and tgt, we are guaranteed to
-                    // get the type.
+                    // Type and channelSize is checked in two places because sometimes the src is missing from the
+                    // channel and sometimes he target is missing but never both, if we check on both the src and
+                    // tgt, we are guaranteed to get the type and size.
                     type = backend().typeseval().type(backend().channelsutils().targetEndType(tgt)).toString();
+                    channelSize = backend().channelsutils().targetEndSize(tgt);
                 }
                 channelOutput = channelOutput + tgt.getPort();
-                channelSize = backend().channelsutils().connectionBufferSize(new Connection(src, tgt));
                 instantiatedChannels.add(("%%queue_from_" + channelInput + ", %%queue_to_" + channelOutput + " = dfg" +
                         ".channel(" + channelSize + ") : " + type));
 
@@ -200,10 +199,11 @@ public interface Main {
             // 4.1 Generate types and names of the input ports for the entity
             String inputPortNames = "";
             String inputPortTypes = "";
-            if(!entityDecl.getEntity().getInputPorts().isEmpty()){
+            if (!entityDecl.getEntity().getInputPorts().isEmpty()) {
                 for (PortDecl port : entityDecl.getEntity().getInputPorts()) {
                     Connection.End tgt = new Connection.End(Optional.of(entityName), port.getName());
-                    String tokenType = backend().typeseval().type(backend().channelsutils().targetEndType(tgt)).toString();
+                    String tokenType =
+                            backend().typeseval().type(backend().channelsutils().targetEndType(tgt)).toString();
                     inputPortTypes = tokenType + ", ";
                     inputPortNames = "%%queue_to_" + entityName + "_" + port.getName() + ", ";
                 }
@@ -214,10 +214,11 @@ public interface Main {
             // 4.2 Generate types and names of the output ports of the entity
             String outputPortNames = "";
             String outputPortTypes = "";
-            if(!entityDecl.getEntity().getOutputPorts().isEmpty()){
+            if (!entityDecl.getEntity().getOutputPorts().isEmpty()) {
                 for (PortDecl port : entityDecl.getEntity().getOutputPorts()) {
                     Connection.End src = new Connection.End(Optional.of(entityName), port.getName());
-                    String tokenType = backend().typeseval().type(backend().channelsutils().sourceEndType(src)).toString();
+                    String tokenType =
+                            backend().typeseval().type(backend().channelsutils().sourceEndType(src)).toString();
                     outputPortTypes = tokenType + ", ";
                     outputPortNames = "%%queue_from_" + entityName + "_" + port.getName() + ", ";
                 }
