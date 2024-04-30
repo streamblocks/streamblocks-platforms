@@ -180,7 +180,7 @@ public interface Main {
 
                 // 2. Connect output ports to channels
                 if (!tgt.getInstance().isPresent()) {
-                    connectChannelsToOutPorts.add("%%" + channelOutput + " = dfg.pull %%queue_to" + channelOutput +
+                    connectChannelsToOutPorts.add("%%" + channelOutput + " = dfg.pull %%queue_to_" + channelOutput +
                             " : " + type);
                 }
             }
@@ -194,11 +194,42 @@ public interface Main {
         // 4. Instantiate the actors/entities/node
         for (Instance instance : instances) {
             GlobalEntityDecl entityDecl = globalnames().entityDecl(instance.getEntityName(), true);
+            String entityName = instance.getInstanceName(); // Don't need this in DFG
+            String entityClass = entityDecl.getOriginalName();
 
-            instanceInstantiation.add("dfg.instantiate () @" + instance.getInstanceName());
-            instanceInstantiation.add("\tinput(" + "" + ")");
-            instanceInstantiation.add("\toutput(" + "" + ") :");
-            instanceInstantiation.add("\t(" + "" + ") ->" + "");
+            // 4.1 Generate types and names of the input ports for the entity
+            String inputPortNames = "";
+            String inputPortTypes = "";
+            if(!entityDecl.getEntity().getInputPorts().isEmpty()){
+                for (PortDecl port : entityDecl.getEntity().getInputPorts()) {
+                    Connection.End tgt = new Connection.End(Optional.of(entityName), port.getName());
+                    String tokenType = backend().typeseval().type(backend().channelsutils().targetEndType(tgt)).toString();
+                    inputPortTypes = tokenType + ", ";
+                    inputPortNames = "%%queue_to_" + entityName + "_" + port.getName() + ", ";
+                }
+                inputPortNames = inputPortNames.substring(0, inputPortNames.length() - 2);
+                inputPortTypes = inputPortTypes.substring(0, inputPortTypes.length() - 2);
+            }
+
+            // 4.2 Generate types and names of the output ports of the entity
+            String outputPortNames = "";
+            String outputPortTypes = "";
+            if(!entityDecl.getEntity().getOutputPorts().isEmpty()){
+                for (PortDecl port : entityDecl.getEntity().getOutputPorts()) {
+                    Connection.End src = new Connection.End(Optional.of(entityName), port.getName());
+                    String tokenType = backend().typeseval().type(backend().channelsutils().sourceEndType(src)).toString();
+                    outputPortTypes = tokenType + ", ";
+                    outputPortNames = "%%queue_from_" + entityName + "_" + port.getName() + ", ";
+                }
+                outputPortNames = outputPortNames.substring(0, outputPortNames.length() - 2);
+                outputPortTypes = outputPortTypes.substring(0, outputPortTypes.length() - 2);
+            }
+
+            // 4.3 Generate the MLIR for the actor using everything we have generated
+            instanceInstantiation.add("dfg.instantiate () @" + entityClass);
+            instanceInstantiation.add("\tinputs(" + inputPortNames + ")");
+            instanceInstantiation.add("\toutputs(" + outputPortNames + ") :");
+            instanceInstantiation.add("\t(" + inputPortTypes + ") -> " + outputPortTypes);
         }
 
         // 5. Now emit everything that has been generated
