@@ -2,6 +2,7 @@ package ch.epfl.vlsc.mlir.backend;
 
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.PathUtils;
+import ch.epfl.vlsc.sw.ir.PartitionHandle.Pair;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
@@ -14,31 +15,10 @@ import se.lth.cs.tycho.ir.network.Network;
 
 import java.nio.file.Path;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
- * Generate a top module for the DFG MLIR dialect.
- * <p>
- * Here is an example of what we need to generate:
- * <p>
- * func.func @top(%in1: i32, %in2: i32, %in3: i32) -> i32
- * {
- * %q1_in, %q1_out = dfg.channel(4) : i32
- * %q2_in, %q2_out = dfg.channel(4) : i32
- * %q3_in, %q3_out = dfg.channel(4) : i32
- * %q4_in, %q4_out = dfg.channel(4) : i32
- * %q5_in, %q5_out = dfg.channel(4) : i32
- * <p>
- * dfg.push(%in1) %q1_in : i32
- * dfg.push(%in2) %q2_in : i32
- * dfg.push(%in3) %q3_in : i32
- * <p>
- * <p>
- * dfg.instantiate @adder inputs(%q1_out, %q2_out) outputs(%q4_in) : (i32, i32) -> i32
- * dfg.instantiate @multiplier inputs(%q4_out, %q3_out) outputs(%q5_in) : (i32, i32) -> i32
- * <p>
- * %0 = dfg.pull %q5_out : i32
- * func.return %0 : i32
- * }
+ * TODO: Comment here
  */
 @Module
 public interface Main {
@@ -61,10 +41,50 @@ public interface Main {
     default void main() {
         Path mainTarget = PathUtils.getTargetCodeGen(backend().context()).resolve("main.mlir");
         emitter().open(mainTarget);
+        defineEntities();
         initNetwork();
         emitter().close();
     }
 
+    default void defineEntities(){
+
+        Set<String> definedInstancesClasses = new HashSet<>(backend().task().getNetwork().getInstances().size());
+
+        for (Instance instance : backend().task().getNetwork().getInstances()) {
+            GlobalEntityDecl entityDecl = globalnames().entityDecl(instance.getEntityName(), true);
+            String entityClass = entityDecl.getOriginalName();
+            // Check if this specific instance class has been defined, if not, we define it or else we skip this
+            if(definedInstancesClasses.add(entityClass)){
+                backend().instance().generateInstance(instance);
+            }
+        }
+    }
+
+    /**
+     * Generate a top module for the DFG MLIR dialect.
+     * <p>
+     * Here is an example of what we need to generate:
+     * <p>
+     * func.func @top(%in1: i32, %in2: i32, %in3: i32) -> i32
+     * {
+     * %q1_in, %q1_out = dfg.channel(4) : i32
+     * %q2_in, %q2_out = dfg.channel(4) : i32
+     * %q3_in, %q3_out = dfg.channel(4) : i32
+     * %q4_in, %q4_out = dfg.channel(4) : i32
+     * %q5_in, %q5_out = dfg.channel(4) : i32
+     * <p>
+     * dfg.push(%in1) %q1_in : i32
+     * dfg.push(%in2) %q2_in : i32
+     * dfg.push(%in3) %q3_in : i32
+     * <p>
+     * <p>
+     * dfg.instantiate @adder inputs(%q1_out, %q2_out) outputs(%q4_in) : (i32, i32) -> i32
+     * dfg.instantiate @multiplier inputs(%q4_out, %q3_out) outputs(%q5_in) : (i32, i32) -> i32
+     * <p>
+     * %0 = dfg.pull %q5_out : i32
+     * func.return %0 : i32
+     * }
+     */
     default void initNetwork() {
         Network network = backend().task().getNetwork();
 
@@ -118,6 +138,7 @@ public interface Main {
 
         // 4. We now finally have everything we need for the func operation, so lets generate it
         // 4.1 Generate the first line of the operation
+        emitter().emit("// -- Top Network: Defines structure of actor application");
         emitter().emit("func.func @top(%s) -> %s", inArgs, outTypes);
         emitter().emit("{");
         emitter().emit("");
@@ -133,6 +154,7 @@ public interface Main {
         // 4.4 Done with the @top operation, close it.
         emitter().decreaseIndentation();
         emitter().emit("}");
+        emitter().emit("");
     }
 
     default void generateTopNetworkBody(Map<Connection.End, List<Connection.End>> srcToTgt, List<Instance> instances) {
@@ -200,12 +222,9 @@ public interface Main {
             String inputPortNames = "";
             String inputPortTypes = "";
             if (!entityDecl.getEntity().getInputPorts().isEmpty()) {
-                for (PortDecl port : entityDecl.getEntity().getInputPorts()) {
-                    Connection.End tgt = new Connection.End(Optional.of(entityName), port.getName());
-                    String tokenType =
-                            backend().typeseval().type(backend().channelsutils().targetEndType(tgt)).toString();
-                    inputPortTypes = tokenType + ", ";
-                    inputPortNames = "%%queue_to_" + entityName + "_" + port.getName() + ", ";
+                for (Pair<PortDecl, String> pair : backend().channelsutils().getInputPortNamesAndTypes(entityDecl)) {
+                    inputPortTypes = pair._2 + ", ";
+                    inputPortNames = "%%queue_to_" + entityName + "_" + pair._1 + ", ";
                 }
                 inputPortNames = inputPortNames.substring(0, inputPortNames.length() - 2);
                 inputPortTypes = inputPortTypes.substring(0, inputPortTypes.length() - 2);
@@ -215,19 +234,16 @@ public interface Main {
             String outputPortNames = "";
             String outputPortTypes = "";
             if (!entityDecl.getEntity().getOutputPorts().isEmpty()) {
-                for (PortDecl port : entityDecl.getEntity().getOutputPorts()) {
-                    Connection.End src = new Connection.End(Optional.of(entityName), port.getName());
-                    String tokenType =
-                            backend().typeseval().type(backend().channelsutils().sourceEndType(src)).toString();
-                    outputPortTypes = tokenType + ", ";
-                    outputPortNames = "%%queue_from_" + entityName + "_" + port.getName() + ", ";
+                for (Pair<PortDecl, String> pair : backend().channelsutils().getOutputPortNamesAndTypes(entityDecl)) {
+                    outputPortTypes = pair._2 + ", ";
+                    outputPortNames = "%%queue_from_" + entityName + "_" + pair._1 + ", ";
                 }
                 outputPortNames = outputPortNames.substring(0, outputPortNames.length() - 2);
                 outputPortTypes = outputPortTypes.substring(0, outputPortTypes.length() - 2);
             }
 
             // 4.3 Generate the MLIR for the actor using everything we have generated
-            instanceInstantiation.add("dfg.instantiate () @" + entityClass);
+            instanceInstantiation.add("dfg.instantiate @" + entityClass + " // Instance name: " + entityName);
             instanceInstantiation.add("\tinputs(" + inputPortNames + ")");
             instanceInstantiation.add("\toutputs(" + outputPortNames + ") :");
             instanceInstantiation.add("\t(" + inputPortTypes + ") -> " + outputPortTypes);

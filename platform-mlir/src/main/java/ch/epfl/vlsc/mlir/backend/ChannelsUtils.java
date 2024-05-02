@@ -1,11 +1,13 @@
 package ch.epfl.vlsc.mlir.backend;
 
 import ch.epfl.vlsc.settings.PlatformSettings;
+import ch.epfl.vlsc.sw.ir.PartitionHandle;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.ir.Port;
 import se.lth.cs.tycho.ir.ToolValueAttribute;
+import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.reporting.Diagnostic;
 import se.lth.cs.tycho.ir.entity.PortDecl;
@@ -14,6 +16,7 @@ import se.lth.cs.tycho.ir.network.Network;
 import se.lth.cs.tycho.type.AlgebraicType;
 import se.lth.cs.tycho.type.Type;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -170,4 +173,24 @@ public interface ChannelsUtils {
         }
     }
 
+    default List<PartitionHandle.Pair<PortDecl, String>> getInputPortNamesAndTypes(GlobalEntityDecl entityDecl){
+        List<PartitionHandle.Pair<PortDecl, String>> portNamesTypes = new ArrayList<>();
+        for (PortDecl port : entityDecl.getEntity().getInputPorts()) {
+            Connection.End tgt = new Connection.End(Optional.of(entityDecl.getName()), port.getName());
+            String tokenType = backend().typeseval().type(backend().channelsutils().targetEndType(tgt));
+
+            portNamesTypes.add(new PartitionHandle.Pair(port.getName(), tokenType));
+        }
+        return portNamesTypes;
+    }
+
+    default List<PartitionHandle.Pair<PortDecl, String>> getOutputPortNamesAndTypes(GlobalEntityDecl entityDecl){
+        List<PartitionHandle.Pair<PortDecl, String>> portNamesTypes = new ArrayList<>();
+        for (PortDecl port : entityDecl.getEntity().getOutputPorts()) {
+            Connection.End src = new Connection.End(Optional.of(entityDecl.getName()), port.getName());
+            String tokenType = backend().typeseval().type(backend().channelsutils().sourceEndType(src)).toString();
+            portNamesTypes.add(new PartitionHandle.Pair(port.getName(), tokenType));
+        }
+        return portNamesTypes;
+    }
 }

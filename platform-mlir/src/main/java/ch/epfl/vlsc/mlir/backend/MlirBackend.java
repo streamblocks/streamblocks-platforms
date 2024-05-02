@@ -1,11 +1,7 @@
 package ch.epfl.vlsc.mlir.backend;
 
 import ch.epfl.vlsc.platformutils.Emitter;
-import ch.epfl.vlsc.mlir.backend.Main;
 import ch.epfl.vlsc.platformutils.utils.Box;
-import ch.epfl.vlsc.sw.backend.*;
-import ch.epfl.vlsc.sw.backend.CallablesInActors;
-import ch.epfl.vlsc.sw.backend.SizeOf;
 import org.multij.Binding;
 import org.multij.Module;
 import org.multij.MultiJ;
@@ -148,18 +144,23 @@ public interface MlirBackend {
         return MultiJ.from(Algebraic.class).bind("backend").to(this).instance();
     }
 
-    @Binding(LAZY)
+    /*@Binding(LAZY)
     default ch.epfl.vlsc.sw.backend.SizeOf sizeof() {
         return MultiJ.from(SizeOf.class).bind("typeseval").to(typeseval()).instance();
-    }
+    }*/
 
     @Binding(LAZY)
-    default ch.epfl.vlsc.sw.backend.CallablesInActors callablesInActor() {
+    default CallablesInActors callablesInActor() {
         return MultiJ.from(CallablesInActors.class).bind("backend").to(this).instance();
     }
 
     @Binding(LAZY)
     default Main main() {
         return MultiJ.from(Main.class).bind("backend").to(this).instance();
+    }
+
+    @Binding(LAZY)
+    default Instances instance() {
+        return MultiJ.from(Instances.class).bind("backend").to(this).instance();
     }
 }
