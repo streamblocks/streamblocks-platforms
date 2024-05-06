@@ -2,6 +2,7 @@ package ch.epfl.vlsc.mlir.backend;
 
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.utils.Box;
+import ch.epfl.vlsc.platformutils.utils.StackSSA;
 import org.multij.Binding;
 import org.multij.Module;
 import org.multij.MultiJ;
@@ -9,9 +10,15 @@ import se.lth.cs.tycho.attribute.*;
 import se.lth.cs.tycho.compiler.CompilationTask;
 import se.lth.cs.tycho.compiler.Context;
 import se.lth.cs.tycho.compiler.UniqueNumbers;
+import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.phase.TreeShadow;
+
+import java.util.Map;
+import java.util.Queue;
+import java.util.Stack;
+import java.util.concurrent.LinkedBlockingQueue;
 
 import static org.multij.BindingKind.INJECTED;
 import static org.multij.BindingKind.LAZY;
@@ -90,6 +97,13 @@ public interface MlirBackend {
     @Binding(LAZY)
     default Box<Instance> instancebox() {
         return Box.empty();
+    }
+
+    // -- A box storing the number of times a variable name is used
+    // TODO: explain more on this
+    @Binding(LAZY)
+    default StackSSA ssaValueNumberingStack() {
+        return new StackSSA();
     }
 
     // -- Constant Evaluator

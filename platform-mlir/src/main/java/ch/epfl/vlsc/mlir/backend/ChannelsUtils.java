@@ -73,15 +73,31 @@ public interface ChannelsUtils {
     default String definedInputPort(Port port) {
         Entity entity = backend().entitybox().get();
         PortDecl portDecl = entity.getInputPorts().stream().filter(p -> p.getName().equals(port.getName())).findAny().orElse(null);
-        String definedInput = "IN" + entity.getInputPorts().indexOf(portDecl) + "_" + port.getName();
+        String definedInput = "port_IN_" + port.getName();
 
         return definedInput;
     }
 
     default String definedInputPort(String portName) {
-        Entity entity = backend().entitybox().get();
-        PortDecl portDecl = entity.getInputPorts().stream().filter(p -> p.getName().equals(portName)).findAny().orElse(null);
-        String definedInput = "IN" + entity.getInputPorts().indexOf(portDecl) + "_" + portName;
+        //Entity entity = backend().entitybox().get();
+        //PortDecl portDecl = entity.getInputPorts().stream().filter(p -> p.getName().equals(portName)).findAny().orElse(null);
+        String definedInput = "port_IN_" + portName;
+
+        return definedInput;
+    }
+
+    default String definedInputPort(PortDecl port) {
+        //Entity entity = backend().entitybox().get();
+        //PortDecl portDecl = entity.getInputPorts().stream().filter(p -> p.getName().equals(portName)).findAny().orElse(null);
+        String definedInput = "port_IN_" + port.getName();
+
+        return definedInput;
+    }
+
+    default String definedOutputPort(PortDecl port) {
+        //Entity entity = backend().entitybox().get();
+        //PortDecl portDecl = entity.getInputPorts().stream().filter(p -> p.getName().equals(portName)).findAny().orElse(null);
+        String definedInput = "port_OUT_" + port.getName();
 
         return definedInput;
     }
@@ -89,15 +105,16 @@ public interface ChannelsUtils {
     default String definedOutputPort(Port port) {
         Entity entity = backend().entitybox().get();
         PortDecl portDecl = entity.getOutputPorts().stream().filter(p -> p.getName().equals(port.getName())).findAny().orElse(null);
-        String definedOutput = "OUT" + entity.getOutputPorts().indexOf(portDecl) + "_" + port.getName();
+        String definedOutput = "port_OUT_" + port.getName();
 
         return definedOutput;
     }
 
     default String definedOutputPort(String portName) {
-        Entity entity = backend().entitybox().get();
-        PortDecl portDecl = entity.getOutputPorts().stream().filter(p -> p.getName().equals(portName)).findAny().orElse(null);
-        String definedOutput = "OUT" + entity.getOutputPorts().indexOf(portDecl) + "_" + portName;
+        //Entity entity = backend().entitybox().get();
+        //PortDecl portDecl = entity.getOutputPorts().stream().filter(p -> p.getName().equals(portName)).findAny().orElse(null);
+        //String definedOutput = "port_OUT_" + entity.getOutputPorts().indexOf(portDecl) + "_" + portName;
+        String definedOutput = "port_OUT_" + portName;
 
         return definedOutput;
     }
@@ -173,10 +190,10 @@ public interface ChannelsUtils {
         }
     }
 
-    default List<PartitionHandle.Pair<PortDecl, String>> getInputPortNamesAndTypes(GlobalEntityDecl entityDecl){
+    default List<PartitionHandle.Pair<PortDecl, String>> getInputPortNamesAndTypes(String entityName, GlobalEntityDecl entityDecl){
         List<PartitionHandle.Pair<PortDecl, String>> portNamesTypes = new ArrayList<>();
         for (PortDecl port : entityDecl.getEntity().getInputPorts()) {
-            Connection.End tgt = new Connection.End(Optional.of(entityDecl.getName()), port.getName());
+            Connection.End tgt = new Connection.End(Optional.of(entityName), port.getName());
             String tokenType = backend().typeseval().type(backend().channelsutils().targetEndType(tgt));
 
             portNamesTypes.add(new PartitionHandle.Pair(port.getName(), tokenType));
@@ -184,10 +201,10 @@ public interface ChannelsUtils {
         return portNamesTypes;
     }
 
-    default List<PartitionHandle.Pair<PortDecl, String>> getOutputPortNamesAndTypes(GlobalEntityDecl entityDecl){
+    default List<PartitionHandle.Pair<PortDecl, String>> getOutputPortNamesAndTypes(String entityName, GlobalEntityDecl entityDecl){
         List<PartitionHandle.Pair<PortDecl, String>> portNamesTypes = new ArrayList<>();
         for (PortDecl port : entityDecl.getEntity().getOutputPorts()) {
-            Connection.End src = new Connection.End(Optional.of(entityDecl.getName()), port.getName());
+            Connection.End src = new Connection.End(Optional.of(entityName), port.getName());
             String tokenType = backend().typeseval().type(backend().channelsutils().sourceEndType(src)).toString();
             portNamesTypes.add(new PartitionHandle.Pair(port.getName(), tokenType));
         }

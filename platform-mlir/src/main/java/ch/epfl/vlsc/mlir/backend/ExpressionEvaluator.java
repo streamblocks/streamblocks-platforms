@@ -1,17 +1,15 @@
 package ch.epfl.vlsc.mlir.backend;
 
 import ch.epfl.vlsc.platformutils.Emitter;
+import ch.epfl.vlsc.platformutils.utils.StackSSA;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.ir.IRNode;
-import se.lth.cs.tycho.ir.NamespaceDecl;
 import se.lth.cs.tycho.ir.Variable;
 import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
-import se.lth.cs.tycho.ir.entity.am.ActorMachine;
-import se.lth.cs.tycho.ir.entity.am.Scope;
 import se.lth.cs.tycho.ir.expr.*;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.stmt.StmtAssignment;
@@ -57,6 +55,8 @@ public interface ExpressionEvaluator {
         return backend().statements();
     }
 
+    default StackSSA ssaValueNumberingStack() { return backend().ssaValueNumberingStack(); }
+
     // -- Evaluate Expressions
 
     default String evaluateCall(Expression expression) {
@@ -92,7 +92,8 @@ public interface ExpressionEvaluator {
     default String evaluate(ExprVariable variable) {
         VarDecl decl = backend().varDecls().declaration(variable);
         if (!(decl.getValue() instanceof ExprInput)) {
-            IRNode parent = backend().tree().parent(decl);
+            throw new Error("Not implemented");
+            /*IRNode parent = backend().tree().parent(decl);
             if ((parent instanceof Scope) || (parent instanceof ActorMachine) || (parent instanceof NamespaceDecl)) {
                 Type type = backend().types().type(decl.getType());
                 if (type instanceof ListType) {
@@ -100,9 +101,12 @@ public interface ExpressionEvaluator {
                 } else {
                     backend().statements().profilingOp().add("__opCounters->prof_DATAHANDLING_LOAD += 1;");
                 }
-            }
+            }*/
         }
-        return variables().name(variable.getVariable());
+        String variableName = ssaValueNumberingStack().getVarName(variables().name(variable.getVariable()));
+        String outputName = ssaValueNumberingStack().getNewTempVar();
+        generateNOPEquivalentOperation(types().type(variable), variableName, outputName);
+        return outputName;
     }
 
     /**
@@ -166,9 +170,11 @@ public interface ExpressionEvaluator {
      */
 
     default String evaluate(ExprLiteral literal) {
+        String tempName = ssaValueNumberingStack().getNewTempVar();
         switch (literal.getKind()) {
             case Integer:
-                return literal.getText();
+                emitter().emit("%%%s = arith.constant %s : %s", tempName, literal.getText(), typeseval().type(types().type(literal)));
+                return tempName;
             case True:
                 return "true";
             case False:
@@ -228,16 +234,19 @@ public interface ExpressionEvaluator {
 
         if (backend().channelsutils().isTargetConnected(backend().instancebox().get().getInstanceName(), input.getPort().getName())) {
             if (input.hasRepeat()) {
-                if (input.getOffset() == 0) {
-                    emitter().emit("pinPeekRepeat_%s(%s, %s, %d);", sType, channelsutils().definedInputPort(input.getPort()), lvalue, input.getRepeat());
-                } else {
-                    throw new RuntimeException("not implemented");
-                }
+                throw new RuntimeException("not implemented");
+                //if (input.getOffset() == 0) {
+                //    emitter().emit("pinPeekRepeat_%s(%s, %s, %d);", sType, channelsutils().definedInputPort(input.getPort()), lvalue, input.getRepeat());
+                //} else {
+                //    throw new RuntimeException("not implemented");
+                //}
             } else {
                 if (input.getOffset() == 0) {
-                    emitter().emit("%s = pinPeekFront_%s(%s);", lvalue, sType, channelsutils().definedInputPort(input.getPort()));
+                    emitter().emit("%%%s = dfg.pull %%%s : %s",lvalue,input.getPort().getName(),typeseval().type(type));
+                    //emitter().emit("%s = dfg.pull %s(%s);", lvalue, sType, channelsutils().definedInputPort(input.getPort()));
                 } else {
-                    emitter().emit("%s = pinPeek_%s(%s, %d);", lvalue, sType, channelsutils().definedInputPort(input.getPort()), input.getOffset());
+                    throw new UnsupportedOperationException("Popping values not off the front of the queue is not yet supported");
+                    //emitter().emit("%s = pinPeek_%s(%s, %d);", lvalue, sType, channelsutils().definedInputPort(input.getPort()), input.getOffset());
                 }
             }
         }
@@ -303,6 +312,7 @@ public interface ExpressionEvaluator {
         statements().profilingOp().add(getOpBinaryPlus(binaryOp));
         Type lhs = types().type(binaryOp.getOperands().get(0));
         Type rhs = types().type(binaryOp.getOperands().get(1));
+
         String operation = binaryOp.getOperations().get(0);
         switch (operation) {
             case "+":
@@ -359,9 +369,18 @@ public interface ExpressionEvaluator {
     }
 
     default String evaluateBinaryAdd(NumberType lhs, NumberType rhs, ExprBinaryOp binaryOp) {
-        Expression left = binaryOp.getOperands().get(0);
-        Expression right = binaryOp.getOperands().get(1);
-        return String.format("(%s + %s)", evaluate(left), evaluate(right));
+        Type commonType = typeseval().getCommonType(lhs, rhs);
+        System.out.println("Common type: " + commonType);
+
+        String tempOutput = ssaValueNumberingStack().getNewTempVar();
+        String type = typeseval().type(commonType);
+        String lhsTempVar = evaluate(binaryOp.getOperands().get(0));
+        String rhsTempVar = evaluate(binaryOp.getOperands().get(1));
+        lhsTempVar = typeseval().castType(lhs, commonType, lhsTempVar);
+        rhsTempVar = typeseval().castType(rhs, commonType, rhsTempVar);
+        emitter().emit("%%%s = arith.addi %%%s, %%%s : %s", tempOutput, lhsTempVar, rhsTempVar, type);
+
+        return  tempOutput;
     }
 
     default String evaluateBinaryAdd(SetType lhs, SetType rhs, ExprBinaryOp binaryOp) {
@@ -1288,6 +1307,23 @@ public interface ExpressionEvaluator {
 
     default String evaluate(ExprField field) {
         return String.format("%s->members.%s", evaluate(field.getStructure()), field.getField().getName());
+    }
+
+    /**
+     * Sometimes we just want to assign an operand directly to a result (%a = %b) but MLIR does support this. So we
+     * generate a execute an operation on the operand that will not affect it and assign that to the result
+     * @param type The type of the input
+     * @param inputOperand The SSA name of the input operand
+     * @param outputOperand The SSA name of the input operand
+     * @return none
+     */
+    default void generateNOPEquivalentOperation(Type type, String inputOperand, String outputOperand){
+        throw new Error("No MLIR NOP equivalent for type: " + type);
+    }
+
+    default void generateNOPEquivalentOperation(NumberType type, String inputOperand, String outputOperand){
+        String typeAsString = typeseval().type(type);
+        emitter().emit("%%%s = arith.bitcast %%%s: %s to %s", outputOperand, inputOperand, typeAsString, typeAsString);
     }
 
 }

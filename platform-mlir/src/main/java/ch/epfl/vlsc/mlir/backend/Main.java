@@ -56,8 +56,10 @@ public interface Main {
             // Check if this specific instance class has been defined, if not, we define it or else we skip this
             if(definedInstancesClasses.add(entityClass)){
                 backend().instance().generateInstance(instance);
+                emitter().emitNewLine();
             }
         }
+
     }
 
     /**
@@ -222,7 +224,7 @@ public interface Main {
             String inputPortNames = "";
             String inputPortTypes = "";
             if (!entityDecl.getEntity().getInputPorts().isEmpty()) {
-                for (Pair<PortDecl, String> pair : backend().channelsutils().getInputPortNamesAndTypes(entityDecl)) {
+                for (Pair<PortDecl, String> pair : backend().channelsutils().getInputPortNamesAndTypes(entityName, entityDecl)) {
                     inputPortTypes = pair._2 + ", ";
                     inputPortNames = "%%queue_to_" + entityName + "_" + pair._1 + ", ";
                 }
@@ -234,7 +236,7 @@ public interface Main {
             String outputPortNames = "";
             String outputPortTypes = "";
             if (!entityDecl.getEntity().getOutputPorts().isEmpty()) {
-                for (Pair<PortDecl, String> pair : backend().channelsutils().getOutputPortNamesAndTypes(entityDecl)) {
+                for (Pair<PortDecl, String> pair : backend().channelsutils().getOutputPortNamesAndTypes(entityName, entityDecl)) {
                     outputPortTypes = pair._2 + ", ";
                     outputPortNames = "%%queue_from_" + entityName + "_" + pair._1 + ", ";
                 }
