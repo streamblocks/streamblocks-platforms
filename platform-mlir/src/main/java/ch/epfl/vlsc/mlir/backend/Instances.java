@@ -77,9 +77,12 @@ public interface Instances {
         emitter().emit("\toutputs(%s)", outputPortString);
         emitter().emit("{");
         emitter().increaseIndentation();
-
+        emitter().emit("dfg.loop inputs(%s)", inputPortString);
+        emitter().emit("{");
+        emitter().increaseIndentation();
         genActions(entityDecl.getEntity());
-
+        emitter().decreaseIndentation();
+        emitter().emit("}");
         emitter().decreaseIndentation();
         emitter().emit("}");
         emitter().emitNewLine();
