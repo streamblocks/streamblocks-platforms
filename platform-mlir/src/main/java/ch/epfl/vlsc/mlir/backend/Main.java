@@ -114,7 +114,7 @@ public interface Main {
                 // object.
                 Connection.End end = new Connection.End(Optional.empty(), port.getName());
                 String tokenType = backend().typeseval().type(backend().channelsutils().sourceEndType(end)).toString();
-                inArgs = "%" + inArgs + port.getName() + ": " + tokenType + ", ";
+                inArgs = inArgs + "%" + port.getName() + ": " + tokenType + ", ";
             }
             inArgs = inArgs.substring(0, inArgs.length() - 2);
         }
@@ -225,8 +225,8 @@ public interface Main {
             String inputPortTypes = "";
             if (!entityDecl.getEntity().getInputPorts().isEmpty()) {
                 for (Pair<PortDecl, String> pair : backend().channelsutils().getInputPortNamesAndTypes(entityName, entityDecl)) {
-                    inputPortTypes = pair._2 + ", ";
-                    inputPortNames = "%%queue_to_" + entityName + "_" + pair._1 + ", ";
+                    inputPortTypes = inputPortTypes + pair._2 + ", ";
+                    inputPortNames = inputPortNames + "%%queue_to_" + entityName + "_" + pair._1 + ", ";
                 }
                 inputPortNames = inputPortNames.substring(0, inputPortNames.length() - 2);
                 inputPortTypes = inputPortTypes.substring(0, inputPortTypes.length() - 2);
@@ -237,8 +237,8 @@ public interface Main {
             String outputPortTypes = "";
             if (!entityDecl.getEntity().getOutputPorts().isEmpty()) {
                 for (Pair<PortDecl, String> pair : backend().channelsutils().getOutputPortNamesAndTypes(entityName, entityDecl)) {
-                    outputPortTypes = pair._2 + ", ";
-                    outputPortNames = "%%queue_from_" + entityName + "_" + pair._1 + ", ";
+                    outputPortTypes = outputPortTypes + pair._2 + ", ";
+                    outputPortNames = outputPortNames + "%%queue_from_" + entityName + "_" + pair._1 + ", ";
                 }
                 outputPortNames = outputPortNames.substring(0, outputPortNames.length() - 2);
                 outputPortTypes = outputPortTypes.substring(0, outputPortTypes.length() - 2);

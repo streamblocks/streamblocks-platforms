@@ -174,6 +174,16 @@ public interface MlirBackend {
     }
 
     @Binding(LAZY)
+    default BuildSystem buildSystem(){
+        return MultiJ.from(BuildSystem.class).bind("backend").to(this).instance();
+    }
+
+    @Binding(LAZY)
+    default TestBenchGenerator testBenchGenerator(){
+        return MultiJ.from(TestBenchGenerator.class).bind("backend").to(this).instance();
+    }
+
+    @Binding(LAZY)
     default Instances instance() {
         return MultiJ.from(Instances.class).bind("backend").to(this).instance();
     }

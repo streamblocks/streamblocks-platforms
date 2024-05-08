@@ -268,6 +268,17 @@ public class PathUtils {
         return directory.toPath();
     }
 
+    /**
+     * Get the test bench output directory
+     *
+     * @param context
+     * @return
+     */
+    public static Path getTargetTestbench(Context context) {
+        File directory = new File(getTarget(context).toFile(), "testbench");
+        return directory.toPath();
+    }
+
 
     /**
      * Get the library headers target output directory

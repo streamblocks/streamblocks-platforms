@@ -25,9 +25,18 @@ public class MlirPhase implements Phase {
     private Path codeGenPath;
 
     /**
+     * Path for build system files
+     */
+    private Path buildSystemPath;
+
+    /**
      * Target Path
      */
     private Path targetPath;
+
+    private Path testBenchPath;
+
+
 
 
     @Override
@@ -54,6 +63,11 @@ public class MlirPhase implements Phase {
         targetPath = context.getConfiguration().get(Compiler.targetPath);
         // -- Code Generation paths
         codeGenPath = PathUtils.createDirectory(targetPath, "code-gen");
+        // -- Build System path
+        buildSystemPath = PathUtils.createDirectory(targetPath, "scripts");
+
+        testBenchPath = PathUtils.createDirectory(targetPath, "testbench");
+
     }
 
     /**
@@ -83,8 +97,18 @@ public class MlirPhase implements Phase {
                 .instance();
 
         generateMain(mlirBackend);
+        generateBuildScript(mlirBackend);
+        generateTestBench(mlirBackend);
 
         return task;
+    }
+
+    private void generateBuildScript(MlirBackend mlirBackend) {
+        mlirBackend.buildSystem().generateBuildScript();
+    }
+
+    private void generateTestBench(MlirBackend mlirBackend){
+        mlirBackend.testBenchGenerator().generateTestBench();
     }
 
 }
