@@ -1,6 +1,7 @@
 package ch.epfl.vlsc.mlir.backend;
 
 import ch.epfl.vlsc.platformutils.Emitter;
+import ch.epfl.vlsc.platformutils.utils.Pair;
 import ch.epfl.vlsc.platformutils.utils.StackSSA;
 import org.multij.Binding;
 import org.multij.BindingKind;
@@ -91,8 +92,8 @@ public interface ExpressionEvaluator {
      */
     default String evaluate(ExprVariable variable) {
         VarDecl decl = backend().varDecls().declaration(variable);
-        if (!(decl.getValue() instanceof ExprInput)) {
-            throw new Error("Not implemented");
+        /*if (!(decl.getValue() instanceof ExprInput)) {
+            throw new Error("ExprInput not implemented");
             /*IRNode parent = backend().tree().parent(decl);
             if ((parent instanceof Scope) || (parent instanceof ActorMachine) || (parent instanceof NamespaceDecl)) {
                 Type type = backend().types().type(decl.getType());
@@ -101,12 +102,12 @@ public interface ExpressionEvaluator {
                 } else {
                     backend().statements().profilingOp().add("__opCounters->prof_DATAHANDLING_LOAD += 1;");
                 }
-            }*/
-        }
+            }
+        }*/
         String variableName = ssaValueNumberingStack().getVarName(variables().name(variable.getVariable()));
-        String outputName = ssaValueNumberingStack().getNewTempVar();
-        generateNOPEquivalentOperation(types().type(variable), variableName, outputName);
-        return outputName;
+        //String outputName = ssaValueNumberingStack().getNewTempVar();
+        //generateNOPEquivalentOperation(types().type(variable), variableName, outputName);
+        return variableName;
     }
 
     /**
@@ -300,90 +301,141 @@ public interface ExpressionEvaluator {
     }
 
 
+
+
+    public class CommonTypeStruct {
+        public Type commonType;
+        public String lhsOperand;
+        public String rhsOperand;
+
+        public CommonTypeStruct(Type commonType, String lhsOperand, String rhsOperand){
+            this.commonType = commonType;
+            this.lhsOperand = lhsOperand;
+            this.rhsOperand = rhsOperand;
+        }
+
+        public String toString(){
+            return "Type: " + commonType + ", lhs operand name: " + lhsOperand + ", rhs operand name: " + rhsOperand;
+        }
+    }
+
     /**
      * Evaluate binary expression
      *
      * @param binaryOp
      * @return
      */
-
     default String evaluate(ExprBinaryOp binaryOp) {
         assert binaryOp.getOperations().size() == 1 && binaryOp.getOperands().size() == 2;
-        statements().profilingOp().add(getOpBinaryPlus(binaryOp));
         Type lhs = types().type(binaryOp.getOperands().get(0));
         Type rhs = types().type(binaryOp.getOperands().get(1));
-
         String operation = binaryOp.getOperations().get(0);
+        CommonTypeStruct convertedOperands = evaluateBinaryEquateTypes(lhs,rhs,binaryOp);
+
         switch (operation) {
             case "+":
-                return evaluateBinaryAdd(lhs, rhs, binaryOp);
+                return evaluateBinaryAdd(convertedOperands.commonType, convertedOperands.lhsOperand, convertedOperands.rhsOperand);
             case "-":
-                return evaluateBinarySub(lhs, rhs, binaryOp);
+                throw new UnsupportedOperationException(operation);
+                //return evaluateBinarySub(lhs, rhs, binaryOp);
             case "*":
-                return evaluateBinaryTimes(lhs, rhs, binaryOp);
+                throw new UnsupportedOperationException(operation);
+                //return evaluateBinaryTimes(lhs, rhs, binaryOp);
             case "/":
-                return evaluateBinaryDiv(lhs, rhs, binaryOp);
+                throw new UnsupportedOperationException(operation);
+                //return evaluateBinaryDiv(lhs, rhs, binaryOp);
             case "div":
-                return evaluateBinaryIntDiv(lhs, rhs, binaryOp);
+                throw new UnsupportedOperationException(operation);
+                //return evaluateBinaryIntDiv(lhs, rhs, binaryOp);
             case "%":
             case "mod":
-                return evaluateBinaryMod(lhs, rhs, binaryOp);
+                throw new UnsupportedOperationException(operation);
+                //return evaluateBinaryMod(lhs, rhs, binaryOp);
             case "^":
-                return evaluateBinaryBitXor(lhs, rhs, binaryOp);
+                throw new UnsupportedOperationException(operation);
+                //return evaluateBinaryBitXor(lhs, rhs, binaryOp);
             case "&":
-                return evaluateBinaryBitAnd(lhs, rhs, binaryOp);
+                throw new UnsupportedOperationException(operation);
+                //return evaluateBinaryBitAnd(lhs, rhs, binaryOp);
             case "<<":
-                return evaluateBinaryShiftL(lhs, rhs, binaryOp);
+                throw new UnsupportedOperationException(operation);
+                //return evaluateBinaryShiftL(lhs, rhs, binaryOp);
             case ">>":
-                return evaluateBinaryShiftR(lhs, rhs, binaryOp);
+                throw new UnsupportedOperationException(operation);
+                //return evaluateBinaryShiftR(lhs, rhs, binaryOp);
             case "&&":
             case "and":
-                return evaluateBinaryAnd(lhs, rhs, binaryOp);
+                throw new UnsupportedOperationException(operation);
+                //return evaluateBinaryAnd(lhs, rhs, binaryOp);
             case "|":
-                return evaluateBinaryBitOr(lhs, rhs, binaryOp);
+                throw new UnsupportedOperationException(operation);
+                //return evaluateBinaryBitOr(lhs, rhs, binaryOp);
             case "||":
             case "or":
-                return evaluateBinaryOr(lhs, rhs, binaryOp);
+                throw new UnsupportedOperationException(operation);
+                //return evaluateBinaryOr(lhs, rhs, binaryOp);
             case "=":
             case "==":
-                return evaluateBinaryEq(lhs, rhs, binaryOp);
+                return evaluateBinaryEq(convertedOperands.commonType, convertedOperands.lhsOperand, convertedOperands.rhsOperand);
             case "!=":
-                return evaluateBinaryNeq(lhs, rhs, binaryOp);
+                throw new UnsupportedOperationException(operation);
+                //return evaluateBinaryNeq(lhs, rhs, binaryOp);
             case "<":
-                return evaluateBinaryLtn(lhs, rhs, binaryOp);
+                throw new UnsupportedOperationException(operation);
+                //return evaluateBinaryLtn(lhs, rhs, binaryOp);
             case "<=":
-                return evaluateBinaryLeq(lhs, rhs, binaryOp);
+                throw new UnsupportedOperationException(operation);
+                //return evaluateBinaryLeq(lhs, rhs, binaryOp);
             case ">":
-                return evaluateBinaryGtn(lhs, rhs, binaryOp);
+                throw new UnsupportedOperationException(operation);
+                //return evaluateBinaryGtn(lhs, rhs, binaryOp);
             case ">=":
-                return evaluateBinaryGeq(lhs, rhs, binaryOp);
+                throw new UnsupportedOperationException(operation);
+                //return evaluateBinaryGeq(lhs, rhs, binaryOp);
             case "in":
-                return evaluateBinaryIn(lhs, rhs, binaryOp);
+                throw new UnsupportedOperationException(operation);
+                //return evaluateBinaryIn(lhs, rhs, binaryOp);
             default:
                 throw new UnsupportedOperationException(operation);
         }
     }
 
-    default String evaluateBinaryAdd(Type lhs, Type rhs, ExprBinaryOp binaryOp) {
-        throw new UnsupportedOperationException(binaryOp.getOperations().get(0));
-    }
-
-    default String evaluateBinaryAdd(NumberType lhs, NumberType rhs, ExprBinaryOp binaryOp) {
+    default CommonTypeStruct evaluateBinaryEquateTypes(Type lhs, Type rhs, ExprBinaryOp binaryOp){
         Type commonType = typeseval().getCommonType(lhs, rhs);
-        System.out.println("Common type: " + commonType);
-
-        String tempOutput = ssaValueNumberingStack().getNewTempVar();
-        String type = typeseval().type(commonType);
         String lhsTempVar = evaluate(binaryOp.getOperands().get(0));
         String rhsTempVar = evaluate(binaryOp.getOperands().get(1));
         lhsTempVar = typeseval().castType(lhs, commonType, lhsTempVar);
         rhsTempVar = typeseval().castType(rhs, commonType, rhsTempVar);
-        emitter().emit("%%%s = arith.addi %%%s, %%%s : %s", tempOutput, lhsTempVar, rhsTempVar, type);
-
-        return  tempOutput;
+        return new CommonTypeStruct(commonType, lhsTempVar, rhsTempVar);
     }
 
-    default String evaluateBinaryAdd(SetType lhs, SetType rhs, ExprBinaryOp binaryOp) {
+    default String evaluateBinaryAdd(Type type, String lhsOperand, String rhsOperand) {
+        throw new UnsupportedOperationException();
+    }
+
+    default String evaluateBinaryAdd(IntType type, String lhsOperand, String rhsOperand) {
+        String output = ssaValueNumberingStack().getNewTempVar();
+        emitter().emit("%%%s = arith.addi %%%s, %%%s : %s", output, lhsOperand, rhsOperand, typeseval().type(type));
+        return output;
+    }
+
+    default String evaluateBinaryEq(Type type, String lhsOperand, String rhsOperand) {
+        throw new UnsupportedOperationException();
+    }
+
+    default String evaluateBinaryEq(IntType type, String lhsOperand, String rhsOperand) {
+        String tempResult = ssaValueNumberingStack().getNewTempVar();
+        emitter().emit("%%%s = arith.cmpi eq, %%%s, %%%s : %s", tempResult, lhsOperand, rhsOperand, typeseval().type(type));
+        return tempResult;
+    }
+
+
+    /*default String evaluateBinaryAdd(NumberType lhs, NumberType rhs, ExprBinaryOp binaryOp) {
+        //emitter().emit("%%%s = arith.addi %%%s, %%%s : %s", tempOutput, lhsTempVar, rhsTempVar, type);
+        return  "";
+    }*/
+
+    /*default String evaluateBinaryAdd(SetType lhs, SetType rhs, ExprBinaryOp binaryOp) {
         String tmp = variables().generateTemp();
         Expression left = binaryOp.getOperands().get(0);
         Expression right = binaryOp.getOperands().get(1);
@@ -790,7 +842,7 @@ public interface ExpressionEvaluator {
         emitter().emit("%s;", declarations().declaration(BoolType.INSTANCE, tmp));
         emitter().emit("%1$s = membership_%2$s(%4$s, %3$s);", tmp, typeseval().type(rhs), evaluate(left), evaluate(right));
         return tmp;
-    }
+    }*/
 
     default String evaluate(ExprUnaryOp unaryOp) {
         statements().profilingOp().add(getOpUnaryPlus(unaryOp));
