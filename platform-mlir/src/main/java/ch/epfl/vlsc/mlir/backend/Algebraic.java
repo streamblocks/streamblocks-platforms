@@ -801,7 +801,7 @@ public interface Algebraic {
 
         void definition(AlgebraicType type);
 
-        default void definition(ProductType product) {
+        /*default void definition(ProductType product) {
             String lhs = "lhs";
             String rhs = "rhs";
             emitter().emit("%s compare_%s(%s, %s) {", backend().typeseval().type(BoolType.INSTANCE), backend().typeseval().type(product), backend().declarations().declaration(product, lhs), backend().declarations().declaration(product, rhs));
@@ -843,7 +843,7 @@ public interface Algebraic {
             emitter().decreaseIndentation();
             emitter().emit("}");
             emitter().emit("");
-        }
+        }*/
     }
 
     @Module

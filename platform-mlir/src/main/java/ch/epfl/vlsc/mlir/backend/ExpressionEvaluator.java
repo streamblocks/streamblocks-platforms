@@ -1,14 +1,12 @@
 package ch.epfl.vlsc.mlir.backend;
 
 import ch.epfl.vlsc.platformutils.Emitter;
-import ch.epfl.vlsc.platformutils.utils.Pair;
 import ch.epfl.vlsc.platformutils.utils.StackSSA;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.ir.IRNode;
-import se.lth.cs.tycho.ir.Variable;
 import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.expr.*;
@@ -131,13 +129,13 @@ public interface ExpressionEvaluator {
         return "(&" + variables().name(ref.getVariable()) + ")";
     }
 
-    /**
+    /*
      * Evaluate a dereference expression
      *
      * @param deref
      * @return
      */
-    default String evaluate(ExprDeref deref) {
+    /*default String evaluate(ExprDeref deref) {
         Expression expr = deref.getReference();
         if (expr instanceof ExprVariable) {
             Variable var = ((ExprVariable) expr).getVariable();
@@ -151,17 +149,17 @@ public interface ExpressionEvaluator {
         }
 
         return "(*" + evaluate(deref.getReference()) + ")";
-    }
+    }*/
 
-    /**
+    /*
      * Evaluate an expression Globals variable
      *
      * @param variable
      * @return
      */
-    default String evaluate(ExprGlobalVariable variable) {
+    /*default String evaluate(ExprGlobalVariable variable) {
         return variables().globalName(variable);
-    }
+    }*/
 
     /**
      * Evaluate expression literal
@@ -189,13 +187,13 @@ public interface ExpressionEvaluator {
         }
     }
 
-    /**
+    /*
      * Evaluate expression input
      *
      * @param input
      * @return
      */
-    default String evaluate(ExprInput input) {
+    /*default String evaluate(ExprInput input) {
         String tmp = variables().generateTemp();
         Type type = types().type(input);
         //if (input.hasRepeat()) {
@@ -225,7 +223,7 @@ public interface ExpressionEvaluator {
         }
 
         return tmp;
-    }
+    }*/
 
     void evaluateWithLvalue(String lvalue, Expression expr);
 
@@ -243,7 +241,8 @@ public interface ExpressionEvaluator {
                 //}
             } else {
                 if (input.getOffset() == 0) {
-                    emitter().emit("%%%s = dfg.pull %%%s : %s",lvalue,input.getPort().getName(),typeseval().type(type));
+                    String lValueSSA = ssaValueNumberingStack().getVarToBeAssignedTo(lvalue);
+                    emitter().emit("%%%s = dfg.pull %%%s : %s",lValueSSA,input.getPort().getName(),typeseval().type(type));
                     //emitter().emit("%s = dfg.pull %s(%s);", lvalue, sType, channelsutils().definedInputPort(input.getPort()));
                 } else {
                     throw new UnsupportedOperationException("Popping values not off the front of the queue is not yet supported");
@@ -253,7 +252,7 @@ public interface ExpressionEvaluator {
         }
     }
 
-    default String compare(Type lvalueType, String lvalue, Type rvalueType, String rvalue) {
+    /*default String compare(Type lvalueType, String lvalue, Type rvalueType, String rvalue) {
         return String.format("(%s == %s)", lvalue, rvalue);
     }
 
@@ -298,7 +297,7 @@ public interface ExpressionEvaluator {
 
     default String compare(AliasType lvalueType, String lvalue, AliasType rvalueType, String rvalue) {
         return compare(lvalueType.getType(), lvalue, rvalueType.getType(), rvalue);
-    }
+    }*/
 
 
 
@@ -327,36 +326,27 @@ public interface ExpressionEvaluator {
      */
     default String evaluate(ExprBinaryOp binaryOp) {
         assert binaryOp.getOperations().size() == 1 && binaryOp.getOperands().size() == 2;
-        Type lhs = types().type(binaryOp.getOperands().get(0));
-        Type rhs = types().type(binaryOp.getOperands().get(1));
         String operation = binaryOp.getOperations().get(0);
-        CommonTypeStruct convertedOperands = evaluateBinaryEquateTypes(lhs,rhs,binaryOp);
+        CommonTypeStruct convertedOperands = convertBinaryExprTypes(binaryOp);
 
         switch (operation) {
             case "+":
                 return evaluateBinaryAdd(convertedOperands.commonType, convertedOperands.lhsOperand, convertedOperands.rhsOperand);
             case "-":
-                throw new UnsupportedOperationException(operation);
-                //return evaluateBinarySub(lhs, rhs, binaryOp);
+                return evaluateBinarySub(convertedOperands.commonType, convertedOperands.lhsOperand, convertedOperands.rhsOperand);
             case "*":
-                throw new UnsupportedOperationException(operation);
-                //return evaluateBinaryTimes(lhs, rhs, binaryOp);
+                return evaluateBinaryTimes(convertedOperands.commonType, convertedOperands.lhsOperand, convertedOperands.rhsOperand);
             case "/":
-                throw new UnsupportedOperationException(operation);
-                //return evaluateBinaryDiv(lhs, rhs, binaryOp);
+                return evaluateBinaryDiv(convertedOperands.commonType, convertedOperands.lhsOperand, convertedOperands.rhsOperand);
             case "div":
-                throw new UnsupportedOperationException(operation);
-                //return evaluateBinaryIntDiv(lhs, rhs, binaryOp);
+                return evaluateBinaryIntDiv(convertedOperands.commonType, convertedOperands.lhsOperand, convertedOperands.rhsOperand);
             case "%":
             case "mod":
-                throw new UnsupportedOperationException(operation);
-                //return evaluateBinaryMod(lhs, rhs, binaryOp);
+                return evaluateBinaryMod(convertedOperands.commonType, convertedOperands.lhsOperand, convertedOperands.rhsOperand);
             case "^":
-                throw new UnsupportedOperationException(operation);
-                //return evaluateBinaryBitXor(lhs, rhs, binaryOp);
+                return evaluateBinaryBitXor(convertedOperands.commonType, convertedOperands.lhsOperand, convertedOperands.rhsOperand);
             case "&":
-                throw new UnsupportedOperationException(operation);
-                //return evaluateBinaryBitAnd(lhs, rhs, binaryOp);
+                return evaluateBinaryBitAnd(convertedOperands.commonType, convertedOperands.lhsOperand, convertedOperands.rhsOperand);
             case "<<":
                 throw new UnsupportedOperationException(operation);
                 //return evaluateBinaryShiftL(lhs, rhs, binaryOp);
@@ -368,8 +358,7 @@ public interface ExpressionEvaluator {
                 throw new UnsupportedOperationException(operation);
                 //return evaluateBinaryAnd(lhs, rhs, binaryOp);
             case "|":
-                throw new UnsupportedOperationException(operation);
-                //return evaluateBinaryBitOr(lhs, rhs, binaryOp);
+                return evaluateBinaryBitOr(convertedOperands.commonType, convertedOperands.lhsOperand, convertedOperands.rhsOperand);
             case "||":
             case "or":
                 throw new UnsupportedOperationException(operation);
@@ -378,20 +367,15 @@ public interface ExpressionEvaluator {
             case "==":
                 return evaluateBinaryEq(convertedOperands.commonType, convertedOperands.lhsOperand, convertedOperands.rhsOperand);
             case "!=":
-                throw new UnsupportedOperationException(operation);
-                //return evaluateBinaryNeq(lhs, rhs, binaryOp);
+                return evaluateBinaryNEq(convertedOperands.commonType, convertedOperands.lhsOperand, convertedOperands.rhsOperand);
             case "<":
-                throw new UnsupportedOperationException(operation);
-                //return evaluateBinaryLtn(lhs, rhs, binaryOp);
+                return evaluateBinaryLtn(convertedOperands.commonType, convertedOperands.lhsOperand, convertedOperands.rhsOperand);
             case "<=":
-                throw new UnsupportedOperationException(operation);
-                //return evaluateBinaryLeq(lhs, rhs, binaryOp);
+                return evaluateBinaryLeq(convertedOperands.commonType, convertedOperands.lhsOperand, convertedOperands.rhsOperand);
             case ">":
-                throw new UnsupportedOperationException(operation);
-                //return evaluateBinaryGtn(lhs, rhs, binaryOp);
+                return evaluateBinaryGtn(convertedOperands.commonType, convertedOperands.lhsOperand, convertedOperands.rhsOperand);
             case ">=":
-                throw new UnsupportedOperationException(operation);
-                //return evaluateBinaryGeq(lhs, rhs, binaryOp);
+                return evaluateBinaryGeq(convertedOperands.commonType, convertedOperands.lhsOperand, convertedOperands.rhsOperand);
             case "in":
                 throw new UnsupportedOperationException(operation);
                 //return evaluateBinaryIn(lhs, rhs, binaryOp);
@@ -400,8 +384,11 @@ public interface ExpressionEvaluator {
         }
     }
 
-    default CommonTypeStruct evaluateBinaryEquateTypes(Type lhs, Type rhs, ExprBinaryOp binaryOp){
-        Type commonType = typeseval().getCommonType(lhs, rhs);
+    default CommonTypeStruct convertBinaryExprTypes(ExprBinaryOp binaryOp){
+        //Type commonType = types().type(binaryOp); //typeseval().getCommonType(lhs, rhs);
+        Type lhs = types().type(binaryOp.getOperands().get(0));
+        Type rhs = types().type(binaryOp.getOperands().get(1));
+        Type commonType = getExpressionType(binaryOp);
         String lhsTempVar = evaluate(binaryOp.getOperands().get(0));
         String rhsTempVar = evaluate(binaryOp.getOperands().get(1));
         lhsTempVar = typeseval().castType(lhs, commonType, lhsTempVar);
@@ -419,6 +406,90 @@ public interface ExpressionEvaluator {
         return output;
     }
 
+    default String evaluateBinarySub(Type type, String lhsOperand, String rhsOperand) {
+        throw new UnsupportedOperationException();
+    }
+
+    default String evaluateBinarySub(IntType type, String lhsOperand, String rhsOperand) {
+        String output = ssaValueNumberingStack().getNewTempVar();
+        emitter().emit("%%%s = arith.subi %%%s, %%%s : %s", output, lhsOperand, rhsOperand, typeseval().type(type));
+        return output;
+    }
+
+    default String evaluateBinaryTimes(Type type, String lhsOperand, String rhsOperand) {
+        throw new UnsupportedOperationException();
+    }
+
+    default String evaluateBinaryTimes(IntType type, String lhsOperand, String rhsOperand) {
+        String output = ssaValueNumberingStack().getNewTempVar();
+        emitter().emit("%%%s = arith.muli %%%s, %%%s : %s", output, lhsOperand, rhsOperand, typeseval().type(type));
+        return output;
+    }
+
+    default String evaluateBinaryDiv(Type type, String lhsOperand, String rhsOperand) {
+        throw new UnsupportedOperationException();
+    }
+
+    default String evaluateBinaryDiv(IntType type, String lhsOperand, String rhsOperand) {
+        String output = ssaValueNumberingStack().getNewTempVar();
+        if(type.isSigned())
+            emitter().emit("%%%s = arith.divsi %%%s, %%%s : %s", output, lhsOperand, rhsOperand, typeseval().type(type));
+        else
+            emitter().emit("%%%s = arith.divui %%%s, %%%s : %s", output, lhsOperand, rhsOperand, typeseval().type(type));
+        return output;
+    }
+
+    default String evaluateBinaryIntDiv(Type type, String lhsOperand, String rhsOperand) {
+        throw new UnsupportedOperationException();
+    }
+
+    default String evaluateBinaryIntDiv(IntType type, String lhsOperand, String rhsOperand) {
+        return evaluateBinaryDiv(type, lhsOperand, rhsOperand);
+    }
+
+    default String evaluateBinaryMod(Type type, String lhsOperand, String rhsOperand) {
+        throw new UnsupportedOperationException();
+    }
+
+    default String evaluateBinaryMod(IntType type, String lhsOperand, String rhsOperand) {
+        String output = ssaValueNumberingStack().getNewTempVar();
+        if(type.isSigned())
+            emitter().emit("%%%s = arith.remsi %%%s, %%%s : %s", output, lhsOperand, rhsOperand, typeseval().type(type));
+        else
+            emitter().emit("%%%s = arith.remui %%%s, %%%s : %s", output, lhsOperand, rhsOperand, typeseval().type(type));
+        return output;
+    }
+
+    default String evaluateBinaryBitXor(Type type, String lhsOperand, String rhsOperand) {
+        throw new UnsupportedOperationException();
+    }
+
+    default String evaluateBinaryBitXor(IntType type, String lhsOperand, String rhsOperand) {
+        String output = ssaValueNumberingStack().getNewTempVar();
+        emitter().emit("%%%s = arith.xori %%%s, %%%s : %s", output, lhsOperand, rhsOperand, typeseval().type(type));
+        return output;
+    }
+
+    default String evaluateBinaryBitAnd(Type type, String lhsOperand, String rhsOperand) {
+        throw new UnsupportedOperationException();
+    }
+
+    default String evaluateBinaryBitAnd(IntType type, String lhsOperand, String rhsOperand) {
+        String output = ssaValueNumberingStack().getNewTempVar();
+        emitter().emit("%%%s = arith.andi %%%s, %%%s : %s", output, lhsOperand, rhsOperand, typeseval().type(type));
+        return output;
+    }
+
+    default String evaluateBinaryBitOr(Type type, String lhsOperand, String rhsOperand) {
+        throw new UnsupportedOperationException();
+    }
+
+    default String evaluateBinaryBitOr(IntType type, String lhsOperand, String rhsOperand) {
+        String output = ssaValueNumberingStack().getNewTempVar();
+        emitter().emit("%%%s = arith.ori %%%s, %%%s : %s", output, lhsOperand, rhsOperand, typeseval().type(type));
+        return output;
+    }
+
     default String evaluateBinaryEq(Type type, String lhsOperand, String rhsOperand) {
         throw new UnsupportedOperationException();
     }
@@ -426,6 +497,68 @@ public interface ExpressionEvaluator {
     default String evaluateBinaryEq(IntType type, String lhsOperand, String rhsOperand) {
         String tempResult = ssaValueNumberingStack().getNewTempVar();
         emitter().emit("%%%s = arith.cmpi eq, %%%s, %%%s : %s", tempResult, lhsOperand, rhsOperand, typeseval().type(type));
+        return tempResult;
+    }
+
+    default String evaluateBinaryNEq(Type type, String lhsOperand, String rhsOperand) {
+        throw new UnsupportedOperationException();
+    }
+
+    default String evaluateBinaryNEq(IntType type, String lhsOperand, String rhsOperand) {
+        String tempResult = ssaValueNumberingStack().getNewTempVar();
+        emitter().emit("%%%s = arith.cmpi ne, %%%s, %%%s : %s", tempResult, lhsOperand, rhsOperand, typeseval().type(type));
+        return tempResult;
+    }
+
+    default String evaluateBinaryLtn(Type type, String lhsOperand, String rhsOperand) {
+        throw new UnsupportedOperationException();
+    }
+
+    default String evaluateBinaryLtn(IntType type, String lhsOperand, String rhsOperand) {
+        String tempResult = ssaValueNumberingStack().getNewTempVar();
+        if(type.isSigned())
+            emitter().emit("%%%s = arith.cmpi slt, %%%s, %%%s : %s", tempResult, lhsOperand, rhsOperand, typeseval().type(type));
+        else
+            emitter().emit("%%%s = arith.cmpi ult, %%%s, %%%s : %s", tempResult, lhsOperand, rhsOperand, typeseval().type(type));
+        return tempResult;
+    }
+
+    default String evaluateBinaryLeq(Type type, String lhsOperand, String rhsOperand) {
+        throw new UnsupportedOperationException();
+    }
+
+    default String evaluateBinaryLeq(IntType type, String lhsOperand, String rhsOperand) {
+        String tempResult = ssaValueNumberingStack().getNewTempVar();
+        if(type.isSigned())
+            emitter().emit("%%%s = arith.cmpi sle, %%%s, %%%s : %s", tempResult, lhsOperand, rhsOperand, typeseval().type(type));
+        else
+            emitter().emit("%%%s = arith.cmpi ule, %%%s, %%%s : %s", tempResult, lhsOperand, rhsOperand, typeseval().type(type));
+        return tempResult;
+    }
+
+    default String evaluateBinaryGtn(Type type, String lhsOperand, String rhsOperand) {
+        throw new UnsupportedOperationException();
+    }
+
+    default String evaluateBinaryGtn(IntType type, String lhsOperand, String rhsOperand) {
+        String tempResult = ssaValueNumberingStack().getNewTempVar();
+        if(type.isSigned())
+            emitter().emit("%%%s = arith.cmpi sgt, %%%s, %%%s : %s", tempResult, lhsOperand, rhsOperand, typeseval().type(type));
+        else
+            emitter().emit("%%%s = arith.cmpi ugt, %%%s, %%%s : %s", tempResult, lhsOperand, rhsOperand, typeseval().type(type));
+        return tempResult;
+    }
+
+    default String evaluateBinaryGeq(Type type, String lhsOperand, String rhsOperand) {
+        throw new UnsupportedOperationException();
+    }
+
+    default String evaluateBinaryGeq(IntType type, String lhsOperand, String rhsOperand) {
+        String tempResult = ssaValueNumberingStack().getNewTempVar();
+        if(type.isSigned())
+            emitter().emit("%%%s = arith.cmpi sge, %%%s, %%%s : %s", tempResult, lhsOperand, rhsOperand, typeseval().type(type));
+        else
+            emitter().emit("%%%s = arith.cmpi uge, %%%s, %%%s : %s", tempResult, lhsOperand, rhsOperand, typeseval().type(type));
         return tempResult;
     }
 
@@ -509,35 +642,6 @@ public interface ExpressionEvaluator {
         return tmp;
     }
 
-    default String evaluateBinarySub(Type lhs, Type rhs, ExprBinaryOp binaryOp) {
-        throw new UnsupportedOperationException(binaryOp.getOperations().get(0));
-    }
-
-    default String evaluateBinarySub(NumberType lhs, NumberType rhs, ExprBinaryOp binaryOp) {
-        Expression left = binaryOp.getOperands().get(0);
-        Expression right = binaryOp.getOperands().get(1);
-        return String.format("(%s - %s)", evaluate(left), evaluate(right));
-    }
-
-    default String evaluateBinarySub(SetType lhs, SetType rhs, ExprBinaryOp binaryOp) {
-        String tmp = variables().generateTemp();
-        Expression left = binaryOp.getOperands().get(0);
-        Expression right = binaryOp.getOperands().get(1);
-        emitter().emit("%s;", declarations().declaration(lhs, tmp));
-        emitter().emit("%1$s = difference_%2$s(%3$s, %4$s);", tmp, typeseval().type(lhs), evaluate(left), evaluate(right));
-        return tmp;
-    }
-
-    default String evaluateBinaryTimes(Type lhs, Type rhs, ExprBinaryOp binaryOp) {
-        throw new UnsupportedOperationException(binaryOp.getOperations().get(0));
-    }
-
-    default String evaluateBinaryTimes(NumberType lhs, NumberType rhs, ExprBinaryOp binaryOp) {
-        Expression left = binaryOp.getOperands().get(0);
-        Expression right = binaryOp.getOperands().get(1);
-        return String.format("(%s * %s)", evaluate(left), evaluate(right));
-    }
-
     default String evaluateBinaryTimes(SetType lhs, SetType rhs, ExprBinaryOp binaryOp) {
         String tmp = variables().generateTemp();
         Expression left = binaryOp.getOperands().get(0);
@@ -545,36 +649,6 @@ public interface ExpressionEvaluator {
         emitter().emit("%s;", declarations().declaration(lhs, tmp));
         emitter().emit("%1$s = intersect_%2$s(%3$s, %4$s);", tmp, typeseval().type(lhs), evaluate(left), evaluate(right));
         return tmp;
-    }
-
-    default String evaluateBinaryDiv(Type lhs, Type rhs, ExprBinaryOp binaryOp) {
-        throw new UnsupportedOperationException(binaryOp.getOperations().get(0));
-    }
-
-    default String evaluateBinaryDiv(NumberType lhs, NumberType rhs, ExprBinaryOp binaryOp) {
-        Expression left = binaryOp.getOperands().get(0);
-        Expression right = binaryOp.getOperands().get(1);
-        return String.format("(%s / %s)", evaluate(left), evaluate(right));
-    }
-
-    default String evaluateBinaryIntDiv(Type lhs, Type rhs, ExprBinaryOp binaryOp) {
-        throw new UnsupportedOperationException(binaryOp.getOperations().get(0));
-    }
-
-    default String evaluateBinaryIntDiv(IntType lhs, IntType rhs, ExprBinaryOp binaryOp) {
-        Expression left = binaryOp.getOperands().get(0);
-        Expression right = binaryOp.getOperands().get(1);
-        return String.format("(%s / %s)", evaluate(left), evaluate(right));
-    }
-
-    default String evaluateBinaryMod(Type lhs, Type rhs, ExprBinaryOp binaryOp) {
-        throw new UnsupportedOperationException(binaryOp.getOperations().get(0));
-    }
-
-    default String evaluateBinaryMod(IntType lhs, IntType rhs, ExprBinaryOp binaryOp) {
-        Expression left = binaryOp.getOperands().get(0);
-        Expression right = binaryOp.getOperands().get(1);
-        return String.format("(%s %% %s)", evaluate(left), evaluate(right));
     }
 
     default String evaluateBinaryBitXor(Type lhs, Type rhs, ExprBinaryOp binaryOp) {
@@ -673,130 +747,6 @@ public interface ExpressionEvaluator {
         emitter().decreaseIndentation();
         emitter().emit("}");
         return orResult;
-    }
-
-    default String evaluateBinaryEq(Type lhs, Type rhs, ExprBinaryOp binaryOp) {
-        Expression left = binaryOp.getOperands().get(0);
-        Expression right = binaryOp.getOperands().get(1);
-        return compare(types().type(left), evaluate(left), types().type(right), evaluate(right));
-    }
-
-    default String evaluateBinaryNeq(Type lhs, Type rhs, ExprBinaryOp binaryOp) {
-        Expression left = binaryOp.getOperands().get(0);
-        Expression right = binaryOp.getOperands().get(1);
-        return "!" + compare(types().type(left), evaluate(left), types().type(right), evaluate(right));
-    }
-
-    default String evaluateBinaryLtn(Type lhs, Type rhs, ExprBinaryOp binaryOp) {
-        throw new UnsupportedOperationException(binaryOp.getOperations().get(0));
-    }
-
-    default String evaluateBinaryLtn(NumberType lhs, NumberType rhs, ExprBinaryOp binaryOp) {
-        Expression left = binaryOp.getOperands().get(0);
-        Expression right = binaryOp.getOperands().get(1);
-        return String.format("(%s < %s)", evaluate(left), evaluate(right));
-    }
-
-    default String evaluateBinaryLtn(SetType lhs, SetType rhs, ExprBinaryOp binaryOp) {
-        String tmp = variables().generateTemp();
-        Expression left = binaryOp.getOperands().get(0);
-        Expression right = binaryOp.getOperands().get(1);
-        emitter().emit("%s;", declarations().declaration(BoolType.INSTANCE, tmp));
-        emitter().emit("%1$s = less_than_%2$s(%3$s, %4$s);", tmp, typeseval().type(lhs), evaluate(left), evaluate(right));
-        return tmp;
-    }
-
-    default String evaluateBinaryLtn(StringType lhs, StringType rhs, ExprBinaryOp binaryOp) {
-        String tmp = variables().generateTemp();
-        Expression left = binaryOp.getOperands().get(0);
-        Expression right = binaryOp.getOperands().get(1);
-        emitter().emit("%s;", declarations().declaration(BoolType.INSTANCE, tmp));
-        emitter().emit("%1$s = less_than_%2$s(%3$s, %4$s);", tmp, typeseval().type(lhs), evaluate(left), evaluate(right));
-        return tmp;
-    }
-
-    default String evaluateBinaryLeq(Type lhs, Type rhs, ExprBinaryOp binaryOp) {
-        throw new UnsupportedOperationException(binaryOp.getOperations().get(0));
-    }
-
-    default String evaluateBinaryLeq(NumberType lhs, NumberType rhs, ExprBinaryOp binaryOp) {
-        Expression left = binaryOp.getOperands().get(0);
-        Expression right = binaryOp.getOperands().get(1);
-        return String.format("(%s <= %s)", evaluate(left), evaluate(right));
-    }
-
-    default String evaluateBinaryLeq(SetType lhs, SetType rhs, ExprBinaryOp binaryOp) {
-        String tmp = variables().generateTemp();
-        Expression left = binaryOp.getOperands().get(0);
-        Expression right = binaryOp.getOperands().get(1);
-        emitter().emit("%s;", declarations().declaration(BoolType.INSTANCE, tmp));
-        emitter().emit("%1$s = less_than_equal_%2$s(%3$s, %4$s);", tmp, typeseval().type(lhs), evaluate(left), evaluate(right));
-        return tmp;
-    }
-
-    default String evaluateBinaryLeq(StringType lhs, StringType rhs, ExprBinaryOp binaryOp) {
-        String tmp = variables().generateTemp();
-        Expression left = binaryOp.getOperands().get(0);
-        Expression right = binaryOp.getOperands().get(1);
-        emitter().emit("%s;", declarations().declaration(BoolType.INSTANCE, tmp));
-        emitter().emit("%1$s = less_than_equal_%2$s(%3$s, %4$s);", tmp, typeseval().type(lhs), evaluate(left), evaluate(right));
-        return tmp;
-    }
-
-    default String evaluateBinaryGtn(Type lhs, Type rhs, ExprBinaryOp binaryOp) {
-        throw new UnsupportedOperationException(binaryOp.getOperations().get(0));
-    }
-
-    default String evaluateBinaryGtn(NumberType lhs, NumberType rhs, ExprBinaryOp binaryOp) {
-        Expression left = binaryOp.getOperands().get(0);
-        Expression right = binaryOp.getOperands().get(1);
-        return String.format("(%s > %s)", evaluate(left), evaluate(right));
-    }
-
-    default String evaluateBinaryGtn(SetType lhs, SetType rhs, ExprBinaryOp binaryOp) {
-        String tmp = variables().generateTemp();
-        Expression left = binaryOp.getOperands().get(0);
-        Expression right = binaryOp.getOperands().get(1);
-        emitter().emit("%s;", declarations().declaration(BoolType.INSTANCE, tmp));
-        emitter().emit("%1$s = greater_than_%2$s(%3$s, %4$s);", tmp, typeseval().type(lhs), evaluate(left), evaluate(right));
-        return tmp;
-    }
-
-    default String evaluateBinaryGtn(StringType lhs, StringType rhs, ExprBinaryOp binaryOp) {
-        String tmp = variables().generateTemp();
-        Expression left = binaryOp.getOperands().get(0);
-        Expression right = binaryOp.getOperands().get(1);
-        emitter().emit("%s;", declarations().declaration(BoolType.INSTANCE, tmp));
-        emitter().emit("%1$s = greater_than_%2$s(%3$s, %4$s);", tmp, typeseval().type(lhs), evaluate(left), evaluate(right));
-        return tmp;
-    }
-
-    default String evaluateBinaryGeq(Type lhs, Type rhs, ExprBinaryOp binaryOp) {
-        throw new UnsupportedOperationException(binaryOp.getOperations().get(0));
-    }
-
-    default String evaluateBinaryGeq(NumberType lhs, NumberType rhs, ExprBinaryOp binaryOp) {
-        Expression left = binaryOp.getOperands().get(0);
-        Expression right = binaryOp.getOperands().get(1);
-        return String.format("(%s >= %s)", evaluate(left), evaluate(right));
-    }
-
-    default String evaluateBinaryGeq(SetType lhs, SetType rhs, ExprBinaryOp binaryOp) {
-        String tmp = variables().generateTemp();
-        Expression left = binaryOp.getOperands().get(0);
-        Expression right = binaryOp.getOperands().get(1);
-        emitter().emit("%s;", declarations().declaration(BoolType.INSTANCE, tmp));
-        emitter().emit("%1$s = greater_than_equal_%2$s(%3$s, %4$s);", tmp, typeseval().type(lhs), evaluate(left), evaluate(right));
-        return tmp;
-    }
-
-    default String evaluateBinaryGeq(StringType lhs, StringType rhs, ExprBinaryOp binaryOp) {
-        String tmp = variables().generateTemp();
-        Expression left = binaryOp.getOperands().get(0);
-        Expression right = binaryOp.getOperands().get(1);
-        emitter().emit("%s;", declarations().declaration(BoolType.INSTANCE, tmp));
-        emitter().emit("%1$s = greater_than_equal_%2$s(%3$s, %4$s);", tmp, typeseval().type(lhs), evaluate(left), evaluate(right));
-        return tmp;
     }
 
     default String evaluateBinaryIn(Type lhs, Type rhs, ExprBinaryOp binaryOp) {
@@ -1376,6 +1326,18 @@ public interface ExpressionEvaluator {
     default void generateNOPEquivalentOperation(NumberType type, String inputOperand, String outputOperand){
         String typeAsString = typeseval().type(type);
         emitter().emit("%%%s = arith.bitcast %%%s: %s to %s", outputOperand, inputOperand, typeAsString, typeAsString);
+    }
+
+
+    default Type getExpressionType(Expression expr){
+        return types().type(expr);
+    }
+
+    default Type getExpressionType(ExprBinaryOp expr){
+        Type lhs = types().type(expr.getOperands().get(0));
+        Type rhs = types().type(expr.getOperands().get(1));
+        Type commonType = typeseval().getCommonType(lhs, rhs);
+        return commonType;
     }
 
 }

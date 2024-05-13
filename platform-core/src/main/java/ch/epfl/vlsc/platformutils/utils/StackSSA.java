@@ -1,8 +1,8 @@
 package ch.epfl.vlsc.platformutils.utils;
 
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.Map;
-import java.util.Stack;
 
 /**
  * @author Gareth Callanan
@@ -14,15 +14,18 @@ import java.util.Stack;
  * and the integer represents the current assignment to this variable. The integer needs to increment every time the
  * variable is assigned to in order to respect the SSA rules.
  * <p>
- * NOTE: I am not sure if this is the best implementation but I am rolling with this now.
+ * NOTE: I am not sure if this is the best implementation but I am going with it for now.
  */
 public class StackSSA {
-    Stack<Map<String, Integer>> stack;
+
+    LinkedList<Map<String, Integer>> stack;
     int tempVarIndex;
+    int depth;
 
     public StackSSA() {
-        stack = new Stack<>();
+        stack = new LinkedList<>();
         tempVarIndex = 0;
+        depth = -1;
     }
 
     /**
@@ -30,7 +33,8 @@ public class StackSSA {
      * when exiting the block.
      */
     public void newBlock() {
-        stack.push(new HashMap<>());
+        stack.addLast(new HashMap<>());
+        depth++;
     }
 
     /**
@@ -38,7 +42,8 @@ public class StackSSA {
      * when exiting the block.
      */
     public void blockDone() {
-        stack.pop();
+        stack.removeLast();
+        depth--;
     }
 
     /**
@@ -51,25 +56,77 @@ public class StackSSA {
      * @return The name of the variable with a new postfix attached to it: eg: "varName_1"
      */
     public String getVarToBeAssignedTo(String varName) {
-        Map<String, Integer> topOfStack = stack.peek();
+        Map<String, Integer> topOfStack = stack.getLast();
         topOfStack.putIfAbsent(varName, -1);
         int nextIncr = topOfStack.get(varName) + 1;
         topOfStack.put(varName, nextIncr);
-        return varName + "_" + nextIncr;
+        return varName + "_d" + depth + "_" + nextIncr;
     }
 
     /**
      * Get the var name of the last used instance of a given variable to be given as an argument into an MLIR
-     * operation. The count does not increment in this call.
+     * operation. The count does not increment in this call. If we do not find the assignment at the current depth,
+     * we go back through the depth of the stack to ensure that we find the variable if it exists
      *
      * @param varName
      * @return
      */
     public String getVarName(String varName) {
-        if (stack.peek().get(varName) == null) {
-            throw new Error("Variable does not exist in SSA stack.");
+        int currentDepth = depth;
+        while (currentDepth >= 0) {
+            Integer fromStack = this.stack.get(currentDepth).get(varName);
+            //System.out.println(varName + " Depth " + currentDepth + " of " + depth + " retVal " + fromStack);
+            if (fromStack != null) {
+                return varName + "_d" + currentDepth + "_" + fromStack;
+            }
+            currentDepth--;
         }
-        return varName + "_" + stack.peek().get(varName);
+        throw new Error("Variable does not exist in SSA stack.");
+    }
+
+    /**
+     * When we assign to a variable on a return of a control flow construct use this instruction instead of @ref
+     * getVarToBeAssignedTo to get its SSA name. This stops this particular SSA value being referenced within the
+     * block, instead the SSA with the index before the one returned here is returned when @ref getVarName() is
+     * called. On the exiting of the block within the stack call @ref getVarToBeAssignedBeforeBlockClose to ensure
+     * that the count is then fixed.
+     * <p>
+     * Example of why this is important:
+     * From this:
+     * if t <= x then
+     * .... x := x + t;
+     * We generate this:
+     * %x_d0_1 = scf.if %tmp_4 -> (i32) { (1)
+     * .... %tmp_5 = arith.addi %x_d0_0, %t_d0_0 : i32 (2)
+     * .... %x_d1_0 = arith.bitcast %tmp_5: i32 to i32
+     * .... scf.yield %x_d1_0 : i32
+     * }
+     * We need to make sure that %x_d0_1 assigned in line (1) is not called again in line (2) on getVarName(),
+     * this method ensures that this does not happen. Instead %x_d0_0 is returned
+     *
+     * @param varName The name of the variable to be converted to an SSA operand: eg "varName"
+     * @return The name of the variable with a new postfix attached to it: eg: "varName_1"
+     */
+    public String getVarToBeAssignedBeforeBlockOpen(String varName) {
+        Map<String, Integer> topOfStack = stack.getLast();
+        topOfStack.putIfAbsent(varName, -1);
+        int nextIncr = topOfStack.get(varName) + 1;
+        //topOfStack.put(varName, nextIncr);
+        return varName + "_d" + depth + "_" + nextIncr;
+    }
+
+    /**
+     * Called at the exit of a control flow construct to ensure that the stack is maintained correctly. See @ref
+     * getVarToBeAssignedBeforeBlockOpen for a more complete explanation
+     *
+     * @param varName The name of the variable that was converted to an operand on the opening of the control flow
+     *                construct
+     */
+    public void getVarToBeAssignedBeforeBlockClose(String varName) {
+        Map<String, Integer> topOfStack = stack.getLast();
+        topOfStack.putIfAbsent(varName, -1);
+        int nextIncr = topOfStack.get(varName) + 1;
+        topOfStack.put(varName, nextIncr);
     }
 
     public String getNewTempVar() {
@@ -80,4 +137,6 @@ public class StackSSA {
     public String toString() {
         return stack.toString();
     }
+
+
 }
