@@ -72,14 +72,15 @@ execution. We do this through __platforms__ or basically different code generato
 or backends.
 You can find a brief description of each platform below:
 
-Platform                   | Description           |
----------------------------|-----------------------|
-[platform-generic-c/][]    | Generic monocore C code generation <i> (deprecated, found in tycho)</i>  <br> |
-[platform-multicore/][]    | Code generation for multi-threaded software execution <br> |
-[platform-vivadohls/][]    | Code generation for Xilinx FPGAs by using Vivado HLS, SDAccel & Vitis <br> |
-[platform-node/][]         | Code generation for multicore and multi-node execution, incomplete and experimental <br> |
-[platform-orcc/][]         | Unused code software code generator based on the Orcc compiler <br> |
-[platform-core/][]         | Basic utilities used by all the other platforms, does not really generate code <br> |
+Platform                   | Description                                                                                               |
+---------------------------|-----------------------------------------------------------------------------------------------------------|
+[platform-generic-c/][]    | Generic monocore C code generation <i> (deprecated, found in tycho)</i>  <br>                             |
+[platform-multicore/][]    | Code generation for multi-threaded software execution <br>                                                |
+[platform-vivadohls/][]    | Code generation for Xilinx FPGAs by using Vivado HLS, SDAccel & Vitis <br>                                |
+[platform-node/][]         | Code generation for multicore and multi-node execution, incomplete and experimental <br>                  |
+[platform-orcc/][]         | Unused code software code generator based on the Orcc compiler <br>                                       |
+[platform-mlir/][]         | Generates MLIR code using the DFG dialect as a skeleton: Supports a limited set of the CAL language  <br> |
+[platform-core/][]         | Basic utilities used by all the other platforms, does not really generate code <br>                       |
 
 We basically just need to understand what `platform-vivadohls` and
 `platform-multicore` do. Each take a (part of) dataflow program and generate HLS
@@ -124,7 +125,7 @@ Maven should succeed, then clone _this_ repository and install it using maven.
 
 ```bash
 > git clone https://github.com/streamblocks/streamblocks-platforms
-> cd streamblocks-platforms &&  mvn install
+> cd streamblocks-platforms &&  mvn -DskipTests install
 ```
 
 # 3. Running a simple example

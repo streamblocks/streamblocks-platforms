@@ -76,7 +76,10 @@ public class MlirPhase implements Phase {
      * @param mlirBackend
      */
     private void generateMain(MlirBackend mlirBackend) {
+        Path mainTarget = PathUtils.getTargetCodeGen(mlirBackend.context()).resolve("main.mlir");
+        mlirBackend.emitter().open(mainTarget);
         mlirBackend.main().main();
+        mlirBackend.emitter().close();
     }
 
     @Override

@@ -38,8 +38,6 @@ public interface Main {
     }
 
     default void main() {
-        Path mainTarget = PathUtils.getTargetCodeGen(backend().context()).resolve("main.mlir");
-        emitter().open(mainTarget);
         defineEntities();
         initNetwork();
         emitter().close();
