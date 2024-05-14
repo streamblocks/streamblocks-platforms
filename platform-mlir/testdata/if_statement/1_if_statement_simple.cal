@@ -1,0 +1,12 @@
+actor IfSimple() int In ==> int Out:
+    action In:[t] ==> Out:[t + x]
+    var
+        int x := 0
+    do
+        if t >= 20 then
+            x := x + 1;
+        else
+            x := x - 1;
+        end
+    end
+end

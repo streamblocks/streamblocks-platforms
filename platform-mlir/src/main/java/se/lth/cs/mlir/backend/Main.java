@@ -40,7 +40,6 @@ public interface Main {
     default void main() {
         defineEntities();
         initNetwork();
-        emitter().close();
     }
 
     default void defineEntities(){
@@ -147,7 +146,7 @@ public interface Main {
         generateTopNetworkBody(srcToTgt, network.getInstances());
 
         // 4.3 Generate the required func.return for the func.func operand
-        emitter().emit("// -- Return ");
+        emitter().emit("// -- Return");
         emitter().emit("func.return %s: %s", outOperands, outTypes);
 
         // 4.4 Done with the @top operation, close it.

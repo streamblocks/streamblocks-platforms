@@ -1,0 +1,6 @@
+{
+  "description": "Generate MLIR scf.if from CAL if statement in an actor body. Only the simplest case is tested.",
+  "cal-file": "1_if_statement_simple.cal",
+  "mlir-file": "1_if_statement_simple.mlir",
+  "entity": "IfSimple"
+}
