@@ -1,0 +1,122 @@
+//-- Definition of actor class: IfComplex
+dfg.operator @IfComplex
+	inputs(%In: i32)
+	outputs(%Out: i32)
+{
+	dfg.loop inputs(%In: i32)
+	{
+		// -- Actor body
+		// Block Statement: Begin
+		//     Variable declarations attached to block statement: Begin
+		%l_t__1_d0_0 = dfg.pull %In : i32
+		%tmp_0 = arith.constant 0 : i1
+		%tmp_1 = arith.extui %tmp_0 : i1 to i32
+		%l_x__3_d0_0 = arith.bitcast %tmp_1: i32 to i32
+		%tmp_2 = arith.constant 0 : i1
+		%tmp_3 = arith.extui %tmp_2 : i1 to i32
+		%l_y__4_d0_0 = arith.bitcast %tmp_3: i32 to i32
+		//     Variable declarations attached to block statement: End
+		// If Statement: Begin
+		%tmp_4 = arith.constant 20 : i5
+		%tmp_5 = arith.extui %tmp_4 : i5 to i32
+		%tmp_6 = arith.cmpi sge, %l_t__1_d0_0, %tmp_5 : i32
+		%l_x__3_d0_1 = scf.if %tmp_6 -> (i32) {
+			// Assignment Statement: Start
+			%tmp_7 = arith.constant 1 : i1
+			%tmp_8 = arith.extui %tmp_7 : i1 to i32
+			%tmp_9 = arith.addi %l_x__3_d0_0, %tmp_8 : i32
+			%l_x__3_d1_0 = arith.bitcast %tmp_9: i32 to i32
+			// Assignment Statement: End
+			scf.yield %l_x__3_d1_0 : i32
+		} else {
+			scf.yield %l_x__3_d0_0 : i32
+		}
+		// If Statement: End
+		// If Statement: Begin
+		%tmp_10 = arith.constant 40 : i6
+		%tmp_11 = arith.extui %tmp_10 : i6 to i32
+		%tmp_12 = arith.cmpi sge, %l_t__1_d0_0, %tmp_11 : i32
+		%l_y__4_d0_1, %l_x__3_d0_2 = scf.if %tmp_12 -> (i32, i32) {
+			// Assignment Statement: Start
+			%tmp_13 = arith.constant 1 : i1
+			%tmp_14 = arith.extui %tmp_13 : i1 to i32
+			%tmp_15 = arith.addi %l_x__3_d0_1, %tmp_14 : i32
+			%l_x__3_d1_0 = arith.bitcast %tmp_15: i32 to i32
+			// Assignment Statement: End
+			scf.yield %l_y__4_d0_0, %l_x__3_d1_0 : i32, i32
+		} else {
+			// Assignment Statement: Start
+			%tmp_16 = arith.constant 1 : i1
+			%tmp_17 = arith.extui %tmp_16 : i1 to i32
+			%tmp_18 = arith.addi %l_y__4_d0_0, %tmp_17 : i32
+			%l_y__4_d1_0 = arith.bitcast %tmp_18: i32 to i32
+			// Assignment Statement: End
+			scf.yield %l_y__4_d1_0, %l_x__3_d0_1 : i32, i32
+		}
+		// If Statement: End
+		// If Statement: Begin
+		%tmp_19 = arith.constant 60 : i6
+		%tmp_20 = arith.extui %tmp_19 : i6 to i32
+		%tmp_21 = arith.cmpi slt, %l_t__1_d0_0, %tmp_20 : i32
+		%l_x__3_d0_3 = scf.if %tmp_21 -> (i32) {
+			// Assignment Statement: Start
+			%tmp_22 = arith.constant 0 : i1
+			%tmp_23 = arith.extui %tmp_22 : i1 to i32
+			%tmp_24 = arith.addi %l_x__3_d0_2, %tmp_23 : i32
+			%l_x__3_d1_0 = arith.bitcast %tmp_24: i32 to i32
+			// Assignment Statement: End
+			// If Statement: Begin
+			%tmp_25 = arith.constant 40 : i6
+			%tmp_26 = arith.extui %tmp_25 : i6 to i32
+			%tmp_27 = arith.cmpi slt, %l_t__1_d0_0, %tmp_26 : i32
+			%l_x__3_d1_1 = scf.if %tmp_27 -> (i32) {
+				// Assignment Statement: Start
+				%tmp_28 = arith.constant 100000 : i17
+				%tmp_29 = arith.extui %tmp_28 : i17 to i32
+				%tmp_30 = arith.addi %l_x__3_d1_0, %tmp_29 : i32
+				%l_x__3_d2_0 = arith.bitcast %tmp_30: i32 to i32
+				// Assignment Statement: End
+				scf.yield %l_x__3_d2_0 : i32
+			} else {
+				scf.yield %l_x__3_d1_0 : i32
+			}
+			// If Statement: End
+			scf.yield %l_x__3_d1_1 : i32
+		} else {
+			scf.yield %l_x__3_d0_2 : i32
+		}
+		// If Statement: End
+		// Stmt Write
+		%tmp_31 = arith.addi %l_t__1_d0_0, %l_x__3_d0_3 : i32
+		%tmp_32 = arith.addi %tmp_31, %l_y__4_d0_1 : i32
+		dfg.push(%tmp_32) %Out : i32
+		// StmtConsume not implemented: consume happens on peaking right now
+		// Block Statement: End
+	}
+}
+
+
+// -- Top Network: Defines structure of actor application
+func.func @top(%In: i32) -> i32
+{
+
+	// -- Instantiate channels between actors
+	%queue_from_In, %queue_to_IfComplex_In = dfg.channel(4096) : i32
+	%queue_from_IfComplex_Out, %queue_to_Out = dfg.channel(4096) : i32
+
+	// -- Connect input channels to arguments
+	dfg.push(%In) %queue_from_In : i32
+
+	// -- Instantiate actors (also known as nodes/instances)
+	dfg.instantiate @IfComplex // Instance name: IfComplex
+		inputs(%queue_to_IfComplex_In)
+		outputs(%queue_from_IfComplex_Out) :
+		(i32) -> i32
+
+	// -- Connect output channels to return arguments
+	%Out = dfg.pull %queue_to_Out : i32
+
+	// -- Return
+	func.return %Out: i32
+}
+

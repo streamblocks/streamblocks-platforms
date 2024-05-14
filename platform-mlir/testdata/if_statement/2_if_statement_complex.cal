@@ -1,0 +1,27 @@
+actor IfComplex() int In ==> int Out:
+    action In:[t] ==> Out:[t + x + y]
+    var
+        int x := 0,
+        int y := 0
+    do
+        // 1. An if with no else statement
+        if t >= 20 then
+            x := x + 1;
+        end
+
+        // 2. If statement where assignments of different variables are made
+        if t >= 40 then
+            x := x + 1;
+        else
+            y := y + 1;
+        end
+
+        // 3. Nested If statements
+        if t < 60 then
+            x := x + 0;
+            if t < 40 then
+                x := x + 100000;
+            end
+        end
+    end
+end

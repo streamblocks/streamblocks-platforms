@@ -30,5 +30,5 @@ target
 .idea
 *.iml
 .factorypath
-*.expected
-*.mlir.expected
+*.generated
+*.mlir.generated

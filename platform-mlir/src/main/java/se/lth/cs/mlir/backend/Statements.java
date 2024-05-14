@@ -441,26 +441,29 @@ public interface Statements {
         ssaValueNumberingStack().blockDone();
         emitter().decreaseIndentation();
 
-        // 3. Generate the else branch if it exists.
+        // 3. Generate the else branch. Even if the branch does not exist in CAL, we still need it and the
+        // corresponding yield in MLIR.
+
+        emitter().emit("} else {");
+        emitter().increaseIndentation();
+        ssaValueNumberingStack().newBlock();
+
         if (stmt.getElseBranch() != null) {
             if (stmt.getElseBranch().size() > 0) {
-                emitter().emit("} else {");
-                emitter().increaseIndentation();
-                ssaValueNumberingStack().newBlock();
-
                 stmt.getElseBranch().forEach(this::execute);
                 // The else branch has to yield and return the values to be assigned to the returnValues string above
-                if (!returnValues.isEmpty()) {
-                    // Generate the list of values to be in the yield statement for the false/else branch
-                    String returnValuesInYield = assignedVars.stream()
-                            .map(x -> "%" + ssaValueNumberingStack().getVarName(lvalues().lvalue(x)))
-                            .collect(Collectors.joining(", "));
-                    emitter().emit("scf.yield %s : %s", returnValuesInYield, returnValuesTypes);
-                }
-                ssaValueNumberingStack().blockDone();
-                emitter().decreaseIndentation();
             }
         }
+
+        if (!returnValues.isEmpty()) {
+            // Generate the list of values to be in the yield statement for the false/else branch
+            String returnValuesInYield = assignedVars.stream()
+                    .map(x -> "%" + ssaValueNumberingStack().getVarName(lvalues().lvalue(x)))
+                    .collect(Collectors.joining(", "));
+            emitter().emit("scf.yield %s : %s", returnValuesInYield, returnValuesTypes);
+        }
+        ssaValueNumberingStack().blockDone();
+        emitter().decreaseIndentation();
 
         // Closing function for the ssaValueNumberingStack().getVarToBeAssignedBeforeBlockOpen() called before.
         assignedVars.forEach(x -> ssaValueNumberingStack().getVarToBeAssignedBeforeBlockClose(lvalues().lvalue(x)));

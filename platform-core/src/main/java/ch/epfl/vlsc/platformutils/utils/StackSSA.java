@@ -76,7 +76,7 @@ public class StackSSA {
         while (currentDepth >= 0) {
             Integer fromStack = this.stack.get(currentDepth).get(varName);
             //System.out.println(varName + " Depth " + currentDepth + " of " + depth + " retVal " + fromStack);
-            if (fromStack != null) {
+            if (fromStack != null && fromStack != -1) { // The -1 can occur when you are not supposed to get that variable as it is the result of a yield
                 return varName + "_d" + currentDepth + "_" + fromStack;
             }
             currentDepth--;
