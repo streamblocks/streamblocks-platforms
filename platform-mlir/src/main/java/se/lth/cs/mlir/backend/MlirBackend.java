@@ -1,4 +1,4 @@
-package ch.epfl.vlsc.mlir.backend;
+package se.lth.cs.mlir.backend;
 
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.utils.Box;
@@ -10,15 +10,9 @@ import se.lth.cs.tycho.attribute.*;
 import se.lth.cs.tycho.compiler.CompilationTask;
 import se.lth.cs.tycho.compiler.Context;
 import se.lth.cs.tycho.compiler.UniqueNumbers;
-import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.phase.TreeShadow;
-
-import java.util.Map;
-import java.util.Queue;
-import java.util.Stack;
-import java.util.concurrent.LinkedBlockingQueue;
 
 import static org.multij.BindingKind.INJECTED;
 import static org.multij.BindingKind.LAZY;

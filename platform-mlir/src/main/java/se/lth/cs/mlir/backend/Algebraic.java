@@ -1,4 +1,4 @@
-package ch.epfl.vlsc.mlir.backend;
+package se.lth.cs.mlir.backend;
 
 import ch.epfl.vlsc.platformutils.Emitter;
 import org.multij.Binding;
@@ -8,9 +8,6 @@ import org.multij.MultiJ;
 import se.lth.cs.tycho.ir.decl.AlgebraicTypeDecl;
 import se.lth.cs.tycho.type.*;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;

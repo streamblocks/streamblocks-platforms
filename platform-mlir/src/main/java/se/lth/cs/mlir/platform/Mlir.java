@@ -1,6 +1,6 @@
-package ch.epfl.vlsc.mlir.platform;
+package se.lth.cs.mlir.platform;
 
-import ch.epfl.vlsc.mlir.phase.MlirPhase;
+import se.lth.cs.mlir.phase.MlirPhase;
 import ch.epfl.vlsc.phases.*;
 import se.lth.cs.tycho.compiler.Compiler;
 import se.lth.cs.tycho.ir.util.ImmutableList;

@@ -1,6 +1,6 @@
-package ch.epfl.vlsc.mlir.phase;
+package se.lth.cs.mlir.phase;
 
-import ch.epfl.vlsc.mlir.backend.MlirBackend;
+import se.lth.cs.mlir.backend.MlirBackend;
 import ch.epfl.vlsc.platformutils.PathUtils;
 import ch.epfl.vlsc.settings.PlatformSettings;
 import org.multij.MultiJ;

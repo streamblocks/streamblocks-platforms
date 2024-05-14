@@ -1,4 +1,4 @@
-package ch.epfl.vlsc.mlir.backend;
+package se.lth.cs.mlir.backend;
 
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.sw.ir.PartitionHandle;
@@ -11,7 +11,6 @@ import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.entity.am.ActorMachine;
-import se.lth.cs.tycho.ir.entity.am.Condition;
 import se.lth.cs.tycho.ir.entity.am.Transition;
 import se.lth.cs.tycho.ir.network.Instance;
 

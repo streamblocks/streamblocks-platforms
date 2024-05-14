@@ -1,4 +1,4 @@
-package ch.epfl.vlsc.mlir.backend;
+package se.lth.cs.mlir.backend;
 
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.PathUtils;
@@ -15,7 +15,6 @@ import se.lth.cs.tycho.ir.network.Network;
 
 import java.nio.file.Path;
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * TODO: Comment here

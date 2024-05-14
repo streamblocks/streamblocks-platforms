@@ -1,4 +1,4 @@
-package ch.epfl.vlsc.mlir.backend;
+package se.lth.cs.mlir.backend;
 
 import ch.epfl.vlsc.platformutils.Emitter;
 import org.multij.Binding;
