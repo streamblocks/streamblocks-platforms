@@ -23,15 +23,17 @@ public interface BuildSystem {
 
     /**
      * Create a script that takes the generated MLIR files from the compiler and converts them to SV files.
-     *
+     * <p>
      * A compile.sh script is created in the project_dir/scripts directory.
-     *
-     * The sv files are loaded into project_dir/build/sv
+     * <p>
+     * The sv files are stored in project_dir/build/sv
      */
-    default void generateBuildScript(){
+    default void generateBuildScript() {
         Path mainTarget = PathUtils.getTargetScript(backend().context()).resolve("compile.sh");
         emitter().open(mainTarget);
         emitter().emit("#!/bin/bash");
+        emitter().emit("# Script that takes the generated MLIR files from the CAL compiler and runs them through the " +
+                "MLIR/CIRCT compiler to generate SV files. The sv files are stored in project_dir/build/sv");
         emitter().emitNewLine();
         emitter().emit("scriptDir=`dirname -- \"$( readlink -f -- \"$0\"; )\";`");
         emitter().emit("cd $scriptDir/..");
@@ -43,7 +45,8 @@ public interface BuildSystem {
         emitter().emit("# 1.1 Build SV files and mlir files for the actor kernels");
         emitter().emit("mkdir -p build/sv");
         emitter().emit("cd build/sv");
-        emitter().emit("dfg-opt ../../code-gen/main.mlir --convert-std-to-circt --convert-dfg-to-circt --convert-fsm-to-sv --lower-seq-to-sv --export-split-verilog");
+        emitter().emit("dfg-opt ../../code-gen/main.mlir --convert-std-to-circt --convert-dfg-to-circt " +
+                "--convert-fsm-to-sv --lower-seq-to-sv --export-split-verilog");
         emitter().emitNewLine();
 
         emitter().emit("# 1.2 Generate the SV files for every actor kernel");
@@ -52,7 +55,7 @@ public interface BuildSystem {
             GlobalEntityDecl entityDecl = backend().globalnames().entityDecl(instance.getEntityName(), true);
             String entityClass = entityDecl.getOriginalName();
             // Check if this specific instance class has been defined, if not, we define it or else we skip this
-            if(definedInstancesClasses.add(entityClass)){
+            if (definedInstancesClasses.add(entityClass)) {
                 String hlsName = "hls_" + entityClass + "_calc";
                 emitter().emit("hlstool %s.mlir -o %s.sv", hlsName, hlsName);
             }
@@ -62,17 +65,20 @@ public interface BuildSystem {
     }
 
     /**
-     * Create a script that takes generates an OpGraph from the generated MLIR files.
-     *
+     * Create a script that generates an OpGraph from the generated MLIR files.
+     * <p>
      * A createOpGraph.sh script is created in the project_dir/scripts directory.
-     *
+     * <p>
      * The graph files are loaded into project_dir/build/graph
      */
-    default void generateOpGraphScript(){
+    default void generateOpGraphScript() {
         Path mainTarget = PathUtils.getTargetScript(backend().context()).resolve("createOpGraph.sh");
 
         emitter().open(mainTarget);
         emitter().emit("#!/bin/bash");
+        emitter().emit("# A script that generates an OpGraph svg file from the Streamblocks generated main.mlir file." +
+                " The svg files is stored in project_dir/build/graph");
+        emitter().emit("# Requres the Graphviz software program to be installed on your system.");
         emitter().emitNewLine();
         emitter().emit("scriptDir=`dirname -- \"$( readlink -f -- \"$0\"; )\";`");
         emitter().emit("cd $scriptDir/..");
