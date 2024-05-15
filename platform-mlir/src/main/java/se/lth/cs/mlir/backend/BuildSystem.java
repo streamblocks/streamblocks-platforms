@@ -21,6 +21,13 @@ public interface BuildSystem {
         return backend().emitter();
     }
 
+    /**
+     * Create a script that takes the generated MLIR files from the compiler and converts them to SV files.
+     *
+     * A compile.sh script is created in the project_dir/scripts directory.
+     *
+     * The sv files are loaded into project_dir/build/sv
+     */
     default void generateBuildScript(){
         Path mainTarget = PathUtils.getTargetScript(backend().context()).resolve("compile.sh");
         emitter().open(mainTarget);
@@ -51,6 +58,37 @@ public interface BuildSystem {
             }
 
         }
+        emitter().close();
+    }
+
+    /**
+     * Create a script that takes generates an OpGraph from the generated MLIR files.
+     *
+     * A createOpGraph.sh script is created in the project_dir/scripts directory.
+     *
+     * The graph files are loaded into project_dir/build/graph
+     */
+    default void generateOpGraphScript(){
+        Path mainTarget = PathUtils.getTargetScript(backend().context()).resolve("createOpGraph.sh");
+
+        emitter().open(mainTarget);
+        emitter().emit("#!/bin/bash");
+        emitter().emitNewLine();
+        emitter().emit("scriptDir=`dirname -- \"$( readlink -f -- \"$0\"; )\";`");
+        emitter().emit("cd $scriptDir/..");
+        emitter().emit("projDir=`pwd`");
+        emitter().emit("echo \"Building project in directory: $projDir\"");
+        emitter().emitNewLine();
+
+        emitter().emit("# 1. Generate the graph.dot file to be used by Graphviz to generate the software ");
+        emitter().emit("mkdir -p build/graph");
+        emitter().emit("cd build/graph");
+        emitter().emit("dfg-opt ../../code-gen/main.mlir --view-op-graph 2> graph.dot");
+        emitter().emitNewLine();
+
+        emitter().emit("# 2. Generate the SVG from the .dot file using Graphviz.");
+        emitter().emit("dot -Tsvg graph.dot > graph.svg");
+        emitter().emitNewLine();
         emitter().close();
     }
 }

@@ -102,6 +102,7 @@ public class MlirPhase implements Phase {
 
         generateMain(mlirBackend);
         generateBuildScript(mlirBackend);
+        generateOpGraphScript(mlirBackend);
         generateTestBench(mlirBackend);
 
         return task;
@@ -109,6 +110,10 @@ public class MlirPhase implements Phase {
 
     private void generateBuildScript(MlirBackend mlirBackend) {
         mlirBackend.buildSystem().generateBuildScript();
+    }
+
+    private void generateOpGraphScript(MlirBackend mlirBackend) {
+        mlirBackend.buildSystem().generateOpGraphScript();
     }
 
     private void generateTestBench(MlirBackend mlirBackend){

@@ -238,15 +238,7 @@ public interface Statements {
         String lvalue = lvalues().lvalue(assign.getLValue());
         Type type = types().type(assign.getLValue());
         assign(type, lvalue, assign.getExpression());
-        /*default void assign(Type lvalueType, String lvalue, Expression expr) {
-            Type inputType = types().type(expr);
-            Type outputType = typeseval().getCommonType(lvalueType, types().type(expr));
-            String rvalueTemp = expressioneval().evaluate(expr);
-            String rvalue = typeseval().castType(inputType,outputType,rvalueTemp);
 
-            expressioneval().generateNOPEquivalentOperation(outputType, rvalue, lvalue);
-            //emitter().emit("%%%s = %s : %s", lvalue, rvalue , backend().typeseval().type(lvalueType));
-        }*/
 
         emitter().emit("// Assignment Statement: End");
     }
@@ -610,7 +602,7 @@ public interface Statements {
      * @return A alphabetically sorted list of lvalues that are present in the AST branch
      */
     default List<LValue> getConditionalReturnLvalues(Statement stmt) {
-        // 1., Get all the lvalues in the tree recursively
+        // 1. Get all the lvalues in the tree recursively
         Set<LValue> lvaluesOriginal = getNestedAssignments(stmt);
 
         // 2. The Lvalues returned by getNestedAssignments can be different, but sometimes they point to the same
