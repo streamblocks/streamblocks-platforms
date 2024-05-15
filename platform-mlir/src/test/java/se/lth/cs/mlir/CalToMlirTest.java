@@ -8,6 +8,8 @@ import org.junit.runners.Parameterized;
 import se.lth.cs.mlir.platform.Mlir;
 import se.lth.cs.tycho.compiler.Compiler;
 import se.lth.cs.tycho.platform.Platform;
+import se.lth.cs.tycho.reporting.Diagnostic;
+import se.lth.cs.tycho.reporting.Reporter;
 import se.lth.cs.tycho.settings.Configuration;
 import se.lth.cs.tycho.settings.SettingsManager;
 
@@ -90,6 +92,8 @@ public class CalToMlirTest {
         Configuration config = Configuration.builder(settingsManager)
                 .set(Compiler.targetPath, tempDirectory)
                 .set(Compiler.sourcePaths, Collections.singletonList(testDescription.getCalFile()))
+                .set(Reporter.reportingLevel, Collections.singleton(Diagnostic.Kind.ERROR)) // Prevent info messages
+                // from spamming the test output
                 .build();
 
         Compiler compiler = new Compiler(platform, config);
@@ -110,8 +114,8 @@ public class CalToMlirTest {
         BufferedReader reader1 = new BufferedReader(new FileReader(testDescription.getGeneratedMlirFile().toFile()));
         BufferedReader reader2 = new BufferedReader(new FileReader(testDescription.getCorrectMlirFile().toFile()));
 
-        String failMessage = "Generated MLIR file '" + testDescription.getGeneratedMlirFile() + "' does not match expected " +
-                "file: '" + testDescription.getCorrectMlirFile() + "'";
+        String failMessage = "Generated MLIR file '" + testDescription.getGeneratedMlirFile() + "' does not match " +
+                "expected file: '" + testDescription.getCorrectMlirFile() + "'";
         assertTrue(failMessage, IOUtils.contentEqualsIgnoreEOL(reader1, reader2));
     }
 }

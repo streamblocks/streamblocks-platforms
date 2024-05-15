@@ -1,0 +1,3 @@
+actor ProduceConsume() int In ==> int Out:
+    action In:[t] ==> Out:[t] end
+end

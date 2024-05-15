@@ -1,0 +1,6 @@
+{
+  "description": "Generate MLIR of an actor that consumes a multiple tokens from one port and produces multiple tokens on another port.",
+  "cal-file": "2_multiple_tokens_single_port.cal",
+  "mlir-file": "2_multiple_tokens_single_port.mlir",
+  "entity": "ProduceConsume"
+}

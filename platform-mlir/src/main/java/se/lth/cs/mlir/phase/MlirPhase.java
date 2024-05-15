@@ -86,6 +86,7 @@ public class MlirPhase implements Phase {
     public CompilationTask execute(CompilationTask task, Context context) throws CompilationException {
         // -- Get Reporter
         Reporter reporter = context.getReporter();
+
         reporter.report(new Diagnostic(Diagnostic.Kind.INFO, getDescription()));
         reporter.report(new Diagnostic(Diagnostic.Kind.INFO, "Identifier, " + task.getIdentifier().toString()));
         reporter.report(new Diagnostic(Diagnostic.Kind.INFO, "Target Path, " + PathUtils.getTarget(context)));

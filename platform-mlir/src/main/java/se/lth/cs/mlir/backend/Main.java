@@ -137,7 +137,7 @@ public interface Main {
         // 4. We now finally have everything we need for the func operation, so lets generate it
         // 4.1 Generate the first line of the operation
         emitter().emit("// -- Top Network: Defines structure of actor application");
-        emitter().emit("func.func @top(%s) -> %s", inArgs, outTypes);
+        emitter().emit("func.func @top(%s) -> (%s)", inArgs, outTypes);
         emitter().emit("{");
         emitter().emit("");
         emitter().increaseIndentation();
@@ -244,7 +244,7 @@ public interface Main {
             instanceInstantiation.add("dfg.instantiate @" + entityClass + " // Instance name: " + entityName);
             instanceInstantiation.add("\tinputs(" + inputPortNames + ")");
             instanceInstantiation.add("\toutputs(" + outputPortNames + ") :");
-            instanceInstantiation.add("\t(" + inputPortTypes + ") -> " + outputPortTypes);
+            instanceInstantiation.add("\t(" + inputPortTypes + ") -> (" + outputPortTypes + ")");
         }
 
         // 5. Now emit everything that has been generated

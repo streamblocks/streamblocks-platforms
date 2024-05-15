@@ -240,14 +240,14 @@ public interface ExpressionEvaluator {
                 //    throw new RuntimeException("not implemented");
                 //}
             } else {
-                if (input.getOffset() == 0) {
+                //if (input.getOffset() == 0) {
                     String lValueSSA = ssaValueNumberingStack().getVarToBeAssignedTo(lvalue);
                     emitter().emit("%%%s = dfg.pull %%%s : %s",lValueSSA,input.getPort().getName(),typeseval().type(type));
                     //emitter().emit("%s = dfg.pull %s(%s);", lvalue, sType, channelsutils().definedInputPort(input.getPort()));
-                } else {
-                    throw new UnsupportedOperationException("Popping values not off the front of the queue is not yet supported");
-                    //emitter().emit("%s = pinPeek_%s(%s, %d);", lvalue, sType, channelsutils().definedInputPort(input.getPort()), input.getOffset());
-                }
+                //} else {
+                //    throw new UnsupportedOperationException("Popping values not off the front of the queue is not yet supported");
+                //    //emitter().emit("%s = pinPeek_%s(%s, %d);", lvalue, sType, channelsutils().definedInputPort(input.getPort()), input.getOffset());
+                //}
             }
         }
     }

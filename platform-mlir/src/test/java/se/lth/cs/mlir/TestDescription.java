@@ -77,4 +77,8 @@ public class TestDescription {
         return new TestDescription(directory, calPath, mlirPath, generatedMlirPath, entity, description);
     }
 
+    public String toString(){
+        return calFile.getFileName().toString();
+    }
+
 }

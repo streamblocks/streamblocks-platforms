@@ -97,7 +97,7 @@ public interface Statements {
      */
 
     default void execute(StmtWrite write) {
-        emitter().emit("// Stmt Write");
+        emitter().emit("// Stmt Write: Begin");
         System.out.println("Stmt Write");
         if (backend().channelsutils().isSourceConnected(backend().instancebox().get().getInstanceName(), write
                 .getPort().getName())) {
@@ -106,22 +106,15 @@ public interface Statements {
             }
 
             String tempVar = "";
-            if (write.getValues().size() > 1) {
-                throw new Error("Not able to handle size greater than 1 yet");
-            }
-            for (Expression expr : write.getValues()) {
-                tempVar = expressioneval().evaluate(expr);
-                //emitter().emit("%%%s = %%%s", tempVar, expressioneval().evaluate(expr));
-                //emitter().emit("pinWrite_%s(%s, %s);", portType, channelsutils().definedOutputPort(write.getPort
-                //        ()), tmp);
-            }
             Type type = types().portType(write.getPort());
             String portType = typeseval().type(type);
             String portName = write.getPort().getName();
-
-
-            emitter().emit("dfg.push(%%%s) %%%s : %s", tempVar, portName, portType);
+            for (Expression expr : write.getValues()) {
+                tempVar = expressioneval().evaluate(expr);
+                emitter().emit("dfg.push(%%%s) %%%s : %s", tempVar, portName, portType);
+            }
         }
+        emitter().emit("// Stmt Write: End");
 
         /*if (backend().channelsutils().isSourceConnected(backend().instancebox().get().getInstanceName(), write
         .getPort().getName())) {
@@ -402,8 +395,8 @@ public interface Statements {
         String conditionVar = expressioneval().evaluate(stmt.getCondition());
 
         // Get every value that is assigned in to in the if statement
-        // We need this as the mlir if statement y
-        Set<LValue> assignedVars = getConditionalReturnLvalues(stmt);
+        // We need this as the mlir if statement needs to return these values and yield them
+        List<LValue> assignedVars = getConditionalReturnLvalues(stmt);
 
         // For every assigned value, get the type and combine it into a single string. These are the return types for
         // the scb.if block
@@ -610,21 +603,31 @@ public interface Statements {
     }
 
 
-    default Set<LValue> getConditionalReturnLvalues(Statement stmt) {
+    /**
+     * Get a list of all variables (in the form lvalues) that are assigned to in this branch of the AST.
+     *
+     * @param stmt The top statement node in the AST where assignments are to be searched
+     * @return A alphabetically sorted list of lvalues that are present in the AST branch
+     */
+    default List<LValue> getConditionalReturnLvalues(Statement stmt) {
+        // 1., Get all the lvalues in the tree recursively
         Set<LValue> lvaluesOriginal = getNestedAssignments(stmt);
-        Set<LValue> lvaluesToReturn = new HashSet<>();
-        Set<String> lvaluesNames = new HashSet<>();
 
-        // The Lvalues returned by getNestedAssignments can be different but sometimes they point to the same
-        // varDecl, in this step we remove values that point to the same step. I want to do this with the distinct()
-        // func in the streams class but I would need to have my own comparitor that overrides the equals method and
+        // 2. The Lvalues returned by getNestedAssignments can be different, but sometimes they point to the same
+        // varDecl, in this step we remove values that point to the same var. I want to do this with the distinct()
+        // func in the streams class, but I would need to have my own comparator that overrides the equals method.
         // I am not sure how to do that.
+        List<LValue> lvaluesToReturn = new ArrayList<>(lvaluesOriginal.size());
+        Set<String> lvaluesNames = new HashSet<>();
         for (LValue lVal : lvaluesOriginal) {
             String lValueName = lvalues().lvalue(lVal);
             if (lvaluesNames.add(lValueName)) {
                 lvaluesToReturn.add(lVal);
             }
         }
+
+        // 3. Arrange these varDecls alphabetically to make the tests neater
+        Collections.sort(lvaluesToReturn, (o1, o2) -> (lvalues().lvalue(o1).compareTo(lvalues().lvalue(o2))));
 
         return lvaluesToReturn;
     }

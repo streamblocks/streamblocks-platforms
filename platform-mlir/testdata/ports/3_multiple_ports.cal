@@ -1,0 +1,3 @@
+actor ProduceConsume() int In1, int In2 ==> int Out1, int Out2:
+    action In1:[t1], In2:[t2] ==> Out1:[t2], Out2:[t1] end
+end

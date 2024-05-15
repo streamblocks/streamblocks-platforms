@@ -35,9 +35,10 @@ dfg.operator @IfSimple
 			scf.yield %l_x__3_d1_0 : i32
 		}
 		// If Statement: End
-		// Stmt Write
+		// Stmt Write: Begin
 		%tmp_11 = arith.addi %l_t__1_d0_0, %l_x__3_d0_1 : i32
 		dfg.push(%tmp_11) %Out : i32
+		// Stmt Write: End
 		// StmtConsume not implemented: consume happens on peaking right now
 		// Block Statement: End
 	}
@@ -45,7 +46,7 @@ dfg.operator @IfSimple
 
 
 // -- Top Network: Defines structure of actor application
-func.func @top(%In: i32) -> i32
+func.func @top(%In: i32) -> (i32)
 {
 
 	// -- Instantiate channels between actors
@@ -59,7 +60,7 @@ func.func @top(%In: i32) -> i32
 	dfg.instantiate @IfSimple // Instance name: IfSimple
 		inputs(%queue_to_IfSimple_In)
 		outputs(%queue_from_IfSimple_Out) :
-		(i32) -> i32
+		(i32) -> (i32)
 
 	// -- Connect output channels to return arguments
 	%Out = dfg.pull %queue_to_Out : i32
