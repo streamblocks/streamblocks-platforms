@@ -424,7 +424,7 @@ public interface Statements {
         if (!returnValues.isEmpty())
             emitter().emit("%s = scf.if %%%s -> (%s) {", returnValues, conditionVar, returnValuesTypes);
         else
-            emitter().emit("scf.if %%%s {", returnValues);
+            emitter().emit("scf.if %%%s {", conditionVar);
 
         // 2. Generate the then branch
         emitter().increaseIndentation();

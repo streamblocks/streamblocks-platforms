@@ -36,14 +36,14 @@ dfg.operator @IfComplex
 		%tmp_10 = arith.constant 40 : i6
 		%tmp_11 = arith.extui %tmp_10 : i6 to i32
 		%tmp_12 = arith.cmpi sge, %l_t__1_d0_0, %tmp_11 : i32
-		%l_y__4_d0_1, %l_x__3_d0_2 = scf.if %tmp_12 -> (i32, i32) {
+		%l_x__3_d0_2, %l_y__4_d0_1 = scf.if %tmp_12 -> (i32, i32) {
 			// Assignment Statement: Start
 			%tmp_13 = arith.constant 1 : i1
 			%tmp_14 = arith.extui %tmp_13 : i1 to i32
 			%tmp_15 = arith.addi %l_x__3_d0_1, %tmp_14 : i32
 			%l_x__3_d1_0 = arith.bitcast %tmp_15: i32 to i32
 			// Assignment Statement: End
-			scf.yield %l_y__4_d0_0, %l_x__3_d1_0 : i32, i32
+			scf.yield %l_x__3_d1_0, %l_y__4_d0_0 : i32, i32
 		} else {
 			// Assignment Statement: Start
 			%tmp_16 = arith.constant 1 : i1
@@ -51,7 +51,7 @@ dfg.operator @IfComplex
 			%tmp_18 = arith.addi %l_y__4_d0_0, %tmp_17 : i32
 			%l_y__4_d1_0 = arith.bitcast %tmp_18: i32 to i32
 			// Assignment Statement: End
-			scf.yield %l_y__4_d1_0, %l_x__3_d0_1 : i32, i32
+			scf.yield %l_x__3_d0_1, %l_y__4_d1_0 : i32, i32
 		}
 		// If Statement: End
 		// If Statement: Begin
@@ -86,10 +86,18 @@ dfg.operator @IfComplex
 			scf.yield %l_x__3_d0_2 : i32
 		}
 		// If Statement: End
+		// If Statement: Begin
+		%tmp_31 = arith.constant 80 : i7
+		%tmp_32 = arith.extui %tmp_31 : i7 to i32
+		%tmp_33 = arith.cmpi slt, %l_t__1_d0_0, %tmp_32 : i32
+		scf.if %tmp_33 {
+		} else {
+		}
+		// If Statement: End
 		// Stmt Write
-		%tmp_31 = arith.addi %l_t__1_d0_0, %l_x__3_d0_3 : i32
-		%tmp_32 = arith.addi %tmp_31, %l_y__4_d0_1 : i32
-		dfg.push(%tmp_32) %Out : i32
+		%tmp_34 = arith.addi %l_t__1_d0_0, %l_x__3_d0_3 : i32
+		%tmp_35 = arith.addi %tmp_34, %l_y__4_d0_1 : i32
+		dfg.push(%tmp_35) %Out : i32
 		// StmtConsume not implemented: consume happens on peaking right now
 		// Block Statement: End
 	}

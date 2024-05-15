@@ -97,7 +97,7 @@ public class CalToMlirTest {
         // 3. Run the compiler
         compiler.compile(testDescription.getEntityName());
 
-        // 4. Copy the MLIR file to [name].expected and then delete the temporary directory
+        // 4. Copy the generate main.mlir file to [name].mlir.expected and then delete the temporary directory
         Path generatedMainTemp = Paths.get(testDescription.getDirectory().toString() + "/temp/code-gen/main.mlir");
         Files.copy(generatedMainTemp, testDescription.getGeneratedMlirFile(), StandardCopyOption.REPLACE_EXISTING);
 
