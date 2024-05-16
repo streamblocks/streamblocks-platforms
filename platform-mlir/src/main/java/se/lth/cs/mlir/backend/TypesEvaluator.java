@@ -192,6 +192,10 @@ public interface TypesEvaluator {
         throw new Error("getCommonType() not implemented for lhs = " + lhs + " and rhs = " + rhs);
     }
 
+    default Type getCommonType(BoolType lhs, BoolType rhs){
+        return lhs;
+    }
+
     default Type getCommonType(NumberType lhs, NumberType rhs){
         throw new Error("getCommonType() not implemented for lhs = " + lhs + " and rhs = " + rhs);
     }
@@ -234,6 +238,10 @@ public interface TypesEvaluator {
      */
     default String castType(Type fromType, Type toType , String varName){
         throw new Error("Type conversion not implemented from " + fromType + " to = " + toType);
+    }
+
+    default String castType(BoolType fromType, BoolType toType , String varName){
+        return varName;
     }
 
     /**

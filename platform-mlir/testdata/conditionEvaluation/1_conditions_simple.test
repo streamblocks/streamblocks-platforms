@@ -1,0 +1,6 @@
+{
+  "description": "Generate if statements with different types of comparison operators.",
+  "cal-file": "1_conditions_simple.cal",
+  "mlir-file": "1_conditions_simple.mlir",
+  "entity": "ConditionsSimple"
+}

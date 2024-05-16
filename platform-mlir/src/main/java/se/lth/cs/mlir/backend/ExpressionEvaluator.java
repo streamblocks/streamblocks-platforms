@@ -357,14 +357,13 @@ public interface ExpressionEvaluator {
                 //return evaluateBinaryShiftR(lhs, rhs, binaryOp);
             case "&&":
             case "and":
-                throw new UnsupportedOperationException(operation);
-                //return evaluateBinaryAnd(lhs, rhs, binaryOp);
+                //throw new UnsupportedOperationException(operation);
+                return evaluateBinaryAnd(convertedOperands.commonType, convertedOperands.lhsOperand, convertedOperands.rhsOperand);
             case "|":
                 return evaluateBinaryBitOr(convertedOperands.commonType, convertedOperands.lhsOperand, convertedOperands.rhsOperand);
             case "||":
             case "or":
-                throw new UnsupportedOperationException(operation);
-                //return evaluateBinaryOr(lhs, rhs, binaryOp);
+                return evaluateBinaryOr(convertedOperands.commonType, convertedOperands.lhsOperand, convertedOperands.rhsOperand);
             case "=":
             case "==":
                 return evaluateBinaryEq(convertedOperands.commonType, convertedOperands.lhsOperand, convertedOperands.rhsOperand);
@@ -561,6 +560,26 @@ public interface ExpressionEvaluator {
             emitter().emit("%%%s = arith.cmpi sge, %%%s, %%%s : %s", tempResult, lhsOperand, rhsOperand, typeseval().type(type));
         else
             emitter().emit("%%%s = arith.cmpi uge, %%%s, %%%s : %s", tempResult, lhsOperand, rhsOperand, typeseval().type(type));
+        return tempResult;
+    }
+
+    default String evaluateBinaryAnd(Type type, String lhsOperand, String rhsOperand) {
+        throw new UnsupportedOperationException();
+    }
+
+    default String evaluateBinaryAnd(BoolType type, String lhsOperand, String rhsOperand) {
+        String tempResult = ssaValueNumberingStack().getNewTempVar();
+        emitter().emit("%%%s = arith.andi %%%s, %%%s : i1", tempResult, lhsOperand, rhsOperand);
+        return tempResult;
+    }
+
+    default String evaluateBinaryOr(Type type, String lhsOperand, String rhsOperand) {
+        throw new UnsupportedOperationException();
+    }
+
+    default String evaluateBinaryOr(BoolType type, String lhsOperand, String rhsOperand) {
+        String tempResult = ssaValueNumberingStack().getNewTempVar();
+        emitter().emit("%%%s = arith.ori %%%s, %%%s : i1", tempResult, lhsOperand, rhsOperand);
         return tempResult;
     }
 

@@ -1,0 +1,22 @@
+actor ConditionsSimple() int In ==> int Out:
+    action In:[t] ==> Out:[t + x]
+    var
+        int x := 100
+    do
+        if t >= 20 && t <= 40 then // Test >=, <=, and &&
+          x := 1000;
+        end
+
+        if t < 20 || t > 40 then // Test >, <, and ||
+          x := 10000;
+        end
+
+        if t != 20 then // Test !=
+          x := x + 1;
+        end
+
+        if t = 20 then // Test =
+          x := x + 2;
+        end
+    end
+end
