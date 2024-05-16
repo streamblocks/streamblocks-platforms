@@ -128,13 +128,13 @@ public interface TestBenchGenerator {
         emitter().emitNewLine();
         emitter().emit("// Toggle signals a few times to see behaviour over time");
         for (int i = 0; i < 5; i++) {
-            emitter().emit("# 9");
+            emitter().emit("# 10");
             for (String portName : inputPorts) {
                 emitter().emit("%s_bits = %d;", portName, nextVal);
                 nextVal += 10;
                 emitter().emit("%s_valid = 1;", portName);
             }
-            emitter().emit("# 3");
+            emitter().emit("# 2");
             for (String portName : inputPorts) {
                 emitter().emit("%s_valid = 0;", portName);
             }
