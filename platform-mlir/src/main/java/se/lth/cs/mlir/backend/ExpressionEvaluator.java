@@ -1,6 +1,7 @@
 package se.lth.cs.mlir.backend;
 
 import ch.epfl.vlsc.platformutils.Emitter;
+import ch.epfl.vlsc.platformutils.utils.Pair;
 import ch.epfl.vlsc.platformutils.utils.StackSSA;
 import org.multij.Binding;
 import org.multij.BindingKind;
@@ -13,6 +14,7 @@ import se.lth.cs.tycho.ir.expr.*;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.stmt.StmtAssignment;
 import se.lth.cs.tycho.ir.stmt.StmtCall;
+import se.lth.cs.tycho.ir.stmt.StmtIf;
 import se.lth.cs.tycho.ir.stmt.lvalue.LValueVariable;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.type.*;
@@ -1340,4 +1342,28 @@ public interface ExpressionEvaluator {
         return commonType;
     }
 
+    default Set<Map.Entry<String, Type>> getNestedAccesses(Expression expr){
+        throw new Error("getNestedAccesses not implemented for: " + expr.getClass());
+    }
+
+    default Set<Map.Entry<String, Type>> getNestedAccesses(ExprBinaryOp expr){
+        Set<Map.Entry<String, Type>> toReturn = getNestedAccesses(expr.getOperands().get(0));
+        toReturn.addAll(getNestedAccesses(expr.getOperands().get(1)));
+        return toReturn;
+    }
+
+    default Set<Map.Entry<String, Type>> getNestedAccesses(ExprVariable expr) {
+        VarDecl decl = backend().varDecls().declaration(expr);
+        Type type = backend().types().type(decl.getType());
+        String variableName = variables().name(expr.getVariable());
+        return Collections.singleton(Pair.of(variableName, type));
+    }
+
+    default Set<Map.Entry<String, Type>> getNestedAccesses(ExprLiteral expr){
+        return Collections.emptySet();
+    }
+
+    default Set<Map.Entry<String, Type>> getNestedAccesses(ExprUnaryOp expr){
+        return getNestedAccesses(expr.getOperand());
+    }
 }

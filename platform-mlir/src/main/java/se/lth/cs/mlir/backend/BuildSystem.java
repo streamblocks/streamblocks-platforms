@@ -78,7 +78,7 @@ public interface BuildSystem {
         emitter().emit("#!/bin/bash");
         emitter().emit("# A script that generates an OpGraph svg file from the Streamblocks generated main.mlir file." +
                 " The svg files is stored in project_dir/build/graph");
-        emitter().emit("# Requres the Graphviz software program to be installed on your system.");
+        emitter().emit("# Requires the Graphviz software program to be installed on your system.");
         emitter().emitNewLine();
         emitter().emit("scriptDir=`dirname -- \"$( readlink -f -- \"$0\"; )\";`");
         emitter().emit("cd $scriptDir/..");

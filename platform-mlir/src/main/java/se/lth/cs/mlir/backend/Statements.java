@@ -478,19 +478,112 @@ public interface Statements {
         });*/
     }
 
-    /*
-     * Statement While
+    /**
+     * Statement While - Defined using the MLIR structured control flow dialect (scf)
+     * <p>
+     * While statements have the form:
+     * %res = scf.while (%arg1 = %init1) : (f32) -> f32 {
+     * // "Before" region.
+     * // In a "while" loop, this region computes the condition.
+     * %condition = call @evaluate_condition(%arg1) : (f32) -> i1
+     * <p>
+     * // Forward the argument (as result or "after" region argument).
+     * scf.condition(%condition) %arg1 : f32
+     * <p>
+     * } do {
+     * ^bb0(%arg2: f32):
+     * // "After" region.
+     * // In a "while" loop, this region is the loop body.
+     * %next = call @payload(%arg2) : (f32) -> f32
+     * <p>
+     * // Forward the new value to the "before" region.
+     * // The operand types must match the types of the `scf.while` operands.
+     * scf.yield %next : f32
+     * }
      */
-
     default void execute(StmtWhile stmt) {
         System.out.println("StmtWhile");
-        throw new UnsupportedOperationException("StmtWhile not implemented in MLIR.");
-        /*emitter().emit("while (true) {");
+        emitter().emit("// While Statement: Begin");
+
+        // Get every value that is assigned to during the while statement
+        // We need this as the mlir if statement needs to return these values and yield them
+        List<LValue> assignedVars = getConditionalReturnLvalues(stmt);
+        String returnValuesTypes = assignedVars.stream()
+                .map(x -> typeseval().type(types().type(x)))
+                .collect(Collectors.joining(", "));
+
+        // 1. Condition check block of the while statement ()
+        // We need three different SSA arguments in the scf.while line (before region).
+        //    - initialValues - the values passed into the while loop from the surrounding context
+        //    - whileReturnValues - the SSA values that are returned from the while loop
+        //    - argumentNames - these are the names that the initial values get assigned to in this scope
+        // The initial values and argument names get merged together into the inputToArgumentString.
+        // eg: %whileReturnValue1 = scf.while (%argumentName1 = %initialValue1)
+        List<String> initialValues = assignedVars.stream()
+                .map(x -> "%" + ssaValueNumberingStack().getVarName(lvalues().lvalue(x)))
+                .collect(Collectors.toList());
+        String whileReturnValues = assignedVars.stream()
+                .map(x -> "%" + ssaValueNumberingStack().getVarToBeAssignedTo(lvalues().lvalue(x)))
+                .collect(Collectors.joining(", "));
+        ssaValueNumberingStack().newBlock();
+        List<String> argumentNames = assignedVars.stream()
+                .map(x -> "%" + ssaValueNumberingStack().getVarToBeAssignedTo(lvalues().lvalue(x)))
+                .collect(Collectors.toList());
+        // The argument names and the initial
+        String inputToArgumentString = "";
+        for (int i = 0; i < initialValues.size(); i++) {
+            inputToArgumentString = inputToArgumentString + argumentNames.get(i) + " = " + initialValues.get(i) + ", ";
+        }
+        if (!inputToArgumentString.equals("")) {
+            inputToArgumentString = inputToArgumentString.substring(0, inputToArgumentString.length() - 2);
+        }
+
+        if (whileReturnValues.isEmpty()) {
+            emitter().emit("scf.while(%s) : (%s) -> (%s) {", inputToArgumentString, returnValuesTypes,
+                    returnValuesTypes);
+        } else {
+            emitter().emit("%s = scf.while(%s) : (%s) -> (%s) {", whileReturnValues, inputToArgumentString,
+                    returnValuesTypes, returnValuesTypes);
+        }
         emitter().increaseIndentation();
-        emitter().emit("if (!%s) break;", expressioneval().evaluate(stmt.getCondition()));
-        stmt.getBody().forEach(this::execute);
+        emitter().emit("// While Statement: Condition Check");
+        String conditionVar = expressioneval().evaluate(stmt.getCondition());
+
+        // The scf.condition requires a list of the SSA values to transfer to the while body.
+        // These are the latest version of the argument names generated within the while before block
+        String beforeRegionReturn = assignedVars.stream()
+                .map(x -> "%" + ssaValueNumberingStack().getVarName(lvalues().lvalue(x)))
+                .collect(Collectors.joining(", "));
+        emitter().emit("scf.condition(%%%s) %s : %s", conditionVar, beforeRegionReturn, returnValuesTypes);
+        ssaValueNumberingStack().blockDone();
         emitter().decreaseIndentation();
-        emitter().emit("}");*/
+        emitter().emit("} do {");
+        // 2. Main body of the loop
+
+
+        // 2.1 Basic block that receives the arguments
+        emitter().emit("\t// While Statement: Body Execution");
+        ssaValueNumberingStack().newBlock();
+        String basicBlockName = ssaValueNumberingStack().getNewTempVar();
+        // The basic block takes a list of argument which should be the same variables as in the assignedVars array.
+        String basicBlockArguments = assignedVars.stream()
+                .map(x -> "%" + ssaValueNumberingStack().getVarToBeAssignedTo(lvalues().lvalue(x)) + ": " + typeseval().type(types().type(x)))
+                .collect(Collectors.joining(", "));
+        emitter().emit("^%s(%s):", basicBlockName, basicBlockArguments);
+        emitter().increaseIndentation();
+
+        // 2.2 Generate the statements in the body
+        stmt.getBody().forEach(this::execute);
+
+        // 2.3 Yield the basic block - returns back the before block which checks the condition again
+        String yieldReturn = assignedVars.stream()
+                .map(x -> "%" + ssaValueNumberingStack().getVarName(lvalues().lvalue(x)))
+                .collect(Collectors.joining(", "));
+        emitter().emit("scf.yield %s: %s", yieldReturn, returnValuesTypes);
+        ssaValueNumberingStack().blockDone();
+        emitter().decreaseIndentation();
+        emitter().emit("}");
+        emitter().emit("// While Statement: End");
     }
 
     void forEach(Expression collection, List<GeneratorVarDecl> varDecls, Runnable action);
@@ -590,8 +683,48 @@ public interface Statements {
         return mergedSet;
     }
 
+    default Set<LValue> getNestedAssignments(StmtWhile stmt) {
+        Set<LValue> mergedSet = stmt.getBody().stream()
+                .flatMap(x -> getNestedAssignments(x).stream())
+                .collect(Collectors.toSet());
+        //mergedSet.addAll(getNestedAssignments(stmt.getThenBranch()));
+        //mergedSet.addAll(getNestedAssignments(stmt.getElseBranch()));
+        return mergedSet;
+    }
+
     default Set<LValue> getNestedAssignments(StmtAssignment stmt) {
         return Collections.singleton(stmt.getLValue());
+    }
+
+    default Set<Map.Entry<String, Type>> getNestedAccesses(Statement stmt) {
+        throw new Error("getNestedAccesses not implemented for: " + stmt.getClass());
+    }
+
+    default Set<Map.Entry<String, Type>> getNestedAccesses(StmtIf stmt) {
+        Set<Map.Entry<String, Type>> mergedSet = Stream.concat(stmt.getThenBranch().stream(),
+                        stmt.getElseBranch().stream())
+                .flatMap(x -> getNestedAccesses(x).stream())
+                .collect(Collectors.toSet());
+        mergedSet.addAll(expressioneval().getNestedAccesses(stmt.getCondition()));
+
+        return mergedSet;
+    }
+
+    default Set<Map.Entry<String, Type>> getNestedAccesses(StmtWhile stmt) {
+        Set<Map.Entry<String, Type>> mergedSet = stmt.getBody().stream()
+                .flatMap(x -> getNestedAccesses(x).stream())
+                .collect(Collectors.toSet());
+        mergedSet.addAll(expressioneval().getNestedAccesses(stmt.getCondition()));
+
+        return mergedSet;
+    }
+
+    default Set<Map.Entry<String, Type>> getNestedAccesses(StmtAssignment stmt) {
+        if (stmt.getExpression() != null)
+            return expressioneval().getNestedAccesses(stmt.getExpression());
+        else
+            return Collections.emptySet();
+
     }
 
 
