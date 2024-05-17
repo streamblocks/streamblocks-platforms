@@ -26,7 +26,7 @@ dfg.operator @WhileSimple
 			// Assignment Statement: Start
 			%tmp_6 = arith.constant 1 : i1
 			%tmp_7 = arith.extui %tmp_6 : i1 to i32
-			%tmp_8 = arith.addi %l_x__3_d1_0, %tmp_7 : i32
+			%tmp_8 = arith.addi %tmp_7, %l_x__3_d1_0 : i32
 			%l_x__3_d1_1 = arith.bitcast %tmp_8: i32 to i32
 			// Assignment Statement: End
 			scf.yield %l_x__3_d1_1: i32

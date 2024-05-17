@@ -4,7 +4,7 @@ actor WhileSimple() int In ==> int Out:
         int x := 0
     do
         while 5 >= x do
-            x := x + 1;
+            x := 1 + x;
         end
     end
 end
