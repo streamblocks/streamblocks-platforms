@@ -1,0 +1,24 @@
+actor UnaryExpr() int In ==> int Out:
+    action In:[t] ==> Out:[x]
+    var
+        int x := 0
+    do
+        // 1. Test unary minus
+        x := -t;
+
+        // 2. Test logical not
+        // Expect this to evaluate to true:
+        //     1. x = t therefore x != -t evaluates to false
+        //     2. not (false) evaluates to true
+        // x becomes x := -t + 1
+        if not (x != -t) then
+          x := x + 1;
+        end
+
+        // Test bitwise inversion
+        // ~x inverts all the bits in x.
+        // +1 on top of the inversion, is a twos complement inversion
+        // We thus expect x to become x = -(-t+1) = t-1
+        x := ~x + 1;
+    end
+end

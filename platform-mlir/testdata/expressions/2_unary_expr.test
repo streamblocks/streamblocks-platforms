@@ -1,0 +1,6 @@
+{
+  "description": "Different unary expressions.",
+  "cal-file": "2_unary_expr.cal",
+  "mlir-file": "2_unary_expr.mlir",
+  "entity": "UnaryExpr"
+}
