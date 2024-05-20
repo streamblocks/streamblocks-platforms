@@ -11,29 +11,29 @@ dfg.operator @UnaryExpr
 		%l_t__1_d0_0 = dfg.pull %In : i32
 		%tmp_0 = arith.constant 0 : i1
 		%tmp_1 = arith.extui %tmp_0 : i1 to i32
-		%l_x__3_d0_0 = arith.bitcast %tmp_1: i32 to i32
+		// l_x__3_d0_0 aliased to tmp_1
 		//     Variable declarations attached to block statement: End
 		// Assignment Statement: Start
 		%tmp_2 = arith.constant 0 : i32
 		%tmp_3 = arith.subi %tmp_2, %l_t__1_d0_0 : i32
-		%l_x__3_d0_1 = arith.bitcast %tmp_3: i32 to i32
+		// l_x__3_d0_1 aliased to tmp_3
 		// Assignment Statement: End
 		// If Statement: Begin
 		%tmp_4 = arith.constant 0 : i32
 		%tmp_5 = arith.subi %tmp_4, %l_t__1_d0_0 : i32
-		%tmp_6 = arith.cmpi ne, %l_x__3_d0_1, %tmp_5 : i32
+		%tmp_6 = arith.cmpi ne, %tmp_3, %tmp_5 : i32
 		%tmp_7 = arith.constant 1 : i1
 		%tmp_8 = arith.xori %tmp_6, %tmp_7 : i1
 		%l_x__3_d0_2 = scf.if %tmp_8 -> (i32) {
 			// Assignment Statement: Start
 			%tmp_9 = arith.constant 1 : i1
 			%tmp_10 = arith.extui %tmp_9 : i1 to i32
-			%tmp_11 = arith.addi %l_x__3_d0_1, %tmp_10 : i32
-			%l_x__3_d1_0 = arith.bitcast %tmp_11: i32 to i32
+			%tmp_11 = arith.addi %tmp_3, %tmp_10 : i32
+			// l_x__3_d1_0 aliased to tmp_11
 			// Assignment Statement: End
-			scf.yield %l_x__3_d1_0 : i32
+			scf.yield %tmp_11 : i32
 		} else {
-			scf.yield %l_x__3_d0_1 : i32
+			scf.yield %tmp_3 : i32
 		}
 		// If Statement: End
 		// Assignment Statement: Start
@@ -42,10 +42,10 @@ dfg.operator @UnaryExpr
 		%tmp_14 = arith.constant 1 : i1
 		%tmp_15 = arith.extui %tmp_14 : i1 to i32
 		%tmp_16 = arith.addi %tmp_13, %tmp_15 : i32
-		%l_x__3_d0_3 = arith.bitcast %tmp_16: i32 to i32
+		// l_x__3_d0_3 aliased to tmp_16
 		// Assignment Statement: End
 		// Stmt Write: Begin
-		dfg.push(%l_x__3_d0_3) %Out : i32
+		dfg.push(%tmp_16) %Out : i32
 		// Stmt Write: End
 		// StmtConsume not implemented: consume happens on peaking right now
 		// Block Statement: End

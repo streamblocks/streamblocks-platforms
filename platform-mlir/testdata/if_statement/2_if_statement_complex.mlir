@@ -11,10 +11,10 @@ dfg.operator @IfComplex
 		%l_t__1_d0_0 = dfg.pull %In : i32
 		%tmp_0 = arith.constant 0 : i1
 		%tmp_1 = arith.extui %tmp_0 : i1 to i32
-		%l_x__3_d0_0 = arith.bitcast %tmp_1: i32 to i32
+		// l_x__3_d0_0 aliased to tmp_1
 		%tmp_2 = arith.constant 0 : i1
 		%tmp_3 = arith.extui %tmp_2 : i1 to i32
-		%l_y__4_d0_0 = arith.bitcast %tmp_3: i32 to i32
+		// l_y__4_d0_0 aliased to tmp_3
 		//     Variable declarations attached to block statement: End
 		// If Statement: Begin
 		%tmp_4 = arith.constant 20 : i5
@@ -24,12 +24,12 @@ dfg.operator @IfComplex
 			// Assignment Statement: Start
 			%tmp_7 = arith.constant 1 : i1
 			%tmp_8 = arith.extui %tmp_7 : i1 to i32
-			%tmp_9 = arith.addi %l_x__3_d0_0, %tmp_8 : i32
-			%l_x__3_d1_0 = arith.bitcast %tmp_9: i32 to i32
+			%tmp_9 = arith.addi %tmp_1, %tmp_8 : i32
+			// l_x__3_d1_0 aliased to tmp_9
 			// Assignment Statement: End
-			scf.yield %l_x__3_d1_0 : i32
+			scf.yield %tmp_9 : i32
 		} else {
-			scf.yield %l_x__3_d0_0 : i32
+			scf.yield %tmp_1 : i32
 		}
 		// If Statement: End
 		// If Statement: Begin
@@ -41,17 +41,17 @@ dfg.operator @IfComplex
 			%tmp_13 = arith.constant 1 : i1
 			%tmp_14 = arith.extui %tmp_13 : i1 to i32
 			%tmp_15 = arith.addi %l_x__3_d0_1, %tmp_14 : i32
-			%l_x__3_d1_0 = arith.bitcast %tmp_15: i32 to i32
+			// l_x__3_d1_0 aliased to tmp_15
 			// Assignment Statement: End
-			scf.yield %l_x__3_d1_0, %l_y__4_d0_0 : i32, i32
+			scf.yield %tmp_15, %tmp_3 : i32, i32
 		} else {
 			// Assignment Statement: Start
 			%tmp_16 = arith.constant 1 : i1
 			%tmp_17 = arith.extui %tmp_16 : i1 to i32
-			%tmp_18 = arith.addi %l_y__4_d0_0, %tmp_17 : i32
-			%l_y__4_d1_0 = arith.bitcast %tmp_18: i32 to i32
+			%tmp_18 = arith.addi %tmp_3, %tmp_17 : i32
+			// l_y__4_d1_0 aliased to tmp_18
 			// Assignment Statement: End
-			scf.yield %l_x__3_d0_1, %l_y__4_d1_0 : i32, i32
+			scf.yield %l_x__3_d0_1, %tmp_18 : i32, i32
 		}
 		// If Statement: End
 		// If Statement: Begin
@@ -63,7 +63,7 @@ dfg.operator @IfComplex
 			%tmp_22 = arith.constant 0 : i1
 			%tmp_23 = arith.extui %tmp_22 : i1 to i32
 			%tmp_24 = arith.addi %l_x__3_d0_2, %tmp_23 : i32
-			%l_x__3_d1_0 = arith.bitcast %tmp_24: i32 to i32
+			// l_x__3_d1_0 aliased to tmp_24
 			// Assignment Statement: End
 			// If Statement: Begin
 			%tmp_25 = arith.constant 40 : i6
@@ -73,12 +73,12 @@ dfg.operator @IfComplex
 				// Assignment Statement: Start
 				%tmp_28 = arith.constant 100000 : i17
 				%tmp_29 = arith.extui %tmp_28 : i17 to i32
-				%tmp_30 = arith.addi %l_x__3_d1_0, %tmp_29 : i32
-				%l_x__3_d2_0 = arith.bitcast %tmp_30: i32 to i32
+				%tmp_30 = arith.addi %tmp_24, %tmp_29 : i32
+				// l_x__3_d2_0 aliased to tmp_30
 				// Assignment Statement: End
-				scf.yield %l_x__3_d2_0 : i32
+				scf.yield %tmp_30 : i32
 			} else {
-				scf.yield %l_x__3_d1_0 : i32
+				scf.yield %tmp_24 : i32
 			}
 			// If Statement: End
 			scf.yield %l_x__3_d1_1 : i32

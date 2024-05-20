@@ -108,8 +108,6 @@ public interface ExpressionEvaluator {
             }
         }*/
         String variableName = ssaValueNumberingStack().getVarName(variables().name(variable.getVariable()));
-        //String outputName = ssaValueNumberingStack().getNewTempVar();
-        //generateNOPEquivalentOperation(types().type(variable), variableName, outputName);
         return variableName;
     }
 
@@ -1307,24 +1305,6 @@ public interface ExpressionEvaluator {
 
     default String evaluate(ExprField field) {
         return String.format("%s->members.%s", evaluate(field.getStructure()), field.getField().getName());
-    }
-
-    /**
-     * Sometimes we just want to assign an operand directly to a result (%a = %b) but MLIR does support this. So we
-     * generate a execute an operation on the operand that will not affect it and assign that to the result
-     *
-     * @param type          The type of the input
-     * @param inputOperand  The SSA name of the input operand
-     * @param outputOperand The SSA name of the input operand
-     * @return none
-     */
-    default void generateNOPEquivalentOperation(Type type, String inputOperand, String outputOperand) {
-        throw new Error("No MLIR NOP equivalent for type: " + type);
-    }
-
-    default void generateNOPEquivalentOperation(NumberType type, String inputOperand, String outputOperand) {
-        String typeAsString = typeseval().type(type);
-        emitter().emit("%%%s = arith.bitcast %%%s: %s to %s", outputOperand, inputOperand, typeAsString, typeAsString);
     }
 
     default Type getExpressionType(Expression expr) {

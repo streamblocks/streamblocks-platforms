@@ -1,8 +1,8 @@
 package ch.epfl.vlsc.platformutils.utils;
 
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
+import java.util.TreeMap;
 
 /**
  * @author Gareth Callanan
@@ -14,16 +14,23 @@ import java.util.Map;
  * and the integer represents the current assignment to this variable. The integer needs to increment every time the
  * variable is assigned to in order to respect the SSA rules.
  * <p>
+ * MLIR does not allow an operand to be assigned directly to a resul eg: %a = %b is not valid. To get around this,
+ * This lass supports aliasing. That way instead of directly assigning, we alias %a to %b, and then whenever
+ * a call to this class would return %a, we instead return %b. This gets around this issue.
+ * <p>
  * NOTE: I am not sure if this is the best implementation but I am going with it for now.
  */
 public class StackSSA {
 
     LinkedList<Map<String, Integer>> stack;
+    Map<String, String> aliases;
+
     int tempVarIndex;
     int depth;
 
     public StackSSA() {
         stack = new LinkedList<>();
+        aliases = new TreeMap<>();
         tempVarIndex = 0;
         depth = -1;
     }
@@ -33,7 +40,7 @@ public class StackSSA {
      * when exiting the block.
      */
     public void newBlock() {
-        stack.addLast(new HashMap<>());
+        stack.addLast(new TreeMap<>());
         depth++;
     }
 
@@ -42,8 +49,26 @@ public class StackSSA {
      * when exiting the block.
      */
     public void blockDone() {
-        stack.removeLast();
+        // We need to remove the aliases so that they are not referenced in other contexts.
+        Map<String, Integer> removedItems =  stack.removeLast();
+        for (Map.Entry<String, Integer> entry: removedItems.entrySet()){
+            String nameToRemove = entry.getKey() + "_d" + depth + "_" + entry.getValue();
+            aliases.remove(nameToRemove);
+        }
         depth--;
+    }
+
+    /**
+     * Alias one SSA to another
+     *
+     * So instead of: %currentSSA = %alias, everytime we need to get %currentSSA from the stack, %alias is returned
+     * instead
+     *
+     * @param alias
+     * @param currentSSA
+     */
+    public void aliasSSA(String alias, String currentSSA){
+        aliases.put(currentSSA,alias);
     }
 
     /**
@@ -77,7 +102,13 @@ public class StackSSA {
             Integer fromStack = this.stack.get(currentDepth).get(varName);
             //System.out.println(varName + " Depth " + currentDepth + " of " + depth + " retVal " + fromStack);
             if (fromStack != null && fromStack != -1) { // The -1 can occur when you are not supposed to get that variable as it is the result of a yield
-                return varName + "_d" + currentDepth + "_" + fromStack;
+                String ssaName = varName + "_d" + currentDepth + "_" + fromStack;
+                String aliasSSA = aliases.get(ssaName);
+                if(aliasSSA != null){
+                    return aliasSSA;
+                }else{
+                    return ssaName;
+                }
             }
             currentDepth--;
         }

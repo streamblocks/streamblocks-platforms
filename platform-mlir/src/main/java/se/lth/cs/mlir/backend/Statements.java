@@ -714,20 +714,19 @@ public interface Statements {
 
     /**
      * Assign an expression to an lvalue (or an mlir operand) and ensure that the types are consistent
-     *
-     * @param lvalueType The type of the lvalue
-     * @param lvalue     The name of the operand the expression is assigned to
-     * @param expr       The expression to assign to the operand
+     * This expression will alias the lvalue SSA to the rvalue SSA
+     * @param lvalueType       The type of the lvalue
+     * @param lvalueString     The name of the operand the expression is assigned to
+     * @param expr             The expression to assign to the operand
      */
-    default String assign(Type lvalueType, String lvalue, Expression expr) {
+    default void assign(Type lvalueType, String lvalueString, Expression expr) {
         Type inputType = expressioneval().getExpressionType(expr);
         Type outputType = typeseval().getCommonType(lvalueType, types().type(expr));
         String rvalueTemp = expressioneval().evaluate(expr);
-        String rvalue = typeseval().castType(inputType, outputType, rvalueTemp);
-        String lvalueSSA = ssaValueNumberingStack().getVarToBeAssignedTo(lvalue);
-        expressioneval().generateNOPEquivalentOperation(outputType, rvalue, lvalueSSA);
-        return lvalueSSA;
-        //emitter().emit("%%%s = %s : %s", lvalue, rvalue , backend().typeseval().type(lvalueType));
+        String rvalueSSA = typeseval().castType(inputType, outputType, rvalueTemp);
+        String lvalueSSA = ssaValueNumberingStack().getVarToBeAssignedTo(lvalueString);
+        ssaValueNumberingStack().aliasSSA(rvalueSSA, lvalueSSA);
+        emitter().emit("// %s aliased to %s", lvalueSSA, rvalueSSA);
     }
 
     default Set<LValue> getNestedAssignments(Statement stmt) {

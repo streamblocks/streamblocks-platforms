@@ -1,16 +1,16 @@
 actor BinaryExpr() int In ==> int Out:
     action In:[t] ==> Out:[x]
-        var
-            int x := 100
-        do
-            x := x + 1;  // 101
-            x := x - 2;  // 99
-            x := x * 10; // 990
-            x := x / 2;  // 495
-            x := x % 4;  // 3
-            x := x >> 1; // 1
-            x := x | 6;  // 7
-            x := x & 5;  // 4
-            x := x << 1; // 8
-        end
+    var
+        int x := 100
+    do
+        x := x + 1;  // 101
+        x := x - 2;  // 99
+        x := x * 10; // 990
+        x := x / 2;  // 495
+        x := x % 4;  // 3
+        x := x >> 1; // 1
+        x := x | 6;  // 7
+        x := x & 5;  // 4
+        x := x << 1; // 8
+    end
 end

@@ -11,7 +11,7 @@ dfg.operator @ConditionsSimple
 		%l_t__1_d0_0 = dfg.pull %In : i32
 		%tmp_0 = arith.constant 100 : i7
 		%tmp_1 = arith.extui %tmp_0 : i7 to i32
-		%l_x__3_d0_0 = arith.bitcast %tmp_1: i32 to i32
+		// l_x__3_d0_0 aliased to tmp_1
 		//     Variable declarations attached to block statement: End
 		// If Statement: Begin
 		%tmp_2 = arith.constant 20 : i5
@@ -25,11 +25,11 @@ dfg.operator @ConditionsSimple
 			// Assignment Statement: Start
 			%tmp_9 = arith.constant 1000 : i10
 			%tmp_10 = arith.extui %tmp_9 : i10 to i32
-			%l_x__3_d1_0 = arith.bitcast %tmp_10: i32 to i32
+			// l_x__3_d1_0 aliased to tmp_10
 			// Assignment Statement: End
-			scf.yield %l_x__3_d1_0 : i32
+			scf.yield %tmp_10 : i32
 		} else {
-			scf.yield %l_x__3_d0_0 : i32
+			scf.yield %tmp_1 : i32
 		}
 		// If Statement: End
 		// If Statement: Begin
@@ -44,9 +44,9 @@ dfg.operator @ConditionsSimple
 			// Assignment Statement: Start
 			%tmp_18 = arith.constant 10000 : i14
 			%tmp_19 = arith.extui %tmp_18 : i14 to i32
-			%l_x__3_d1_0 = arith.bitcast %tmp_19: i32 to i32
+			// l_x__3_d1_0 aliased to tmp_19
 			// Assignment Statement: End
-			scf.yield %l_x__3_d1_0 : i32
+			scf.yield %tmp_19 : i32
 		} else {
 			scf.yield %l_x__3_d0_1 : i32
 		}
@@ -60,9 +60,9 @@ dfg.operator @ConditionsSimple
 			%tmp_23 = arith.constant 1 : i1
 			%tmp_24 = arith.extui %tmp_23 : i1 to i32
 			%tmp_25 = arith.addi %l_x__3_d0_2, %tmp_24 : i32
-			%l_x__3_d1_0 = arith.bitcast %tmp_25: i32 to i32
+			// l_x__3_d1_0 aliased to tmp_25
 			// Assignment Statement: End
-			scf.yield %l_x__3_d1_0 : i32
+			scf.yield %tmp_25 : i32
 		} else {
 			scf.yield %l_x__3_d0_2 : i32
 		}
@@ -76,9 +76,9 @@ dfg.operator @ConditionsSimple
 			%tmp_29 = arith.constant 2 : i2
 			%tmp_30 = arith.extui %tmp_29 : i2 to i32
 			%tmp_31 = arith.addi %l_x__3_d0_3, %tmp_30 : i32
-			%l_x__3_d1_0 = arith.bitcast %tmp_31: i32 to i32
+			// l_x__3_d1_0 aliased to tmp_31
 			// Assignment Statement: End
-			scf.yield %l_x__3_d1_0 : i32
+			scf.yield %tmp_31 : i32
 		} else {
 			scf.yield %l_x__3_d0_3 : i32
 		}

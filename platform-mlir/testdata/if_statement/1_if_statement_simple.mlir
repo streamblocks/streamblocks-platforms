@@ -11,7 +11,7 @@ dfg.operator @IfSimple
 		%l_t__1_d0_0 = dfg.pull %In : i32
 		%tmp_0 = arith.constant 0 : i1
 		%tmp_1 = arith.extui %tmp_0 : i1 to i32
-		%l_x__3_d0_0 = arith.bitcast %tmp_1: i32 to i32
+		// l_x__3_d0_0 aliased to tmp_1
 		//     Variable declarations attached to block statement: End
 		// If Statement: Begin
 		%tmp_2 = arith.constant 20 : i5
@@ -21,18 +21,18 @@ dfg.operator @IfSimple
 			// Assignment Statement: Start
 			%tmp_5 = arith.constant 1 : i1
 			%tmp_6 = arith.extui %tmp_5 : i1 to i32
-			%tmp_7 = arith.addi %l_x__3_d0_0, %tmp_6 : i32
-			%l_x__3_d1_0 = arith.bitcast %tmp_7: i32 to i32
+			%tmp_7 = arith.addi %tmp_1, %tmp_6 : i32
+			// l_x__3_d1_0 aliased to tmp_7
 			// Assignment Statement: End
-			scf.yield %l_x__3_d1_0 : i32
+			scf.yield %tmp_7 : i32
 		} else {
 			// Assignment Statement: Start
 			%tmp_8 = arith.constant 1 : i1
 			%tmp_9 = arith.extui %tmp_8 : i1 to i32
-			%tmp_10 = arith.subi %l_x__3_d0_0, %tmp_9 : i32
-			%l_x__3_d1_0 = arith.bitcast %tmp_10: i32 to i32
+			%tmp_10 = arith.subi %tmp_1, %tmp_9 : i32
+			// l_x__3_d1_0 aliased to tmp_10
 			// Assignment Statement: End
-			scf.yield %l_x__3_d1_0 : i32
+			scf.yield %tmp_10 : i32
 		}
 		// If Statement: End
 		// Stmt Write: Begin

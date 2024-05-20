@@ -11,10 +11,10 @@ dfg.operator @WhileSimple
 		%l_t__1_d0_0 = dfg.pull %In : i32
 		%tmp_0 = arith.constant 0 : i1
 		%tmp_1 = arith.extui %tmp_0 : i1 to i32
-		%l_x__3_d0_0 = arith.bitcast %tmp_1: i32 to i32
+		// l_x__3_d0_0 aliased to tmp_1
 		//     Variable declarations attached to block statement: End
 		// While Statement: Begin
-		%l_x__3_d0_1 = scf.while(%l_x__3_d1_0 = %l_x__3_d0_0) : (i32) -> (i32) {
+		%l_x__3_d0_1 = scf.while(%l_x__3_d1_0 = %tmp_1) : (i32) -> (i32) {
 			// While Statement: Condition Check
 			%tmp_2 = arith.constant 5 : i3
 			%tmp_3 = arith.extui %tmp_2 : i3 to i32
@@ -27,9 +27,9 @@ dfg.operator @WhileSimple
 			%tmp_6 = arith.constant 1 : i1
 			%tmp_7 = arith.extui %tmp_6 : i1 to i32
 			%tmp_8 = arith.addi %tmp_7, %l_x__3_d1_0 : i32
-			%l_x__3_d1_1 = arith.bitcast %tmp_8: i32 to i32
+			// l_x__3_d1_1 aliased to tmp_8
 			// Assignment Statement: End
-			scf.yield %l_x__3_d1_1: i32
+			scf.yield %tmp_8: i32
 		}
 		// While Statement: End
 		// Stmt Write: Begin
