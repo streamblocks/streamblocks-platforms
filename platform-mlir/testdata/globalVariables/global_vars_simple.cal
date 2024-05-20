@@ -1,0 +1,11 @@
+int Q = 4 + 1; // A standard global variable
+int P = 1 + Q; // A global variable that references another;
+
+actor GlobalVariables() int In ==> int Out:
+    action In:[t] ==> Out:[t + x]
+    var
+        int x := 0
+    do
+        x := x + P;
+    end
+end

@@ -154,15 +154,25 @@ public interface ExpressionEvaluator {
         return "(*" + evaluate(deref.getReference()) + ")";
     }*/
 
-    /*
+    /**
      * Evaluate an expression Globals variable
      *
-     * @param variable
-     * @return
+     * We just evaluate the expressions each time we call a global variable as it should evaluate to a constant
+     * with constant folding in other stages of the compiler.
      */
-    /*default String evaluate(ExprGlobalVariable variable) {
-        return variables().globalName(variable);
-    }*/
+    default String evaluate(ExprGlobalVariable variable) {
+        VarDecl decl = backend().varDecls().declaration(variable);
+        Expression declExpression = decl.getValue();
+
+        emitter().emit("// Evaluate global variable %s.", decl.getName());
+        Type inputType = getExpressionType(declExpression);
+        Type outputType = typeseval().getCommonType(types().declaredType(decl), inputType);
+        String rvalueTemp = evaluate(declExpression);
+        String rvalueSSA = typeseval().castType(inputType, outputType, rvalueTemp);
+        emitter().emit("// Evaluate global variable %s done: assigned to %s above in this context.", decl.getName(), rvalueSSA);
+
+        return rvalueSSA;
+    }
 
     /**
      * Evaluate expression literal
