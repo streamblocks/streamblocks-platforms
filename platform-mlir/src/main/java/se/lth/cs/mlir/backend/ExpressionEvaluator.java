@@ -1308,31 +1308,6 @@ public interface ExpressionEvaluator {
         return commonType;
     }
 
-    default Set<Map.Entry<String, Type>> getNestedAccesses(Expression expr) {
-        throw new Error("getNestedAccesses not implemented for: " + expr.getClass());
-    }
-
-    default Set<Map.Entry<String, Type>> getNestedAccesses(ExprBinaryOp expr) {
-        Set<Map.Entry<String, Type>> toReturn = getNestedAccesses(expr.getOperands().get(0));
-        toReturn.addAll(getNestedAccesses(expr.getOperands().get(1)));
-        return toReturn;
-    }
-
-    default Set<Map.Entry<String, Type>> getNestedAccesses(ExprVariable expr) {
-        VarDecl decl = backend().varDecls().declaration(expr);
-        Type type = backend().types().type(decl.getType());
-        String variableName = variables().name(expr.getVariable());
-        return Collections.singleton(Pair.of(variableName, type));
-    }
-
-    default Set<Map.Entry<String, Type>> getNestedAccesses(ExprLiteral expr) {
-        return Collections.emptySet();
-    }
-
-    default Set<Map.Entry<String, Type>> getNestedAccesses(ExprUnaryOp expr) {
-        return getNestedAccesses(expr.getOperand());
-    }
-
     public class CommonTypeStruct {
         public Type commonType;
         public String lhsOperand;

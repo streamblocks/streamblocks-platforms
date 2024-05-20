@@ -65,22 +65,21 @@ public interface Main {
      * <p>
      * func.func @top(%in1: i32, %in2: i32, %in3: i32) -> i32
      * {
-     * %q1_in, %q1_out = dfg.channel(4) : i32
-     * %q2_in, %q2_out = dfg.channel(4) : i32
-     * %q3_in, %q3_out = dfg.channel(4) : i32
-     * %q4_in, %q4_out = dfg.channel(4) : i32
-     * %q5_in, %q5_out = dfg.channel(4) : i32
-     * <p>
-     * dfg.push(%in1) %q1_in : i32
-     * dfg.push(%in2) %q2_in : i32
-     * dfg.push(%in3) %q3_in : i32
-     * <p>
-     * <p>
-     * dfg.instantiate @adder inputs(%q1_out, %q2_out) outputs(%q4_in) : (i32, i32) -> i32
-     * dfg.instantiate @multiplier inputs(%q4_out, %q3_out) outputs(%q5_in) : (i32, i32) -> i32
-     * <p>
-     * %0 = dfg.pull %q5_out : i32
-     * func.return %0 : i32
+     * ....%q1_in, %q1_out = dfg.channel(4) : i32
+     * ....%q2_in, %q2_out = dfg.channel(4) : i32
+     * ....%q3_in, %q3_out = dfg.channel(4) : i32
+     * ....%q4_in, %q4_out = dfg.channel(4) : i32
+     * ....%q5_in, %q5_out = dfg.channel(4) : i32
+     * ....// line break
+     * ....dfg.push(%in1) %q1_in : i32
+     * ....dfg.push(%in2) %q2_in : i32
+     * ....dfg.push(%in3) %q3_in : i32
+     * ....// line break
+     * ....dfg.instantiate @adder inputs(%q1_out, %q2_out) outputs(%q4_in) : (i32, i32) -> i32
+     * ....dfg.instantiate @multiplier inputs(%q4_out, %q3_out) outputs(%q5_in) : (i32, i32) -> i32
+     * ....//line break
+     * ....%0 = dfg.pull %q5_out : i32
+     * ....func.return %0 : i32
      * }
      */
     default void initNetwork() {

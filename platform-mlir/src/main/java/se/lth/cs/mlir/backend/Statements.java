@@ -463,19 +463,82 @@ public interface Statements {
      */
 
     default void execute(StmtForeach foreach) {
-        System.out.println("StmtForEach");
-        throw new UnsupportedOperationException("StmtForEach not implemented in MLIR.");
-        /*forEach(foreach.getGenerator().getCollection(), foreach.getGenerator().getVarDecls(), () -> {
-            for (Expression filter : foreach.getFilters()) {
-                emitter().emit("if (%s) {", expressioneval().evaluate(filter));
-                emitter().increaseIndentation();
-            }
-            foreach.getBody().forEach(this::execute);
-            for (Expression filter : foreach.getFilters()) {
-                emitter().decreaseIndentation();
-                emitter().emit("}");
-            }
-        });*/
+        System.out.println("StmtForeach");
+        throw new UnsupportedOperationException("StmtForeach not implemented in MLIR.");
+        /*emitter().emit("// Foreach Statement: Begin");
+        //emitter().emit("//     Variable declarations attached to foreach statement: Begin");
+        if (foreach.getGenerator().getVarDecls().size() > 1) {
+            throw new UnsupportedOperationException("MLIR backend currently only supports single " +
+                    "variables in foreach statements.");
+        }
+        if(!(foreach.getGenerator().getCollection() instanceof ExprBinaryOp)){
+            throw new UnsupportedOperationException("MLIR backend currently only supports foreach " +
+                    "statements over a range, eg: 1..10. Other collections not yet supported.");
+        }
+
+        // Generate the declared variable
+        VarDecl decl = foreach.getGenerator().getVarDecls().get(0);
+        String declarationName = variables().declarationName(decl);
+        String ssaName = ssaValueNumberingStack().getVarToBeAssignedTo(declarationName);
+
+        // Generate the loop upper and lower bounds
+        ExprBinaryOp rangeExpr = (ExprBinaryOp) foreach.getGenerator().getCollection();
+        Type initalValueType = types().type(rangeExpr.getOperands().get(0));
+        String initialValue = expressioneval().evaluate(rangeExpr.getOperands().get(0));
+        String initialValueCast = ssaValueNumberingStack().getNewTempVar() + "_lb";
+        emitter().emit("%%%s = index.casts %%%s : %s to index", initialValueCast, initialValue, typeseval().type(initalValueType));
+        Type finalValueType = types().type(rangeExpr.getOperands().get(1));
+        String finalValue = expressioneval().evaluate(rangeExpr.getOperands().get(1));
+        String finalValueCast = ssaValueNumberingStack().getNewTempVar() + "_ub";
+        emitter().emit("%%%s = index.casts %%%s : %s to index", finalValueCast, finalValue, typeseval().type(finalValueType));
+        String stepValue = ssaValueNumberingStack().getNewTempVar() + "_step";
+        emitter().emit("%%%s = index.constant 1", stepValue);
+
+        // Generate the return arguments and the arguments passed in
+        List<LValue> assignedVars = getConditionalReturnLvalues(foreach);
+        String returnValuesTypes = assignedVars.stream()
+                .map(x -> typeseval().type(types().type(x)))
+                .collect(Collectors.joining(", "));
+
+        // 1. Condition check block of the while statement ()
+        // We need three different SSA arguments in the scf.while line (before region).
+        //    - initialValues - the values passed into the while loop from the surrounding context
+        //    - whileReturnValues - the SSA values that are returned from the while loop
+        //    - argumentNames - these are the names that the initial values get assigned to in this scope
+        // The initial values and argument names get merged together into the inputToArgumentString.
+        // eg: %whileReturnValue1 = scf.while (%argumentName1 = %initialValue1)
+        List<String> initialValues = assignedVars.stream()
+                .map(x -> "%" + ssaValueNumberingStack().getVarName(lvalues().lvalue(x)))
+                .collect(Collectors.toList());
+        String forReturnValues = assignedVars.stream()
+                .map(x -> "%" + ssaValueNumberingStack().getVarToBeAssignedTo(lvalues().lvalue(x)))
+                .collect(Collectors.joining(", "));
+        ssaValueNumberingStack().newBlock();
+        List<String> argumentNames = assignedVars.stream()
+                .map(x -> "%" + ssaValueNumberingStack().getVarToBeAssignedTo(lvalues().lvalue(x)))
+                .collect(Collectors.toList());
+        String inputToArgumentString = "";
+        for (int i = 0; i < initialValues.size(); i++) {
+            inputToArgumentString = inputToArgumentString + argumentNames.get(i) + " = " + initialValues.get(i) + ", ";
+        }
+        if (!inputToArgumentString.equals("")) {
+            inputToArgumentString = inputToArgumentString.substring(0, inputToArgumentString.length() - 2);
+        }
+
+
+        emitter().emit("%s = scf.for %%%s = %%%s to %%%s step %%%s ", forReturnValues, ssaName, initialValueCast, finalValueCast, stepValue);
+        emitter().emit("\t\titer_args(%s) -> (%s) {", inputToArgumentString, returnValuesTypes);
+        emitter().increaseIndentation();
+        foreach.getBody().forEach(this::execute);
+
+        String returnValuesInYield = assignedVars.stream()
+                .map(x -> "%" + ssaValueNumberingStack().getVarName(lvalues().lvalue(x)))
+                .collect(Collectors.joining(", "));
+        emitter().emit("scf.yield %s : %s", returnValuesInYield, returnValuesTypes);
+        emitter().decreaseIndentation();
+        emitter().emit("}");
+        emitter().emit("// Foreach Statement: End");
+        ssaValueNumberingStack().blockDone();*/
     }
 
     /**
@@ -483,22 +546,19 @@ public interface Statements {
      * <p>
      * While statements have the form:
      * %res = scf.while (%arg1 = %init1) : (f32) -> f32 {
-     * // "Before" region.
-     * // In a "while" loop, this region computes the condition.
-     * %condition = call @evaluate_condition(%arg1) : (f32) -> i1
-     * <p>
-     * // Forward the argument (as result or "after" region argument).
-     * scf.condition(%condition) %arg1 : f32
-     * <p>
+     * ....// "Before" region.
+     * ....// In a "while" loop, this region computes the condition.
+     * ....%condition = call @evaluate_condition(%arg1) : (f32) -> i1
+     * ....// Forward the argument (as result or "after" region argument).
+     * ....scf.condition(%condition) %arg1 : f32
      * } do {
      * ^bb0(%arg2: f32):
-     * // "After" region.
-     * // In a "while" loop, this region is the loop body.
-     * %next = call @payload(%arg2) : (f32) -> f32
-     * <p>
-     * // Forward the new value to the "before" region.
-     * // The operand types must match the types of the `scf.while` operands.
-     * scf.yield %next : f32
+     * ....// "After" region.
+     * ....// In a "while" loop, this region is the loop body.
+     * ....%next = call @payload(%arg2) : (f32) -> f32
+     * ....// Forward the new value to the "before" region.
+     * ....// The operand types must match the types of the `scf.while` operands.
+     * ....scf.yield %next : f32
      * }
      */
     default void execute(StmtWhile stmt) {
@@ -529,7 +589,7 @@ public interface Statements {
         List<String> argumentNames = assignedVars.stream()
                 .map(x -> "%" + ssaValueNumberingStack().getVarToBeAssignedTo(lvalues().lvalue(x)))
                 .collect(Collectors.toList());
-        // The argument names and the initial
+        // The argument names and the initial values assigned
         String inputToArgumentString = "";
         for (int i = 0; i < initialValues.size(); i++) {
             inputToArgumentString = inputToArgumentString + argumentNames.get(i) + " = " + initialValues.get(i) + ", ";
@@ -589,7 +649,7 @@ public interface Statements {
     void forEach(Expression collection, List<GeneratorVarDecl> varDecls, Runnable action);
 
     default void forEach(ExprBinaryOp binOp, List<GeneratorVarDecl> varDecls, Runnable action) {
-        System.out.println("ExprBinaryOp");
+        System.out.println("forEach ExprBinaryOp");
         throw new UnsupportedOperationException("ExprBinaryOp not implemented in MLIR.");
         /*emitter().emit("{");
         emitter().increaseIndentation();
@@ -696,35 +756,11 @@ public interface Statements {
         return Collections.singleton(stmt.getLValue());
     }
 
-    default Set<Map.Entry<String, Type>> getNestedAccesses(Statement stmt) {
-        throw new Error("getNestedAccesses not implemented for: " + stmt.getClass());
-    }
-
-    default Set<Map.Entry<String, Type>> getNestedAccesses(StmtIf stmt) {
-        Set<Map.Entry<String, Type>> mergedSet = Stream.concat(stmt.getThenBranch().stream(),
-                        stmt.getElseBranch().stream())
-                .flatMap(x -> getNestedAccesses(x).stream())
+    default Set<LValue> getNestedAssignments(StmtForeach stmt) {
+        Set<LValue> mergedSet = stmt.getBody().stream()
+                .flatMap(x -> getNestedAssignments(x).stream())
                 .collect(Collectors.toSet());
-        mergedSet.addAll(expressioneval().getNestedAccesses(stmt.getCondition()));
-
         return mergedSet;
-    }
-
-    default Set<Map.Entry<String, Type>> getNestedAccesses(StmtWhile stmt) {
-        Set<Map.Entry<String, Type>> mergedSet = stmt.getBody().stream()
-                .flatMap(x -> getNestedAccesses(x).stream())
-                .collect(Collectors.toSet());
-        mergedSet.addAll(expressioneval().getNestedAccesses(stmt.getCondition()));
-
-        return mergedSet;
-    }
-
-    default Set<Map.Entry<String, Type>> getNestedAccesses(StmtAssignment stmt) {
-        if (stmt.getExpression() != null)
-            return expressioneval().getNestedAccesses(stmt.getExpression());
-        else
-            return Collections.emptySet();
-
     }
 
 

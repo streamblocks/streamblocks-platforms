@@ -218,8 +218,8 @@ public interface TypesEvaluator {
             return new IntType(OptionalInt.of(biggestSize), lhs.isSigned());
         }else{
             if(
-                    lsize >= rsize && !lhs.isSigned() ||
-                            rsize >= lsize && !rhs.isSigned()
+                    lsize > rsize && !lhs.isSigned() ||
+                            rsize > lsize && !rhs.isSigned()
             ){
                 throw new Error("No common type where uint is >= int in size. lhs = " + lhs + " and rhs = " + rhs);
             }else{
