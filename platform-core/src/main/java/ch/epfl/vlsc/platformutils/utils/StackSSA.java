@@ -81,7 +81,7 @@ public class StackSSA {
             }
             currentDepth--;
         }
-        throw new Error("Variable does not exist in SSA stack.");
+        throw new Error("Variable " + varName + " does not exist in SSA stack.\n" + this.stack);
     }
 
     /**

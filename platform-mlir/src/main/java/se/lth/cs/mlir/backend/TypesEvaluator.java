@@ -109,8 +109,8 @@ public interface TypesEvaluator {
     }
 
     default String type(CallableType type) {
-        throw new UnsupportedOperationException("Type not implemented in MLIR.");
-        //return type(type.getReturnType());
+        //throw new UnsupportedOperationException("Type not implemented in MLIR.");
+        return type(type.getReturnType());
     }
 
     default String type(RefType type) {

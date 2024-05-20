@@ -8,10 +8,15 @@ import org.multij.Module;
 import se.lth.cs.tycho.attribute.GlobalNames;
 import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
+import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.entity.am.ActorMachine;
+import se.lth.cs.tycho.ir.entity.am.Scope;
 import se.lth.cs.tycho.ir.entity.am.Transition;
+import se.lth.cs.tycho.ir.expr.ExprLambda;
+import se.lth.cs.tycho.ir.expr.ExprProc;
+import se.lth.cs.tycho.ir.expr.Expression;
 import se.lth.cs.tycho.ir.network.Instance;
 
 import java.util.List;
@@ -54,6 +59,10 @@ public interface Instances {
         return backend().expressionEval();
     }
 
+    default CallablesInActors callablesInActors() {
+        return backend().callablesInActor();
+    }
+
     default void generateInstance(Instance instance) {
 
 
@@ -61,32 +70,46 @@ public interface Instances {
         String entityClass = entityDecl.getOriginalName();
         String entityName = instance.getInstanceName();
 
+        // These boxes store the entity and instance so that they can be accessed where required by functions deeper
+        // in the entity and instance AST.
         backend().instancebox().set(instance);
         backend().entitybox().set(entityDecl.getEntity());
 
-        List<PartitionHandle.Pair<PortDecl, String>> inputPortNamesTypes = channelutils().getInputPortNamesAndTypes(entityName, entityDecl);
-        List<PartitionHandle.Pair<PortDecl, String>> outputPortNamesTypes = channelutils().getOutputPortNamesAndTypes(entityName, entityDecl);
+        List<PartitionHandle.Pair<PortDecl, String>> inputPortNamesTypes =
+                channelutils().getInputPortNamesAndTypes(entityName, entityDecl);
+        List<PartitionHandle.Pair<PortDecl, String>> outputPortNamesTypes =
+                channelutils().getOutputPortNamesAndTypes(entityName, entityDecl);
 
-        String inputPortString = inputPortNamesTypes.stream().map(x -> "%" + x._1 + ": " + x._2 ).collect(Collectors.joining(","));
-        String outputPortString = outputPortNamesTypes.stream().map(x -> "%" + x._1 + ": " + x._2 ).collect(Collectors.joining(","));
+        String inputPortString =
+                inputPortNamesTypes.stream().map(x -> "%" + x._1 + ": " + x._2).collect(Collectors.joining(","));
+        String outputPortString =
+                outputPortNamesTypes.stream().map(x -> "%" + x._1 + ": " + x._2).collect(Collectors.joining(","));
 
+
+        // 1. Declare the actor
         emitter().emit("//-- Definition of actor class: %s", entityClass);
         emitter().emit("dfg.operator @" + entityClass);
         emitter().emit("\tinputs(%s)", inputPortString);
         emitter().emit("\toutputs(%s)", outputPortString);
         emitter().emit("{");
         emitter().increaseIndentation();
+
+        // 2. Generate the actions of the actor
         emitter().emit("dfg.loop inputs(%s)", inputPortString);
         emitter().emit("{");
         emitter().increaseIndentation();
         genActions(entityDecl.getEntity());
         emitter().decreaseIndentation();
         emitter().emit("}");
-        emitter().decreaseIndentation();
-        emitter().emit("}");
         emitter().emitNewLine();
 
-        // Say what these things are
+        // 3. Generate the callables such as functions and procedures
+        genCallables(entityName, entityDecl.getEntity());
+
+        // 4. Close the actor
+        emitter().decreaseIndentation();
+        emitter().emit("}");
+
         backend().instancebox().clear();
         backend().entitybox().clear();
     }
@@ -94,21 +117,40 @@ public interface Instances {
     void genActions(Entity entity);
 
     default void genActions(ActorMachine am) {
-        // -- ART Context
         emitter().emit("// -- Actor body");
 
-        //emitter().emit("%%token_In = dfg.pull %%In : i32");
-
-        //emitter().emit("%%1 = arith.constant 42 : i32");
-        //emitter().emit("%%token_Out = arith.addi %%token_In, %%1 : i32");
-
-
-        //emitter().emit("-------------");
-        for (Transition trans: am.getTransitions()){
+        for (Transition trans : am.getTransitions()) {
             trans.getBody().forEach(statements()::execute);
         }
-        //emitter().emit("dfg.push(%%token_Out) %%Out : i32");
 
     }
 
+    /*
+     * Callables are things like CAL functions, procedures or lambdas that can be called from a statement
+     */
+
+    void genCallables(String instanceName, Entity entity);
+
+
+    default void genCallables(String instanceName, ActorMachine am) {
+        boolean hasCallables = false;
+
+        for (Scope scope : am.getScopes()) {
+            if (scope.isPersistent()) {
+                for (VarDecl decl : scope.getDeclarations()) {
+                    if (decl.getValue() != null) {
+                        Expression expr = decl.getValue();
+                        if (expr instanceof ExprLambda || expr instanceof ExprProc) {
+                            if (!hasCallables) {
+                                hasCallables = true;
+                                emitter().emit("// -- Callables");
+                            }
+                            backend().callablesInActor().callableDefinition(instanceName, expr);
+                            emitter().emitNewLine();
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

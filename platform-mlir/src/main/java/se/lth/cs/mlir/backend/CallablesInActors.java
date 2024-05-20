@@ -18,9 +18,10 @@ import java.util.*;
 
 @Module
 public interface CallablesInActors {
+    String[] mathIgnoreExternals = {"cos", "sin", "sqrt", "fabs"};
+
     @Binding(BindingKind.INJECTED)
     MlirBackend backend();
-
 
     /**
      * Function Name
@@ -46,7 +47,6 @@ public interface CallablesInActors {
         }
     }
 
-
     default void callableDefinition(String instanceName, IRNode callable) {
     }
 
@@ -57,13 +57,40 @@ public interface CallablesInActors {
      * @param lambda
      */
     default void callableDefinition(String instanceName, ExprLambda lambda) {
-        backend().emitter().emit("%s {", lambdaHeader(instanceName, lambda));
+        backend().ssaValueNumberingStack().newBlock();
+
+        String name = functionName(instanceName, lambda);
+        LambdaType returnType = (LambdaType) backend().types().type(lambda);
+        String returnTypeString = backend().typeseval().type(returnType);
+
+        // Get every input parameter, put it on the SSA stack, format it with "ssaName: type" as required by MLIR
+        // This line is an utter mess and hard to read - sorry
+        List<String> parameterNames = lambda.getValueParameters()
+                .map(x ->
+                        "%" + backend().ssaValueNumberingStack().getVarToBeAssignedTo(backend().variables().declarationName(x)) + " : " + // Get the ssa name
+                                backend().typeseval().type(backend().types().declaredType(x))); // get the SSA type
+        // Then join these into a string
+        String parameterNamesString = String.join(",", parameterNames);
+
+        backend().emitter().emit("func.func @%s(%s) -> %s {", name, parameterNamesString, returnTypeString);
+        backend().emitter().increaseIndentation();
+
+        String returnSSA = backend().expressionEval().evaluate(lambda.getBody());
+        backend().emitter().emit("func.return %%%s : %s", returnSSA, returnTypeString);
+
+        backend().emitter().decreaseIndentation();
+        backend().emitter().emit("}", instanceName);
+
+        backend().ssaValueNumberingStack().blockDone();
+
+        /*backend().emitter().emit("%s {", lambdaHeader(instanceName, lambda));
         backend().emitter().increaseIndentation();
         LambdaType type = (LambdaType) backend().types().type(lambda);
-        backend().emitter().emit("%s __ret = %s;", backend().typeseval().type(type.getReturnType()), backend().expressionEval().evaluate(lambda.getBody()));
+        backend().emitter().emit("%s __ret = %s;", backend().typeseval().type(type.getReturnType()), backend()
+        .expressionEval().evaluate(lambda.getBody()));
         backend().emitter().emit("return __ret;");
         backend().emitter().decreaseIndentation();
-        backend().emitter().emit("}");
+        backend().emitter().emit("}");*/
     }
 
     /**
@@ -74,13 +101,13 @@ public interface CallablesInActors {
      */
 
     default void callableDefinition(String instanceName, ExprProc proc) {
-        backend().emitter().emit("%s {", procHeader(instanceName, proc));
+        throw new UnsupportedOperationException("Procedures not yet supported in MLIR backend");
+        /*backend().emitter().emit("%s {", procHeader(instanceName, proc));
         backend().emitter().increaseIndentation();
         proc.getBody().forEach(backend().statements()::execute);
         backend().emitter().decreaseIndentation();
-        backend().emitter().emit("}");
+        backend().emitter().emit("}");*/
     }
-
 
     default void callablePrototypes(String instanceName, IRNode callable) {
     }
@@ -103,14 +130,16 @@ public interface CallablesInActors {
      * @param withEnv
      * @return
      */
-    default String callableHeader(String instanceName, String name, CallableType type, List<String> parameterNames, boolean withEnv) {
+    default String callableHeader(String instanceName, String name, CallableType type, List<String> parameterNames,
+                                  boolean withEnv) {
         List<String> parameters = new ArrayList<>();
         if (withEnv) {
             parameters.add(String.format("%s *thisActor", "ActorInstance_" + instanceName));
         }
         assert parameterNames.size() == type.getParameterTypes().size();
         for (int i = 0; i < parameterNames.size(); i++) {
-            parameters.add(backend().declarations().declarationParameter(type.getParameterTypes().get(i), parameterNames.get(i)));
+            parameters.add(backend().declarations().declarationParameter(type.getParameterTypes().get(i),
+                    parameterNames.get(i)));
         }
 
         String result = backend().typeseval().type(type.getReturnType());
@@ -121,13 +150,13 @@ public interface CallablesInActors {
         result += ")";
         return result;
     }
-
 
     default String externalCallableHeader(String name, CallableType type, List<String> parameterNames) {
         List<String> parameters = new ArrayList<>();
         assert parameterNames.size() == type.getParameterTypes().size();
         for (int i = 0; i < parameterNames.size(); i++) {
-            parameters.add(backend().declarations().declarationParameter(type.getParameterTypes().get(i), parameterNames.get(i)));
+            parameters.add(backend().declarations().declarationParameter(type.getParameterTypes().get(i),
+                    parameterNames.get(i)));
         }
         String result = backend().typeseval().type(type.getReturnType());
         result += " ";
@@ -137,7 +166,6 @@ public interface CallablesInActors {
         result += ")";
         return result;
     }
-
 
     /**
      * ExprLambda Header
@@ -167,7 +195,6 @@ public interface CallablesInActors {
         return callableHeader(instanceName, name, type, parameterNames, !directlyCallable(proc));
     }
 
-
     @Binding(BindingKind.LAZY)
     default Map<Expression, String> callablesNames() {
         return new HashMap<>();
@@ -195,7 +222,6 @@ public interface CallablesInActors {
         }
     }
 
-
     default boolean directlyCallable(ExprVariable var) {
         VarDecl declaration = backend().varDecls().declaration(var.getVariable());
         return directlyCallable(declaration);
@@ -211,17 +237,13 @@ public interface CallablesInActors {
         }
     }
 
-
     @Binding(BindingKind.LAZY)
     default Set<String> usedNames() {
         return new HashSet<>();
     }
 
-
     default void externalCallableDeclaration(IRNode varDecl) {
     }
-
-    String[] mathIgnoreExternals = {"cos", "sin", "sqrt", "fabs"};
 
     default void externalCallableDeclaration(VarDecl varDecl) {
         if (varDecl.isExternal()) {
@@ -232,8 +254,9 @@ public interface CallablesInActors {
             for (int i = 0; i < callable.getParameterTypes().size(); i++) {
                 parameterNames.add("p_" + i);
             }
-            if(!Arrays.stream(mathIgnoreExternals).anyMatch(s->varDecl.getOriginalName().equals(s))){
-                backend().emitter().emit("extern %s;", externalCallableHeader(varDecl.getOriginalName(), callable, parameterNames));
+            if (!Arrays.stream(mathIgnoreExternals).anyMatch(s -> varDecl.getOriginalName().equals(s))) {
+                backend().emitter().emit("extern %s;", externalCallableHeader(varDecl.getOriginalName(), callable,
+                        parameterNames));
             }
             String name = externalWrapperFunctionName(varDecl);
             backend().emitter().emit("%s;", externalCallableHeader(name, callable, parameterNames));

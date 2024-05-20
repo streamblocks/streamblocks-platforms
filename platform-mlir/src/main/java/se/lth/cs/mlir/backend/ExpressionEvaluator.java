@@ -1,7 +1,6 @@
 package se.lth.cs.mlir.backend;
 
 import ch.epfl.vlsc.platformutils.Emitter;
-import ch.epfl.vlsc.platformutils.utils.Pair;
 import ch.epfl.vlsc.platformutils.utils.StackSSA;
 import org.multij.Binding;
 import org.multij.BindingKind;
@@ -83,7 +82,9 @@ public interface ExpressionEvaluator {
     }
 
 
-    String evaluate(Expression expr);
+    default String evaluate(Expression expr) {
+        throw new UnsupportedOperationException("ExpressionEvaluator.evaluate() function not supported for: " + expr.getClass());
+    }
 
 
     /**
@@ -980,6 +981,35 @@ public interface ExpressionEvaluator {
                     }
                 }
         );
+    }
+
+    /*
+     * This is a call expression when a function is called
+     */
+    default String evaluate(ExprApplication exprApplication) {
+        String ssaTemp = ssaValueNumberingStack().getNewTempVar();
+        if (backend().callablesInActor().directlyCallable(exprApplication.getFunction())) {
+            List<String> paramNames = new ArrayList<>();
+            List<String> paramTypes = new ArrayList<>();
+
+            for (Expression parameter : exprApplication.getArgs()) {
+                String argName = "%" + evaluate(parameter);
+                paramNames.add(argName);
+                String argType = typeseval().type(types().type(parameter));
+                paramTypes.add(argType);
+            }
+            String paramNamesString = String.join(",", paramNames);
+            String paramTypesString = String.join(",", paramTypes);
+
+            String funcName = evaluateCall(exprApplication.getFunction());
+            String funcReturnType = typeseval().type(types().type(exprApplication));
+
+            emitter().emit("%%%s = func.call @%s(%s) : (%s) -> %s", ssaTemp, funcName, paramNamesString,
+                    paramTypesString, funcReturnType);
+        } else {
+            throw new UnsupportedOperationException("Function is not directly callable");
+        }
+        return ssaTemp;
     }
 
     void withGenerator(Expression collection, ImmutableList<GeneratorVarDecl> varDecls, Runnable body);

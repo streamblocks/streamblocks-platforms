@@ -42,8 +42,8 @@ dfg.operator @IfSimple
 		// StmtConsume not implemented: consume happens on peaking right now
 		// Block Statement: End
 	}
-}
 
+}
 
 // -- Top Network: Defines structure of actor application
 func.func @top(%In: i32) -> (i32)
