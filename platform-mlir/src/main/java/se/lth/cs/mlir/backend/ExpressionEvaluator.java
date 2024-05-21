@@ -165,8 +165,8 @@ public interface ExpressionEvaluator {
         Expression declExpression = decl.getValue();
 
         emitter().emit("// Evaluate global variable %s.", decl.getName());
-        Type inputType = getExpressionType(declExpression);
-        Type outputType = typeseval().getCommonType(types().declaredType(decl), inputType);
+        Type inputType =  types().type(declExpression);
+        Type outputType = types().declaredType(decl);
         String rvalueTemp = evaluate(declExpression);
         String rvalueSSA = typeseval().castType(inputType, outputType, rvalueTemp);
         emitter().emit("// Evaluate global variable %s done: assigned to %s above in this context.", decl.getName(), rvalueSSA);
@@ -338,34 +338,57 @@ public interface ExpressionEvaluator {
     default String evaluate(ExprBinaryOp binaryOp) {
         assert binaryOp.getOperations().size() == 1 && binaryOp.getOperands().size() == 2;
         String operation = binaryOp.getOperations().get(0);
-        CommonTypeStruct convertedOperands = convertBinaryExprTypes(binaryOp);
+        BinaryOpStruct convertedOperands = convertBinaryExprTypes(binaryOp);
+        Type outputType = types().type(binaryOp);
+
+        String returnedSSA, convertedSSA;
 
         switch (operation) {
             case "+":
-                return evaluateBinaryAdd(convertedOperands.commonType, convertedOperands.lhsOperand,
+                // These arithmetic operations take place in three steps
+                // 1. Convert to a common type as done above
+                // 2. Perform the operation in this common type
+                // 3. Convert the common type to the expected output type. 
+                returnedSSA = evaluateBinaryAdd(convertedOperands.commonType, convertedOperands.lhsOperand,
                         convertedOperands.rhsOperand);
+                convertedSSA = typeseval().castType(convertedOperands.commonType, outputType, returnedSSA);
+                return convertedSSA;
             case "-":
-                return evaluateBinarySub(convertedOperands.commonType, convertedOperands.lhsOperand,
+                returnedSSA = evaluateBinarySub(convertedOperands.commonType, convertedOperands.lhsOperand,
                         convertedOperands.rhsOperand);
+                convertedSSA = typeseval().castType(convertedOperands.commonType, outputType, returnedSSA);
+                return convertedSSA;
             case "*":
-                return evaluateBinaryTimes(convertedOperands.commonType, convertedOperands.lhsOperand,
+                returnedSSA = evaluateBinaryTimes(convertedOperands.commonType, convertedOperands.lhsOperand,
                         convertedOperands.rhsOperand);
+                convertedSSA = typeseval().castType(convertedOperands.commonType, outputType, returnedSSA);
+                return convertedSSA;
             case "/":
-                return evaluateBinaryDiv(convertedOperands.commonType, convertedOperands.lhsOperand,
+                returnedSSA = evaluateBinaryDiv(convertedOperands.commonType, convertedOperands.lhsOperand,
                         convertedOperands.rhsOperand);
+                convertedSSA = typeseval().castType(convertedOperands.commonType, outputType, returnedSSA);
+                return convertedSSA;
             case "div":
-                return evaluateBinaryIntDiv(convertedOperands.commonType, convertedOperands.lhsOperand,
+                returnedSSA = evaluateBinaryIntDiv(convertedOperands.commonType, convertedOperands.lhsOperand,
                         convertedOperands.rhsOperand);
+                convertedSSA = typeseval().castType(convertedOperands.commonType, outputType, returnedSSA);
+                return convertedSSA;
             case "%":
             case "mod":
-                return evaluateBinaryMod(convertedOperands.commonType, convertedOperands.lhsOperand,
+                returnedSSA = evaluateBinaryMod(convertedOperands.commonType, convertedOperands.lhsOperand,
                         convertedOperands.rhsOperand);
+                convertedSSA = typeseval().castType(convertedOperands.commonType, outputType, returnedSSA);
+                return convertedSSA;
             case "^":
-                return evaluateBinaryBitXor(convertedOperands.commonType, convertedOperands.lhsOperand,
+                returnedSSA = evaluateBinaryBitXor(convertedOperands.commonType, convertedOperands.lhsOperand,
                         convertedOperands.rhsOperand);
+                convertedSSA = typeseval().castType(convertedOperands.commonType, outputType, returnedSSA);
+                return convertedSSA;
             case "&":
-                return evaluateBinaryBitAnd(convertedOperands.commonType, convertedOperands.lhsOperand,
+                returnedSSA = evaluateBinaryBitAnd(convertedOperands.commonType, convertedOperands.lhsOperand,
                         convertedOperands.rhsOperand);
+                convertedSSA = typeseval().castType(convertedOperands.commonType, outputType, returnedSSA);
+                return convertedSSA;
             case "<<":
                 return evaluateBinaryShiftL(convertedOperands.commonType, convertedOperands.lhsOperand,
                         convertedOperands.rhsOperand);
@@ -374,7 +397,6 @@ public interface ExpressionEvaluator {
                         convertedOperands.rhsOperand);
             case "&&":
             case "and":
-                //throw new UnsupportedOperationException(operation);
                 return evaluateBinaryAnd(convertedOperands.commonType, convertedOperands.lhsOperand,
                         convertedOperands.rhsOperand);
             case "|":
@@ -411,16 +433,36 @@ public interface ExpressionEvaluator {
         }
     }
 
-    default CommonTypeStruct convertBinaryExprTypes(ExprBinaryOp binaryOp) {
-        //Type commonType = types().type(binaryOp); //typeseval().getCommonType(lhs, rhs);
-        Type lhs = types().type(binaryOp.getOperands().get(0));
-        Type rhs = types().type(binaryOp.getOperands().get(1));
-        Type commonType = getExpressionType(binaryOp);
+    /**
+     * Binary operation have lhs and rhs operands. MLIR generally requires that these operands be of the same type.
+     * This function determines the common type that the two operands must be converted to and then converts them to
+     * that type.
+     *
+     * @param binaryOp The binary op to be converted
+     * @return A BinaryOpStruct giving the common output type and the
+     */
+    default BinaryOpStruct convertBinaryExprTypes(ExprBinaryOp binaryOp) {
+        Type lhsType = types().type(binaryOp.getOperands().get(0));
+        Type rhsType = types().type(binaryOp.getOperands().get(1));
+        Type exprOutputType = types().type(binaryOp);
+
+        // This line is a bit messy. streamblocks-tycho has nice conversion methods, but they are hard to access
+        // this line allows us to access them. There is likely a better way to do this, but this is fine for now.
+        Types.Implementation conversionMethods = (Types.Implementation) backend().task().getModule(Types.Implementation.key);
+        Type typeToCastTo = conversionMethods.leastUpperBound(lhsType, rhsType);
+
+        // In cases where the output type is an integer, some operations can result in a type that has more bits
+        // than the common type of the lhs and rhs. Eg, if lhs is int3 and rhs is int3, then rhs+lhs can result in
+        // int4. In this case we want to cast both to this larger type.
+        if(typeToCastTo instanceof IntType && exprOutputType instanceof IntType){
+            typeToCastTo = conversionMethods.leastUpperBound(typeToCastTo, exprOutputType);
+        }
+
         String lhsTempVar = evaluate(binaryOp.getOperands().get(0));
         String rhsTempVar = evaluate(binaryOp.getOperands().get(1));
-        lhsTempVar = typeseval().castType(lhs, commonType, lhsTempVar);
-        rhsTempVar = typeseval().castType(rhs, commonType, rhsTempVar);
-        return new CommonTypeStruct(commonType, lhsTempVar, rhsTempVar);
+        lhsTempVar = typeseval().castType(lhsType, typeToCastTo, lhsTempVar);
+        rhsTempVar = typeseval().castType(rhsType, typeToCastTo, rhsTempVar);
+        return new BinaryOpStruct(typeToCastTo, lhsTempVar, rhsTempVar);
     }
 
     default String evaluateBinaryAdd(Type type, String lhsOperand, String rhsOperand) {
@@ -739,7 +781,7 @@ public interface ExpressionEvaluator {
     }
 
     default String evaluateBinaryGeq(Type type, String lhsOperand, String rhsOperand) {
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException("" + type);
     }
 
     default String evaluateBinaryGeq(IntType type, String lhsOperand, String rhsOperand) {
@@ -752,6 +794,7 @@ public interface ExpressionEvaluator {
                     typeseval().type(type));
         return tempResult;
     }
+
 
     default String evaluateBinaryAnd(Type type, String lhsOperand, String rhsOperand) {
         throw new UnsupportedOperationException();
@@ -1317,30 +1360,20 @@ public interface ExpressionEvaluator {
         return String.format("%s->members.%s", evaluate(field.getStructure()), field.getField().getName());
     }
 
-    default Type getExpressionType(Expression expr) {
-        return types().type(expr);
-    }
 
-    default Type getExpressionType(ExprBinaryOp expr) {
-        Type lhs = types().type(expr.getOperands().get(0));
-        Type rhs = types().type(expr.getOperands().get(1));
-        Type commonType = typeseval().getCommonType(lhs, rhs);
-        return commonType;
-    }
-
-    public class CommonTypeStruct {
+    public class BinaryOpStruct {
         public Type commonType;
         public String lhsOperand;
         public String rhsOperand;
 
-        public CommonTypeStruct(Type commonType, String lhsOperand, String rhsOperand) {
+        public BinaryOpStruct(Type commonType, String lhsOperand, String rhsOperand) {
             this.commonType = commonType;
             this.lhsOperand = lhsOperand;
             this.rhsOperand = rhsOperand;
         }
 
         public String toString() {
-            return "Type: " + commonType + ", lhs operand name: " + lhsOperand + ", rhs operand name: " + rhsOperand;
+            return "Output: " + commonType + ", lhs operand name: " + lhsOperand + ", rhs operand name: " + rhsOperand;
         }
     }
 }

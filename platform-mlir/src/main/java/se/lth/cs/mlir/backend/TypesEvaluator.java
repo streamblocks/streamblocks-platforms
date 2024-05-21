@@ -182,53 +182,6 @@ public interface TypesEvaluator {
     }
 
     /**
-     * Return a common type that two different types can be cast to.
-     * @param lhs First type to compare
-     * @param rhs Second type to compare
-     * @return Common type between these two types
-     * @throws Error If there is no common type.
-     */
-    default Type getCommonType(Type lhs, Type rhs){
-        throw new Error("getCommonType() not implemented for lhs = " + lhs + " and rhs = " + rhs);
-    }
-
-    default Type getCommonType(BoolType lhs, BoolType rhs){
-        return lhs;
-    }
-
-    default Type getCommonType(NumberType lhs, NumberType rhs){
-        throw new Error("getCommonType() not implemented for lhs = " + lhs + " and rhs = " + rhs);
-    }
-
-    /**
-     * Find a common type betweem two integer types. To do this we
-     *  1. Compare signs, if the signs are equal, then we can find a common type
-     *  2. Compare size (in bits), we take the largest number of bits as the common bit size
-     * In the case where one type is signed and the other is unsigned
-     *
-     * @param lhs The integer type of the lhs argument
-     * @param rhs THe integer type of the rhs argument
-     * @return A type that both arguments can be converted to.
-     */
-    default Type getCommonType(IntType lhs, IntType rhs){
-        int lsize = lhs.getSize().orElse(32);
-        int rsize = rhs.getSize().orElse(32);
-        int biggestSize = lsize > rsize ? lsize : rsize;
-        if(lhs.isSigned() == rhs.isSigned()){
-            return new IntType(OptionalInt.of(biggestSize), lhs.isSigned());
-        }else{
-            if(
-                    lsize > rsize && !lhs.isSigned() ||
-                            rsize > lsize && !rhs.isSigned()
-            ){
-                throw new Error("No common type where uint is >= int in size. lhs = " + lhs + " and rhs = " + rhs);
-            }else{
-                return new IntType(OptionalInt.of(biggestSize), true);
-            }
-        }
-    }
-
-    /**
      * Generate the MLIR to cast an operand from one type to another
      * @param fromType The current type of the operand
      * @param toType The type to cast the operand to
@@ -252,16 +205,22 @@ public interface TypesEvaluator {
      * @return String of the SSA operand representing the converted value
      */
     default String castType(IntType fromType, IntType toType , String varName){
-        if(fromType.isSigned() == toType.isSigned() && fromType.getSize().orElse(32) == toType.getSize().orElse(32)){
+        if(fromType.getSize().orElse(32) == toType.getSize().orElse(32)){
             // 1. If the from and to type is the same, do nothing
             return varName;
         }else{
             String outVar = ssaValueNumberingStack().getNewTempVar();
-            // 2. Extend the integer based on the sign
-            if(fromType.isSigned()){
-                emitter().emit("%%%s = arith.extsi %%%s : %s to %s", outVar, varName, type(fromType), type(toType));
+            // 2. Sign extend if the destination is greater than the source
+            if(toType.getSize().orElse(32) >= fromType.getSize().orElse(32)){
+                // 2.1 Commands are different based on the sign
+                if(fromType.isSigned()){
+                    emitter().emit("%%%s = arith.extsi %%%s : %s to %s", outVar, varName, type(fromType), type(toType));
+                }else{
+                    emitter().emit("%%%s = arith.extui %%%s : %s to %s", outVar, varName, type(fromType), type(toType));
+                }
             }else{
-                emitter().emit("%%%s = arith.extui %%%s : %s to %s", outVar, varName, type(fromType), type(toType));
+                // 3. Truncate if the destination is greater than the source
+                emitter().emit("%%%s = arith.trunci %%%s : %s to %s", outVar, varName, type(fromType), type(toType));
             }
             return outVar;
         }

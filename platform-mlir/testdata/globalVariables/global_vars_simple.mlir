@@ -19,19 +19,20 @@ dfg.operator @GlobalVariables
 		// Evaluate global variable Q.
 		%tmp_3 = arith.constant 4 : i3
 		%tmp_4 = arith.constant 1 : i1
-		%tmp_5 = arith.extui %tmp_4 : i1 to i3
-		%tmp_6 = arith.addi %tmp_3, %tmp_5 : i3
-		%tmp_7 = arith.extui %tmp_6 : i3 to i32
-		// Evaluate global variable Q done: assigned to tmp_7 above in this context.
-		%tmp_8 = arith.extui %tmp_2 : i1 to i32
-		%tmp_9 = arith.addi %tmp_8, %tmp_7 : i32
-		// Evaluate global variable P done: assigned to tmp_9 above in this context.
-		%tmp_10 = arith.addi %tmp_1, %tmp_9 : i32
-		// l_x__3_d0_1 aliased to tmp_10
+		%tmp_5 = arith.extui %tmp_3 : i3 to i4
+		%tmp_6 = arith.extui %tmp_4 : i1 to i4
+		%tmp_7 = arith.addi %tmp_5, %tmp_6 : i4
+		%tmp_8 = arith.extui %tmp_7 : i4 to i32
+		// Evaluate global variable Q done: assigned to tmp_8 above in this context.
+		%tmp_9 = arith.extui %tmp_2 : i1 to i32
+		%tmp_10 = arith.addi %tmp_9, %tmp_8 : i32
+		// Evaluate global variable P done: assigned to tmp_10 above in this context.
+		%tmp_11 = arith.addi %tmp_1, %tmp_10 : i32
+		// l_x__3_d0_1 aliased to tmp_11
 		// Assignment Statement: End
 		// Stmt Write: Begin
-		%tmp_11 = arith.addi %l_t__1_d0_0, %tmp_10 : i32
-		dfg.push(%tmp_11) %Out : i32
+		%tmp_12 = arith.addi %l_t__1_d0_0, %tmp_11 : i32
+		dfg.push(%tmp_12) %Out : i32
 		// Stmt Write: End
 		// StmtConsume not implemented: consume happens on peaking right now
 		// Block Statement: End

@@ -720,8 +720,8 @@ public interface Statements {
      * @param expr             The expression to assign to the operand
      */
     default void assign(Type lvalueType, String lvalueString, Expression expr) {
-        Type inputType = expressioneval().getExpressionType(expr);
-        Type outputType = typeseval().getCommonType(lvalueType, types().type(expr));
+        Type inputType = types().type(expr);
+        Type outputType = lvalueType;
         String rvalueTemp = expressioneval().evaluate(expr);
         String rvalueSSA = typeseval().castType(inputType, outputType, rvalueTemp);
         String lvalueSSA = ssaValueNumberingStack().getVarToBeAssignedTo(lvalueString);

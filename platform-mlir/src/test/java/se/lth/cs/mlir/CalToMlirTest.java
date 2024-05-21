@@ -114,8 +114,8 @@ public class CalToMlirTest {
         BufferedReader reader1 = new BufferedReader(new FileReader(testDescription.getGeneratedMlirFile().toFile()));
         BufferedReader reader2 = new BufferedReader(new FileReader(testDescription.getCorrectMlirFile().toFile()));
 
-        String failMessage = "Generated MLIR file '" + testDescription.getGeneratedMlirFile() + "' does not match " +
-                "expected file: '" + testDescription.getCorrectMlirFile() + "'";
+        String failMessage = "Generated MLIR file 'platform-mlir/" + testDescription.getGeneratedMlirFile() + "' does not match " +
+                "expected file: 'platform-mlir/" + testDescription.getCorrectMlirFile() + "'";
         assertTrue(failMessage, IOUtils.contentEqualsIgnoreEOL(reader1, reader2));
     }
 }
