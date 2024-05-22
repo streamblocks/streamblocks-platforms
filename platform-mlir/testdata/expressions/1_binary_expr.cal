@@ -11,7 +11,7 @@ actor BinaryExpr() int In ==> int Out:
         x := x % 4;  // 3
         x := x >> 1; // 1
         x := x | 6;  // 7
-        x := x & 5;  // 4
-        x := x << 1; // 8
+        x := x & 5;  // 5
+        x := x << 1; // 10
     end
 end
