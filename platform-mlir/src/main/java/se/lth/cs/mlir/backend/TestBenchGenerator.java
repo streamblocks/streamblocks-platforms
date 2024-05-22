@@ -86,26 +86,18 @@ public interface TestBenchGenerator {
 
         emitter().emit("// Connect testbench to top module");
         emitter().emit("top dut(");
-        String inputPortsIn =
-                inputPorts.stream().map(x -> x + "_valid, " + x + "_bits, " + x + "_close").collect(Collectors.joining(", "));
-        String inputPortsOut = inputPorts.stream().map(x -> x + "_ready").collect(Collectors.joining(", "));
-        String outputPortsIn = outputPorts.stream().map(x -> x + "_ready").collect(Collectors.joining(", "));
-        String outputPortsOut =
-                outputPorts.stream().map(x -> x + "_valid, " + x + "_bits, " + x + "_done").collect(Collectors.joining(", "));
+        String inputPortsDutConnect =
+                inputPorts.stream().map(x -> x + "_ready, " + x + "_valid, " + x + "_bits, " + x + "_close").collect(Collectors.joining(", "));
+        String outputPortsDutConnect =
+                outputPorts.stream().map(x -> x + "_ready, " + x + "_valid, " + x + "_bits, " + x + "_done").collect(Collectors.joining(", "));
         String portsList = "clock, reset";
-        if (!inputPortsIn.isEmpty()) {
-            portsList += ", " + inputPortsIn;
+        if (!inputPortsDutConnect.isEmpty()) {
+            portsList += ", " + inputPortsDutConnect;
         }
-        if (!outputPortsIn.isEmpty()) {
-            portsList += ", " + outputPortsIn;
+        if (!outputPortsDutConnect.isEmpty()) {
+            portsList += ", " + outputPortsDutConnect;
         }
 
-        if (!inputPortsOut.isEmpty()) {
-            portsList += ", " + inputPortsOut;
-        }
-        if (!outputPortsOut.isEmpty()) {
-            portsList += ", " + outputPortsOut;
-        }
         emitter().emit("\t%s", portsList);
         emitter().emit(");");
         emitter().emitNewLine();

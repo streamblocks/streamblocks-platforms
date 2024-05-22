@@ -1,5 +1,5 @@
 //-- Definition of actor class: UnaryExpr
-dfg.operator @UnaryExpr
+dfg.process @UnaryExpr
 	inputs(%In: i32)
 	outputs(%Out: i32)
 {

@@ -1,5 +1,5 @@
 //-- Definition of actor class: IfSimple
-dfg.operator @IfSimple
+dfg.process @IfSimple
 	inputs(%In: i32)
 	outputs(%Out: i32)
 {

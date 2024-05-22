@@ -1,5 +1,5 @@
 //-- Definition of actor class: ProduceConsume
-dfg.operator @ProduceConsume
+dfg.process @ProduceConsume
 	inputs(%In1: i32,%In2: i32)
 	outputs(%Out1: i32,%Out2: i32)
 {

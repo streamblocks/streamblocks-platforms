@@ -1,5 +1,5 @@
 //-- Definition of actor class: IfComplex
-dfg.operator @IfComplex
+dfg.process @IfComplex
 	inputs(%In: i32)
 	outputs(%Out: i32)
 {

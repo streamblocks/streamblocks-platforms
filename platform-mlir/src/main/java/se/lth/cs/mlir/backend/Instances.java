@@ -88,7 +88,7 @@ public interface Instances {
 
         // 1. Declare the actor
         emitter().emit("//-- Definition of actor class: %s", entityClass);
-        emitter().emit("dfg.operator @" + entityClass);
+        emitter().emit("dfg.process @" + entityClass);
         emitter().emit("\tinputs(%s)", inputPortString);
         emitter().emit("\toutputs(%s)", outputPortString);
         emitter().emit("{");

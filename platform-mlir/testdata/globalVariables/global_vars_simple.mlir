@@ -1,5 +1,5 @@
 //-- Definition of actor class: GlobalVariables
-dfg.operator @GlobalVariables
+dfg.process @GlobalVariables
 	inputs(%In: i32)
 	outputs(%Out: i32)
 {

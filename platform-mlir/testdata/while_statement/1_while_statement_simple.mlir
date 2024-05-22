@@ -1,5 +1,5 @@
 //-- Definition of actor class: WhileSimple
-dfg.operator @WhileSimple
+dfg.process @WhileSimple
 	inputs(%In: i32)
 	outputs(%Out: i32)
 {

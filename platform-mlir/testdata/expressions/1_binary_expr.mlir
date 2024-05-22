@@ -1,5 +1,5 @@
 //-- Definition of actor class: BinaryExpr
-dfg.operator @BinaryExpr
+dfg.process @BinaryExpr
 	inputs(%In: i32)
 	outputs(%Out: i32)
 {

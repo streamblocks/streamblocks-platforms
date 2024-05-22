@@ -1,5 +1,5 @@
 //-- Definition of actor class: ConditionsSimple
-dfg.operator @ConditionsSimple
+dfg.process @ConditionsSimple
 	inputs(%In: i32)
 	outputs(%Out: i32)
 {

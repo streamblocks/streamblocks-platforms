@@ -342,13 +342,19 @@ public interface ExpressionEvaluator {
         Type outputType = types().type(binaryOp);
 
         String returnedSSA, convertedSSA;
-
+        // These arithmetic and bitwise operations take place in three steps
+        // 1. Convert to a common type as done above ()
+        // 2. Perform the operation in this common type (ie lhs bitwise and rhs)
+        // 3. Convert the common type to the expected output type. (ie)
+        // For example: lhs (i3) & rhs (i5):
+        // - Convert i3 and i5 both to i5
+        // - Then apply operation: i5 & i5
+        // - Convert to output type: (i5 -> i3)
+        // However, other operations, dont need step 3. For example, logical operations dont need to convert
+        // the output from the binary expression to a boolean type as this is already the return type of the
+        // MLIR comparison operators.
         switch (operation) {
             case "+":
-                // These arithmetic operations take place in three steps
-                // 1. Convert to a common type as done above
-                // 2. Perform the operation in this common type
-                // 3. Convert the common type to the expected output type. 
                 returnedSSA = evaluateBinaryAdd(convertedOperands.commonType, convertedOperands.lhsOperand,
                         convertedOperands.rhsOperand);
                 convertedSSA = typeseval().castType(convertedOperands.commonType, outputType, returnedSSA);
