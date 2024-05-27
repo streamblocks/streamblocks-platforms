@@ -277,7 +277,6 @@ public interface ExpressionEvaluator {
                 backend().deferredPortPullOperations().get().addPort(lvalue, tempSSAs, listType);
             } else {
                 // 2. Pull a single token from a port and assign
-                String sType = backend().typeseval().type(type);
                 String lValueSSA = ssaValueNumberingStack().getVarToBeAssignedTo(lvalue);
                 emitter().emit("%%%s = dfg.pull %%%s : %s", lValueSSA, input.getPort().getName(),
                         typeseval().type(type));
@@ -957,9 +956,12 @@ public interface ExpressionEvaluator {
         throw new UnsupportedOperationException(expr.getOperation());
     }
 
-    /*default String evaluateUnarySize(ListType type, ExprUnaryOp expr) {
-        return "" + type.getSize().getAsInt();
-    }*/
+    default String evaluateUnarySize(ListType type, ExprUnaryOp expr) {
+        String tempResult = ssaValueNumberingStack().getNewTempVar();
+        String typeString = typeseval().type(types().type(expr));
+        emitter().emit("%%%s = arith.constant %s : %s", tempResult, type.getSize().getAsInt() , typeString);
+        return tempResult;
+    }
 
     /*default String evaluateUnarySize(SetType type, ExprUnaryOp expr) {
         String tmp = variables().generateTemp();

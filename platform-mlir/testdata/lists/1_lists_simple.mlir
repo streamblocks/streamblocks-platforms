@@ -66,11 +66,13 @@ dfg.process @ListsSimple
 		%tmp_38 = arith.index_cast %tmp_37: i32 to index
 		%tmp_39 = memref.load %l_list__4_d0_0[%tmp_38] : memref<4xi32>
 		%tmp_40 = arith.addi %tmp_35, %tmp_39 : i32
-		// l_a__3_d0_1 aliased to tmp_40
+		%tmp_41 = arith.constant 4 : i32
+		%tmp_42 = arith.addi %tmp_40, %tmp_41 : i32
+		// l_a__3_d0_1 aliased to tmp_42
 		// Assignment Statement: End
 		// Stmt Write: Begin
-		%tmp_41 = arith.addi %tmp_40, %l_t__1_d0_0 : i32
-		dfg.push(%tmp_41) %Out : i32
+		%tmp_43 = arith.addi %tmp_42, %l_t__1_d0_0 : i32
+		dfg.push(%tmp_43) %Out : i32
 		// Stmt Write: End
 		// StmtConsume not implemented: consume happens on peaking right now
 		// Block Statement: End
