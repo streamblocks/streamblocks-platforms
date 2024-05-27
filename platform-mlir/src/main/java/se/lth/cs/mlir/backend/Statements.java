@@ -6,6 +6,7 @@ import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.Types;
+import se.lth.cs.tycho.ir.IRNode;
 import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.expr.ExprBinaryOp;
@@ -182,6 +183,7 @@ public interface Statements {
      * 1. Standard assignments eg: x := 3
      * 2. Assignment a single element to a container eg: listVar[2] := 3
      * 3. ExprComprehension assignment: not yet implemented
+     *
      * @param assign Assignment statement from which MLIR is generated.
      */
     default void execute(StmtAssignment assign) {
@@ -761,7 +763,7 @@ public interface Statements {
     /**
      * Initialise a variable. This method is overidden for the different types that are default initialised
      *
-     * @param lvalueType The type of the lvalue that is default initialised
+     * @param lvalueType   The type of the lvalue that is default initialised
      * @param lvalueString The name of the operand the expression is assigned to. (can be aliased)
      */
     default void defaultInitialise(Type lvalueType, String lvalueString) {
@@ -785,7 +787,7 @@ public interface Statements {
      * Alias an ssa operand to another operand.
      *
      * @param lvalueString The SSA operand we want to alias to.
-     * @param rvalueSSA The SSA operand that currently holds the operand
+     * @param rvalueSSA    The SSA operand that currently holds the operand
      */
     default void assignInitialValueToSSAOperand(String lvalueString, String rvalueSSA) {
         String lvalueSSA = ssaValueNumberingStack().getVarToBeAssignedTo(lvalueString);
@@ -793,25 +795,20 @@ public interface Statements {
         emitter().emit("// %s aliased to %s", lvalueSSA, rvalueSSA);
     }
 
-    default Set<LValue> getNestedAssignments(Statement stmt) {
-        throw new Error("getNestedAssignments not implemented for: " + stmt.getClass());
-    }
-
-    default Set<LValue> getNestedAssignments(StmtIf stmt) {
-        Set<LValue> mergedSet = Stream.concat(stmt.getThenBranch().stream(), stmt.getElseBranch().stream())
-                .flatMap(x -> getNestedAssignments(x).stream())
+    /**
+     * Get all the assignment Lvalues underneath this node in the AST.
+     * This function executes recursively, terminating when a StmtAssignment is reached or when reaching a node with
+     * no children.
+     *
+     * @param node The starting node in the tree
+     * @return A Set of Lvalues where each LValue comes from a different assignment statements
+     */
+    default Set<LValue> getNestedAssignments(IRNode node) {
+        Set<LValue> mergedSet = node.walk()// Get a stream of all child attached to this node. The stream also
+                // returns this node which is excluded in the next line
+                .flatMap(x -> (x != node) ? getNestedAssignments(x).stream() : Stream.empty()) // Get the nested
+                // assignments in the child nodes, exclude this node to prevent infinite recursion
                 .collect(Collectors.toSet());
-        //mergedSet.addAll(getNestedAssignments(stmt.getThenBranch()));
-        //mergedSet.addAll(getNestedAssignments(stmt.getElseBranch()));
-        return mergedSet;
-    }
-
-    default Set<LValue> getNestedAssignments(StmtWhile stmt) {
-        Set<LValue> mergedSet = stmt.getBody().stream()
-                .flatMap(x -> getNestedAssignments(x).stream())
-                .collect(Collectors.toSet());
-        //mergedSet.addAll(getNestedAssignments(stmt.getThenBranch()));
-        //mergedSet.addAll(getNestedAssignments(stmt.getElseBranch()));
         return mergedSet;
     }
 
@@ -819,16 +816,9 @@ public interface Statements {
         return Collections.singleton(stmt.getLValue());
     }
 
-    default Set<LValue> getNestedAssignments(StmtForeach stmt) {
-        Set<LValue> mergedSet = stmt.getBody().stream()
-                .flatMap(x -> getNestedAssignments(x).stream())
-                .collect(Collectors.toSet());
-        return mergedSet;
-    }
-
-
     /**
      * Get a list of all variables (in the form lvalues) that are assigned to in this branch of the AST.
+     * This list is sorted alphabetically for consistency across unit tests.
      *
      * @param stmt The top statement node in the AST where assignments are to be searched
      * @return A alphabetically sorted list of lvalues that are present in the AST branch
