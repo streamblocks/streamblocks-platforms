@@ -6,6 +6,7 @@ import ch.epfl.vlsc.platformutils.utils.StackSSA;
 import org.multij.Binding;
 import org.multij.Module;
 import org.multij.MultiJ;
+import se.lth.cs.mlir.backend.util.DeferredPortOperationContainer;
 import se.lth.cs.tycho.attribute.*;
 import se.lth.cs.tycho.compiler.CompilationTask;
 import se.lth.cs.tycho.compiler.Context;
@@ -81,6 +82,12 @@ public interface MlirBackend {
         return MultiJ.from(TypesEvaluator.class).bind("backend").to(this).instance();
     }
 
+    // -- Lists
+    @Binding(LAZY)
+    default ListGenerator lists() {
+        return MultiJ.from(ListGenerator.class).bind("backend").to(this).instance();
+    }
+
     // -- Entity Box
     @Binding(LAZY)
     default Box<Entity> entitybox() {
@@ -90,6 +97,11 @@ public interface MlirBackend {
     // -- Instance Box
     @Binding(LAZY)
     default Box<Instance> instancebox() {
+        return Box.empty();
+    }
+
+    @Binding(LAZY)
+    default Box<DeferredPortOperationContainer> deferredPortPullOperations() {
         return Box.empty();
     }
 

@@ -1,0 +1,9 @@
+actor RepeatInput() int In1, int In2 ==> int Out:
+    action In1:[t1] repeat 2, In2:[t2] repeat 2 ==> Out:[a]
+    var
+      int b := 1,
+      int a
+    do
+      a := t1[0] + t1[1] + t2[0] + t2[1] + b;
+    end
+end

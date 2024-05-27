@@ -1,0 +1,6 @@
+{
+  "description": "Test the repeat keyword on input ports.",
+  "cal-file": "2_repeat_input.cal",
+  "mlir-file": "2_repeat_input.mlir",
+  "entity": "RepeatInput"
+}

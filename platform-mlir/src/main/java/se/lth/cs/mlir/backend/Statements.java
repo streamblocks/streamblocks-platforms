@@ -5,6 +5,7 @@ import ch.epfl.vlsc.platformutils.utils.StackSSA;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
+import se.lth.cs.mlir.backend.util.DeferredPortOperationContainer;
 import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.ir.IRNode;
 import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
@@ -47,6 +48,10 @@ public interface Statements {
 
     default Variables variables() {
         return backend().variables();
+    }
+
+    default ListGenerator lists() {
+        return backend().lists();
     }
 
     default Declarations declarartions() {
@@ -258,8 +263,7 @@ public interface Statements {
             String rvalueSSA = typeseval().castType(inputType, outputType, rvalueSSATemp);
 
             // 3. Emit the operation that stores the value in the memref
-            emitter().emit("memref.store %%%s, %%%s[%%%s] : %s", rvalueSSA, listSSA, exprIndexSSA,
-                    typeseval().type(listType));
+            lists().store(listSSA, rvalueSSA, exprIndexSSA, listType);
 
         } else if (assign.getExpression() instanceof ExprComprehension) {
             throw new Error("ExprComprehension functionality not implemented in execute(StmtAssignment)");
@@ -375,16 +379,35 @@ public interface Statements {
      */
     default void execute(StmtBlock block) {
         System.out.println("StmtBlock");
-        /*throw new UnsupportedOperationException("StmtBlock not implemented in MLIR.");*/
         emitter().emit("// Block Statement: Begin");
         //emitter().increaseIndentation();
         ssaValueNumberingStack().newBlock();
+        // 1. Deal with the block vardecls
         emitter().emit("//     Variable declarations attached to block statement: Begin");
+
+        // 1.1 Create the port box to store deferred MLIR operations
+        // In a StmtBlock, the first few VarDecls are variables declared from input ports. These generally consist of
+        // a dfg.pull operation but in the case of the repeat keywords other operators then move that data into a
+        // memref. In DFG (at least on 2024/05/27), all dfg.pull operations need to appear before any other
+        // operations. So we defer the assigning to memref to other operations until all the VarDecls have been
+        // declared.
+        backend().deferredPortPullOperations().set(new DeferredPortOperationContainer());
+
+        // 1.2 Emit the dfg.pull part of the VarDecls.
         for (VarDecl decl : block.getVarDecls()) {
             emitVarDecl(decl);
-        }
-        emitter().emit("//     Variable declarations attached to block statement: End");
 
+            // 1.3 Emit the deferred port operations. We do this as soon we no longer have VarDecls attached to input
+            // ports as once the first one appears we should not recieve any further ones.
+            if (!(decl.getValue() instanceof ExprInput)) {
+                emitDeferredVarDeclMlir();
+            }
+        }
+        emitDeferredVarDeclMlir(); // Just do this here incase we have no decls that are not attached to input ports
+
+
+        emitter().emit("//     Variable declarations attached to block statement: End");
+        // 2. Generate the mlir for each statement in the block
         block.getStatements().forEach(this::execute);
         ssaValueNumberingStack().blockDone();
         emitter().emit("// Block Statement: End");
@@ -721,6 +744,7 @@ public interface Statements {
     default void emitVarDecl(VarDecl decl) {
         Type t = types().declaredType(decl);
         String declarationName = variables().declarationName(decl);
+
         if (decl.getValue() != null) {
             if (decl.getValue() instanceof ExprInput) {
                 ExprInput input = (ExprInput) decl.getValue();
@@ -741,6 +765,22 @@ public interface Statements {
         } else {
             // 3. Assign the default value to the variable
             defaultInitialise(t, declarationName); //
+        }
+    }
+
+    default void emitDeferredVarDeclMlir() {
+        if (!backend().deferredPortPullOperations().isEmpty()) {
+            for (DeferredPortOperationContainer.SinglePortBuilder singleBuilder: backend().deferredPortPullOperations().get().getPorts()){
+                String listSSA = ssaValueNumberingStack().getVarToBeAssignedTo(singleBuilder.getListString());
+                lists().allocateList(singleBuilder.getListType(), listSSA);
+                for (int i = 0; i < singleBuilder.getTempSSAs().size(); i++) {
+                    String indexSSA = ssaValueNumberingStack().getNewTempVar();
+                    emitter().emit("%%%s = arith.constant %d: index", indexSSA, i);
+                    lists().store(listSSA, singleBuilder.getTempSSAs().get(i), indexSSA,
+                            singleBuilder.getListType());
+                }
+            }
+            backend().deferredPortPullOperations().clear();
         }
     }
 
@@ -778,9 +818,8 @@ public interface Statements {
     }
 
     default void defaultInitialise(ListType lvalueType, String lvalueString) {
-        String typeString = typeseval().type(lvalueType);
         String lvalueSSA = ssaValueNumberingStack().getVarToBeAssignedTo(lvalueString);
-        emitter().emit("%%%s = memref.alloca() : %s", lvalueSSA, typeString);
+        lists().allocateList(lvalueType, lvalueSSA);
     }
 
     /**

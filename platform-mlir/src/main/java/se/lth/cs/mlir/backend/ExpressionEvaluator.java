@@ -59,6 +59,10 @@ public interface ExpressionEvaluator {
         return backend().ssaValueNumberingStack();
     }
 
+    default ListGenerator lists() {
+        return backend().lists();
+    }
+
     // -- Evaluate Expressions
 
     default String evaluateCall(Expression expression) {
@@ -250,31 +254,33 @@ public interface ExpressionEvaluator {
 
     default void evaluateWithLvalue(String lvalue, ExprInput input) {
         Type type = types().type(input);
-        String sType = backend().typeseval().type(type);
 
         if (backend().channelsutils().isTargetConnected(backend().instancebox().get().getInstanceName(),
                 input.getPort().getName())) {
             if (input.hasRepeat()) {
-                throw new RuntimeException("not implemented");
-                //if (input.getOffset() == 0) {
-                //    emitter().emit("pinPeekRepeat_%s(%s, %s, %d);", sType, channelsutils().definedInputPort(input
-                //    .getPort()), lvalue, input.getRepeat());
-                //} else {
-                //    throw new RuntimeException("not implemented");
-                //}
+                // 1. Reading from a port when it has a repeat value eg: In:[x] repeat 3
+                ListType listType = (ListType) type;
+                if(!listType.getSize().isPresent()){
+                    throw new Error("List types in repeat statements should always have a size, if this error is thrown, this is a compiler bug");
+                }
+
+                // 1.1 Pull the correct number of tokens from the channel to match with the repeat keyword
+                int numRepeats = listType.getSize().orElse(0);
+                List<String> tempSSAs = new ArrayList<>(numRepeats);
+                for (int i = 0; i < numRepeats; i++) {
+                    String tempSSA = ssaValueNumberingStack().getNewTempVar();
+                    tempSSAs.add(tempSSA);
+                    emitter().emit("%%%s = dfg.pull %%%s : %s", tempSSA, input.getPort().getName(),
+                            typeseval().type(listType.getElementType()));
+                }
+                // 1.2 Defer instructions for combining tokens into a memref to later.
+                backend().deferredPortPullOperations().get().addPort(lvalue, tempSSAs, listType);
             } else {
-                //if (input.getOffset() == 0) {
+                // 2. Pull a single token from a port and assign
+                String sType = backend().typeseval().type(type);
                 String lValueSSA = ssaValueNumberingStack().getVarToBeAssignedTo(lvalue);
                 emitter().emit("%%%s = dfg.pull %%%s : %s", lValueSSA, input.getPort().getName(),
                         typeseval().type(type));
-                //emitter().emit("%s = dfg.pull %s(%s);", lvalue, sType, channelsutils().definedInputPort(input
-                // .getPort()));
-                //} else {
-                //    throw new UnsupportedOperationException("Popping values not off the front of the queue is not
-                //    yet supported");
-                //    //emitter().emit("%s = pinPeek_%s(%s, %d);", lvalue, sType, channelsutils().definedInputPort
-                //    (input.getPort()), input.getOffset());
-                //}
             }
         }
     }
