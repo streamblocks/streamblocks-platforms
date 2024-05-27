@@ -84,43 +84,51 @@ public interface Statements {
      */
 
     default void execute(StmtConsume consume) {
-        System.out.println("StmtConsume");
         emitter().emit("// StmtConsume not implemented: consume happens on peaking right now");
-        /*throw new UnsupportedOperationException("StmtConsume not implemented in MLIR.");/*
-        if (backend().channelsutils().isTargetConnected(backend().instancebox().get().getInstanceName(), consume
-        .getPort().getName())) {
-            if (consume.getNumberOfTokens() > 1) {
-                emitter().emit("pinConsumeRepeat_%s(%s, %d);", channelsutils().inputPortTypeSize(consume.getPort()),
-                channelsutils().definedInputPort(consume.getPort()), consume.getNumberOfTokens());
-                backend().statements().profilingOp().add("__opCounters->prof_DATAHANDLING_LIST_LOAD += 1;");
-            } else {
-                emitter().emit("pinConsume_%s(%s);", channelsutils().inputPortTypeSize(consume.getPort()),
-                channelsutils().definedInputPort(consume.getPort()));
-                backend().statements().profilingOp().add("__opCounters->prof_DATAHANDLING_LOAD += 1;");
-            }
-        }*/
     }
 
     /*
-     * Statement Write
+     * Statement Write - writes expressions to output ports
      */
 
     default void execute(StmtWrite write) {
         emitter().emit("// Stmt Write: Begin");
-        System.out.println("Stmt Write");
         if (backend().channelsutils().isSourceConnected(backend().instancebox().get().getInstanceName(), write
                 .getPort().getName())) {
             if (write.getRepeatExpression() != null) {
-                throw new Error("not implemented");
-            }
-
-            String tempVar = "";
-            Type type = types().portType(write.getPort());
-            String portType = typeseval().type(type);
-            String portName = write.getPort().getName();
-            for (Expression expr : write.getValues()) {
-                tempVar = expressioneval().evaluate(expr);
-                emitter().emit("dfg.push(%%%s) %%%s : %s", tempVar, portName, portType);
+                // 1. Output ports with repeat keywords need to have a CAL list (converted to MLIR memref) passed to
+                // them through "write.getValues().get(0)".
+                ListType listType = (ListType) types().type(write.getValues().get(0));
+                String listSSA = expressioneval().evaluate(write.getValues().get(0));
+                Type portType = types().portType(write.getPort());
+                String portName = write.getPort().getName();
+                if(!listType.getSize().isPresent()){
+                    throw new Error("List types in repeat statements should always have a size, if this error is thrown, this is a compiler bug");
+                }
+                int numRepeats = listType.getSize().orElse(0);
+                List<String> tempSSAs = new ArrayList<>(numRepeats);
+                // 1.1 For every value of repeat we need to pull a token from the buffer convert it to the correct type
+                // and then defer to actual dfg.push operation to the end of the action (information relevant for
+                // deferring stored in the deferredPortOperationsBox())
+                for (int i = 0; i < numRepeats; i++) {
+                    String indexSSA = ssaValueNumberingStack().getNewTempVar();
+                    emitter().emit("%%%s = arith.constant %d: index", indexSSA, i);
+                    String destSSA = ssaValueNumberingStack().getNewTempVar();
+                    lists().load(listSSA, destSSA, indexSSA, listType);
+                    String convertedSSA = typeseval().castType(listType.getElementType(), portType, destSSA);
+                    tempSSAs.add(convertedSSA);
+                }
+                backend().deferredPortOperationsBox().get().addPort(listSSA, tempSSAs, listType, portName);
+            }else {
+                // 2. Push a standard variable (i.e not a container) to a channel. This is relatively simple.
+                String tempVar = "";
+                Type type = types().portType(write.getPort());
+                String portType = typeseval().type(type);
+                String portName = write.getPort().getName();
+                for (Expression expr : write.getValues()) {
+                    tempVar = expressioneval().evaluate(expr);
+                    emitter().emit("dfg.push(%%%s) %%%s : %s", tempVar, portName, portType);
+                }
             }
         }
         emitter().emit("// Stmt Write: End");
@@ -192,58 +200,7 @@ public interface Statements {
      * @param assign Assignment statement from which MLIR is generated.
      */
     default void execute(StmtAssignment assign) {
-        System.out.println("StmtAssignment");
         emitter().emit("// Assignment Statement: Start");
-        /*Type type = types().type(assign.getLValue());
-        String lvalue = lvalues().lvalue(assign.getLValue());
-        //if ((type instanceof ListType && assign.getLValue() instanceof LValueVariable) && !(assign.getExpression()
-        instanceof ExprList)) {
-        //if (assign.getExpression() instanceof ExprComprehension) {
-        //    expressioneval().evaluate(assign.getExpression());
-        //} else {
-        if (assign.getLValue() instanceof LValueIndexer) {
-            LValueIndexer indexer = (LValueIndexer) assign.getLValue();
-            if (lvalues().subIndexAccess(indexer)) {
-                String varName = variables().name(lvalues().evalLValueIndexerVar(indexer));
-                String index = lvalues().singleDimIndex(indexer);
-
-                emitter().emit("{");
-                emitter().increaseIndentation();
-                String eval = expressioneval().evaluate(assign.getExpression());
-                Type exprType = types().type(assign.getExpression());
-
-                copySubAccess((ListType) type, varName, (ListType) exprType, eval, index);
-                emitter().decreaseIndentation();
-                emitter().emit("}");
-            } else {
-                if (assign.getExpression() instanceof ExprComprehension) {
-                    emitter().emit("{");
-                    emitter().increaseIndentation();
-                    String eval = expressioneval().evaluate(assign.getExpression());
-                    copy(type, lvalue, types().type(assign.getExpression()), eval);
-                    emitter().decreaseIndentation();
-                    emitter().emit("}");
-                } else {
-                    copy(type, lvalue, types().type(assign.getExpression()), expressioneval().evaluate(assign
-                    .getExpression()));
-                }
-            }
-        } else {
-            if (assign.getExpression() instanceof ExprComprehension) {
-                emitter().emit("{");
-                emitter().increaseIndentation();
-                String eval = expressioneval().evaluate(assign.getExpression());
-                copy(type, lvalue, types().type(assign.getExpression()), eval);
-                emitter().decreaseIndentation();
-                emitter().emit("}");
-            } else {
-                copy(type, lvalue, types().type(assign.getExpression()), expressioneval().evaluate(assign
-                .getExpression()));
-            }
-        }
-        //}
-        profilingOp().add("__opCounters->prof_DATAHANDLING_ASSIGN += 1;");*/
-
         if (assign.getLValue() instanceof LValueIndexer) {
             // Assigning values to containers
             LValueIndexer indexer = (LValueIndexer) assign.getLValue();
@@ -264,7 +221,6 @@ public interface Statements {
 
             // 3. Emit the operation that stores the value in the memref
             lists().store(listSSA, rvalueSSA, exprIndexSSA, listType);
-
         } else if (assign.getExpression() instanceof ExprComprehension) {
             throw new Error("ExprComprehension functionality not implemented in execute(StmtAssignment)");
         } else {
@@ -346,7 +302,6 @@ public interface Statements {
      */
 
     default void execute(StmtCall call) {
-        System.out.println("StmtCall");
         throw new UnsupportedOperationException("StmtCall not implemented in MLIR.");
         /*String proc;
         List<String> parameters = new ArrayList<>();
@@ -378,7 +333,6 @@ public interface Statements {
      * Statement Block
      */
     default void execute(StmtBlock block) {
-        System.out.println("StmtBlock");
         emitter().emit("// Block Statement: Begin");
         //emitter().increaseIndentation();
         ssaValueNumberingStack().newBlock();
@@ -391,7 +345,7 @@ public interface Statements {
         // memref. In DFG (at least on 2024/05/27), all dfg.pull operations need to appear before any other
         // operations. So we defer the assigning to memref to other operations until all the VarDecls have been
         // declared.
-        backend().deferredPortPullOperations().set(new DeferredPortOperationContainer());
+        backend().deferredPortOperationsBox().set(new DeferredPortOperationContainer());
 
         // 1.2 Emit the dfg.pull part of the VarDecls.
         for (VarDecl decl : block.getVarDecls()) {
@@ -404,11 +358,16 @@ public interface Statements {
             }
         }
         emitDeferredVarDeclMlir(); // Just do this here incase we have no decls that are not attached to input ports
-
-
         emitter().emit("//     Variable declarations attached to block statement: End");
+
         // 2. Generate the mlir for each statement in the block
+        backend().deferredPortOperationsBox().set(new DeferredPortOperationContainer());
         block.getStatements().forEach(this::execute);
+
+        // 2.1 Similar to pulling tokens from dfg channels when using the repeat keyword, pushing them requires
+        // performing pre-processing on the list and then deferring the dfg.push operation to later. This functions
+        // emits the deferred dfg.push operands
+        emitDeferredTokenPush();
         ssaValueNumberingStack().blockDone();
         emitter().emit("// Block Statement: End");
 
@@ -435,7 +394,6 @@ public interface Statements {
      * values in the yield and the scf return for variable assignments to ensure that they remain in scope.
      */
     default void execute(StmtIf stmt) {
-        System.out.println("StmtIf");
         emitter().emit("// If Statement: Begin");
         String conditionVar = expressioneval().evaluate(stmt.getCondition());
 
@@ -618,7 +576,6 @@ public interface Statements {
      * }
      */
     default void execute(StmtWhile stmt) {
-        System.out.println("StmtWhile");
         emitter().emit("// While Statement: Begin");
 
         // Get every value that is assigned to during the while statement
@@ -737,7 +694,7 @@ public interface Statements {
      * to it. These values can be either:
      * 1. The default value for the variable type
      * 2. The result of an expression
-     * 3. A token from
+     * 3. A token from an input port
      *
      * @param decl The variable declaration
      */
@@ -769,8 +726,8 @@ public interface Statements {
     }
 
     default void emitDeferredVarDeclMlir() {
-        if (!backend().deferredPortPullOperations().isEmpty()) {
-            for (DeferredPortOperationContainer.SinglePortBuilder singleBuilder: backend().deferredPortPullOperations().get().getPorts()){
+        if (!backend().deferredPortOperationsBox().isEmpty()) {
+            for (DeferredPortOperationContainer.SinglePortBuilder singleBuilder: backend().deferredPortOperationsBox().get().getPorts()){
                 String listSSA = ssaValueNumberingStack().getVarToBeAssignedTo(singleBuilder.getListString());
                 lists().allocateList(singleBuilder.getListType(), listSSA);
                 for (int i = 0; i < singleBuilder.getTempSSAs().size(); i++) {
@@ -780,7 +737,21 @@ public interface Statements {
                             singleBuilder.getListType());
                 }
             }
-            backend().deferredPortPullOperations().clear();
+            backend().deferredPortOperationsBox().clear();
+        }
+    }
+
+    default void emitDeferredTokenPush() {
+        if (!backend().deferredPortOperationsBox().isEmpty()) {
+            for (DeferredPortOperationContainer.SinglePortBuilder singleBuilder: backend().deferredPortOperationsBox().get().getPorts()){
+                for (int i = 0; i < singleBuilder.getTempSSAs().size(); i++) {
+                    String portName = singleBuilder.getPortName();
+                    String typeString = typeseval().type(singleBuilder.getListType().getElementType());
+                    String ssaToSend = singleBuilder.getTempSSAs().get(i);
+                    emitter().emit("dfg.push(%%%s) %%%s : %s", ssaToSend, portName ,typeString);
+                }
+            }
+            backend().deferredPortOperationsBox().clear();
         }
     }
 

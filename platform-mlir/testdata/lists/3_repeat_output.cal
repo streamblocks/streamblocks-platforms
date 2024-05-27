@@ -1,0 +1,11 @@
+actor RepeatOutput() int In ==> int Out:
+    action In:[t] ==> Out:[list] repeat 4
+        var
+          List(type:int, size=4) list
+        do
+          list[0] := 40 + t;
+          list[1] := 30 + t;
+          list[2] := 20 + t;
+          list[3] := 10 + t;
+        end
+end

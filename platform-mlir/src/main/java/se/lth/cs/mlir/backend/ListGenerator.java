@@ -27,4 +27,8 @@ public interface ListGenerator {
     default void store(String listSSA, String ssaToStore, String indexSSA, Type listType){
         emitter().emit("memref.store %%%s, %%%s[%%%s] : %s", ssaToStore, listSSA, indexSSA, backend().typeseval().type(listType));
     }
+
+    default void load(String listSSA, String ssaDest, String indexSSA, Type listType){
+        emitter().emit("%%%s = memref.load %%%s[%%%s] : %s", ssaDest, listSSA ,indexSSA, backend().typeseval().type(listType));
+    }
 }

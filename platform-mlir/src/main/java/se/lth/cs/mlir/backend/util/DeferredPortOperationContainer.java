@@ -22,8 +22,8 @@ public class DeferredPortOperationContainer {
         individualPorts = new ArrayList<>();
     }
 
-    public void addPort(String listString, List<String> tempSSAs, ListType listType) {
-        individualPorts.add(new SinglePortBuilder(listString, tempSSAs, listType));
+    public void addPort(String listString, List<String> tempSSAs, ListType listType, String portName) {
+        individualPorts.add(new SinglePortBuilder(listString, tempSSAs, listType, portName));
     }
 
     public boolean hasRemainingPorts() {
@@ -35,14 +35,16 @@ public class DeferredPortOperationContainer {
     }
 
     public class SinglePortBuilder {
+        private String portName;
         private String listString;
         private List<String> tempSSAs;
         private ListType listType;
 
-        public SinglePortBuilder(String listString, List<String> tempSSAs, ListType listType) {
+        public SinglePortBuilder(String listString, List<String> tempSSAs, ListType listType, String portName) {
             this.listString = listString;
             this.tempSSAs = tempSSAs;
             this.listType = listType;
+            this.portName = portName;
         }
 
         public String getListString() {
@@ -55,6 +57,10 @@ public class DeferredPortOperationContainer {
 
         public ListType getListType() {
             return listType;
+        }
+
+        public String getPortName() {
+            return portName;
         }
     }
 }

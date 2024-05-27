@@ -274,7 +274,7 @@ public interface ExpressionEvaluator {
                             typeseval().type(listType.getElementType()));
                 }
                 // 1.2 Defer instructions for combining tokens into a memref to later.
-                backend().deferredPortPullOperations().get().addPort(lvalue, tempSSAs, listType);
+                backend().deferredPortOperationsBox().get().addPort(lvalue, tempSSAs, listType, input.getPort().getName());
             } else {
                 // 2. Pull a single token from a port and assign
                 String lValueSSA = ssaValueNumberingStack().getVarToBeAssignedTo(lvalue);
@@ -1175,7 +1175,7 @@ public interface ExpressionEvaluator {
         String ssaReturn = ssaValueNumberingStack().getNewTempVar();
 
         // 3. Load the value from the memref object
-        emitter().emit("%%%s = memref.load %%%s[%%%s] : %s", ssaReturn, listSSA ,exprIndexSSA, typeseval().type(type));
+        lists().load(listSSA, ssaReturn, exprIndexSSA, type);
         return ssaReturn;
 
         /*VarDecl varDecl = evalExprIndexVar(indexer);

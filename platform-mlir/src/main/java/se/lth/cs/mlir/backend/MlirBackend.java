@@ -101,7 +101,7 @@ public interface MlirBackend {
     }
 
     @Binding(LAZY)
-    default Box<DeferredPortOperationContainer> deferredPortPullOperations() {
+    default Box<DeferredPortOperationContainer> deferredPortOperationsBox() {
         return Box.empty();
     }
 
