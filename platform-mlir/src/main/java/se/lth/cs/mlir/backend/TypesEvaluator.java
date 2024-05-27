@@ -22,7 +22,9 @@ public interface TypesEvaluator {
         return backend().types();
     }
 
-    default StackSSA ssaValueNumberingStack() { return backend().ssaValueNumberingStack(); }
+    default StackSSA ssaValueNumberingStack() {
+        return backend().ssaValueNumberingStack();
+    }
 
     default Emitter emitter() {
         return backend().emitter();
@@ -75,10 +77,9 @@ public interface TypesEvaluator {
     }
 
     default String type(ListType type) {
-        throw new UnsupportedOperationException("Type not implemented in MLIR.");
-        //Type innerType = innerType(type.getElementType());
-
-        //return type(innerType);
+        Type innerType = innerType(type.getElementType());
+        int size = type.getSize().orElse(0);
+        return "memref<" + size + "x" + type(innerType) + ">";
     }
 
     default String pointerType(Type type) {
@@ -183,42 +184,68 @@ public interface TypesEvaluator {
 
     /**
      * Generate the MLIR to cast an operand from one type to another
+     *
      * @param fromType The current type of the operand
-     * @param toType The type to cast the operand to
-     * @param varName String representing the SSA operand name of the operand being converted
+     * @param toType   The type to cast the operand to
+     * @param varName  String representing the SSA operand name of the operand being converted
      * @return String of the SSA operand representing the converted value
      * @throws Error If no conversion has been implemented or is possible
      */
-    default String castType(Type fromType, Type toType , String varName){
-        throw new Error("Type conversion not implemented from " + fromType + " to = " + toType);
+    default String castType(Type fromType, Type toType, String varName) {
+        throw new Error("Type conversion not implemented from " + fromType + " to " + toType);
     }
 
-    default String castType(BoolType fromType, BoolType toType , String varName){
+    default String castType(BoolType fromType, BoolType toType, String varName) {
         return varName;
     }
 
     /**
-     * Cast an integer operand from one type to another
-     * @param fromType The type the integer currently is
-     * @param toType The type you want to convert it to
-     * @param varName String representing the SSA operand name of the integer being converted
-     * @return String of the SSA operand representing the converted value
+     * Convert an expression to the MLIR index type.
+     *
+     * @param indexExprType The type of the expression containing the index that needs to be converted
+     * @param ssaToConvert  The SSA operand that will be converted to the index
+     * @return The SSA result representing the index type
+     * @throws Error If no conversion has been implemented or is possible
      */
-    default String castType(IntType fromType, IntType toType , String varName){
-        if(fromType.getSize().orElse(32) == toType.getSize().orElse(32)){
+    default String castToIndex(Type indexExprType, String ssaToConvert) {
+        throw new Error("castToIndex type conversion not implemented from type:" + indexExprType.getClass() + " to " +
+                "index.");
+    }
+
+    default String castToIndex(IntType indexExprType, String ssaToConvert) {
+        // 2024/05/27: The arith dialect in MLIR supports two different versions of casting an integer to an index.
+        // index_cast that performs sign extension and index_castui that does not perform sign extension. Tycho tends
+        // to store integers in the smallest size possible which means that we end up having lots of unsigned ints
+        // where the MSB is one. This means that index_castui needs to be used. However, as of writing this comment
+        // index_cast works while index_cast_ui throws not supported errors in CIRCT. As such we cast to an expected
+        // larger integer size to get around the sign extension issue.
+        IntType widerIndex;
+        if(indexExprType.getSize().orElse(32) < 32) {
+            widerIndex = new IntType(OptionalInt.of(32), false);
+        }else{
+            widerIndex = new IntType(OptionalInt.of(64), false);
+        }
+        String tempSsa = backend().typeseval().castType(indexExprType, widerIndex, ssaToConvert);
+        String outputSsa = ssaValueNumberingStack().getNewTempVar();
+        emitter().emit("%%%s = arith.index_cast %%%s: i32 to index", outputSsa, tempSsa);
+        return outputSsa;
+    }
+
+    default String castType(IntType fromType, IntType toType, String varName) {
+        if (fromType.getSize().orElse(32) == toType.getSize().orElse(32)) {
             // 1. If the from and to type is the same, do nothing
             return varName;
-        }else{
+        } else {
             String outVar = ssaValueNumberingStack().getNewTempVar();
             // 2. Sign extend if the destination is greater than the source
-            if(toType.getSize().orElse(32) >= fromType.getSize().orElse(32)){
+            if (toType.getSize().orElse(32) >= fromType.getSize().orElse(32)) {
                 // 2.1 Commands are different based on the sign
-                if(fromType.isSigned()){
+                if (fromType.isSigned()) {
                     emitter().emit("%%%s = arith.extsi %%%s : %s to %s", outVar, varName, type(fromType), type(toType));
-                }else{
+                } else {
                     emitter().emit("%%%s = arith.extui %%%s : %s to %s", outVar, varName, type(fromType), type(toType));
                 }
-            }else{
+            } else {
                 // 3. Truncate if the destination is greater than the source
                 emitter().emit("%%%s = arith.trunci %%%s : %s to %s", outVar, varName, type(fromType), type(toType));
             }

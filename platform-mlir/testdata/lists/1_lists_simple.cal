@@ -1,0 +1,13 @@
+actor ListsSimple() int In ==> int Out:
+    action In:[t] ==> Out:[a + t]
+        var
+          List(type:int, size=4) list,
+          int a := 0
+        do
+          list[0] := 40;
+          list[1] := 30;
+          list[2] := 20;
+          list[3] := 10;
+          a := list[0] + list[1] + list[2] + list[3];
+        end
+end

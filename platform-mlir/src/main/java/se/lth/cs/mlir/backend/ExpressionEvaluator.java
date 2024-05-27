@@ -1155,7 +1155,22 @@ public interface ExpressionEvaluator {
     }
 
     default String evaluate(ExprIndexer indexer) {
+        // 1. Get the list the indexer belongs to, get its ssa name and type
         VarDecl varDecl = evalExprIndexVar(indexer);
+        Type type = types().declaredType(varDecl);
+        String listName = variables().declarationName(varDecl);
+        String listSSA = ssaValueNumberingStack().getVarName(listName);
+
+        // 2. Get the index and convert it to an index type
+        String exprIndexNotAsIndexType = evaluate(indexer.getIndex());
+        String exprIndexSSA = typeseval().castToIndex(types().type(indexer.getIndex()), exprIndexNotAsIndexType);
+        String ssaReturn = ssaValueNumberingStack().getNewTempVar();
+
+        // 3. Load the value from the memref object
+        emitter().emit("%%%s = memref.load %%%s[%%%s] : %s", ssaReturn, listSSA ,exprIndexSSA, typeseval().type(type));
+        return ssaReturn;
+
+        /*VarDecl varDecl = evalExprIndexVar(indexer);
 
         Optional<String> str = Optional.empty();
         String ind;
@@ -1194,7 +1209,8 @@ public interface ExpressionEvaluator {
             return String.format("%s[%s + %s]", variables().name(varDecl), str.get(), ind);
         } else {
             return String.format("%s[%s]", variables().name(varDecl), ind);
-        }
+        }*/
+
     }
 
 

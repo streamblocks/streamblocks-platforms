@@ -8,7 +8,10 @@ import org.multij.Module;
 import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
-import se.lth.cs.tycho.ir.expr.*;
+import se.lth.cs.tycho.ir.expr.ExprBinaryOp;
+import se.lth.cs.tycho.ir.expr.ExprComprehension;
+import se.lth.cs.tycho.ir.expr.ExprInput;
+import se.lth.cs.tycho.ir.expr.Expression;
 import se.lth.cs.tycho.ir.stmt.*;
 import se.lth.cs.tycho.ir.stmt.lvalue.LValue;
 import se.lth.cs.tycho.ir.stmt.lvalue.LValueIndexer;
@@ -174,6 +177,13 @@ public interface Statements {
      * Statement Assign
      */
 
+    /**
+     * Generate MLIR for assignment statements. There are three different kinds of assignments:
+     * 1. Standard assignments eg: x := 3
+     * 2. Assignment a single element to a container eg: listVar[2] := 3
+     * 3. ExprComprehension assignment: not yet implemented
+     * @param assign Assignment statement from which MLIR is generated.
+     */
     default void execute(StmtAssignment assign) {
         System.out.println("StmtAssignment");
         emitter().emit("// Assignment Statement: Start");
@@ -228,17 +238,35 @@ public interface Statements {
         profilingOp().add("__opCounters->prof_DATAHANDLING_ASSIGN += 1;");*/
 
         if (assign.getLValue() instanceof LValueIndexer) {
-            throw new Error("LValueIndexer functionality not implemented in execute(StmtAssignment)");
-        }
+            // Assigning values to containers
+            LValueIndexer indexer = (LValueIndexer) assign.getLValue();
 
-        if (assign.getExpression() instanceof ExprComprehension) {
+            // 1. Get the list index and convert it to an index type (MLIR requires index types not integers to index
+            // memref objects)
+            Type listType = types().type(indexer.getStructure());
+            String listName = variables().name(lvalues().evalLValueIndexerVar(indexer));
+            String listSSA = ssaValueNumberingStack().getVarName(listName);
+            String exprIndexNotAsIndexType = expressioneval().evaluate(indexer.getIndex());
+            String exprIndexSSA = typeseval().castToIndex(types().type(indexer.getIndex()), exprIndexNotAsIndexType);
+
+            // 2. Get value to assign to the container
+            Type inputType = types().type(assign.getExpression());
+            Type outputType = types().type(indexer);
+            String rvalueSSATemp = expressioneval().evaluate(assign.getExpression());
+            String rvalueSSA = typeseval().castType(inputType, outputType, rvalueSSATemp);
+
+            // 3. Emit the operation that stores the value in the memref
+            emitter().emit("memref.store %%%s, %%%s[%%%s] : %s", rvalueSSA, listSSA, exprIndexSSA,
+                    typeseval().type(listType));
+
+        } else if (assign.getExpression() instanceof ExprComprehension) {
             throw new Error("ExprComprehension functionality not implemented in execute(StmtAssignment)");
+        } else {
+            // Standard assignment to a variable
+            String lvalue = lvalues().lvalue(assign.getLValue());
+            Type type = types().type(assign.getLValue());
+            initialiseWithExpression(type, lvalue, assign.getExpression());
         }
-
-        String lvalue = lvalues().lvalue(assign.getLValue());
-        Type type = types().type(assign.getLValue());
-        assign(type, lvalue, assign.getExpression());
-
 
         emitter().emit("// Assignment Statement: End");
     }
@@ -486,11 +514,13 @@ public interface Statements {
         Type initalValueType = types().type(rangeExpr.getOperands().get(0));
         String initialValue = expressioneval().evaluate(rangeExpr.getOperands().get(0));
         String initialValueCast = ssaValueNumberingStack().getNewTempVar() + "_lb";
-        emitter().emit("%%%s = index.casts %%%s : %s to index", initialValueCast, initialValue, typeseval().type(initalValueType));
+        emitter().emit("%%%s = index.casts %%%s : %s to index", initialValueCast, initialValue, typeseval().type
+        (initalValueType));
         Type finalValueType = types().type(rangeExpr.getOperands().get(1));
         String finalValue = expressioneval().evaluate(rangeExpr.getOperands().get(1));
         String finalValueCast = ssaValueNumberingStack().getNewTempVar() + "_ub";
-        emitter().emit("%%%s = index.casts %%%s : %s to index", finalValueCast, finalValue, typeseval().type(finalValueType));
+        emitter().emit("%%%s = index.casts %%%s : %s to index", finalValueCast, finalValue, typeseval().type
+        (finalValueType));
         String stepValue = ssaValueNumberingStack().getNewTempVar() + "_step";
         emitter().emit("%%%s = index.constant 1", stepValue);
 
@@ -526,7 +556,8 @@ public interface Statements {
         }
 
 
-        emitter().emit("%s = scf.for %%%s = %%%s to %%%s step %%%s ", forReturnValues, ssaName, initialValueCast, finalValueCast, stepValue);
+        emitter().emit("%s = scf.for %%%s = %%%s to %%%s step %%%s ", forReturnValues, ssaName, initialValueCast,
+        finalValueCast, stepValue);
         emitter().emit("\t\titer_args(%s) -> (%s) {", inputToArgumentString, returnValuesTypes);
         emitter().increaseIndentation();
         foreach.getBody().forEach(this::execute);
@@ -699,31 +730,64 @@ public interface Statements {
                 } else {
                     // This case arises when a port is not connected - I am not sure what decl.getValue() is in this
                     // case.
-                    assign(t, declarationName, decl.getValue());
+                    initialiseWithExpression(t, declarationName, decl.getValue());
                 }
             } else {
                 // 2. Assign the declaration expression to the value
-                assign(t, declarationName, decl.getValue());
+                initialiseWithExpression(t, declarationName, decl.getValue());
             }
         } else {
             // 3. Assign the default value to the variable
-            assign(t, declarationName, new ExprLiteral(ExprLiteral.Kind.Integer,
-                    backend().defaultValues().defaultValue(t)));
+            defaultInitialise(t, declarationName); //
         }
     }
 
     /**
      * Assign an expression to an lvalue (or an mlir operand) and ensure that the types are consistent
      * This expression will alias the lvalue SSA to the rvalue SSA
-     * @param lvalueType       The type of the lvalue
-     * @param lvalueString     The name of the operand the expression is assigned to
-     * @param expr             The expression to assign to the operand
+     *
+     * @param lvalueType   The type of the lvalue
+     * @param lvalueString The name of the operand the expression is assigned to (can be aliased)
+     * @param expr         The expression to assign to the operand
      */
-    default void assign(Type lvalueType, String lvalueString, Expression expr) {
+    default void initialiseWithExpression(Type lvalueType, String lvalueString, Expression expr) {
         Type inputType = types().type(expr);
         Type outputType = lvalueType;
         String rvalueTemp = expressioneval().evaluate(expr);
         String rvalueSSA = typeseval().castType(inputType, outputType, rvalueTemp);
+        assignInitialValueToSSAOperand(lvalueString, rvalueSSA);
+    }
+
+    /**
+     * Initialise a variable. This method is overidden for the different types that are default initialised
+     *
+     * @param lvalueType The type of the lvalue that is default initialised
+     * @param lvalueString The name of the operand the expression is assigned to. (can be aliased)
+     */
+    default void defaultInitialise(Type lvalueType, String lvalueString) {
+        throw new UnsupportedOperationException(lvalueType.getClass().toString() + " has no defaultInitialise " +
+                "function set.");
+    }
+
+    default void defaultInitialise(IntType lvalueType, String lvalueString) {
+        String typeString = typeseval().type(lvalueType);
+        String lvalueSSA = ssaValueNumberingStack().getVarToBeAssignedTo(lvalueString);
+        emitter().emit("%%%s = arith.constant 0 : %s", lvalueSSA, typeString);
+    }
+
+    default void defaultInitialise(ListType lvalueType, String lvalueString) {
+        String typeString = typeseval().type(lvalueType);
+        String lvalueSSA = ssaValueNumberingStack().getVarToBeAssignedTo(lvalueString);
+        emitter().emit("%%%s = memref.alloca() : %s", lvalueSSA, typeString);
+    }
+
+    /**
+     * Alias an ssa operand to another operand.
+     *
+     * @param lvalueString The SSA operand we want to alias to.
+     * @param rvalueSSA The SSA operand that currently holds the operand
+     */
+    default void assignInitialValueToSSAOperand(String lvalueString, String rvalueSSA) {
         String lvalueSSA = ssaValueNumberingStack().getVarToBeAssignedTo(lvalueString);
         ssaValueNumberingStack().aliasSSA(rvalueSSA, lvalueSSA);
         emitter().emit("// %s aliased to %s", lvalueSSA, rvalueSSA);

@@ -47,6 +47,7 @@ public interface BuildSystem {
         emitter().emit("cd build/sv");
         emitter().emit("dfg-opt ../../code-gen/main.mlir --convert-std-to-circt --convert-dfg-to-circt " +
                 "--convert-fsm-to-sv --lower-seq-to-sv --export-split-verilog");
+        emitter().emit("#dfg-opt ../../code-gen/main.mlir --convert-std-to-circt --debug-only=wrap-process-ops");
         emitter().emitNewLine();
 
         emitter().emit("# 1.2 Generate the SV files for every actor kernel");
