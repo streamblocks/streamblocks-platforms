@@ -18,7 +18,7 @@ dfg.process @WhileSimple
 			// While Statement: Condition Check
 			%tmp_2 = arith.constant 5 : i3
 			%tmp_3 = arith.extui %tmp_2 : i3 to i32
-			%tmp_4 = arith.cmpi sge, %tmp_3, %l_x__3_d1_0 : i32
+			%tmp_4 = arith.cmpi slt, %l_x__3_d1_0, %tmp_3 : i32
 			scf.condition(%tmp_4) %l_x__3_d1_0 : i32
 		} do {
 			// While Statement: Body Execution
@@ -26,7 +26,7 @@ dfg.process @WhileSimple
 			// Assignment Statement: Start
 			%tmp_6 = arith.constant 1 : i1
 			%tmp_7 = arith.extui %tmp_6 : i1 to i32
-			%tmp_8 = arith.addi %tmp_7, %l_x__3_d1_0 : i32
+			%tmp_8 = arith.addi %l_x__3_d1_0, %tmp_7 : i32
 			// l_x__3_d1_1 aliased to tmp_8
 			// Assignment Statement: End
 			scf.yield %tmp_8: i32

@@ -1,0 +1,31 @@
+actor ComplexWhile() int In ==> int Out:
+    action In:[t] ==> Out:[z + t * 10, a + t * 10]
+    var
+        int x := 0,
+        int y := 0,
+        int z := 0,
+        int a := 0,
+        int b := 0
+    do
+        // 1. Nested while statement, expect z of 16
+        while x < 4 do
+          y := 0;
+          while y < 4 do
+            y := y + 1;
+            z := z + 1;
+          end
+          x := x + 1;
+        end
+
+        // 2. Loop containing an if statement, expect z of 6
+        b := 0;
+        while b < 10 do
+          if (b < 5) then
+            b := b + 1;
+          else
+            b := b * 2;
+          end
+          a := a + 1;
+        end
+    end
+end

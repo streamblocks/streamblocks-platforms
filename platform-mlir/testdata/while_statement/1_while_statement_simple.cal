@@ -3,8 +3,8 @@ actor WhileSimple() int In ==> int Out:
     var
         int x := 0
     do
-        while 5 >= x do
-            x := 1 + x;
+        while x < 5 do
+            x := x + 1;
         end
     end
 end
