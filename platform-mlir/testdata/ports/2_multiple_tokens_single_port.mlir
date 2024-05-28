@@ -15,6 +15,7 @@ dfg.process @ProduceConsume
 		// Stmt Write Preprocessing: End
 		// StmtConsume not implemented: consume happens on peaking right now
 		//     dfg.push operations deferred from StmtWrites: Begin
+		dfg.push(%l_t2__4_d0_0) %Out : i32
 		dfg.push(%l_t1__1_d0_0) %Out : i32
 		//     dfg.push operations deferred from StmtWrites: End
 		// Block Statement: End

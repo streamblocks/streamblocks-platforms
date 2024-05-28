@@ -127,15 +127,16 @@ public interface Statements {
             } else {
                 // 2. Push a standard variable (i.e not a container) to a channel. This is relatively simple. However
                 // we still need to defer the dfg.push to the end.
-                Type type = types().portType(write.getPort());
+                Type portType = types().portType(write.getPort());
                 String portName = write.getPort().getName();
-                List<String> tempSSAs = null;
+                List<String> tempSSAs = new ArrayList<>();
                 for (Expression expr : write.getValues()) {
-                    String tempSSA = expressioneval().evaluate(expr);
-                    tempSSAs = Arrays.asList(tempSSA);
+                    String evalSSA = expressioneval().evaluate(expr);
+                    String convertedSSA = typeseval().castType(types().type(expr), portType , evalSSA);
+                    tempSSAs.add(convertedSSA);
                     //emitter().emit("dfg.push(%%%s) %%%s : %s", tempVar, portName, portType);
                 }
-                backend().deferredPortOperationsBox().get().addPort("", tempSSAs, new ListType(type,
+                backend().deferredPortOperationsBox().get().addPort("", tempSSAs, new ListType(portType,
                         OptionalInt.of(1)), portName);
             }
         }

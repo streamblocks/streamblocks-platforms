@@ -856,37 +856,40 @@ public interface ExpressionEvaluator {
 
 
     default String evaluate(ExprUnaryOp unaryOp) {
+        Type operandType = types().type(unaryOp.getOperand());
         switch (unaryOp.getOperation()) {
             case "-":
-                return evaluateUnaryMinus(types().type(unaryOp.getOperand()), unaryOp);
+                return evaluateUnaryMinus(operandType, types().type(unaryOp) ,unaryOp);
             case "~":
-                return evaluateUnaryInvert(types().type(unaryOp.getOperand()), unaryOp);
+                return evaluateUnaryInvert(operandType, unaryOp);
             case "!":
             case "not":
-                return evaluateUnaryNot(types().type(unaryOp.getOperand()), unaryOp);
+                return evaluateUnaryNot(operandType, unaryOp);
             case "dom":
-                return evaluateUnaryDom(types().type(unaryOp.getOperand()), unaryOp);
+                return evaluateUnaryDom(operandType, unaryOp);
             case "rng":
-                return evaluateUnaryRng(types().type(unaryOp.getOperand()), unaryOp);
+                return evaluateUnaryRng(operandType, unaryOp);
             case "#":
-                return evaluateUnarySize(types().type(unaryOp.getOperand()), unaryOp);
+                return evaluateUnarySize(operandType, unaryOp);
             default:
                 throw new UnsupportedOperationException(unaryOp.getOperation());
         }
     }
 
-    default String evaluateUnaryMinus(Type type, ExprUnaryOp expr) {
+
+    default String evaluateUnaryMinus(Type inputType, Type outputType ,ExprUnaryOp expr) {
         throw new UnsupportedOperationException(expr.getOperation());
     }
 
-    default String evaluateUnaryMinus(IntType type, ExprUnaryOp expr) {
-        String ssaName = evaluate(expr.getOperand());
+    default String evaluateUnaryMinus(IntType inputType, IntType outputType, ExprUnaryOp expr) {
+        String ssaNamePreCast = evaluate(expr.getOperand());
+        String ssaNamePostCast = typeseval().castType(inputType, outputType, ssaNamePreCast);
         String zeroConstant = ssaValueNumberingStack().getNewTempVar();
-        String tempResult = ssaValueNumberingStack().getNewTempVar();
-        String typeString = typeseval().type(type);
-        emitter().emit("%%%s = arith.constant 0 : %s", zeroConstant, typeString);
-        emitter().emit("%%%s = arith.subi %%%s, %%%s : %s", tempResult, zeroConstant, ssaName, typeString);
-        return tempResult;
+        String subResult = ssaValueNumberingStack().getNewTempVar();
+        String outputTypeString = typeseval().type(outputType);
+        emitter().emit("%%%s = arith.constant 0 : %s", zeroConstant, outputTypeString);
+        emitter().emit("%%%s = arith.subi %%%s, %%%s : %s", subResult, zeroConstant, ssaNamePostCast, outputTypeString);
+        return subResult;
     }
 
     default String evaluateUnaryInvert(Type type, ExprUnaryOp expr) {
