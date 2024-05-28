@@ -1,0 +1,6 @@
+{
+  "description": "Generate a list literal and assign it to a variable.",
+  "cal-file": "5_list_literals.cal",
+  "mlir-file": "5_list_literals.mlir",
+  "entity": "ListLiterals"
+}

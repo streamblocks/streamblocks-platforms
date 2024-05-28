@@ -220,7 +220,7 @@ public interface Statements {
             String listName = variables().name(lvalues().evalLValueIndexerVar(indexer));
             String listSSA = ssaValueNumberingStack().getVarName(listName);
             String exprIndexNotAsIndexType = expressioneval().evaluate(indexer.getIndex());
-            String exprIndexSSA = typeseval().castToIndex(types().type(indexer.getIndex()), exprIndexNotAsIndexType);
+            String exprIndexSSA = lists().generateIndex(types().type(indexer.getIndex()), exprIndexNotAsIndexType);
 
             // 2. Get value to assign to the container
             Type inputType = types().type(assign.getExpression());

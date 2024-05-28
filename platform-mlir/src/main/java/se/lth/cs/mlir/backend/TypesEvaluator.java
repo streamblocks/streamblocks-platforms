@@ -10,7 +10,6 @@ import se.lth.cs.tycho.type.*;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.OptionalInt;
 
 @Module
 public interface TypesEvaluator {
@@ -187,70 +186,69 @@ public interface TypesEvaluator {
      *
      * @param fromType The current type of the operand
      * @param toType   The type to cast the operand to
-     * @param varName  String representing the SSA operand name of the operand being converted
+     * @param inputSSA String representing the SSA operand name of the operand being converted
      * @return String of the SSA operand representing the converted value
      * @throws Error If no conversion has been implemented or is possible
      */
-    default String castType(Type fromType, Type toType, String varName) {
+    default String castType(Type fromType, Type toType, String inputSSA) {
         throw new Error("Type conversion not implemented from " + fromType + " to " + toType);
     }
 
-    default String castType(BoolType fromType, BoolType toType, String varName) {
-        return varName;
+    default String castType(BoolType fromType, BoolType toType, String inputSSA) {
+        return inputSSA;
     }
 
-    /**
-     * Convert an expression to the MLIR index type.
-     *
-     * @param indexExprType The type of the expression containing the index that needs to be converted
-     * @param ssaToConvert  The SSA operand that will be converted to the index
-     * @return The SSA result representing the index type
-     * @throws Error If no conversion has been implemented or is possible
-     */
-    default String castToIndex(Type indexExprType, String ssaToConvert) {
-        throw new Error("castToIndex type conversion not implemented from type:" + indexExprType.getClass() + " to " +
-                "index.");
-    }
-
-    default String castToIndex(IntType indexExprType, String ssaToConvert) {
-        // 2024/05/27: The arith dialect in MLIR supports two different versions of casting an integer to an index.
-        // index_cast that performs sign extension and index_castui that does not perform sign extension. Tycho tends
-        // to store integers in the smallest size possible which means that we end up having lots of unsigned ints
-        // where the MSB is one. This means that index_castui needs to be used. However, as of writing this comment
-        // index_cast works while index_cast_ui throws not supported errors in CIRCT. As such we cast to an expected
-        // larger integer size to get around the sign extension issue.
-        IntType widerIndex;
-        if(indexExprType.getSize().orElse(32) < 32) {
-            widerIndex = new IntType(OptionalInt.of(32), false);
-        }else{
-            widerIndex = new IntType(OptionalInt.of(64), false);
-        }
-        String tempSsa = backend().typeseval().castType(indexExprType, widerIndex, ssaToConvert);
-        String outputSsa = ssaValueNumberingStack().getNewTempVar();
-        emitter().emit("%%%s = arith.index_cast %%%s: i32 to index", outputSsa, tempSsa);
-        return outputSsa;
-    }
-
-    default String castType(IntType fromType, IntType toType, String varName) {
+    default String castType(IntType fromType, IntType toType, String inputSSA) {
         if (fromType.getSize().orElse(32) == toType.getSize().orElse(32)) {
             // 1. If the from and to type is the same, do nothing
-            return varName;
+            return inputSSA;
         } else {
-            String outVar = ssaValueNumberingStack().getNewTempVar();
+            String outSSA = ssaValueNumberingStack().getNewTempVar();
             // 2. Sign extend if the destination is greater than the source
             if (toType.getSize().orElse(32) >= fromType.getSize().orElse(32)) {
                 // 2.1 Commands are different based on the sign
                 if (fromType.isSigned()) {
-                    emitter().emit("%%%s = arith.extsi %%%s : %s to %s", outVar, varName, type(fromType), type(toType));
+                    emitter().emit("%%%s = arith.extsi %%%s : %s to %s", outSSA, inputSSA, type(fromType),
+                            type(toType));
                 } else {
-                    emitter().emit("%%%s = arith.extui %%%s : %s to %s", outVar, varName, type(fromType), type(toType));
+                    emitter().emit("%%%s = arith.extui %%%s : %s to %s", outSSA, inputSSA, type(fromType),
+                            type(toType));
                 }
             } else {
                 // 3. Truncate if the destination is greater than the source
-                emitter().emit("%%%s = arith.trunci %%%s : %s to %s", outVar, varName, type(fromType), type(toType));
+                emitter().emit("%%%s = arith.trunci %%%s : %s to %s", outSSA, inputSSA, type(fromType), type(toType));
             }
-            return outVar;
+            return outSSA;
         }
+    }
+
+    default String castType(ListType fromType, ListType toType, String listNameSSA) {
+        if (!fromType.getSize().isPresent() || !toType.getSize().isPresent()) {
+            throw new UnsupportedOperationException("Casting from one list type to another when one of the lists is " +
+                    "of undefined size is not supported");
+        }
+
+        if (fromType.getSize().getAsInt() != toType.getSize().getAsInt()) {
+            throw new UnsupportedOperationException("Casting from one list type to another when the lists are not of " +
+                    "equal size is not supported.");
+        }
+
+        if (fromType.getElementType() == toType.getElementType()) {
+            return listNameSSA;
+        }
+
+        String convertedListSSA = ssaValueNumberingStack().getNewTempVar();
+        backend().lists().allocateList(toType, convertedListSSA);
+
+        for (int i = 0; i < toType.getSize().getAsInt(); i++) {
+            String indexSSA = backend().lists().generateIndexFromInt(i);
+            String tempSSAFromList = ssaValueNumberingStack().getNewTempVar();
+            backend().lists().load(listNameSSA, tempSSAFromList, indexSSA, fromType);
+            String convertedSSA = castType(fromType.getElementType(), toType.getElementType(), tempSSAFromList);
+            backend().lists().store(convertedListSSA, convertedSSA, indexSSA, toType);
+        }
+
+        return convertedListSSA;
     }
 
 }

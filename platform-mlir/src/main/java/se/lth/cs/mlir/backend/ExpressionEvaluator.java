@@ -1036,7 +1036,7 @@ public interface ExpressionEvaluator {
         });
     }
 
-    default void evaluateListComprehension(ExprList list, String result, String index) {
+    /*default void evaluateListComprehension(ExprList list, String result, String index) {
         list.getElements().forEach(element -> {
                     if (element instanceof ExprComprehension) {
                         //emitter().emit("%s[%2$s] = %3$s[%2$s++];", result, index, evaluate(element));
@@ -1049,7 +1049,7 @@ public interface ExpressionEvaluator {
                     }
                 }
         );
-    }
+    }*/
 
     /*
      * This is a call expression when a function is called
@@ -1141,14 +1141,16 @@ public interface ExpressionEvaluator {
     default String evaluate(ExprList list) {
         ListType t = (ListType) types().type(list);
         if (t.getSize().isPresent()) {
-
-            String name = variables().generateTemp();
-            String decl = declarations().declarationTemp(t, name);
-            String value = evaluateExprList(list);
-
-            String init = "{" + value + " }";
-            emitter().emit("%s = %s;", decl, init);
-            return name;
+            String tempListSSA = ssaValueNumberingStack().getNewTempVar();
+            lists().allocateList(t, tempListSSA);
+            for (int i = 0; i < list.getElements().size(); i++) {
+                Expression listElement = list.getElements().get(i);
+                String listElementSSA = evaluate(listElement);
+                String convertedListElementSSA = typeseval().castType(types().type(listElement) ,t.getElementType(), listElementSSA);
+                String indexSSA = lists().generateIndexFromInt(i);
+                lists().store(tempListSSA, convertedListElementSSA, indexSSA ,t);
+            }
+            return tempListSSA;
         } else {
             return "NULL /* TODO: implement dynamically sized lists */";
         }
@@ -1173,8 +1175,8 @@ public interface ExpressionEvaluator {
         String listSSA = ssaValueNumberingStack().getVarName(listName);
 
         // 2. Get the index and convert it to an index type
-        String exprIndexNotAsIndexType = evaluate(indexer.getIndex());
-        String exprIndexSSA = typeseval().castToIndex(types().type(indexer.getIndex()), exprIndexNotAsIndexType);
+        String exprIndexNotAsIndexSSA = evaluate(indexer.getIndex());
+        String exprIndexSSA = lists().generateIndex(types().type(indexer.getIndex()),exprIndexNotAsIndexSSA);
         String ssaReturn = ssaValueNumberingStack().getNewTempVar();
 
         // 3. Load the value from the memref object

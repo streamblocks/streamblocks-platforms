@@ -1,0 +1,8 @@
+actor ListLiterals() int In ==> int Out:
+    action In:[t1] ==> Out:[list] repeat 4
+    var
+      List(type:int, size=4) list := [100,100,100,100]
+    do
+      list := [100+t1,200+t1,300+t1,400+t1];
+    end
+end
