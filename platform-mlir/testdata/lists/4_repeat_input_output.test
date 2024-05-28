@@ -1,0 +1,6 @@
+{
+  "description": "Generate MLIR scf.if from CAL if statement in an actor body. Only the simplest case is tested.",
+  "cal-file": "4_repeat_input_output.cal",
+  "mlir-file": "4_repeat_input_output.mlir",
+  "entity": "RepeatInputOutput"
+}

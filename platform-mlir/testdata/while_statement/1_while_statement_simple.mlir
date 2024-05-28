@@ -32,11 +32,13 @@ dfg.process @WhileSimple
 			scf.yield %tmp_8: i32
 		}
 		// While Statement: End
-		// Stmt Write: Begin
+		// Stmt Write Preprocessing: Begin
 		%tmp_9 = arith.addi %l_t__1_d0_0, %l_x__3_d0_1 : i32
-		dfg.push(%tmp_9) %Out : i32
-		// Stmt Write: End
+		// Stmt Write Preprocessing: End
 		// StmtConsume not implemented: consume happens on peaking right now
+		//     dfg.push operations deferred from StmtWrites: Begin
+		dfg.push(%tmp_9) %Out : i32
+		//     dfg.push operations deferred from StmtWrites: End
 		// Block Statement: End
 	}
 

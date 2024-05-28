@@ -50,11 +50,13 @@ dfg.process @RepeatInput
 		%tmp_29 = arith.addi %tmp_28, %tmp_5 : i32
 		// l_a__6_d0_1 aliased to tmp_29
 		// Assignment Statement: End
-		// Stmt Write: Begin
+		// Stmt Write Preprocessing: Begin
+		// Stmt Write Preprocessing: End
+		// StmtConsume not implemented: consume happens on peaking right now
+		// StmtConsume not implemented: consume happens on peaking right now
+		//     dfg.push operations deferred from StmtWrites: Begin
 		dfg.push(%tmp_29) %Out : i32
-		// Stmt Write: End
-		// StmtConsume not implemented: consume happens on peaking right now
-		// StmtConsume not implemented: consume happens on peaking right now
+		//     dfg.push operations deferred from StmtWrites: End
 		// Block Statement: End
 	}
 

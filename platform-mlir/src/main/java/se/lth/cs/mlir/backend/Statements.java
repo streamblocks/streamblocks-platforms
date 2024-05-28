@@ -92,18 +92,23 @@ public interface Statements {
      */
 
     default void execute(StmtWrite write) {
-        emitter().emit("// Stmt Write: Begin");
+        emitter().emit("// Stmt Write Preprocessing: Begin");
         if (backend().channelsutils().isSourceConnected(backend().instancebox().get().getInstanceName(), write
                 .getPort().getName())) {
             if (write.getRepeatExpression() != null) {
                 // 1. Output ports with repeat keywords need to have a CAL list (converted to MLIR memref) passed to
                 // them through "write.getValues().get(0)".
+                if(write.getValues().size() != 1){
+                    throw new Error("Output expressions with the repeat keyword only support a single expression.");
+                }
+
                 ListType listType = (ListType) types().type(write.getValues().get(0));
                 String listSSA = expressioneval().evaluate(write.getValues().get(0));
                 Type portType = types().portType(write.getPort());
                 String portName = write.getPort().getName();
-                if(!listType.getSize().isPresent()){
-                    throw new Error("List types in repeat statements should always have a size, if this error is thrown, this is a compiler bug");
+                if (!listType.getSize().isPresent()) {
+                    throw new Error("List types in repeat statements should always have a size, if this error is " +
+                            "thrown, this is a compiler bug");
                 }
                 int numRepeats = listType.getSize().orElse(0);
                 List<String> tempSSAs = new ArrayList<>(numRepeats);
@@ -119,19 +124,22 @@ public interface Statements {
                     tempSSAs.add(convertedSSA);
                 }
                 backend().deferredPortOperationsBox().get().addPort(listSSA, tempSSAs, listType, portName);
-            }else {
-                // 2. Push a standard variable (i.e not a container) to a channel. This is relatively simple.
-                String tempVar = "";
+            } else {
+                // 2. Push a standard variable (i.e not a container) to a channel. This is relatively simple. However
+                // we still need to defer the dfg.push to the end.
                 Type type = types().portType(write.getPort());
-                String portType = typeseval().type(type);
                 String portName = write.getPort().getName();
+                List<String> tempSSAs = null;
                 for (Expression expr : write.getValues()) {
-                    tempVar = expressioneval().evaluate(expr);
-                    emitter().emit("dfg.push(%%%s) %%%s : %s", tempVar, portName, portType);
+                    String tempSSA = expressioneval().evaluate(expr);
+                    tempSSAs = Arrays.asList(tempSSA);
+                    //emitter().emit("dfg.push(%%%s) %%%s : %s", tempVar, portName, portType);
                 }
+                backend().deferredPortOperationsBox().get().addPort("", tempSSAs, new ListType(type,
+                        OptionalInt.of(1)), portName);
             }
         }
-        emitter().emit("// Stmt Write: End");
+        emitter().emit("// Stmt Write Preprocessing: End");
 
         /*if (backend().channelsutils().isSourceConnected(backend().instancebox().get().getInstanceName(), write
         .getPort().getName())) {
@@ -367,7 +375,9 @@ public interface Statements {
         // 2.1 Similar to pulling tokens from dfg channels when using the repeat keyword, pushing them requires
         // performing pre-processing on the list and then deferring the dfg.push operation to later. This functions
         // emits the deferred dfg.push operands
+        emitter().emit("//     dfg.push operations deferred from StmtWrites: Begin");
         emitDeferredTokenPush();
+        emitter().emit("//     dfg.push operations deferred from StmtWrites: End");
         ssaValueNumberingStack().blockDone();
         emitter().emit("// Block Statement: End");
 
@@ -727,7 +737,8 @@ public interface Statements {
 
     default void emitDeferredVarDeclMlir() {
         if (!backend().deferredPortOperationsBox().isEmpty()) {
-            for (DeferredPortOperationContainer.SinglePortBuilder singleBuilder: backend().deferredPortOperationsBox().get().getPorts()){
+            for (DeferredPortOperationContainer.SinglePortBuilder singleBuilder :
+                    backend().deferredPortOperationsBox().get().getPorts()) {
                 String listSSA = ssaValueNumberingStack().getVarToBeAssignedTo(singleBuilder.getListString());
                 lists().allocateList(singleBuilder.getListType(), listSSA);
                 for (int i = 0; i < singleBuilder.getTempSSAs().size(); i++) {
@@ -743,12 +754,13 @@ public interface Statements {
 
     default void emitDeferredTokenPush() {
         if (!backend().deferredPortOperationsBox().isEmpty()) {
-            for (DeferredPortOperationContainer.SinglePortBuilder singleBuilder: backend().deferredPortOperationsBox().get().getPorts()){
+            for (DeferredPortOperationContainer.SinglePortBuilder singleBuilder :
+                    backend().deferredPortOperationsBox().get().getPorts()) {
                 for (int i = 0; i < singleBuilder.getTempSSAs().size(); i++) {
                     String portName = singleBuilder.getPortName();
                     String typeString = typeseval().type(singleBuilder.getListType().getElementType());
                     String ssaToSend = singleBuilder.getTempSSAs().get(i);
-                    emitter().emit("dfg.push(%%%s) %%%s : %s", ssaToSend, portName ,typeString);
+                    emitter().emit("dfg.push(%%%s) %%%s : %s", ssaToSend, portName, typeString);
                 }
             }
             backend().deferredPortOperationsBox().clear();

@@ -1,0 +1,8 @@
+actor RepeatInputOutput () int In1, int In2 ==> int Out1, int Out2:
+    action
+            In1:[t1] repeat 4, In2:[t2]
+        ==>
+            Out1:[t1] repeat 4, Out2:[t2+1]
+
+    end
+  end

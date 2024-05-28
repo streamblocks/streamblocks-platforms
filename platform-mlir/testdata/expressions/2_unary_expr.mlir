@@ -44,10 +44,12 @@ dfg.process @UnaryExpr
 		%tmp_16 = arith.addi %tmp_13, %tmp_15 : i32
 		// l_x__3_d0_3 aliased to tmp_16
 		// Assignment Statement: End
-		// Stmt Write: Begin
-		dfg.push(%tmp_16) %Out : i32
-		// Stmt Write: End
+		// Stmt Write Preprocessing: Begin
+		// Stmt Write Preprocessing: End
 		// StmtConsume not implemented: consume happens on peaking right now
+		//     dfg.push operations deferred from StmtWrites: Begin
+		dfg.push(%tmp_16) %Out : i32
+		//     dfg.push operations deferred from StmtWrites: End
 		// Block Statement: End
 	}
 

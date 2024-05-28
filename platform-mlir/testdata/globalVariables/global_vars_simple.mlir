@@ -30,11 +30,13 @@ dfg.process @GlobalVariables
 		%tmp_11 = arith.addi %tmp_1, %tmp_10 : i32
 		// l_x__3_d0_1 aliased to tmp_11
 		// Assignment Statement: End
-		// Stmt Write: Begin
+		// Stmt Write Preprocessing: Begin
 		%tmp_12 = arith.addi %l_t__1_d0_0, %tmp_11 : i32
-		dfg.push(%tmp_12) %Out : i32
-		// Stmt Write: End
+		// Stmt Write Preprocessing: End
 		// StmtConsume not implemented: consume happens on peaking right now
+		//     dfg.push operations deferred from StmtWrites: Begin
+		dfg.push(%tmp_12) %Out : i32
+		//     dfg.push operations deferred from StmtWrites: End
 		// Block Statement: End
 	}
 

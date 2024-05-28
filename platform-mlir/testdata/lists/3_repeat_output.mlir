@@ -47,7 +47,7 @@ dfg.process @RepeatOutput
 		%tmp_23 = arith.addi %tmp_22, %l_t__1_d0_0 : i32
 		memref.store %tmp_23, %l_list__3_d0_0[%tmp_20] : memref<4xi32>
 		// Assignment Statement: End
-		// Stmt Write: Begin
+		// Stmt Write Preprocessing: Begin
 		%tmp_24 = arith.constant 0: index
 		%tmp_25 = memref.load %l_list__3_d0_0[%tmp_24] : memref<4xi32>
 		%tmp_26 = arith.constant 1: index
@@ -56,12 +56,14 @@ dfg.process @RepeatOutput
 		%tmp_29 = memref.load %l_list__3_d0_0[%tmp_28] : memref<4xi32>
 		%tmp_30 = arith.constant 3: index
 		%tmp_31 = memref.load %l_list__3_d0_0[%tmp_30] : memref<4xi32>
-		// Stmt Write: End
+		// Stmt Write Preprocessing: End
 		// StmtConsume not implemented: consume happens on peaking right now
+		//     dfg.push operations deferred from StmtWrites: Begin
 		dfg.push(%tmp_25) %Out : i32
 		dfg.push(%tmp_27) %Out : i32
 		dfg.push(%tmp_29) %Out : i32
 		dfg.push(%tmp_31) %Out : i32
+		//     dfg.push operations deferred from StmtWrites: End
 		// Block Statement: End
 	}
 

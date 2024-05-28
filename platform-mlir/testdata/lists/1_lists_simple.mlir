@@ -70,11 +70,13 @@ dfg.process @ListsSimple
 		%tmp_42 = arith.addi %tmp_40, %tmp_41 : i32
 		// l_a__3_d0_1 aliased to tmp_42
 		// Assignment Statement: End
-		// Stmt Write: Begin
+		// Stmt Write Preprocessing: Begin
 		%tmp_43 = arith.addi %tmp_42, %l_t__1_d0_0 : i32
-		dfg.push(%tmp_43) %Out : i32
-		// Stmt Write: End
+		// Stmt Write Preprocessing: End
 		// StmtConsume not implemented: consume happens on peaking right now
+		//     dfg.push operations deferred from StmtWrites: Begin
+		dfg.push(%tmp_43) %Out : i32
+		//     dfg.push operations deferred from StmtWrites: End
 		// Block Statement: End
 	}
 

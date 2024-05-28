@@ -11,14 +11,16 @@ dfg.process @ProduceConsume
 		%l_t1__1_d0_0 = dfg.pull %In1 : i32
 		%l_t2__4_d0_0 = dfg.pull %In2 : i32
 		//     Variable declarations attached to block statement: End
-		// Stmt Write: Begin
+		// Stmt Write Preprocessing: Begin
+		// Stmt Write Preprocessing: End
+		// Stmt Write Preprocessing: Begin
+		// Stmt Write Preprocessing: End
+		// StmtConsume not implemented: consume happens on peaking right now
+		// StmtConsume not implemented: consume happens on peaking right now
+		//     dfg.push operations deferred from StmtWrites: Begin
 		dfg.push(%l_t2__4_d0_0) %Out1 : i32
-		// Stmt Write: End
-		// Stmt Write: Begin
 		dfg.push(%l_t1__1_d0_0) %Out2 : i32
-		// Stmt Write: End
-		// StmtConsume not implemented: consume happens on peaking right now
-		// StmtConsume not implemented: consume happens on peaking right now
+		//     dfg.push operations deferred from StmtWrites: End
 		// Block Statement: End
 	}
 

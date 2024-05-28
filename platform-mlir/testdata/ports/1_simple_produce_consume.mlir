@@ -10,10 +10,12 @@ dfg.process @ProduceConsume
 		//     Variable declarations attached to block statement: Begin
 		%l_t__1_d0_0 = dfg.pull %In : i32
 		//     Variable declarations attached to block statement: End
-		// Stmt Write: Begin
-		dfg.push(%l_t__1_d0_0) %Out : i32
-		// Stmt Write: End
+		// Stmt Write Preprocessing: Begin
+		// Stmt Write Preprocessing: End
 		// StmtConsume not implemented: consume happens on peaking right now
+		//     dfg.push operations deferred from StmtWrites: Begin
+		dfg.push(%l_t__1_d0_0) %Out : i32
+		//     dfg.push operations deferred from StmtWrites: End
 		// Block Statement: End
 	}
 
