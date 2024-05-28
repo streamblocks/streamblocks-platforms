@@ -59,29 +59,33 @@ dfg.process @IfComplex
 		%tmp_20 = arith.extui %tmp_19 : i6 to i32
 		%tmp_21 = arith.cmpi slt, %l_t__1_d0_0, %tmp_20 : i32
 		%l_x__3_d0_3 = scf.if %tmp_21 -> (i32) {
-			// Assignment Statement: Start
-			%tmp_22 = arith.constant 0 : i1
-			%tmp_23 = arith.extui %tmp_22 : i1 to i32
-			%tmp_24 = arith.addi %l_x__3_d0_2, %tmp_23 : i32
-			// l_x__3_d1_0 aliased to tmp_24
-			// Assignment Statement: End
 			// If Statement: Begin
-			%tmp_25 = arith.constant 40 : i6
-			%tmp_26 = arith.extui %tmp_25 : i6 to i32
-			%tmp_27 = arith.cmpi slt, %l_t__1_d0_0, %tmp_26 : i32
-			%l_x__3_d1_1 = scf.if %tmp_27 -> (i32) {
-				// Assignment Statement: Start
-				%tmp_28 = arith.constant 100000 : i17
-				%tmp_29 = arith.extui %tmp_28 : i17 to i32
-				%tmp_30 = arith.addi %tmp_24, %tmp_29 : i32
-				// l_x__3_d2_0 aliased to tmp_30
-				// Assignment Statement: End
-				scf.yield %tmp_30 : i32
+			%tmp_22 = arith.constant 20 : i5
+			%tmp_23 = arith.extui %tmp_22 : i5 to i32
+			%tmp_24 = arith.cmpi sgt, %l_t__1_d0_0, %tmp_23 : i32
+			%l_x__3_d1_0 = scf.if %tmp_24 -> (i32) {
+				// If Statement: Begin
+				%tmp_25 = arith.constant 40 : i6
+				%tmp_26 = arith.extui %tmp_25 : i6 to i32
+				%tmp_27 = arith.cmpi slt, %l_t__1_d0_0, %tmp_26 : i32
+				%l_x__3_d2_0 = scf.if %tmp_27 -> (i32) {
+					// Assignment Statement: Start
+					%tmp_28 = arith.constant 100000 : i17
+					%tmp_29 = arith.extui %tmp_28 : i17 to i32
+					%tmp_30 = arith.addi %l_x__3_d0_2, %tmp_29 : i32
+					// l_x__3_d3_0 aliased to tmp_30
+					// Assignment Statement: End
+					scf.yield %tmp_30 : i32
+				} else {
+					scf.yield %l_x__3_d0_2 : i32
+				}
+				// If Statement: End
+				scf.yield %l_x__3_d2_0 : i32
 			} else {
-				scf.yield %tmp_24 : i32
+				scf.yield %l_x__3_d0_2 : i32
 			}
 			// If Statement: End
-			scf.yield %l_x__3_d1_1 : i32
+			scf.yield %l_x__3_d1_0 : i32
 		} else {
 			scf.yield %l_x__3_d0_2 : i32
 		}

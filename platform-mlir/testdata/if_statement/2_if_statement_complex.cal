@@ -16,11 +16,12 @@ actor IfComplex() int In ==> int Out:
             y := y + 1;
         end
 
-        // 3. Nested If statements, note nestings >= 3 result in errors right now
+        // 3. Nested If statements
         if t < 60 then
-            x := x + 0;
-            if t < 40 then
-                x := x + 100000;
+            if t > 20 then
+                if t < 40 then
+                  x := x + 100000;
+                end
             end
         end
 
