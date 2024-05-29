@@ -30,20 +30,28 @@ public interface ChannelsUtils {
 
     default Type sourceEndType(Connection.End source) {
         Network network = backend().task().getNetwork();
-        List<Connection> connections = network.getConnections().stream()
-                .filter(conn -> conn.getSource().equals(source))
-                .collect(Collectors.toList());
-        Type type = backend().types().connectionType(network, connections.get(0));
-        return type;
+        try {
+            List<Connection> connections = network.getConnections().stream()
+                    .filter(conn -> conn.getSource().equals(source))
+                    .collect(Collectors.toList());
+            Type type = backend().types().connectionType(network, connections.get(0));
+            return type;
+        } catch (IndexOutOfBoundsException e){
+            throw new RuntimeException("Error in connection for: " + source.getInstance().orElse("top_network") + "." + source.getPort().toString() + ". The port may not be connected or it is connected to an unknown actor/port.");
+        }
     }
 
     default Type targetEndType(Connection.End target) {
         Network network = backend().task().getNetwork();
-        Connection connection = network.getConnections().stream()
-                .filter(conn -> conn.getTarget().equals(target))
-                .findFirst().get();
-        Type type = backend().types().connectionType(network, connection);
-        return type;
+        try {
+            Connection connection = network.getConnections().stream()
+                    .filter(conn -> conn.getTarget().equals(target))
+                    .findFirst().get();
+            Type type = backend().types().connectionType(network, connection);
+            return type;
+        } catch (NoSuchElementException e){
+            throw new RuntimeException("Error in connection for: " + target.getInstance().orElse("top_network") + "." + target.getPort().toString() + ". The port may not be connected or it is connected to an unknown actor/port.");
+        }
     }
 
     default String inputPortTypeSize(Port port) {

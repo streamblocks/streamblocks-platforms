@@ -10,10 +10,7 @@ import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.ir.IRNode;
 import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
-import se.lth.cs.tycho.ir.expr.ExprBinaryOp;
-import se.lth.cs.tycho.ir.expr.ExprComprehension;
-import se.lth.cs.tycho.ir.expr.ExprInput;
-import se.lth.cs.tycho.ir.expr.Expression;
+import se.lth.cs.tycho.ir.expr.*;
 import se.lth.cs.tycho.ir.stmt.*;
 import se.lth.cs.tycho.ir.stmt.lvalue.LValue;
 import se.lth.cs.tycho.ir.stmt.lvalue.LValueIndexer;
@@ -119,7 +116,7 @@ public interface Statements {
                     String indexSSA = ssaValueNumberingStack().getNewTempVar();
                     emitter().emit("%%%s = arith.constant %d: index", indexSSA, i);
                     String destSSA = ssaValueNumberingStack().getNewTempVar();
-                    lists().load(listSSA, destSSA, indexSSA, listType);
+                    lists().load(listSSA, destSSA, Collections.singletonList(indexSSA), listType);
                     String convertedSSA = typeseval().castType(listType.getElementType(), portType, destSSA);
                     tempSSAs.add(convertedSSA);
                 }
@@ -214,13 +211,11 @@ public interface Statements {
             // Assigning values to containers
             LValueIndexer indexer = (LValueIndexer) assign.getLValue();
 
-            // 1. Get the list index and convert it to an index type (MLIR requires index types not integers to index
-            // memref objects)
-            Type listType = types().type(indexer.getStructure());
+            // 1. Get the list SSA name and the indices
+            Type listType = lvalues().getListIndexerType(indexer);
             String listName = variables().name(lvalues().evalLValueIndexerVar(indexer));
             String listSSA = ssaValueNumberingStack().getVarName(listName);
-            String exprIndexNotAsIndexType = expressioneval().evaluate(indexer.getIndex());
-            String exprIndexSSA = lists().generateIndex(types().type(indexer.getIndex()), exprIndexNotAsIndexType);
+            List<String> indices = lvalues().getListIndexes(indexer);
 
             // 2. Get value to assign to the container
             Type inputType = types().type(assign.getExpression());
@@ -229,7 +224,7 @@ public interface Statements {
             String rvalueSSA = typeseval().castType(inputType, outputType, rvalueSSATemp);
 
             // 3. Emit the operation that stores the value in the memref
-            lists().store(listSSA, rvalueSSA, exprIndexSSA, listType);
+            lists().store(listSSA, rvalueSSA, indices, listType);
         } else if (assign.getExpression() instanceof ExprComprehension) {
             throw new Error("ExprComprehension functionality not implemented in execute(StmtAssignment)");
         } else {
@@ -753,7 +748,7 @@ public interface Statements {
                 for (int i = 0; i < singleBuilder.getTempSSAs().size(); i++) {
                     String indexSSA = ssaValueNumberingStack().getNewTempVar();
                     emitter().emit("%%%s = arith.constant %d: index", indexSSA, i);
-                    lists().store(listSSA, singleBuilder.getTempSSAs().get(i), indexSSA,
+                    lists().store(listSSA, singleBuilder.getTempSSAs().get(i), Collections.singletonList(indexSSA),
                             singleBuilder.getListType());
                 }
             }

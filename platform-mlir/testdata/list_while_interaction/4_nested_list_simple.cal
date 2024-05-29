@@ -1,0 +1,33 @@
+actor NestedListSimple() int In ==> int Out:
+    action In:[t1] ==> Out:[list_flat] repeat 16
+    var
+      List(type:List(type:uint, size=4), size=4) list_2d,
+      uint list2d_index_x := 0,
+      uint list2d_index_y := 0,
+      List(type:uint, size=16) list_flat,
+      uint list_flat_index := 0
+      //uint index := 0
+    do
+      // Assign to the nested list
+      while list2d_index_x < 4 do
+        list2d_index_y := 0;
+        while list2d_index_y < 4 do
+          list_2d[list2d_index_x][list2d_index_y] := list2d_index_x * 4 +list2d_index_y;
+          list2d_index_y := list2d_index_y + 1;
+        end
+        list2d_index_x := list2d_index_x + 1;
+      end
+
+      // Access the nested list
+      list2d_index_x := 0;
+      while list2d_index_x < 4 do
+        list2d_index_y := 0;
+        while list2d_index_y < 4 do
+          list_flat[list_flat_index] := list_2d[list2d_index_x][list2d_index_y];
+          list2d_index_y := list2d_index_y + 1;
+          list_flat_index := list_flat_index + 1;
+        end
+        list2d_index_x := list2d_index_x + 1;
+      end
+    end
+end

@@ -13,7 +13,7 @@ dfg.process @RepeatInputOutput
 		%tmp_2 = dfg.pull %In1 : i32
 		%tmp_3 = dfg.pull %In1 : i32
 		%l_t2__4_d0_0 = dfg.pull %In2 : i32
-		%l_t1__1_d0_0 = memref.alloca() : memref<4xi32>
+		%l_t1__1_d0_0 = memref.alloc() : memref<4xi32>
 		%tmp_4 = arith.constant 0: index
 		memref.store %tmp_0, %l_t1__1_d0_0[%tmp_4] : memref<4xi32>
 		%tmp_5 = arith.constant 1: index

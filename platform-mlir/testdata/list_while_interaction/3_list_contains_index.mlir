@@ -9,7 +9,7 @@ dfg.process @ListContainsIndex
 		// Block Statement: Begin
 		//     Variable declarations attached to block statement: Begin
 		%l_t1__1_d0_0 = dfg.pull %In : i32
-		%l_list__3_d0_0 = memref.alloca() : memref<4xi32>
+		%l_list__3_d0_0 = memref.alloc() : memref<4xi32>
 		%tmp_0 = arith.constant 0 : i1
 		%tmp_1 = arith.extui %tmp_0 : i1 to i32
 		// l_index__4_d0_0 aliased to tmp_1

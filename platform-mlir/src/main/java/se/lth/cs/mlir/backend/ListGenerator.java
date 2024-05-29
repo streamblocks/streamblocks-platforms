@@ -8,6 +8,7 @@ import se.lth.cs.tycho.type.IntType;
 import se.lth.cs.tycho.type.ListType;
 import se.lth.cs.tycho.type.Type;
 
+import java.util.List;
 import java.util.OptionalInt;
 
 /**
@@ -24,16 +25,22 @@ public interface ListGenerator {
 
     default void allocateList(ListType lvalueType, String lvalueSSA) {
         String typeString = backend().typeseval().type(lvalueType);
-        backend().emitter().emit("%%%s = memref.alloca() : %s", lvalueSSA, typeString);
+        backend().emitter().emit("%%%s = memref.alloc() : %s", lvalueSSA, typeString);
     }
 
-    default void store(String listSSA, String ssaToStore, String indexSSA, Type listType) {
-        emitter().emit("memref.store %%%s, %%%s[%%%s] : %s", ssaToStore, listSSA, indexSSA,
+    // indicesList - this is a list of SSA operands representing every index in the list. This allows us to index
+    // lists of lists. If the list contains: [tmp1, tmp2, tmp3], then this will be transformed to [%tmp1, %tmp2, %tmp3]
+    default void store(String listSSA, String ssaToStore, List<String> indicesList, Type listType) {
+        String indices = String.join(", %", indicesList);
+        emitter().emit("memref.store %%%s, %%%s[%%%s] : %s", ssaToStore, listSSA, indices,
                 backend().typeseval().type(listType));
     }
 
-    default void load(String listSSA, String ssaDest, String indexSSA, Type listType) {
-        emitter().emit("%%%s = memref.load %%%s[%%%s] : %s", ssaDest, listSSA, indexSSA,
+    // indicesList - this is a list of SSA operands representing every index in the list. This allows us to index
+    // lists of lists. If the list contains: [tmp1, tmp2, tmp3], then this will be transformed to [%tmp1, %tmp2, %tmp3]
+    default void load(String listSSA, String ssaDest, List<String> indicesList, Type listType) {
+        String indices = String.join(", %", indicesList);
+        emitter().emit("%%%s = memref.load %%%s[%%%s] : %s", ssaDest, listSSA, indices,
                 backend().typeseval().type(listType));
     }
 

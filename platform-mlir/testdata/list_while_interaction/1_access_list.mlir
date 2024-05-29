@@ -15,7 +15,7 @@ dfg.process @AccessList
 		%tmp_4 = arith.constant 0 : i1
 		%tmp_5 = arith.extui %tmp_4 : i1 to i32
 		// l_sum__3_d0_0 aliased to tmp_5
-		%l_t1__1_d0_0 = memref.alloca() : memref<4xi32>
+		%l_t1__1_d0_0 = memref.alloc() : memref<4xi32>
 		%tmp_6 = arith.constant 0: index
 		memref.store %tmp_0, %l_t1__1_d0_0[%tmp_6] : memref<4xi32>
 		%tmp_7 = arith.constant 1: index

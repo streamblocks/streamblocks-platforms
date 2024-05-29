@@ -9,7 +9,7 @@ dfg.process @ListLiterals
 		// Block Statement: Begin
 		//     Variable declarations attached to block statement: Begin
 		%l_t1__1_d0_0 = dfg.pull %In : i32
-		%tmp_0 = memref.alloca() : memref<4xi7>
+		%tmp_0 = memref.alloc() : memref<4xi7>
 		%tmp_1 = arith.constant 100 : i7
 		%tmp_2 = arith.constant 0: index
 		memref.store %tmp_1, %tmp_0[%tmp_2] : memref<4xi7>
@@ -22,7 +22,7 @@ dfg.process @ListLiterals
 		%tmp_7 = arith.constant 100 : i7
 		%tmp_8 = arith.constant 3: index
 		memref.store %tmp_7, %tmp_0[%tmp_8] : memref<4xi7>
-		%tmp_9 = memref.alloca() : memref<4xi32>
+		%tmp_9 = memref.alloc() : memref<4xi32>
 		%tmp_10 = arith.constant 0: index
 		%tmp_11 = memref.load %tmp_0[%tmp_10] : memref<4xi7>
 		%tmp_12 = arith.extui %tmp_11 : i7 to i32
@@ -42,7 +42,7 @@ dfg.process @ListLiterals
 		// l_list__3_d0_0 aliased to tmp_9
 		//     Variable declarations attached to block statement: End
 		// Assignment Statement: Start
-		%tmp_22 = memref.alloca() : memref<4xi32>
+		%tmp_22 = memref.alloc() : memref<4xi32>
 		%tmp_23 = arith.constant 100 : i7
 		%tmp_24 = arith.extui %tmp_23 : i7 to i32
 		%tmp_25 = arith.addi %tmp_24, %l_t1__1_d0_0 : i32
@@ -63,7 +63,7 @@ dfg.process @ListLiterals
 		%tmp_37 = arith.addi %tmp_36, %l_t1__1_d0_0 : i32
 		%tmp_38 = arith.constant 3: index
 		memref.store %tmp_37, %tmp_22[%tmp_38] : memref<4xi32>
-		%tmp_39 = memref.alloca() : memref<4xi32>
+		%tmp_39 = memref.alloc() : memref<4xi32>
 		%tmp_40 = arith.constant 0: index
 		%tmp_41 = memref.load %tmp_22[%tmp_40] : memref<4xi32>
 		memref.store %tmp_41, %tmp_39[%tmp_40] : memref<4xi32>

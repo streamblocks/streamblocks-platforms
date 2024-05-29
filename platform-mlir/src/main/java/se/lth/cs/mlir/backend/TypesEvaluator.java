@@ -9,6 +9,7 @@ import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.type.*;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 @Module
@@ -76,8 +77,17 @@ public interface TypesEvaluator {
     }
 
     default String type(ListType type) {
-        Type innerType = innerType(type.getElementType());
-        int size = type.getSize().orElse(0);
+        Type innerType = type.getElementType();
+        int sizeInt = type.getSize().orElse(0);
+        String size = "" + sizeInt;
+        // Lists can contains lists (lists of lists of lists ...). In this case we need to get the dimensions all the
+        // way down
+        while (innerType instanceof ListType) {
+            ListType innerTypeAsList = (ListType) innerType;
+            sizeInt = innerTypeAsList.getSize().orElse(0);
+            size = size + "x" + sizeInt;
+            innerType = innerTypeAsList.getElementType();
+        }
         return "memref<" + size + "x" + type(innerType) + ">";
     }
 
@@ -223,6 +233,7 @@ public interface TypesEvaluator {
     }
 
     default String castType(ListType fromType, ListType toType, String listNameSSA) {
+
         if (!fromType.getSize().isPresent() || !toType.getSize().isPresent()) {
             throw new UnsupportedOperationException("Casting from one list type to another when one of the lists is " +
                     "of undefined size is not supported");
@@ -243,9 +254,9 @@ public interface TypesEvaluator {
         for (int i = 0; i < toType.getSize().getAsInt(); i++) {
             String indexSSA = backend().lists().generateIndexFromInt(i);
             String tempSSAFromList = ssaValueNumberingStack().getNewTempVar();
-            backend().lists().load(listNameSSA, tempSSAFromList, indexSSA, fromType);
+            backend().lists().load(listNameSSA, tempSSAFromList, Collections.singletonList(indexSSA), fromType);
             String convertedSSA = castType(fromType.getElementType(), toType.getElementType(), tempSSAFromList);
-            backend().lists().store(convertedListSSA, convertedSSA, indexSSA, toType);
+            backend().lists().store(convertedListSSA, convertedSSA, Collections.singletonList(indexSSA), toType);
         }
 
         return convertedListSSA;

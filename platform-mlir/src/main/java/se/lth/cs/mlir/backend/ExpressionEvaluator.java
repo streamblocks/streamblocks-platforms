@@ -1148,7 +1148,7 @@ public interface ExpressionEvaluator {
                 String listElementSSA = evaluate(listElement);
                 String convertedListElementSSA = typeseval().castType(types().type(listElement) ,t.getElementType(), listElementSSA);
                 String indexSSA = lists().generateIndexFromInt(i);
-                lists().store(tempListSSA, convertedListElementSSA, indexSSA ,t);
+                lists().store(tempListSSA, convertedListElementSSA, Collections.singletonList(indexSSA) ,t);
             }
             return tempListSSA;
         } else {
@@ -1174,56 +1174,14 @@ public interface ExpressionEvaluator {
         String listName = variables().declarationName(varDecl);
         String listSSA = ssaValueNumberingStack().getVarName(listName);
 
-        // 2. Get the index and convert it to an index type
-        String exprIndexNotAsIndexSSA = evaluate(indexer.getIndex());
-        String exprIndexSSA = lists().generateIndex(types().type(indexer.getIndex()),exprIndexNotAsIndexSSA);
-        String ssaReturn = ssaValueNumberingStack().getNewTempVar();
+        // 2. Here we get the indices, we search recursivly through the list as we may have a list of lists.
+        List<String> indexByDim = getListIndexes(indexer);
+
 
         // 3. Load the value from the memref object
-        lists().load(listSSA, ssaReturn, exprIndexSSA, type);
+        String ssaReturn = ssaValueNumberingStack().getNewTempVar();
+        lists().load(listSSA, ssaReturn, indexByDim, type);
         return ssaReturn;
-
-        /*VarDecl varDecl = evalExprIndexVar(indexer);
-
-        Optional<String> str = Optional.empty();
-        String ind;
-        if (indexer.getStructure() instanceof ExprIndexer) {
-
-            Type t = backend().types().declaredType(varDecl);
-            ListType listType = null;
-            if (t instanceof ListType) {
-                listType = (ListType) t;
-            } else if (t instanceof RefType) {
-                listType = (ListType) ((RefType) t).getType();
-            }
-
-            List<Integer> sizeByDim = typeseval().sizeByDimension((ListType) listType.getElementType());
-            List<String> indexByDim = getListIndexes((ExprIndexer) indexer.getStructure());
-            Collections.reverse(indexByDim);
-
-            List<String> structureIndex = new ArrayList<>();
-            for (int i = 0; i < indexByDim.size(); i++) {
-                List<String> dims = new ArrayList<>();
-                for (int j = i; j < sizeByDim.size(); j++) {
-                    dims.add(Integer.toString(sizeByDim.get(j)));
-                }
-                structureIndex.add(String.format("%s*%s", String.join("*", dims), indexByDim.get(i)));
-            }
-            str = Optional.of(String.join(" + ", structureIndex));
-        }
-
-        if (indexer.getIndex() instanceof ExprIndexer) {
-            ind = String.format("%s", evaluate(indexer.getIndex()));
-        } else {
-            ind = evaluate(indexer.getIndex());
-        }
-
-        if (str.isPresent()) {
-            return String.format("%s[%s + %s]", variables().name(varDecl), str.get(), ind);
-        } else {
-            return String.format("%s[%s]", variables().name(varDecl), ind);
-        }*/
-
     }
 
 
@@ -1263,14 +1221,20 @@ public interface ExpressionEvaluator {
 
     default List<String> getListIndexes(ExprIndexer expr) {
         List<String> indexByDim = new ArrayList<>();
+        String ssaIndexEval = evaluate(expr.getIndex());
+        String ssaIndexAsIndexType = lists().generateIndex(types().type(expr.getIndex()),ssaIndexEval);
         if (expr.getStructure() instanceof ExprIndexer) {
-            indexByDim.add(evaluate(expr.getIndex()));
+            indexByDim.add(ssaIndexAsIndexType);
             getListIndexes((ExprIndexer) expr.getStructure()).stream().forEachOrdered(indexByDim::add);
         } else {
-            indexByDim.add(evaluate(expr.getIndex()));
+            indexByDim.add(ssaIndexAsIndexType);
         }
 
         return indexByDim;
+    }
+
+    default List<String> getListIndexes(Expression expr) {
+        return Collections.singletonList(evaluate(expr));
     }
 
     /**

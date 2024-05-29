@@ -42,16 +42,6 @@ public interface LValues {
     String lvalue(LValue lvalue);
 
     default String lvalue(LValueVariable var) {
-        VarDecl decl = backend().varDecls().declaration(var);
-        IRNode parent = backend().tree().parent(decl);
-        if ((parent instanceof Scope) || (parent instanceof ActorMachine) || (parent instanceof NamespaceDecl)) {
-            Type type = backend().types().type(decl.getType());
-            if (type instanceof ListType) {
-                backend().statements().profilingOp().add("__opCounters->prof_DATAHANDLING_LIST_STORE += 1;");
-            } else {
-                backend().statements().profilingOp().add("__opCounters->prof_DATAHANDLING_STORE += 1;");
-            }
-        }
         return variables().name(var.getVariable());
     }
 
@@ -87,6 +77,11 @@ public interface LValues {
         return String.format("%s[%s]", variables().name(var), singleDimIndex(indexer));
     }
 
+    default Type getListIndexerType(LValueIndexer indexer){
+        Variable var = evalLValueIndexerVar(indexer);
+        VarDecl varDecl = backend().varDecls().declaration(var);
+        return backend().types().declaredType(varDecl);
+    }
 
     default String singleDimIndex(LValueIndexer indexer) {
 
@@ -179,11 +174,13 @@ public interface LValues {
 
     default List<String> getListIndexes(LValueIndexer expr) {
         List<String> indexByDim = new ArrayList<>();
+        String ssaIndexEval = expressioneval().evaluate(expr.getIndex());
+        String ssaIndexAsIndexType = backend().lists().generateIndex(backend().types().type(expr.getIndex()),ssaIndexEval);
         if (expr.getStructure() instanceof LValueIndexer) {
-            indexByDim.add(expressioneval().evaluate(expr.getIndex()));
+            indexByDim.add(ssaIndexAsIndexType);
             getListIndexes((LValueIndexer) expr.getStructure()).stream().forEachOrdered(indexByDim::add);
         } else {
-            indexByDim.add(expressioneval().evaluate(expr.getIndex()));
+            indexByDim.add(ssaIndexAsIndexType);
         }
 
         return indexByDim;

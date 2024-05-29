@@ -9,7 +9,7 @@ dfg.process @RepeatOutput
 		// Block Statement: Begin
 		//     Variable declarations attached to block statement: Begin
 		%l_t__1_d0_0 = dfg.pull %In : i32
-		%l_list__3_d0_0 = memref.alloca() : memref<4xi32>
+		%l_list__3_d0_0 = memref.alloc() : memref<4xi32>
 		//     Variable declarations attached to block statement: End
 		// Assignment Statement: Start
 		%tmp_0 = arith.constant 0 : i1
