@@ -1,0 +1,12 @@
+actor AccessList() int In ==> int Out:
+    action In:[t1] repeat 4 ==> Out:[sum]
+    var
+      int sum := 0,
+      int index := 0
+    do
+      while index < 4 do
+        sum := sum + t1[index];
+        index := index + 1;
+      end
+    end
+end

@@ -1,0 +1,13 @@
+actor AssignList() int In ==> int Out:
+    action In:[t1] ==> Out:[list] repeat 4
+    var
+      List(type:uint, size=4) list,
+      uint index := 0
+    do
+      list[0] := 1;
+      while list[0] < 4 do
+        list[list[0]] := t1 + list[0];
+        list[0] := list[0] + 1;
+      end
+    end
+end

@@ -64,14 +64,15 @@ public interface ListGenerator {
         // index_cast works while index_cast_ui throws not supported errors in CIRCT. As such we cast to an expected
         // larger integer size to get around the sign extension issue.
         IntType widerIndex;
-        if (indexExprType.getSize().orElse(32) < 32) {
+        if (indexExprType.getSize().orElse(32) <= 32) {
             widerIndex = new IntType(OptionalInt.of(32), false);
         } else {
             widerIndex = new IntType(OptionalInt.of(64), false);
         }
         String tempSsa = backend().typeseval().castType(indexExprType, widerIndex, ssaToConvert);
         String outputSsa = backend().ssaValueNumberingStack().getNewTempVar();
-        emitter().emit("%%%s = arith.index_cast %%%s: i32 to index", outputSsa, tempSsa);
+        String type = backend().typeseval().type(widerIndex);
+        emitter().emit("%%%s = arith.index_cast %%%s: %s to index", outputSsa, tempSsa, type);
         return outputSsa;
     }
 }

@@ -1,0 +1,6 @@
+{
+  "description": "Assign values to list iteratively in a while loop.",
+  "cal-file": "2_assign_list.cal",
+  "mlir-file": "2_assign_list.mlir",
+  "entity": "AssignList"
+}

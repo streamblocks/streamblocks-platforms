@@ -635,10 +635,14 @@ public interface Statements {
 
         // The scf.condition requires a list of the SSA values to transfer to the while body.
         // These are the latest version of the argument names generated within the while before block
-        String beforeRegionReturn = assignedVars.stream()
-                .map(x -> "%" + ssaValueNumberingStack().getVarName(lvalues().lvalue(x)))
-                .collect(Collectors.joining(", "));
-        emitter().emit("scf.condition(%%%s) %s : %s", conditionVar, beforeRegionReturn, returnValuesTypes);
+        if (whileReturnValues.isEmpty()) {
+            emitter().emit("scf.condition(%%%s)", conditionVar);
+        }else{
+            String beforeRegionReturn = assignedVars.stream()
+                    .map(x -> "%" + ssaValueNumberingStack().getVarName(lvalues().lvalue(x)))
+                    .collect(Collectors.joining(", "));
+            emitter().emit("scf.condition(%%%s) %s : %s", conditionVar, beforeRegionReturn, returnValuesTypes);
+        }
         ssaValueNumberingStack().blockDone();
         emitter().decreaseIndentation();
         emitter().emit("} do {");
@@ -660,10 +664,14 @@ public interface Statements {
         stmt.getBody().forEach(this::execute);
 
         // 2.3 Yield the basic block - returns back the before block which checks the condition again
-        String yieldReturn = assignedVars.stream()
-                .map(x -> "%" + ssaValueNumberingStack().getVarName(lvalues().lvalue(x)))
-                .collect(Collectors.joining(", "));
-        emitter().emit("scf.yield %s: %s", yieldReturn, returnValuesTypes);
+        if (whileReturnValues.isEmpty()) {
+            emitter().emit("scf.yield");
+        }else{
+            String yieldReturn = assignedVars.stream()
+                    .map(x -> "%" + ssaValueNumberingStack().getVarName(lvalues().lvalue(x)))
+                    .collect(Collectors.joining(", "));
+            emitter().emit("scf.yield %s: %s", yieldReturn, returnValuesTypes);
+        }
         ssaValueNumberingStack().blockDone();
         emitter().decreaseIndentation();
         emitter().emit("}");
@@ -836,7 +844,13 @@ public interface Statements {
     }
 
     default Set<LValue> getNestedAssignments(StmtAssignment stmt) {
-        return Collections.singleton(stmt.getLValue());
+        // When this is an LValueIndex, this is the assignment to a location in a list is a[1] = 3. In this case, the
+        // SSA is not updated, only the internal list data. For our use case, we do not need this non-updating SSA.
+        if(stmt.getLValue() instanceof LValueIndexer) {
+            return Collections.emptySet();
+        }else{
+            return Collections.singleton(stmt.getLValue());
+        }
     }
 
     /**
