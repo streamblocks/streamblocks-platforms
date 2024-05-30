@@ -10,6 +10,7 @@ import se.lth.cs.tycho.type.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.OptionalInt;
 
 @Module
 public interface TypesEvaluator {
@@ -78,7 +79,27 @@ public interface TypesEvaluator {
             size = size + "x" + sizeInt;
             innerType = innerTypeAsList.getElementType();
         }
-        return "memref<" + size + "x" + type(innerType) + ">";
+        Type resizedInnerType = resizeInnerType(innerType);
+        return "memref<" + size + "x" + type(resizedInnerType) + ">";
+    }
+
+    /**
+     * In lists of lists, some types are stored in a specific size (i.e, integers are stored as 32/64 bits regardless
+     * of their size).
+     *
+     * @param innerType The type at the bottom level of the array
+     * @return The inner type of the array resized to the correct size
+     */
+    default Type resizeInnerType(Type innerType) {
+        return innerType;
+    }
+
+    default Type resizeInnerType(IntType innerType) {
+        if (innerType.getSize().orElse(0) <= 32) {
+            return new IntType(OptionalInt.of(32), true);
+        } else {
+            return new IntType(OptionalInt.of(64), true);
+        }
     }
 
     default String pointerType(Type type) {
@@ -231,7 +252,7 @@ public interface TypesEvaluator {
                     "equal size is not supported.");
         }
 
-        if (fromType.equals(toType)) {
+        if (type(fromType).equals(type(toType))) {
             return listNameSSA;
         }
 

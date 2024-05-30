@@ -1174,7 +1174,7 @@ public interface ExpressionEvaluator {
     default void evaluateSubList(String listSSA, List<String> indices, List<Integer> sizeByDim, Type currentType,
                                  Expression expr, ListType containerType) {
         String innerExprSSA = evaluate(expr);
-        String innerExprCast = typeseval().castType(types().type(expr), currentType, innerExprSSA);
+        String innerExprCast = typeseval().castType(types().type(expr), typeseval().resizeInnerType(currentType), innerExprSSA);
         lists().store(listSSA, innerExprCast, indices, containerType);
     }
 
