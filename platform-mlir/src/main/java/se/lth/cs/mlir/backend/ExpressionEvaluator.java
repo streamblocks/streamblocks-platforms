@@ -18,7 +18,10 @@ import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.type.*;
 
 import java.math.BigInteger;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Module
@@ -160,7 +163,7 @@ public interface ExpressionEvaluator {
 
     /**
      * Evaluate an expression Globals variable
-     *
+     * <p>
      * We just evaluate the expressions each time we call a global variable as it should evaluate to a constant
      * with constant folding in other stages of the compiler.
      */
@@ -169,11 +172,12 @@ public interface ExpressionEvaluator {
         Expression declExpression = decl.getValue();
 
         emitter().emit("// Evaluate global variable %s.", decl.getName());
-        Type inputType =  types().type(declExpression);
+        Type inputType = types().type(declExpression);
         Type outputType = types().declaredType(decl);
         String rvalueTemp = evaluate(declExpression);
         String rvalueSSA = typeseval().castType(inputType, outputType, rvalueTemp);
-        emitter().emit("// Evaluate global variable %s done: assigned to %s above in this context.", decl.getName(), rvalueSSA);
+        emitter().emit("// Evaluate global variable %s done: assigned to %s above in this context.", decl.getName(),
+                rvalueSSA);
 
         return rvalueSSA;
     }
@@ -260,8 +264,9 @@ public interface ExpressionEvaluator {
             if (input.hasRepeat()) {
                 // 1. Reading from a port when it has a repeat value eg: In:[x] repeat 3
                 ListType listType = (ListType) type;
-                if(!listType.getSize().isPresent()){
-                    throw new Error("List types in repeat statements should always have a size, if this error is thrown, this is a compiler bug");
+                if (!listType.getSize().isPresent()) {
+                    throw new Error("List types in repeat statements should always have a size, if this error is " +
+                            "thrown, this is a compiler bug");
                 }
 
                 // 1.1 Pull the correct number of tokens from the channel to match with the repeat keyword
@@ -274,7 +279,8 @@ public interface ExpressionEvaluator {
                             typeseval().type(listType.getElementType()));
                 }
                 // 1.2 Defer instructions for combining tokens into a memref to later.
-                backend().deferredPortOperationsBox().get().addPort(lvalue, tempSSAs, listType, input.getPort().getName());
+                backend().deferredPortOperationsBox().get().addPort(lvalue, tempSSAs, listType,
+                        input.getPort().getName());
             } else {
                 // 2. Pull a single token from a port and assign
                 String lValueSSA = ssaValueNumberingStack().getVarToBeAssignedTo(lvalue);
@@ -459,13 +465,14 @@ public interface ExpressionEvaluator {
 
         // This line is a bit messy. streamblocks-tycho has nice conversion methods, but they are hard to access
         // this line allows us to access them. There is likely a better way to do this, but this is fine for now.
-        Types.Implementation conversionMethods = (Types.Implementation) backend().task().getModule(Types.Implementation.key);
+        Types.Implementation conversionMethods =
+                (Types.Implementation) backend().task().getModule(Types.Implementation.key);
         Type typeToCastTo = conversionMethods.leastUpperBound(lhsType, rhsType);
 
         // In cases where the output type is an integer, some operations can result in a type that has more bits
         // than the common type of the lhs and rhs. Eg, if lhs is int3 and rhs is int3, then rhs+lhs can result in
         // int4. In this case we want to cast both to this larger type.
-        if(typeToCastTo instanceof IntType && exprOutputType instanceof IntType){
+        if (typeToCastTo instanceof IntType && exprOutputType instanceof IntType) {
             typeToCastTo = conversionMethods.leastUpperBound(typeToCastTo, exprOutputType);
         }
 
@@ -859,7 +866,7 @@ public interface ExpressionEvaluator {
         Type operandType = types().type(unaryOp.getOperand());
         switch (unaryOp.getOperation()) {
             case "-":
-                return evaluateUnaryMinus(operandType, types().type(unaryOp) ,unaryOp);
+                return evaluateUnaryMinus(operandType, types().type(unaryOp), unaryOp);
             case "~":
                 return evaluateUnaryInvert(operandType, unaryOp);
             case "!":
@@ -877,7 +884,7 @@ public interface ExpressionEvaluator {
     }
 
 
-    default String evaluateUnaryMinus(Type inputType, Type outputType ,ExprUnaryOp expr) {
+    default String evaluateUnaryMinus(Type inputType, Type outputType, ExprUnaryOp expr) {
         throw new UnsupportedOperationException(expr.getOperation());
     }
 
@@ -962,7 +969,7 @@ public interface ExpressionEvaluator {
     default String evaluateUnarySize(ListType type, ExprUnaryOp expr) {
         String tempResult = ssaValueNumberingStack().getNewTempVar();
         String typeString = typeseval().type(types().type(expr));
-        emitter().emit("%%%s = arith.constant %s : %s", tempResult, type.getSize().getAsInt() , typeString);
+        emitter().emit("%%%s = arith.constant %s : %s", tempResult, type.getSize().getAsInt(), typeString);
         return tempResult;
     }
 
@@ -1133,27 +1140,42 @@ public interface ExpressionEvaluator {
     }
 
     /**
-     * Evaluate list expression
+     * Evaluate list expression - needs to evaluate recursively as we can have lists of lists
      *
      * @param list
      * @return
      */
     default String evaluate(ExprList list) {
         ListType t = (ListType) types().type(list);
-        if (t.getSize().isPresent()) {
-            String tempListSSA = ssaValueNumberingStack().getNewTempVar();
-            lists().allocateList(t, tempListSSA);
-            for (int i = 0; i < list.getElements().size(); i++) {
-                Expression listElement = list.getElements().get(i);
-                String listElementSSA = evaluate(listElement);
-                String convertedListElementSSA = typeseval().castType(types().type(listElement) ,t.getElementType(), listElementSSA);
-                String indexSSA = lists().generateIndexFromInt(i);
-                lists().store(tempListSSA, convertedListElementSSA, Collections.singletonList(indexSSA) ,t);
-            }
-            return tempListSSA;
-        } else {
-            return "NULL /* TODO: implement dynamically sized lists */";
+        List<Integer> sizeByDim = typeseval().sizeByDimension(t);
+        List<String> indices = new ArrayList<>();
+        String listSSA = ssaValueNumberingStack().getNewTempVar();
+        lists().allocateList(t, listSSA);
+
+        evaluateSubList(listSSA, indices, sizeByDim, t, list, t);
+
+        return listSSA;
+    }
+
+    default void evaluateSubList(String listSSA, List<String> indices, List<Integer> sizeByDim, ListType currentType,
+                                 Expression expr, ListType containerType) {
+        int range = sizeByDim.remove(0);
+        Type innerType = currentType.getElementType();
+        for (int i = 0; i < range; i++) {
+            String indexSSA = lists().generateIndexFromInt(i);
+            indices.add(indexSSA);
+            Expression innerExpr = ((ExprList) expr).getElements().get(i);
+            evaluateSubList(listSSA, indices, sizeByDim, innerType, innerExpr, containerType);
+            indices.remove(indices.size() - 1);
         }
+        sizeByDim.add(0, range);
+    }
+
+    default void evaluateSubList(String listSSA, List<String> indices, List<Integer> sizeByDim, Type currentType,
+                                 Expression expr, ListType containerType) {
+        String innerExprSSA = evaluate(expr);
+        String innerExprCast = typeseval().castType(types().type(expr), currentType, innerExprSSA);
+        lists().store(listSSA, innerExprCast, indices, containerType);
     }
 
     default String evaluateExprList(Expression expr) {
@@ -1174,9 +1196,8 @@ public interface ExpressionEvaluator {
         String listName = variables().declarationName(varDecl);
         String listSSA = ssaValueNumberingStack().getVarName(listName);
 
-        // 2. Here we get the indices, we search recursivly through the list as we may have a list of lists.
+        // 2. Here we get the indices, we search recursively through the list as we may have a list of lists.
         List<String> indexByDim = getListIndexes(indexer);
-
 
         // 3. Load the value from the memref object
         String ssaReturn = ssaValueNumberingStack().getNewTempVar();
@@ -1222,10 +1243,10 @@ public interface ExpressionEvaluator {
     default List<String> getListIndexes(ExprIndexer expr) {
         List<String> indexByDim = new ArrayList<>();
         String ssaIndexEval = evaluate(expr.getIndex());
-        String ssaIndexAsIndexType = lists().generateIndex(types().type(expr.getIndex()),ssaIndexEval);
+        String ssaIndexAsIndexType = lists().generateIndex(types().type(expr.getIndex()), ssaIndexEval);
         if (expr.getStructure() instanceof ExprIndexer) {
-            indexByDim.add(ssaIndexAsIndexType);
             getListIndexes((ExprIndexer) expr.getStructure()).stream().forEachOrdered(indexByDim::add);
+            indexByDim.add(ssaIndexAsIndexType);
         } else {
             indexByDim.add(ssaIndexAsIndexType);
         }

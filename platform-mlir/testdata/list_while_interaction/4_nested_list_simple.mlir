@@ -53,7 +53,7 @@ dfg.process @NestedListSimple
 				%tmp_19 = arith.extui %tmp_18 : i3 to i32
 				%tmp_20 = arith.muli %l_list2d__index__x__5_d1_0, %tmp_19 : i32
 				%tmp_21 = arith.addi %tmp_20, %l_list2d__index__y__6_d2_0 : i32
-				memref.store %tmp_21, %l_list__2d__4_d0_0[%tmp_16, %tmp_17] : memref<4x4xi32>
+				memref.store %tmp_21, %l_list__2d__4_d0_0[%tmp_17, %tmp_16] : memref<4x4xi32>
 				// Assignment Statement: End
 				// Assignment Statement: Start
 				%tmp_22 = arith.constant 1 : i1
@@ -107,7 +107,7 @@ dfg.process @NestedListSimple
 				%tmp_40 = arith.index_cast %l_list__flat__index__7_d2_0: i32 to index
 				%tmp_41 = arith.index_cast %l_list2d__index__y__6_d2_0: i32 to index
 				%tmp_42 = arith.index_cast %l_list2d__index__x__5_d1_0: i32 to index
-				%tmp_43 = memref.load %l_list__2d__4_d0_0[%tmp_41, %tmp_42] : memref<4x4xi32>
+				%tmp_43 = memref.load %l_list__2d__4_d0_0[%tmp_42, %tmp_41] : memref<4x4xi32>
 				memref.store %tmp_43, %l_list__flat__3_d0_0[%tmp_40] : memref<16xi32>
 				// Assignment Statement: End
 				// Assignment Statement: Start

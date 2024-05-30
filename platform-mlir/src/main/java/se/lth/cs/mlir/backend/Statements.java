@@ -238,7 +238,7 @@ public interface Statements {
     }
 
     default void copy(Type lvalueType, String lvalue, Type rvalueType, String rvalue) {
-        String mlirOp = backend().typeseval().mlirTypeConstantInstruction(lvalueType);
+        String mlirOp = backend().typeseval().mlirTypeConstantInstruction(lvalueType, rvalue);
         emitter().emit("%%%s = %s %s : %s", lvalue, mlirOp, rvalue, backend().typeseval().type(lvalueType));
     }
 

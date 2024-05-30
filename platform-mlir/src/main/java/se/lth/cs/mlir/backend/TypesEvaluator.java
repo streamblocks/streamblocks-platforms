@@ -9,7 +9,6 @@ import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.type.*;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 @Module
@@ -34,26 +33,17 @@ public interface TypesEvaluator {
 
     default String type(AlgebraicType type) {
         throw new UnsupportedOperationException("Type not implemented in MLIR.");
-        //return type.getName() + "_t*";
     }
 
-    String mlirTypeConstantInstruction(Type type);
+    String mlirTypeConstantInstruction(Type type, String ssaOperandIn);
 
-    default String mlirTypeConstantInstruction(IntType type) {
-        return "arith.constant";
-        //return type.getName() + "_t*";
+    default String mlirTypeConstantInstruction(IntType type, String ssaOperandIn) {
+        return "arith.constant " + ssaOperandIn + " : " + type(type);
     }
 
     default String type(IntType type) {
         if (type.getSize().isPresent()) {
             int originalSize = type.getSize().getAsInt();
-            /*int targetSize = 8;
-            while (originalSize > targetSize) {
-                targetSize = targetSize * 2;
-            }*/
-            /*if(targetSize > 64){
-                targetSize = 64;
-            }*/
             return String.format(type.isSigned() ? "i%d" : "i%d", originalSize);
         } else {
             return type.isSigned() ? "i32" : "i32"; // i32 represents both signed and unsigned in MLIR
@@ -233,33 +223,52 @@ public interface TypesEvaluator {
     }
 
     default String castType(ListType fromType, ListType toType, String listNameSSA) {
+        List<Integer> fromListDimension = sizeByDimension(fromType);
+        List<Integer> toListDimension = sizeByDimension(fromType);
 
-        if (!fromType.getSize().isPresent() || !toType.getSize().isPresent()) {
-            throw new UnsupportedOperationException("Casting from one list type to another when one of the lists is " +
-                    "of undefined size is not supported");
-        }
-
-        if (fromType.getSize().getAsInt() != toType.getSize().getAsInt()) {
+        if (!fromListDimension.equals(toListDimension)) {
             throw new UnsupportedOperationException("Casting from one list type to another when the lists are not of " +
                     "equal size is not supported.");
         }
 
-        if (fromType.getElementType() == toType.getElementType()) {
+        if (fromType.equals(toType)) {
             return listNameSSA;
         }
 
+        List<Integer> sizeByDim = sizeByDimension(toType);
+        List<String> indices = new ArrayList<>();
         String convertedListSSA = ssaValueNumberingStack().getNewTempVar();
         backend().lists().allocateList(toType, convertedListSSA);
 
-        for (int i = 0; i < toType.getSize().getAsInt(); i++) {
-            String indexSSA = backend().lists().generateIndexFromInt(i);
-            String tempSSAFromList = ssaValueNumberingStack().getNewTempVar();
-            backend().lists().load(listNameSSA, tempSSAFromList, Collections.singletonList(indexSSA), fromType);
-            String convertedSSA = castType(fromType.getElementType(), toType.getElementType(), tempSSAFromList);
-            backend().lists().store(convertedListSSA, convertedSSA, Collections.singletonList(indexSSA), toType);
-        }
+        // In the case of a list of lists, we need to cast through ever layer of the list.
+        castSubList(convertedListSSA, listNameSSA, indices, sizeByDim, fromType, toType, fromType, toType);
 
         return convertedListSSA;
+    }
+
+    default void castSubList(String convertedListSSA, String inputListSSA, List<String> indices,
+                             List<Integer> sizeByDim, ListType fromType,
+                             ListType toType, ListType topFromType, ListType topToType) {
+        int range = sizeByDim.remove(0);
+        Type innerTypeFrom = fromType.getElementType();
+        Type innerTypeTo = toType.getElementType();
+        for (int i = 0; i < range; i++) {
+            String indexSSA = backend().lists().generateIndexFromInt(i);
+            indices.add(indexSSA);
+            castSubList(convertedListSSA, inputListSSA, indices, sizeByDim, innerTypeFrom, innerTypeTo, topFromType,
+                    topToType);
+            indices.remove(indices.size() - 1);
+        }
+        sizeByDim.add(0, range);
+    }
+
+    default void castSubList(String convertedListSSA, String inputListSSA, List<String> indices,
+                             List<Integer> sizeByDim, Type fromType,
+                             Type toType, ListType topFromType, ListType topToType) {
+        String tempSSAFromList = ssaValueNumberingStack().getNewTempVar();
+        backend().lists().load(inputListSSA, tempSSAFromList, indices, topFromType);
+        String convertedSSA = castType(fromType, toType, tempSSAFromList);
+        backend().lists().store(convertedListSSA, convertedSSA, indices, topToType);
     }
 
 }

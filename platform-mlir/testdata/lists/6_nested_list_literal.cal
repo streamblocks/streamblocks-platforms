@@ -1,0 +1,21 @@
+actor NestedLiterals() int In ==> int Out:
+    action In:[t1] ==> Out:[out_list] repeat 6
+    var
+      List(type:List(type:uint, size=3), size=2) twoDList := [[10,20,30], [40,50,60]],
+      List(type:uint, size=6) out_list,
+      uint inner_index := 0,
+      uint outer_index := 0,
+      uint out_list_index := 0
+    do
+      while outer_index < 2 do
+        inner_index := 0;
+        while inner_index < 3 do
+          twoDList[outer_index][inner_index] := twoDList[outer_index][inner_index] + 1;
+          out_list[out_list_index] := twoDList[outer_index][inner_index];
+          out_list_index := out_list_index + 1;
+          inner_index := inner_index + 1;
+        end
+        outer_index := outer_index + 1;
+      end
+    end
+end

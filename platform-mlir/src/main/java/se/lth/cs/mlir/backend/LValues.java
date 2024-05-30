@@ -4,12 +4,8 @@ import ch.epfl.vlsc.platformutils.Emitter;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
-import se.lth.cs.tycho.ir.IRNode;
-import se.lth.cs.tycho.ir.NamespaceDecl;
 import se.lth.cs.tycho.ir.Variable;
 import se.lth.cs.tycho.ir.decl.VarDecl;
-import se.lth.cs.tycho.ir.entity.am.ActorMachine;
-import se.lth.cs.tycho.ir.entity.am.Scope;
 import se.lth.cs.tycho.ir.expr.ExprIndexer;
 import se.lth.cs.tycho.ir.stmt.lvalue.*;
 import se.lth.cs.tycho.type.ListType;
@@ -68,7 +64,8 @@ public interface LValues {
     }
 
     default String lvalueIndexing(Type type, LValueIndexer indexer) {
-        return String.format("%s[%s]", lvalue(indexer.getStructure()), backend().expressionEval().evaluate(indexer.getIndex()));
+        return String.format("%s[%s]", lvalue(indexer.getStructure()), backend().expressionEval().evaluate(indexer
+        .getIndex()));
     }
 */
 
@@ -77,7 +74,7 @@ public interface LValues {
         return String.format("%s[%s]", variables().name(var), singleDimIndex(indexer));
     }
 
-    default Type getListIndexerType(LValueIndexer indexer){
+    default Type getListIndexerType(LValueIndexer indexer) {
         Variable var = evalLValueIndexerVar(indexer);
         VarDecl varDecl = backend().varDecls().declaration(var);
         return backend().types().declaredType(varDecl);
@@ -102,7 +99,7 @@ public interface LValues {
 
         List<Integer> elementSizeDim = new ArrayList<>();
 
-        if(listType.getElementType() instanceof ListType) {
+        if (listType.getElementType() instanceof ListType) {
             elementSizeDim = backend().typeseval().sizeByDimension((ListType) listType.getElementType());
         }
 
@@ -135,8 +132,8 @@ public interface LValues {
         //if(!indexByDim.isEmpty()) {
         if (listSizeDim.size() != (indexByDim.size() + 1)) {
             int factor = 1;
-            for(int i = indexByDim.size(); i < elementSizeDim.size(); i++){
-                factor*=elementSizeDim.get(i);
+            for (int i = indexByDim.size(); i < elementSizeDim.size(); i++) {
+                factor *= elementSizeDim.get(i);
             }
 
             //int lastDim = elementSizeDim.get(elementSizeDim.size() - 1);
@@ -145,13 +142,13 @@ public interface LValues {
         //}
 
         if (str.isPresent()) {
-            return String.format("%s + %s",  str.get(), ind);
+            return String.format("%s + %s", str.get(), ind);
         } else {
             return String.format("%s", ind);
         }
     }
 
-    default boolean subIndexAccess(LValueIndexer indexer){
+    default boolean subIndexAccess(LValueIndexer indexer) {
         Variable var = evalLValueIndexerVar(indexer);
         VarDecl varDecl = backend().varDecls().declaration(var);
         Type t = backend().types().declaredType(varDecl);
@@ -175,10 +172,11 @@ public interface LValues {
     default List<String> getListIndexes(LValueIndexer expr) {
         List<String> indexByDim = new ArrayList<>();
         String ssaIndexEval = expressioneval().evaluate(expr.getIndex());
-        String ssaIndexAsIndexType = backend().lists().generateIndex(backend().types().type(expr.getIndex()),ssaIndexEval);
+        String ssaIndexAsIndexType = backend().lists().generateIndex(backend().types().type(expr.getIndex()),
+                ssaIndexEval);
         if (expr.getStructure() instanceof LValueIndexer) {
-            indexByDim.add(ssaIndexAsIndexType);
             getListIndexes((LValueIndexer) expr.getStructure()).stream().forEachOrdered(indexByDim::add);
+            indexByDim.add(ssaIndexAsIndexType);
         } else {
             indexByDim.add(ssaIndexAsIndexType);
         }
