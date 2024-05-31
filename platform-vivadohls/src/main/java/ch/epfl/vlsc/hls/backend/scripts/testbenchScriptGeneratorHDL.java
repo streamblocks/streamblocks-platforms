@@ -56,6 +56,8 @@ public interface testbenchScriptGeneratorHDL {
         emitter().emit("# 3. Begin generating relevant HDL files and copy them to simulation directory");
         emitter().emit("mkdir -p verilog_testbench_simulation");
         emitter().emit("cp code-gen/rtl/fifo.v verilog_testbench_simulation/");
+        emitter().emit("cp code-gen/rtl/trigger_common.sv verilog_testbench_simulation/");
+        emitter().emit("cp code-gen/rtl/trigger.sv verilog_testbench_simulation/");
         emitter().emitNewLine();
 
         String identifier = backend().task().getIdentifier().getLast().toString();

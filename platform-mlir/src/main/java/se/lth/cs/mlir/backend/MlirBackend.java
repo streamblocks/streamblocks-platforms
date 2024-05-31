@@ -185,8 +185,8 @@ public interface MlirBackend {
     }
 
     @Binding(LAZY)
-    default TestBenchGenerator testBenchGenerator(){
-        return MultiJ.from(TestBenchGenerator.class).bind("backend").to(this).instance();
+    default TestbenchGenerator testbenchGenerator(){
+        return MultiJ.from(TestbenchGenerator.class).bind("backend").to(this).instance();
     }
 
     @Binding(LAZY)

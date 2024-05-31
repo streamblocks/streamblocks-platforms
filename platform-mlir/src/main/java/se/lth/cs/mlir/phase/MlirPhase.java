@@ -117,7 +117,7 @@ public class MlirPhase implements Phase {
     }
 
     private void generateTestBench(MlirBackend mlirBackend){
-        mlirBackend.testBenchGenerator().generateTestBench();
+        mlirBackend.testbenchGenerator().generateTestbench();
     }
 
 }

@@ -146,7 +146,11 @@ public interface Main {
 
         // 4.3 Generate the required func.return for the func.func operand
         emitter().emit("// -- Return");
-        emitter().emit("func.return %s: %s", outOperands, outTypes);
+        if(outOperands.isEmpty()){
+            emitter().emit("func.return");
+        }else{
+            emitter().emit("func.return %s: %s", outOperands, outTypes);
+        }
 
         // 4.4 Done with the @top operation, close it.
         emitter().decreaseIndentation();
