@@ -1,7 +1,6 @@
 package ch.epfl.vlsc.hls.phase;
 
 import ch.epfl.vlsc.hls.backend.VivadoHLSBackend;
-import ch.epfl.vlsc.hls.backend.scripts.IdealWeight;
 import ch.epfl.vlsc.platformutils.ControllerToGraphviz;
 import ch.epfl.vlsc.platformutils.PathUtils;
 import ch.epfl.vlsc.settings.PlatformSettings;
@@ -208,7 +207,7 @@ public class VivadoHLSBackendPhase implements Phase {
         copyBackendResources(backend);
 
         // -- Generate instances
-        generateInstrances(backend);
+        generateIntances(backend);
 
         // -- Generate Globals
         generateGlobals(backend);
@@ -282,7 +281,7 @@ public class VivadoHLSBackendPhase implements Phase {
      * @param backend
      */
 
-    public static void generateInstrances(VivadoHLSBackend backend) {
+    public static void generateIntances(VivadoHLSBackend backend) {
         for (Instance instance : backend.task().getNetwork().getInstances()) {
             GlobalEntityDecl entityDecl = backend.globalnames().entityDecl(instance.getEntityName(), true);
             if (!entityDecl.getExternal()) {
@@ -382,6 +381,9 @@ public class VivadoHLSBackendPhase implements Phase {
 
         // -- Instance HLS Testbench
         network.getInstances().forEach(backend.testbenchHLS()::generateInstanceTestbench);
+
+        // -- Generate a script that generates HDL testbenches for each actor in the network.
+        backend.testbenchScriptGeneratorHDL().generateSimpleHDLTestbenchScript();;
     }
 
     public static void generateWcfg(VivadoHLSBackend backend) {

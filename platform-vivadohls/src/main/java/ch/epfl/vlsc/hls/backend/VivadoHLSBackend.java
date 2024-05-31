@@ -12,6 +12,7 @@ import ch.epfl.vlsc.hls.backend.kernel.OutputStageMem;
 import ch.epfl.vlsc.hls.backend.kernel.PackageKernel;
 import ch.epfl.vlsc.hls.backend.kernel.TopKernel;
 import ch.epfl.vlsc.hls.backend.scripts.IdealWeight;
+import ch.epfl.vlsc.hls.backend.scripts.testbenchScriptGeneratorHDL;
 import ch.epfl.vlsc.hls.backend.scripts.VivadoTCL;
 import ch.epfl.vlsc.hls.backend.simulators.WcfgWaveform;
 import ch.epfl.vlsc.hls.backend.systemc.Simulator;
@@ -321,7 +322,13 @@ public interface VivadoHLSBackend {
         return MultiJ.from(WcfgWaveform.class).bind("backend").to(this).instance();
     }
 
-    // -- Vivado TCL
+    // -- Testbench Script Generator HDL
+    @Binding(LAZY)
+    default testbenchScriptGeneratorHDL testbenchScriptGeneratorHDL() {
+        return MultiJ.from(testbenchScriptGeneratorHDL.class).bind("backend").to(this).instance();
+    }
+
+    // -- Simple Testbench Generator
     @Binding(LAZY)
     default VivadoTCL vivadotcl() {
         return MultiJ.from(VivadoTCL.class).bind("backend").to(this).instance();

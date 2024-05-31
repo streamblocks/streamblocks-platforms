@@ -34,7 +34,7 @@ public interface CMakeLists {
 
         // -- CMake Minimal version
         emitter().emitSharpBlockCommentStart();
-        emitter().emitSharpComment("StremBlocks Vivado HLS Code Generation");
+        emitter().emitSharpComment("StreamBlocks Vivado HLS Code Generation");
         emitter().emitSharpComment("Generated from: " + backend().task().getIdentifier());
         emitter().emitSharpBlockCommentEnd();
 
