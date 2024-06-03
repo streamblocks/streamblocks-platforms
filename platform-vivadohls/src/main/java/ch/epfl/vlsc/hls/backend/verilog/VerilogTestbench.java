@@ -485,7 +485,6 @@ public interface VerilogTestbench {
                     emitter().emit("%s_write = 1'b1;", name);
                 }
                 emitter().emit("#10");
-                portValue += 10;
                 for (PortDecl port : inputs) {
                     String name = port.getName();
                     emitter().emit("%s_write = 1'b0;", name);
