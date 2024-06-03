@@ -54,7 +54,7 @@ public interface VerilogTestbench {
 
             entity.getOutputPorts().forEach(p -> queueWires(identifier, p, false));
 
-            getInitial(identifier, entity.getInputPorts(), entity.getOutputPorts(), true);
+            getInitial(identifier, entity.getInputPorts(), entity.getOutputPorts(), true, false);
 
             clockGeneration();
 
@@ -100,6 +100,75 @@ public interface VerilogTestbench {
         emitter().close();
     }
 
+    default void generateTestbenchSimple(Instance instance) {
+        String identifier = instance.getInstanceName();
+        Path instanceTarget = PathUtils.getTargetCodeGenRtlTb(backend().context()).resolve("tb_" + identifier + "_simple.v");
+
+        // -- Get Entity
+        GlobalEntityDecl entityDecl = backend().globalnames().entityDecl(instance.getEntityName(), true);
+        Entity entity = entityDecl.getEntity();
+
+        emitter().open(instanceTarget);
+
+        getPreprocessor();
+
+        emitter().emit("module tb_%s();", identifier);
+        emitter().increaseIndentation();
+        {
+            clkAndReset();
+
+            inputPortWiresAndReg(entity.getInputPorts());
+
+            outputPortWireAndRer(entity.getOutputPorts());
+
+            entity.getInputPorts().forEach(p -> queueWires(identifier, p, true));
+
+            entity.getOutputPorts().forEach(p -> queueWires(identifier, p, false));
+
+            getInitial(identifier, entity.getInputPorts(), entity.getOutputPorts(), true, true);
+
+            clockGeneration();
+
+
+            /*if (!entity.getInputPorts().isEmpty()) {
+                emitter().emit("// ------------------------------------------------------------------------");
+                emitter().emit("// -- Read from the files and write to the input fifos");
+                entity.getInputPorts().forEach(this::readFromFileAndWrite);
+            }*/
+
+            if (!entity.getOutputPorts().isEmpty()) {
+                emitter().emit("// ------------------------------------------------------------------------");
+                emitter().emit("// -- Read from output ports");
+                entity.getOutputPorts().forEach(this::readFromOutputPort);
+            }
+
+            /*if (!entity.getOutputPorts().isEmpty()) {
+                emitter().emit("// ------------------------------------------------------------------------");
+                emitter().emit("// -- Compare with golden reference");
+                entity.getOutputPorts().forEach(this::compareWithGoldenReference);
+            }*/
+
+            if (!entity.getInputPorts().isEmpty()) {
+                emitter().emit("// ------------------------------------------------------------------------");
+                emitter().emit("// -- Queues for input ports");
+                entity.getInputPorts().forEach(p -> getQueue(identifier, p, true));
+            }
+
+            if (!entity.getOutputPorts().isEmpty()) {
+                emitter().emit("// ------------------------------------------------------------------------");
+                emitter().emit("// -- Queues for output ports");
+                entity.getOutputPorts().forEach(p -> getQueue(identifier, p, false));
+            }
+
+            getDut(instance);
+        }
+        emitter().decreaseIndentation();
+        emitter().emit("endmodule");
+
+
+        emitter().close();
+    }
+
     default void generateTestbench(Network network) {
         // -- Identifier
         String identifier = backend().task().getIdentifier().getLast().toString();
@@ -124,7 +193,7 @@ public interface VerilogTestbench {
 
             outputPortWireAndRer(network.getOutputPorts());
 
-            getInitial(identifier, network.getInputPorts(), network.getOutputPorts(), false);
+            getInitial(identifier, network.getInputPorts(), network.getOutputPorts(), false, false);
 
             clockGeneration();
 
@@ -277,7 +346,7 @@ public interface VerilogTestbench {
     // ------------------------------------------------------------------------
     // -- Initial Block
 
-    default void getInitial(String name, List<PortDecl> inputs, List<PortDecl> outputs, boolean isInstance) {
+    default void getInitial(String name, List<PortDecl> inputs, List<PortDecl> outputs, boolean isInstance, boolean skipFileReading) {
         emitter().emit("// ------------------------------------------------------------------------");
         emitter().emit("// -- Initial block");
         emitter().emit("initial begin");
@@ -311,12 +380,12 @@ public interface VerilogTestbench {
                 emitter().emitNewLine();
             }
 
-            if (!inputs.isEmpty()) {
+            if (!inputs.isEmpty() && !skipFileReading) {
                 emitter().emit("// -- Open input vector data files");
                 inputs.forEach(p -> initPortDataVector(name, p, isInstance));
             }
 
-            if (!outputs.isEmpty()) {
+            if (!outputs.isEmpty() && !skipFileReading) {
                 emitter().emit("// -- Open output vector data files");
                 outputs.forEach(p -> initPortDataVector(name, p, isInstance));
             }

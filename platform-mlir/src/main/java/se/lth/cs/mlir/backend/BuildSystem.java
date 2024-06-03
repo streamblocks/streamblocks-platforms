@@ -58,6 +58,7 @@ public interface BuildSystem {
             // Check if this specific instance class has been defined, if not, we define it or else we skip this
             if (definedInstancesClasses.add(entityClass)) {
                 String hlsName = "hls_" + entityClass + "_calc";
+                emitter().emit("#dfg-opt --map-arith-to-comb %s.mlir > %s_Transformed.mlir", hlsName, hlsName);
                 emitter().emit("#hlstool %s.mlir --buffering-strategy=cycles --dynamic-hw " +
                         "--lowering-options=disallowLocalVariables -o %s.sv", hlsName, hlsName);
                 emitter().emit("hlstool %s.mlir -o %s.sv", hlsName, hlsName);
