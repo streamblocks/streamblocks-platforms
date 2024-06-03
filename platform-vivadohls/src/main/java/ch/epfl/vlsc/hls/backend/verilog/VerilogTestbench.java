@@ -475,20 +475,23 @@ public interface VerilogTestbench {
     default void toggleInputSignals(List<PortDecl> inputs){
 
         int portValue = 0;
-        for (int i = 0; i < 5; i++) {
-            for(PortDecl port: inputs){
-                String name = port.getName();
-                emitter().emit("%s_din = %d;", name, portValue);
-                emitter().emit("%s_write = 1'b1;", name);
+        if(!inputs.isEmpty()){
+            for (int i = 0; i < 5; i++) {
+                emitter().emit("#10");
+                for (PortDecl port : inputs) {
+                    portValue += 10;
+                    String name = port.getName();
+                    emitter().emit("%s_din = %d;", name, portValue);
+                    emitter().emit("%s_write = 1'b1;", name);
+                }
+                portValue += 10;
+                for (PortDecl port : inputs) {
+                    String name = port.getName();
+                    emitter().emit("%s_write = 1'b0;", name);
+                }
+                emitter().emit("#10");
+                emitter().emitNewLine();
             }
-            emitter().emit("#10");
-            for(PortDecl port: inputs){
-                String name = port.getName();
-                emitter().emit("%s_write = 1'b0;", name);
-            }
-            emitter().emit("#10");
-            emitter().emitNewLine();
-            portValue += 10;
         }
     }
 

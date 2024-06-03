@@ -82,9 +82,9 @@ public interface testbenchScriptGeneratorHDL {
         emitter().emit("cd build");
         emitter().emit("sed -i 's/.NOTPARALLEL/#.NOTPARALLEL/g' Makefile");
         List<String> instanceNamesList = network.getInstances().stream().map(x -> x.getInstanceName()).collect(Collectors.toList());
-        emitter().emit("make %s", String.join(" ", instanceNamesList));
+        emitter().emit("make -j4 %s", String.join(" ", instanceNamesList));
         emitter().emit("sed -i 's/#.NOTPARALLEL/.NOTPARALLEL/g' Makefile");
-        emitter().emit("..");
+        emitter().emit("cd ..");
         emitter().emit("# An optimisation to generate HDL for all the actors in parallel: End");
         emitter().emitNewLine();
     }
