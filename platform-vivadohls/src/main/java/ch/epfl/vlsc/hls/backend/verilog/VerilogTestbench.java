@@ -112,7 +112,7 @@ public interface VerilogTestbench {
 
         getPreprocessor();
 
-        emitter().emit("module tb_%s()_simple;", identifier);
+        emitter().emit("module tb_%s_simple();", identifier);
         emitter().increaseIndentation();
         {
             clkAndReset();
