@@ -46,9 +46,9 @@ public interface VerilogTestbench {
         {
             clkAndReset();
 
-            inputPortWiresAndReg(entity.getInputPorts());
+            inputPortWiresAndReg(entity.getInputPorts(), false);
 
-            outputPortWireAndRer(entity.getOutputPorts());
+            outputPortWireAndRer(entity.getOutputPorts(), false);
 
             entity.getInputPorts().forEach(p -> queueWires(identifier, p, true));
 
@@ -112,14 +112,14 @@ public interface VerilogTestbench {
 
         getPreprocessor();
 
-        emitter().emit("module tb_%s();", identifier);
+        emitter().emit("module tb_%s()_simple;", identifier);
         emitter().increaseIndentation();
         {
             clkAndReset();
 
-            inputPortWiresAndReg(entity.getInputPorts());
+            inputPortWiresAndReg(entity.getInputPorts(), true);
 
-            outputPortWireAndRer(entity.getOutputPorts());
+            outputPortWireAndRer(entity.getOutputPorts(), true);
 
             entity.getInputPorts().forEach(p -> queueWires(identifier, p, true));
 
@@ -189,9 +189,9 @@ public interface VerilogTestbench {
             }
 
 
-            inputPortWiresAndReg(network.getInputPorts());
+            inputPortWiresAndReg(network.getInputPorts(), false);
 
-            outputPortWireAndRer(network.getOutputPorts());
+            outputPortWireAndRer(network.getOutputPorts(), false);
 
             getInitial(identifier, network.getInputPorts(), network.getOutputPorts(), false, false);
 
@@ -247,9 +247,9 @@ public interface VerilogTestbench {
             }
 
 
-            inputPortWiresAndReg(network.getInputPorts());
+            inputPortWiresAndReg(network.getInputPorts(), true);
 
-            outputPortWireAndRer(network.getOutputPorts());
+            outputPortWireAndRer(network.getOutputPorts(), true);
 
             getInitial(identifier, network.getInputPorts(), network.getOutputPorts(), false, true);
 
@@ -314,7 +314,7 @@ public interface VerilogTestbench {
     }
 
 
-    default void ioRegWires(PortDecl port, boolean isInput) {
+    default void ioRegWires(PortDecl port, boolean isInput, boolean skipFileWriting) {
         Type type = backend().types().declaredPortType(port);
         int bitSize = backend().typeseval().sizeOfBits(type);
         boolean isSigned = false;
@@ -336,36 +336,42 @@ public interface VerilogTestbench {
             emitter().emit("wire %s_empty_n;", name);
             emitter().emit("reg %s_read;", name);
             emitter().emitNewLine();
-            emitter().emit("// -- Expected value, end of file and \"%s\" token counter", name);
-            emitter().emit("reg %s [%d:0] %s_exp_value;", isSigned ? "signed" : "", bitSize - 1, name);
-            emitter().emit("reg %s_end_of_file;", name);
-            emitter().emit("reg [31:0] %s_token_counter;", name);
+            if(!skipFileWriting) {
+                emitter().emit("// -- Expected value, end of file and \"%s\" token counter", name);
+                emitter().emit("reg %s [%d:0] %s_exp_value;", isSigned ? "signed" : "", bitSize - 1, name);
+                emitter().emit("reg %s_end_of_file;", name);
+                emitter().emit("reg [31:0] %s_token_counter;", name);
+            }
             emitter().emitNewLine();
         }
     }
 
-    default void inputPortWiresAndReg(List<PortDecl> ports) {
+    default void inputPortWiresAndReg(List<PortDecl> ports, boolean skipFileWriting) {
         emitter().emit("// ------------------------------------------------------------------------");
         emitter().emit("// -- Input port registers & wires");
         emitter().emitNewLine();
 
-        emitter().emit("// -- File Integers");
-        ports.forEach(this::fileDataAndScan);
+        if(!skipFileWriting) {
+            emitter().emit("// -- File Integers");
+            ports.forEach(this::fileDataAndScan);
+        }
 
         emitter().emit("// -- Input port registers, wires and state for reading");
-        ports.forEach(p -> ioRegWires(p, true));
+        ports.forEach(p -> ioRegWires(p, true, skipFileWriting));
     }
 
-    default void outputPortWireAndRer(List<PortDecl> ports) {
+    default void outputPortWireAndRer(List<PortDecl> ports, boolean skipFileWriting) {
         emitter().emit("// ------------------------------------------------------------------------");
         emitter().emit("// -- Output port registers & wires");
         emitter().emitNewLine();
 
-        emitter().emit("// -- File Integers");
-        ports.forEach(this::fileDataAndScan);
+        if(!skipFileWriting) {
+            emitter().emit("// -- File Integers");
+            ports.forEach(this::fileDataAndScan);
+        }
 
         emitter().emit("// -- Output port registers, wires and state for reading");
-        ports.forEach(p -> ioRegWires(p, false));
+        ports.forEach(p -> ioRegWires(p, false, skipFileWriting));
     }
 
 
@@ -410,7 +416,9 @@ public interface VerilogTestbench {
             emitter().emit("clock = 1'b0;");
             emitter().emit("reset_n = 1'b0;");
             emitter().emit("start = 1'b0;");
-            emitter().emit("check_idle = 1'b0;");
+            if(!skipFileReading) {
+                emitter().emit("check_idle = 1'b0;");
+            }
             emitter().emitNewLine();
 
             emitter().emit("// -- Initialize input port registers");
@@ -426,8 +434,10 @@ public interface VerilogTestbench {
             for (PortDecl port : outputs) {
                 String portName = port.getName();
                 emitter().emit("%s_read = 1'b0;", portName);
-                emitter().emit("%s_end_of_file = 1'b0;", portName);
-                emitter().emit("%s_token_counter = 0;", portName);
+                if(!skipFileReading) {
+                    emitter().emit("%s_end_of_file = 1'b0;", portName);
+                    emitter().emit("%s_token_counter = 0;", portName);
+                }
                 emitter().emitNewLine();
             }
 
@@ -443,7 +453,9 @@ public interface VerilogTestbench {
 
             emitter().emit("#55 reset_n = 1'b1;");
             emitter().emit("#10 start = 1'b1;");
-            emitter().emit("#20 check_idle = 1'b1;");
+            if(!skipFileReading) {
+                emitter().emit("#20 check_idle = 1'b1;");
+            }
         }
         emitter().decreaseIndentation();
         emitter().emit("end");
