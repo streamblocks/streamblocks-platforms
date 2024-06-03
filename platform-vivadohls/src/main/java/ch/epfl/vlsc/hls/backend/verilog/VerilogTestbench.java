@@ -326,7 +326,9 @@ public interface VerilogTestbench {
         String name = port.getName();
         if (isInput) {
             emitter().emit("reg %s [%d:0] %s_din;", isSigned ? "signed" : "", bitSize - 1, name);
-            emitter().emit("reg %s [%d:0] %s_din_tmp;", isSigned ? "signed" : "", bitSize - 1, name);
+            if(!skipFileWriting) {
+                emitter().emit("reg %s [%d:0] %s_din_tmp;", isSigned ? "signed" : "", bitSize - 1, name);
+            }
             emitter().emit("reg %s_write;", name);
             emitter().emit("reg %s_idle = 1'b0;", name);
             emitter().emit("wire %s_full_n;", name);
@@ -425,7 +427,9 @@ public interface VerilogTestbench {
             for (PortDecl port : inputs) {
                 String portName = port.getName();
                 emitter().emit("%s_din = 1'b0;", portName);
-                emitter().emit("%s_din_tmp = 1'b0;", portName);
+                if(!skipFileReading) {
+                    emitter().emit("%s_din_tmp = 1'b0;", portName);
+                }
                 emitter().emit("%s_write = 1'b0;", portName);
                 emitter().emitNewLine();
             }
@@ -456,10 +460,36 @@ public interface VerilogTestbench {
             if(!skipFileReading) {
                 emitter().emit("#20 check_idle = 1'b1;");
             }
+
+            emitter().emitNewLine();
+            if(skipFileReading){
+                emitter().emit("// -- Toggle input ports a few times to simulate input data.");
+                toggleInputSignals(inputs);
+            }
         }
         emitter().decreaseIndentation();
         emitter().emit("end");
         emitter().emitNewLine();
+    }
+
+    default void toggleInputSignals(List<PortDecl> inputs){
+
+        int portValue = 0;
+        for (int i = 0; i < 5; i++) {
+            for(PortDecl port: inputs){
+                String name = port.getName();
+                emitter().emit("%s_din = %d;", name, portValue);
+                emitter().emit("%s_write = 1'b1;", name);
+            }
+            emitter().emit("#10");
+            for(PortDecl port: inputs){
+                String name = port.getName();
+                emitter().emit("%s_write = 1'b0;", name);
+            }
+            emitter().emit("#10");
+            emitter().emitNewLine();
+            portValue += 10;
+        }
     }
 
     default void initPortDataVector(String name, PortDecl port, boolean isInstance) {
