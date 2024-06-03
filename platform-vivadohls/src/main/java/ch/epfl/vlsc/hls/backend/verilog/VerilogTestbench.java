@@ -227,6 +227,57 @@ public interface VerilogTestbench {
 
     }
 
+    default void generateTestbenchSimple(Network network) {
+        // -- Identifier
+        String identifier = backend().task().getIdentifier().getLast().toString();
+
+        // -- Network file
+        emitter().open(PathUtils.getTargetCodeGenRtlTb(backend().context()).resolve("tb_" + identifier + "_simple.v"));
+
+        getPreprocessor();
+
+        emitter().emit("module tb_%s_simple();", identifier);
+        emitter().increaseIndentation();
+        {
+            clkAndReset();
+
+            if (!network.getInputPorts().isEmpty()) {
+                emitter().emit("// -- Input(s) Idle");
+                emitter().emit("wire input_idle = 1'b0;");
+            }
+
+
+            inputPortWiresAndReg(network.getInputPorts());
+
+            outputPortWireAndRer(network.getOutputPorts());
+
+            getInitial(identifier, network.getInputPorts(), network.getOutputPorts(), false, true);
+
+            clockGeneration();
+
+            startPulseGenerator();
+
+            if (!network.getOutputPorts().isEmpty()) {
+                emitter().emit("// ------------------------------------------------------------------------");
+                emitter().emit("// -- Read from output ports");
+                network.getOutputPorts().forEach(this::readFromOutputPort);
+            }
+
+            if (!network.getOutputPorts().isEmpty()) {
+                emitter().emit("// ------------------------------------------------------------------------");
+                emitter().emit("// -- Compare with golden reference");
+                network.getOutputPorts().forEach(this::compareWithGoldenReference);
+            }
+
+            getDut(network);
+        }
+        emitter().decreaseIndentation();
+        emitter().emit("endmodule");
+
+        emitter().close();
+
+    }
+
 
     // ------------------------------------------------------------------------
     // -- Preprocessor

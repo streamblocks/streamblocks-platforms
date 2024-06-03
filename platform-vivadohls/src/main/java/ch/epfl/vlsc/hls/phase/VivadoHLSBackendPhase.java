@@ -364,6 +364,7 @@ public class VivadoHLSBackendPhase implements Phase {
 
         // -- Network Verilog Testbench
         backend.testbench().generateTestbench(network);
+        backend.testbench().generateTestbenchSimple(network);
 
         // -- SystemC network testbench
         if (backend.context().getConfiguration().isDefined(PlatformSettings.enableSystemC)
@@ -375,6 +376,9 @@ public class VivadoHLSBackendPhase implements Phase {
 
         // -- Instance Verilog Testbench
         network.getInstances().forEach(backend.testbench()::generateTestbench);
+
+        // -- Instance Verilog Testbench
+        network.getInstances().forEach(backend.testbench()::generateTestbenchSimple);
 
         // -- Network HLS Testbench
         backend.testbenchHLS().generateNetworkTestbench();

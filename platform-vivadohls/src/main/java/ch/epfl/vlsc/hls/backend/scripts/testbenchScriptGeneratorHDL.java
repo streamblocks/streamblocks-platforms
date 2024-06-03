@@ -74,6 +74,7 @@ public interface testbenchScriptGeneratorHDL {
         emitter().emit("echo \"Copy HDL for instance: %s\"", networkName);
         emitter().emit("cp code-gen/rtl/%s.sv verilog_testbench_simulation/", networkName);
         emitter().emit("cp code-gen/rtl-tb/tb_%s.v verilog_testbench_simulation/", networkName);
+        emitter().emit("cp code-gen/rtl-tb/tb_%s_simple.v verilog_testbench_simulation/", networkName);
         emitter().emitNewLine();
     }
 
@@ -84,6 +85,7 @@ public interface testbenchScriptGeneratorHDL {
         emitter().emit("make %s", instanceName);
         emitter().emit("cp %s/solution/syn/verilog/%s.v ../verilog_testbench_simulation/", instanceName, instanceName);
         emitter().emit("cp ../code-gen/rtl-tb/tb_%s.v ../verilog_testbench_simulation/", instanceName);
+        emitter().emit("cp ../code-gen/rtl-tb/tb_%s_simple.v ../verilog_testbench_simulation/", instanceName);
         emitter().emit("cd ..");
         emitter().emitNewLine();
     }
