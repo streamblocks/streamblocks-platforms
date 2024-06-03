@@ -9,6 +9,9 @@ import org.multij.Module;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.network.Network;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 @Module
 public interface testbenchScriptGeneratorHDL {
 
@@ -50,6 +53,7 @@ public interface testbenchScriptGeneratorHDL {
         emitter().emit("cd build");
         emitter().emit("cmake .. -DTARGET=hw_emu -DHLS_CLOCK_PERIOD=3.3 -DFPGA_NAME=xcu200-fsgd2104-2-e " +
                 "-DPLATFORM=xilinx_u200_xdma_201830_2 -DUSE_VITIS=on -DCMAKE_BUILD_TYPE=Debug");
+
         emitter().emit("cd ..");
         emitter().emitNewLine();
 
@@ -63,11 +67,26 @@ public interface testbenchScriptGeneratorHDL {
         String identifier = backend().task().getIdentifier().getLast().toString();
         copyTopNetworkFile(identifier);
         Network network = backend().task().getNetwork();
+        makeInParallel(network);
         network.getInstances().forEach(this::copyInstanceFile);
 
         emitter().emit("echo \"Simulation sources in: $projDir\"");
 
         emitter().close();
+    }
+
+    default void makeInParallel(Network network){
+        emitter().emit("# An optimisation to generate HDL for all the actors in parallel: Begin");
+        emitter().emit("# This is the most time consuming part of this script, so parallel execution speeds things up.");
+        emitter().emit("# If this region causes errors in building, just remove it.");
+        emitter().emit("cd build");
+        emitter().emit("sed -i 's/.NOTPARALLEL/#.NOTPARALLEL/g' Makefile");
+        List<String> instanceNamesList = network.getInstances().stream().map(x -> x.getInstanceName()).collect(Collectors.toList());
+        emitter().emit("make %s", String.join(" ", instanceNamesList));
+        emitter().emit("sed -i 's/#.NOTPARALLEL/.NOTPARALLEL/g' Makefile");
+        emitter().emit("..");
+        emitter().emit("# An optimisation to generate HDL for all the actors in parallel: End");
+        emitter().emitNewLine();
     }
 
     default void copyTopNetworkFile(String networkName) {
