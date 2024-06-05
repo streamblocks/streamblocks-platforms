@@ -43,8 +43,8 @@ public interface testbenchScriptGeneratorHDL {
         emitter().emit("cd $scriptDir/..");
         emitter().emit("projDir=`pwd`");
         emitter().emit("echo \"Project directory: $projDir\"");
-        emitter().emit("echo \"Project build directory: $projDir\\build\"");
-        emitter().emit("echo \"HDL testbench files to be stored in directory: $projDir\\verilog_testbench_simulation\"");
+        emitter().emit("echo \"Project build directory: $projDir/build\"");
+        emitter().emit("echo \"HDL testbench files to be stored in directory: $projDir/verilog_testbench_simulation\"");
         emitter().emitNewLine();
 
         emitter().emit("# 2. Run cmake build to generate required makefiles and source code");
@@ -70,7 +70,7 @@ public interface testbenchScriptGeneratorHDL {
         makeInParallel(network);
         network.getInstances().forEach(this::copyInstanceFile);
 
-        emitter().emit("echo \"Simulation sources in: $projDir\\verilog_testbench_simulation\"");
+        emitter().emit("echo \"Simulation sources in: $projDir/verilog_testbench_simulation\"");
 
         emitter().close();
     }
