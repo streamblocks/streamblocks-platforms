@@ -45,7 +45,7 @@ public interface BuildSystem {
         emitter().emit("# 1.1 Build SV files and mlir files for the actor kernels");
         emitter().emit("mkdir -p build/sv");
         emitter().emit("cd build/sv");
-        emitter().emit("dfg-opt ../../code-gen/main.mlir --convert-std-to-circt --convert-dfg-to-circt " +
+        emitter().emit("dfg-opt ../../code-gen/main.mlir --flatten-memref --handshake-legalize-memrefs --convert-std-to-circt --convert-dfg-to-circt " +
                 "--convert-fsm-to-sv --lower-seq-to-sv --export-split-verilog");
         emitter().emit("#dfg-opt ../../code-gen/main.mlir --convert-std-to-circt --debug-only=wrap-process-ops");
         emitter().emitNewLine();
@@ -61,6 +61,9 @@ public interface BuildSystem {
                 emitter().emit("#dfg-opt --map-arith-to-comb %s.mlir > %s_Transformed.mlir", hlsName, hlsName);
                 emitter().emit("#hlstool %s.mlir --buffering-strategy=cycles --dynamic-hw " +
                         "--lowering-options=disallowLocalVariables -o %s.sv", hlsName, hlsName);
+                emitter().emit("mlir-opt --canonicalize %s.mlir > temp.mlir", hlsName);
+                emitter().emit("rm %s.mlir", hlsName);
+                emitter().emit("mv temp.mlir %s.mlir", hlsName);
                 emitter().emit("hlstool %s.mlir -o %s.sv", hlsName, hlsName);
             }
 
