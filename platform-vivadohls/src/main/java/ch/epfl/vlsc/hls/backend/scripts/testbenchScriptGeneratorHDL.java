@@ -102,7 +102,7 @@ public interface testbenchScriptGeneratorHDL {
         emitter().emit("echo \"Generate and copy HDL for instance: %s\"", instanceName);
         emitter().emit("cd build");
         emitter().emit("make %s", instanceName);
-        emitter().emit("cp %s/solution/syn/verilog/%s.v ../verilog_testbench_simulation/", instanceName, instanceName);
+        emitter().emit("cp %s/solution/syn/verilog/*.v ../verilog_testbench_simulation/", instanceName, instanceName);
         emitter().emit("cp ../code-gen/rtl-tb/tb_%s.v ../verilog_testbench_simulation/", instanceName);
         emitter().emit("cp ../code-gen/rtl-tb/tb_%s_simple.v ../verilog_testbench_simulation/", instanceName);
         emitter().emit("cd ..");
