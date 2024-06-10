@@ -99,9 +99,8 @@ public interface testbenchScriptGeneratorHDL {
 
     default void copyTopNetworkFileVivado2023(String networkName) {
         emitter().emit("echo \"Copy HDL for instance: %s\"", networkName);
-        emitter().emit("cp code-gen/rtl/%s.sv verilog_testbench_simulation_vivado_2023/", networkName);
-        emitter().emit("cp code-gen/rtl-tb/tb_%s.v verilog_testbench_simulation_vivado_2023/", networkName);
-        emitter().emit("cp code-gen/rtl-tb/tb_%s_simple.v verilog_testbench_simulation_vivado_2023/", networkName);
+        emitter().emit("cp code-gen/rtl/%s_vivado2023.sv verilog_testbench_simulation_vivado_2023/", networkName);
+        emitter().emit("cp code-gen/rtl-tb/tb_%s_simple_vivado2023.v verilog_testbench_simulation_vivado_2023/", networkName);
         emitter().emitNewLine();
     }
 
@@ -165,7 +164,7 @@ public interface testbenchScriptGeneratorHDL {
         emitter().emitNewLine();
 
         String identifier = backend().task().getIdentifier().getLast().toString();
-        //copyTopNetworkFileVivado2023(identifier);
+        copyTopNetworkFileVivado2023(identifier);
         Network network = backend().task().getNetwork();
         network.getInstances().forEach(this::makeAndCopyVivado2023);
 

@@ -297,7 +297,9 @@ public class VivadoHLSBackendPhase implements Phase {
      */
     public static void generateNetwork(VivadoHLSBackend backend) {
 
-        backend.vnetwork().generateNetwork();
+        // Generate a verilog network compatible with 2019 and 2023 versions of Vivado/Vitis
+        backend.vnetwork().generateNetwork(false);
+        backend.vnetwork().generateNetwork(true);
         int nbrConnections = backend.task().getNetwork().getConnections().size();
 
         boolean systemCNetwork = backend.context().getConfiguration().isDefined(PlatformSettings.enableSystemC) &&
@@ -362,9 +364,10 @@ public class VivadoHLSBackendPhase implements Phase {
         // -- Network
         Network network = backend.task().getNetwork();
 
-        // -- Network Verilog Testbench
+        // -- Network Verilog Testbench (Generate a simple testbench for the 2019 and 2023 versions of Vivado/Vitis)
         backend.testbench().generateTestbench(network);
         backend.testbench().generateTestbenchSimple(network, false);
+        backend.testbench().generateTestbenchSimple(network, true);
 
         // -- SystemC network testbench
         if (backend.context().getConfiguration().isDefined(PlatformSettings.enableSystemC)

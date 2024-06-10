@@ -240,11 +240,19 @@ public interface VerilogTestbench {
         String identifier = backend().task().getIdentifier().getLast().toString();
 
         // -- Network file
-        emitter().open(PathUtils.getTargetCodeGenRtlTb(backend().context()).resolve("tb_" + identifier + "_simple.v"));
+        if(vivado2023) {
+            emitter().open(PathUtils.getTargetCodeGenRtlTb(backend().context()).resolve("tb_" + identifier + "_simple_vivado2023.v"));
+        }else{
+            emitter().open(PathUtils.getTargetCodeGenRtlTb(backend().context()).resolve("tb_" + identifier + "_simple.v"));
+        }
 
         getPreprocessor();
 
-        emitter().emit("module tb_%s_simple();", identifier);
+        if(vivado2023){
+            emitter().emit("module tb_%s_simple_vivado2023();", identifier);
+        }else{
+            emitter().emit("module tb_%s_simple();", identifier);
+        }
         emitter().increaseIndentation();
         {
             clkAndReset(false);
@@ -277,7 +285,7 @@ public interface VerilogTestbench {
                 network.getOutputPorts().forEach(this::compareWithGoldenReference);
             }
 
-            getDut(network, false);
+            getDut(network, vivado2023);
         }
         emitter().decreaseIndentation();
         emitter().emit("endmodule");
@@ -774,6 +782,7 @@ public interface VerilogTestbench {
         // -- Identifier
         String identifier = instance.getInstanceName();
 
+
         // -- Get Entity
         GlobalEntityDecl entityDecl = backend().globalnames().entityDecl(instance.getEntityName(), true);
         Entity entity = entityDecl.getEntity();
@@ -837,7 +846,11 @@ public interface VerilogTestbench {
                     .collect(Collectors.toList())));
             emitter().emitNewLine();
         }
-        emitter().emit("%s dut(", identifier);
+        if(vivado2023){
+            emitter().emit("%s_vivado2023 dut(", identifier);
+        }else{
+            emitter().emit("%s dut(", identifier);
+        }
         emitter().increaseIndentation();
         {
             // -- Inputs

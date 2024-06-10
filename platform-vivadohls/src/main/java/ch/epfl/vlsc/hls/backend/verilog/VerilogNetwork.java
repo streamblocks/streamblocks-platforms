@@ -63,16 +63,22 @@ public interface VerilogNetwork {
         }
     }
 
-    default void generateNetwork() {
+    default void generateNetwork(boolean vivado2023) {
         backend().triggerBox().set(true);
-        networkContent();
+        networkContent(vivado2023);
         backend().triggerBox().set(false);
-        networkContent();
+        networkContent(vivado2023);
         backend().triggerBox().clear();
     }
 
 
-    default void networkContent() {
+    /**
+     * Generate the HDL for an actor network.
+     *
+     * @param vivado2023 The toolchain was initially designed for Vivado 2019, however there is moderate support for
+     *                   Vivado 2023. When this flag is true, generate the HDL for Vivado 2023 instead of 2019
+     */
+    default void networkContent(boolean vivado2023) {
         // -- Identifier
         String identifier = backend().task().getIdentifier().getLast().toString();
 
@@ -84,6 +90,9 @@ public interface VerilogNetwork {
             identifier = identifier + "_pure";
         }
 
+        if(vivado2023){
+            identifier =  identifier + "_vivado2023";
+        }
         emitter().open(PathUtils.getTargetCodeGenRtl(backend().context()).resolve(identifier + ".sv"));
 
 
@@ -122,13 +131,13 @@ public interface VerilogNetwork {
             getParameters(network);
 
             // -- Wires
-            getWires(network);
+            getWires(network, vivado2023);
 
             // -- Queues
             getQueues(network.getConnections());
 
             // -- Instances
-            getInstances(network.getInstances(), network.getConnections());
+            getInstances(network.getInstances(), network.getConnections(), vivado2023);
 
             // -- ILA for debug
             // getILA(network.getInstances());
@@ -266,7 +275,7 @@ public interface VerilogNetwork {
     // ------------------------------------------------------------------------
     // -- Wires
 
-    default void getWires(Network network) {
+    default void getWires(Network network, boolean vivado2023) {
         // -- Fifo Queue Wires
         emitter().emit("// ------------------------------------------------------------------------");
         emitter().emit("// -- Wires & Regs");
@@ -289,7 +298,7 @@ public interface VerilogNetwork {
         if (useTrigger()) {
             // -- Trigger wires
 
-            getLocalTriggerWires(network.getInstances());
+            getLocalTriggerWires(network.getInstances(), vivado2023);
 
         }
     }
@@ -356,7 +365,7 @@ public interface VerilogNetwork {
     }
 
 
-    default void getLocalTriggerWires(ImmutableList<Instance> instances) {
+    default void getLocalTriggerWires(ImmutableList<Instance> instances, boolean vivado2023) {
         for (Instance instance : instances) {
             String name = instance.getInstanceName();
 
@@ -380,9 +389,38 @@ public interface VerilogNetwork {
             emitter().emit("wire    %s_waited;", name);
             emitter().emit("wire    %s;", getTriggerSignalByName(instance, "sleep"));
             emitter().emit("wire    %s;", getTriggerSignalByName(instance, "sync_sleep"));
+
+            generateIOWires(name, instance, vivado2023);
+
             emitter().emitNewLine();
         }
         emitter().emitNewLine();
+    }
+
+    default void generateIOWires(String name, Instance instance, boolean vivado2023){
+        if(vivado2023) {
+            emitter().emit("// -- IO signal");
+
+            GlobalEntityDecl entityDecl = backend().globalnames().entityDecl(instance.getEntityName(), true);
+            Entity entity = entityDecl.getEntity();
+
+            String portSignals = "";
+            for (PortDecl port : entity.getInputPorts()) {
+                Connection.End target = new Connection.End(Optional.of(name), port.getName());
+                Connection connection = backend().task().getNetwork().getConnections().stream()
+                        .filter(c -> c.getTarget().equals(target)).findAny().orElse(null);
+                String queueName = queueNames().get(connection);
+                portSignals += queueName + "_peek, " + queueName + "_count" + ", ";
+            }
+            for (int i = 0; i < entity.getOutputPorts().size(); i++) {
+                portSignals += "64'h0000100000000000, ";
+            }
+            if(!portSignals.isEmpty()) {
+                portSignals = portSignals.substring(0, portSignals.length() - 2);
+            }
+            int numBits = (entity.getInputPorts().size() + entity.getOutputPorts().size())*64;
+            emitter().emit("wire [%d:0] %s_io_wire = {%s};", numBits-1, name, portSignals);
+        }
     }
     // ------------------------------------------------------------------------
     // -- Queues
@@ -456,18 +494,18 @@ public interface VerilogNetwork {
     // ------------------------------------------------------------------------
     // -- Instances
 
-    default void getInstances(List<Instance> instances, List<Connection> connections) {
+    default void getInstances(List<Instance> instances, List<Connection> connections, boolean vivado2023) {
         emitter().emit("// ------------------------------------------------------------------------");
         emitter().emit("// -- Instances");
         emitter().emitNewLine();
 
         for (Instance instance : instances) {
-            String qidName = getInstance(instance);
+            String qidName = getInstance(instance, vivado2023);
         }
 
     }
 
-    default String getInstance(Instance instance) {
+    default String getInstance(Instance instance, boolean vivado2023) {
         // -- Instance name
 
         String name = instance.getInstanceName();
@@ -581,51 +619,57 @@ public interface VerilogNetwork {
 
             // -- Inputs
             for (PortDecl port : entity.getInputPorts()) {
-                getInstancePortDeclaration(port, name, true);
+                getInstancePortDeclaration(port, name, true, vivado2023);
                 emitter().emitNewLine();
 
             }
             // -- Outputs
             for (PortDecl port : entity.getOutputPorts()) {
-                getInstancePortDeclaration(port, name, false);
+                getInstancePortDeclaration(port, name, false, vivado2023);
                 emitter().emitNewLine();
             }
 
             if (entity instanceof ActorMachine) {
                 // -- IO for Inputs
-                for (PortDecl port : entity.getInputPorts()) {
-                    String portName = port.getName();
-                    Connection.End target = new Connection.End(Optional.of(name), portName);
-                    Connection connection = backend().task().getNetwork().getConnections().stream()
-                            .filter(c -> c.getTarget().equals(target)).findAny().orElse(null);
-                    String queueName = queueNames().get(connection);
-                    if (backend().context().getConfiguration().get(PlatformSettings.arbitraryPrecisionIntegers)) {
-                        Type type = backend().types().declaredPortType(port);
-                        if (type instanceof IntType) {
-                            emitter().emit(".io_%s_peek_V(%s),", portName, String.format("%s_peek", queueName));
+                if(vivado2023){
+                    emitter().emit(".io(%s_io_wire),", name);
+                    emitter().emitNewLine();
+                }else {
+                    for (PortDecl port : entity.getInputPorts()) {
+                        String portName = port.getName();
+                        Connection.End target = new Connection.End(Optional.of(name), portName);
+                        Connection connection = backend().task().getNetwork().getConnections().stream()
+                                .filter(c -> c.getTarget().equals(target)).findAny().orElse(null);
+                        String queueName = queueNames().get(connection);
+                        if (backend().context().getConfiguration().get(PlatformSettings.arbitraryPrecisionIntegers)) {
+                            Type type = backend().types().declaredPortType(port);
+                            if (type instanceof IntType) {
+                                emitter().emit(".io_%s_peek_V(%s),", portName, String.format("%s_peek", queueName));
+                            } else {
+                                emitter().emit(".io_%s_peek(%s),", portName, String.format("%s_peek", queueName));
+                            }
                         } else {
                             emitter().emit(".io_%s_peek(%s),", portName, String.format("%s_peek", queueName));
                         }
-                    } else {
-                        emitter().emit(".io_%s_peek(%s),", portName, String.format("%s_peek", queueName));
+                        emitter().emit(".io_%s_count(%s),", portName, String.format("%s_count", queueName));
+
+                        emitter().emitNewLine();
                     }
-                    emitter().emit(".io_%s_count(%s),", portName, String.format("%s_count", queueName));
 
-                    emitter().emitNewLine();
-                }
 
-                // -- IO for Outputs
-                for (PortDecl port : entity.getOutputPorts()) {
-                    String portName = port.getName();
-                    Connection.End source = new Connection.End(Optional.of(name), portName);
-                    Connection connection = backend().task().getNetwork().getConnections().stream()
-                            .filter(c -> c.getSource().equals(source)).findAny().orElse(null);
-                    String queueName = queueNames().get(connection);
+                    // -- IO for Outputs
+                    for (PortDecl port : entity.getOutputPorts()) {
+                        String portName = port.getName();
+                        Connection.End source = new Connection.End(Optional.of(name), portName);
+                        Connection connection = backend().task().getNetwork().getConnections().stream()
+                                .filter(c -> c.getSource().equals(source)).findAny().orElse(null);
+                        String queueName = queueNames().get(connection);
 
-                    emitter().emit(".io_%s_size(%s),", portName, String.format("%s_size", queueName));
-                    emitter().emit(".io_%s_count(%s),", portName, String.format("%s_count", queueName));
+                        emitter().emit(".io_%s_size(%s),", portName, String.format("%s_size", queueName));
+                        emitter().emit(".io_%s_count(%s),", portName, String.format("%s_count", queueName));
 
-                    emitter().emitNewLine();
+                        emitter().emitNewLine();
+                    }
                 }
             }
 
@@ -647,15 +691,15 @@ public interface VerilogNetwork {
     }
 
 
-    default void getInstancePortDeclaration(PortDecl port, String name, Boolean isInput) {
-        getInstanceIOPortDeclaration(port, name, "", isInput);
+    default void getInstancePortDeclaration(PortDecl port, String name, Boolean isInput, boolean vivado2023) {
+        getInstanceIOPortDeclaration(port, name, "", isInput, vivado2023);
         emitter().emitNewLine();
     }
 
-    default void getInstanceIOPortDeclaration(PortDecl port, String name, String portNameExtension, Boolean isInput) {
+    default void getInstanceIOPortDeclaration(PortDecl port, String name, String portNameExtension, Boolean isInput, boolean vivado2023) {
         String portName = port.getName();
         Type type = backend().types().declaredPortType(port);
-        String getPortExtension = getPortExtension(type);
+        String getPortExtension = getPortExtension(type, vivado2023);
         if (isInput) {
             emitter().emit(".%s%s%s_empty_n(%s),", portName, getPortExtension, portNameExtension,
                     String.format("q_%s_%s%s_empty_n", name, portName, portNameExtension));
@@ -985,7 +1029,11 @@ public interface VerilogNetwork {
     // ------------------------------------------------------------------------
     // -- Helper methods
 
-    default String getPortExtension(Type type) {
+    default String getPortExtension(Type type, boolean vivado2023) {
+        if(vivado2023){
+            return "_r";
+        }
+
         if (type instanceof IntType) {
             if (backend().context().getConfiguration().get(PlatformSettings.arbitraryPrecisionIntegers)) {
                 return "_V_V";
