@@ -51,7 +51,7 @@ public interface testbenchScriptGeneratorHDL {
         emitter().emit("# echo \"Run cmake build to generate required makefiles and source code\"");
         emitter().emit("mkdir -p build");
         emitter().emit("cd build");
-        emitter().emit("cmake .. -DTARGET=hw_emu -DHLS_CLOCK_PERIOD=3.3 -DFPGA_NAME=xcu200-fsgd2104-2-e " +
+        emitter().emit("cmake .. -DTARGET=hw_emu -DHLS_CLOCK_PERIOD=3.3 -DFPGA_NAME=xc7z020clg484-1 " +
                 "-DPLATFORM=xilinx_u200_xdma_201830_2 -DUSE_VITIS=on -DCMAKE_BUILD_TYPE=Debug");
 
         emitter().emit("cd ..");
@@ -97,6 +97,14 @@ public interface testbenchScriptGeneratorHDL {
         emitter().emitNewLine();
     }
 
+    default void copyTopNetworkFileVivado2023(String networkName) {
+        emitter().emit("echo \"Copy HDL for instance: %s\"", networkName);
+        emitter().emit("cp code-gen/rtl/%s.sv verilog_testbench_simulation_vivado_2023/", networkName);
+        emitter().emit("cp code-gen/rtl-tb/tb_%s.v verilog_testbench_simulation_vivado_2023/", networkName);
+        emitter().emit("cp code-gen/rtl-tb/tb_%s_simple.v verilog_testbench_simulation_vivado_2023/", networkName);
+        emitter().emitNewLine();
+    }
+
     default void copyInstanceFile(Instance instance) {
         String instanceName = instance.getInstanceName();
         emitter().emit("echo \"Generate and copy HDL for instance: %s\"", instanceName);
@@ -105,6 +113,81 @@ public interface testbenchScriptGeneratorHDL {
         emitter().emit("cp %s/solution/syn/verilog/*.v ../verilog_testbench_simulation/", instanceName, instanceName);
         emitter().emit("cp ../code-gen/rtl-tb/tb_%s.v ../verilog_testbench_simulation/", instanceName);
         emitter().emit("cp ../code-gen/rtl-tb/tb_%s_simple.v ../verilog_testbench_simulation/", instanceName);
+        emitter().emit("cd ..");
+        emitter().emitNewLine();
+    }
+
+    /**
+     * The HLS backend generates a number of HDL testbenches that can be used when the different HLS actors have been
+     * compiled to HLS. These files are spread all over the generated project directory. This function generates a
+     * script that builds the required HDL actors from the corresponding HLS descriptions and copies this generated
+     * HDL and the testbenches to a single directory in the project.
+     */
+    default void generateSimpleHDLTestbenchScript_Vivado2023() {
+        emitter().open(PathUtils.getTargetScript(backend().context()).resolve("generateSimpleHDLTestbenches_vivado2023.sh"));
+
+
+        emitter().emit("#!/bin/bash");
+        emitter().emit("# A very simple script that generates the HDL for every HLS actor and them moves all the");
+        emitter().emit("# required files for testing those actors to my_project/verilog_testbench_simulation_vivado_2023 for");
+        emitter().emit("# easy simulation. This script specifically generates HDL for Vivado 2023 and also skips.");
+        emitter().emit("# CMAKE generation as the CMAKE compilation flow is designed to work with Vivado 2019.");
+        emitter().emitNewLine();
+
+        emitter().emit("# 1. Make sure we are in the correct directory and print useful info to user ");
+        emitter().emit("scriptDir=`dirname -- \"$( readlink -f -- \"$0\"; )\";`");
+        emitter().emit("cd $scriptDir/..");
+        emitter().emit("projDir=`pwd`");
+        emitter().emit("echo \"Project directory: $projDir\"");
+        emitter().emit("echo \"Project build directory: $projDir/build\"");
+        emitter().emit("echo \"HDL testbench files to be stored in directory: $projDir/verilog_testbench_simulation_vivado_2023\"");
+        emitter().emitNewLine();
+
+        emitter().emit("# 2. Generate VIvado TCL script for generating HDL from all HLS files");
+        emitter().emit("mkdir -p build");
+        emitter().emit("cd build");
+        emitter().emit("cp ../scripts/Synthesis_vitis.tcl.in Synthesis_vivado2023.tcl");
+        emitter().emit("sed -i -e 's/${FPGA_NAME}/xc7z020clg484-1/g' Synthesis_vivado2023.tcl");
+        emitter().emit("sed -i -e 's/${HLS_CLOCK_PERIOD}/3.3/g' Synthesis_vivado2023.tcl");
+        emitter().emit("sed -i -e \"s@\\${PROJECT_SOURCE_DIR}@$projDir@g\" Synthesis_vivado2023.tcl");
+        emitter().emit("sed -i -e 's/open_project $instance_name/open_project ${instance_name}_vivado_2023/g' Synthesis_vivado2023.tcl");
+        emitter().emit("");
+
+
+        emitter().emit("cd ..");
+        emitter().emitNewLine();
+
+        emitter().emit("# 3. Begin generating relevant HDL files and copy them to simulation directory");
+        emitter().emit("mkdir -p verilog_testbench_simulation_vivado_2023");
+        emitter().emit("cp code-gen/rtl/fifo.v verilog_testbench_simulation_vivado_2023/");
+        emitter().emit("cp code-gen/rtl/trigger_common.sv verilog_testbench_simulation_vivado_2023/");
+        emitter().emit("cp code-gen/rtl/trigger.sv verilog_testbench_simulation_vivado_2023/");
+        emitter().emitNewLine();
+
+        String identifier = backend().task().getIdentifier().getLast().toString();
+        //copyTopNetworkFileVivado2023(identifier);
+        Network network = backend().task().getNetwork();
+        network.getInstances().forEach(this::makeAndCopyVivado2023);
+
+        emitter().emit("echo \"Simulation sources in: $projDir/verilog_testbench_simulation_vivado_2023\"");
+
+        emitter().close();
+    }
+
+    default void makeAndCopyVivado2023(Instance instance) {
+        String instanceName = instance.getInstanceName();
+        emitter().emit("echo \"Generate and copy HDL for instance: %s. Follow progress in %s_vivado2023.log\"", instanceName, instanceName);
+        emitter().emit("cd build");
+        emitter().emit("vitis_hls -f Synthesis_vivado2023.tcl -tclargs %s %s.cpp > %s_vivado2023.log", instanceName, instanceName,instanceName);
+        emitter().emit("if [ \"$?\" -ne \"0\" ]; then");
+        emitter().increaseIndentation();
+        emitter().emit("echo \"Synthesis failed: Extract from log file:\"");
+        emitter().emit("tail -20 %s_vivado2023.log", instanceName);
+        emitter().emit("exit 1");
+        emitter().decreaseIndentation();
+        emitter().emit("fi");
+        emitter().emit("cp %s_vivado_2023/solution/syn/verilog/*.v ../verilog_testbench_simulation_vivado_2023/", instanceName, instanceName);
+        emitter().emit("cp ../code-gen/rtl-tb/tb_%s_simple_vivado2023.v ../verilog_testbench_simulation_vivado_2023/", instanceName);
         emitter().emit("cd ..");
         emitter().emitNewLine();
     }

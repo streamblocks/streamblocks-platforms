@@ -364,7 +364,7 @@ public class VivadoHLSBackendPhase implements Phase {
 
         // -- Network Verilog Testbench
         backend.testbench().generateTestbench(network);
-        backend.testbench().generateTestbenchSimple(network);
+        backend.testbench().generateTestbenchSimple(network, false);
 
         // -- SystemC network testbench
         if (backend.context().getConfiguration().isDefined(PlatformSettings.enableSystemC)
@@ -377,8 +377,9 @@ public class VivadoHLSBackendPhase implements Phase {
         // -- Instance Verilog Testbench
         network.getInstances().forEach(backend.testbench()::generateTestbench);
 
-        // -- Instance Verilog Testbench
-        network.getInstances().forEach(backend.testbench()::generateTestbenchSimple);
+        // -- Simple verilog testbenches for each actor, one for the 2019 version and the other for the 2023 version
+        network.getInstances().forEach(x -> backend.testbench().generateTestbenchSimple(x, false));
+        network.getInstances().forEach(x -> backend.testbench().generateTestbenchSimple(x, true));
 
         // -- Network HLS Testbench
         backend.testbenchHLS().generateNetworkTestbench();
@@ -387,7 +388,8 @@ public class VivadoHLSBackendPhase implements Phase {
         network.getInstances().forEach(backend.testbenchHLS()::generateInstanceTestbench);
 
         // -- Generate a script that generates HDL testbenches for each actor in the network.
-        backend.testbenchScriptGeneratorHDL().generateSimpleHDLTestbenchScript();;
+        backend.testbenchScriptGeneratorHDL().generateSimpleHDLTestbenchScript();
+        backend.testbenchScriptGeneratorHDL().generateSimpleHDLTestbenchScript_Vivado2023();
     }
 
     public static void generateWcfg(VivadoHLSBackend backend) {

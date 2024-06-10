@@ -12,6 +12,7 @@ import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.entity.am.ActorMachine;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.network.Network;
+import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.type.IntType;
 import se.lth.cs.tycho.type.Type;
 
@@ -44,7 +45,7 @@ public interface VerilogTestbench {
         emitter().emit("module tb_%s();", identifier);
         emitter().increaseIndentation();
         {
-            clkAndReset();
+            clkAndReset(false);
 
             inputPortWiresAndReg(entity.getInputPorts(), false);
 
@@ -89,7 +90,7 @@ public interface VerilogTestbench {
                 entity.getOutputPorts().forEach(p -> getQueue(identifier, p, false));
             }
 
-            getDut(instance);
+            getDut(instance, false);
 
             endOfSimulation(entity.getOutputPorts());
         }
@@ -100,9 +101,14 @@ public interface VerilogTestbench {
         emitter().close();
     }
 
-    default void generateTestbenchSimple(Instance instance) {
+    default void generateTestbenchSimple(Instance instance, boolean vivado2023) {
         String identifier = instance.getInstanceName();
-        Path instanceTarget = PathUtils.getTargetCodeGenRtlTb(backend().context()).resolve("tb_" + identifier + "_simple.v");
+        String vivado2023String = "";
+        if (vivado2023) {
+            vivado2023String = "_vivado2023";
+        }
+        Path instanceTarget = PathUtils.getTargetCodeGenRtlTb(backend().context()).resolve("tb_" + identifier +
+                "_simple" + vivado2023String + ".v");
 
         // -- Get Entity
         GlobalEntityDecl entityDecl = backend().globalnames().entityDecl(instance.getEntityName(), true);
@@ -112,10 +118,10 @@ public interface VerilogTestbench {
 
         getPreprocessor();
 
-        emitter().emit("module tb_%s_simple();", identifier);
+        emitter().emit("module tb_%s_simple" + vivado2023String + "();", identifier);
         emitter().increaseIndentation();
         {
-            clkAndReset();
+            clkAndReset(vivado2023);
 
             inputPortWiresAndReg(entity.getInputPorts(), true);
 
@@ -124,6 +130,8 @@ public interface VerilogTestbench {
             entity.getInputPorts().forEach(p -> queueWires(identifier, p, true));
 
             entity.getOutputPorts().forEach(p -> queueWires(identifier, p, false));
+
+            connectIOWire(identifier ,entity.getInputPorts(), entity.getOutputPorts(), vivado2023);
 
             getInitial(identifier, entity.getInputPorts(), entity.getOutputPorts(), true, true);
 
@@ -160,7 +168,7 @@ public interface VerilogTestbench {
                 entity.getOutputPorts().forEach(p -> getQueue(identifier, p, false));
             }
 
-            getDut(instance);
+            getDut(instance, vivado2023);
         }
         emitter().decreaseIndentation();
         emitter().emit("endmodule");
@@ -181,7 +189,7 @@ public interface VerilogTestbench {
         emitter().emit("module tb_%s();", identifier);
         emitter().increaseIndentation();
         {
-            clkAndReset();
+            clkAndReset(false);
 
             if (!network.getInputPorts().isEmpty()) {
                 emitter().emit("// -- Input(s) Idle");
@@ -217,7 +225,7 @@ public interface VerilogTestbench {
                 network.getOutputPorts().forEach(this::compareWithGoldenReference);
             }
 
-            getDut(network);
+            getDut(network, false);
             endOfSimulation(network.getOutputPorts());
         }
         emitter().decreaseIndentation();
@@ -227,7 +235,7 @@ public interface VerilogTestbench {
 
     }
 
-    default void generateTestbenchSimple(Network network) {
+    default void generateTestbenchSimple(Network network, boolean vivado2023) {
         // -- Identifier
         String identifier = backend().task().getIdentifier().getLast().toString();
 
@@ -239,7 +247,7 @@ public interface VerilogTestbench {
         emitter().emit("module tb_%s_simple();", identifier);
         emitter().increaseIndentation();
         {
-            clkAndReset();
+            clkAndReset(false);
 
             if (!network.getInputPorts().isEmpty()) {
                 emitter().emit("// -- Input(s) Idle");
@@ -269,13 +277,32 @@ public interface VerilogTestbench {
                 network.getOutputPorts().forEach(this::compareWithGoldenReference);
             }
 
-            getDut(network);
+            getDut(network, false);
         }
         emitter().decreaseIndentation();
         emitter().emit("endmodule");
 
         emitter().close();
 
+    }
+
+    default void connectIOWire(String name ,ImmutableList<PortDecl> inputPorts, ImmutableList<PortDecl> outputPorts,
+                               boolean vivado2023) {
+        if(vivado2023) {
+            String portSignals = "";
+            for (PortDecl port : inputPorts) {
+                String wireName = name.isEmpty() ? port.getName() : String.format("q_%s_%s", name, port.getName());
+                portSignals += wireName + "_peek, " + wireName + "_count" + ", ";
+            }
+            for (int i = 0; i < outputPorts.size(); i++) {
+                portSignals += "64'h0000100000000000, ";
+            }
+            if(!portSignals.isEmpty()) {
+                portSignals = portSignals.substring(0, portSignals.length() - 2);
+            }
+            int numBits = (inputPorts.size() + outputPorts.size())*64;
+            emitter().emit("wire [%d:0] io_wire = {%s};", numBits-1, portSignals);
+        }
     }
 
 
@@ -292,7 +319,7 @@ public interface VerilogTestbench {
     // ------------------------------------------------------------------------
     // -- Registers and wires
 
-    default void clkAndReset() {
+    default void clkAndReset(boolean vivado2023) {
         emitter().emit("// -- CLK, reset_n and clock cycle");
         emitter().emit("parameter cycle = 10.0;");
         emitter().emit("reg clock;");
@@ -303,7 +330,11 @@ public interface VerilogTestbench {
         emitter().emit("reg ap_start;");
         emitter().emit("reg check_idle;");
         emitter().emit("wire idle;");
-        emitter().emit("wire done;");
+        if (vivado2023) {
+            emitter().emit("wire done;");
+            emitter().emit("wire ready;");
+            emitter().emit("wire [31:0] return;");
+        }
         emitter().emitNewLine();
     }
 
@@ -326,7 +357,7 @@ public interface VerilogTestbench {
         String name = port.getName();
         if (isInput) {
             emitter().emit("reg %s [%d:0] %s_din;", isSigned ? "signed" : "", bitSize - 1, name);
-            if(!skipFileWriting) {
+            if (!skipFileWriting) {
                 emitter().emit("reg %s [%d:0] %s_din_tmp;", isSigned ? "signed" : "", bitSize - 1, name);
             }
             emitter().emit("reg %s_write;", name);
@@ -338,7 +369,7 @@ public interface VerilogTestbench {
             emitter().emit("wire %s_empty_n;", name);
             emitter().emit("reg %s_read;", name);
             emitter().emitNewLine();
-            if(!skipFileWriting) {
+            if (!skipFileWriting) {
                 emitter().emit("// -- Expected value, end of file and \"%s\" token counter", name);
                 emitter().emit("reg %s [%d:0] %s_exp_value;", isSigned ? "signed" : "", bitSize - 1, name);
                 emitter().emit("reg %s_end_of_file;", name);
@@ -353,7 +384,7 @@ public interface VerilogTestbench {
         emitter().emit("// -- Input port registers & wires");
         emitter().emitNewLine();
 
-        if(!skipFileWriting) {
+        if (!skipFileWriting) {
             emitter().emit("// -- File Integers");
             ports.forEach(this::fileDataAndScan);
         }
@@ -367,7 +398,7 @@ public interface VerilogTestbench {
         emitter().emit("// -- Output port registers & wires");
         emitter().emitNewLine();
 
-        if(!skipFileWriting) {
+        if (!skipFileWriting) {
             emitter().emit("// -- File Integers");
             ports.forEach(this::fileDataAndScan);
         }
@@ -405,7 +436,8 @@ public interface VerilogTestbench {
     // ------------------------------------------------------------------------
     // -- Initial Block
 
-    default void getInitial(String name, List<PortDecl> inputs, List<PortDecl> outputs, boolean isInstance, boolean skipFileReading) {
+    default void getInitial(String name, List<PortDecl> inputs, List<PortDecl> outputs, boolean isInstance,
+                            boolean skipFileReading) {
         emitter().emit("// ------------------------------------------------------------------------");
         emitter().emit("// -- Initial block");
         emitter().emit("initial begin");
@@ -418,7 +450,7 @@ public interface VerilogTestbench {
             emitter().emit("clock = 1'b0;");
             emitter().emit("reset_n = 1'b0;");
             emitter().emit("start = 1'b0;");
-            if(!skipFileReading) {
+            if (!skipFileReading) {
                 emitter().emit("check_idle = 1'b0;");
             }
             emitter().emitNewLine();
@@ -427,7 +459,7 @@ public interface VerilogTestbench {
             for (PortDecl port : inputs) {
                 String portName = port.getName();
                 emitter().emit("%s_din = 1'b0;", portName);
-                if(!skipFileReading) {
+                if (!skipFileReading) {
                     emitter().emit("%s_din_tmp = 1'b0;", portName);
                 }
                 emitter().emit("%s_write = 1'b0;", portName);
@@ -438,7 +470,7 @@ public interface VerilogTestbench {
             for (PortDecl port : outputs) {
                 String portName = port.getName();
                 emitter().emit("%s_read = 1'b0;", portName);
-                if(!skipFileReading) {
+                if (!skipFileReading) {
                     emitter().emit("%s_end_of_file = 1'b0;", portName);
                     emitter().emit("%s_token_counter = 0;", portName);
                 }
@@ -457,12 +489,12 @@ public interface VerilogTestbench {
 
             emitter().emit("#55 reset_n = 1'b1;");
             emitter().emit("#10 start = 1'b1;");
-            if(!skipFileReading) {
+            if (!skipFileReading) {
                 emitter().emit("#20 check_idle = 1'b1;");
             }
 
             emitter().emitNewLine();
-            if(skipFileReading){
+            if (skipFileReading) {
                 emitter().emit("// -- Toggle input ports a few times to simulate input data.");
                 toggleInputSignals(inputs);
             }
@@ -472,10 +504,10 @@ public interface VerilogTestbench {
         emitter().emitNewLine();
     }
 
-    default void toggleInputSignals(List<PortDecl> inputs){
+    default void toggleInputSignals(List<PortDecl> inputs) {
 
         int portValue = 0;
-        if(!inputs.isEmpty()){
+        if (!inputs.isEmpty()) {
             for (int i = 0; i < 5; i++) {
                 emitter().emit("#10");
                 for (PortDecl port : inputs) {
@@ -500,7 +532,8 @@ public interface VerilogTestbench {
         if (isInstance) {
             fileName = String.format("%s/%s", name, portName);
         }
-        emitter().emit("%s_data_file = $fopen(\"../../../../../fifo-traces/%s.txt\" ,\"r\");", port.getName(), fileName);
+        emitter().emit("%s_data_file = $fopen(\"../../../../../fifo-traces/%s.txt\" ,\"r\");", port.getName(),
+                fileName);
         emitter().emit("if (%s_data_file == `NULL) begin", port.getName());
         emitter().increaseIndentation();
         {
@@ -646,7 +679,8 @@ public interface VerilogTestbench {
                     {
                         emitter().increaseIndentation();
 
-                        emitter().emit("$display(\"Time: %s ns, Port %s: Error !!! Expected value does not match golden reference, Token Counter: %1$s\", $time, %2$s_token_counter);", "%0d", name);
+                        emitter().emit("$display(\"Time: %s ns, Port %s: Error !!! Expected value does not match " +
+                                "golden reference, Token Counter: %1$s\", $time, %2$s_token_counter);", "%0d", name);
                         emitter().emit("$display(\"\\tGot      : %s\", %s_dout);", "%0d", name);
                         emitter().emit("$display(\"\\tExpected : %s\", %s_exp_value);", "%0d", name);
                         emitter().emitNewLine();
@@ -736,7 +770,7 @@ public interface VerilogTestbench {
     // ------------------------------------------------------------------------
     // -- Design under test
 
-    default void getDut(Instance instance) {
+    default void getDut(Instance instance, boolean vivado2023) {
         // -- Identifier
         String identifier = instance.getInstanceName();
 
@@ -751,30 +785,43 @@ public interface VerilogTestbench {
         emitter().increaseIndentation();
         {
             // -- Inputs
-            entity.getInputPorts().forEach(p -> getDutIO(identifier, p, false, false));
+            entity.getInputPorts().forEach(p -> getDutIO(identifier, p, false, false, vivado2023));
 
             // -- Outputs
-            entity.getOutputPorts().forEach(p -> getDutIO(identifier, p, true, false));
+            entity.getOutputPorts().forEach(p -> getDutIO(identifier, p, true, false, vivado2023));
 
             // -- IO interface
             if (entity instanceof ActorMachine) {
-                entity.getInputPorts().forEach(p -> getIO(identifier, p, true));
-
-                entity.getOutputPorts().forEach(p -> getIO(identifier, p, false));
+                entity.getInputPorts().forEach(p -> getIO(identifier, p, true, vivado2023));
+                entity.getOutputPorts().forEach(p -> getIO(identifier, p, false, vivado2023));
+                generateVivado2023IO(entity.getInputPorts(), entity.getOutputPorts(), vivado2023);
             }
 
             emitter().emit(".ap_clk(clock),");
             emitter().emit(".ap_rst_n(reset_n),");
             emitter().emit(".ap_start(start),");
-            emitter().emit(".ap_idle(idle)");
+            emitter().emit(".ap_idle(idle),");
+
+            if (vivado2023) {
+                emitter().emit(".ap_done(done),");
+                emitter().emit(".ap_ready(ready),");
+                emitter().emit(".ap_return(return)");
+            }
         }
         emitter().decreaseIndentation();
         emitter().emit(");");
         emitter().emitNewLine();
     }
 
+    default void generateVivado2023IO(ImmutableList<PortDecl> inputPorts, ImmutableList<PortDecl> outputPorts,
+                                      boolean vivado2023) {
+        if (vivado2023) {
+            emitter().emit(".io(io_wire),");
+        }
+    }
 
-    default void getDut(Network network) {
+
+    default void getDut(Network network, boolean vivado2023) {
         // -- Identifier
         String identifier = backend().task().getIdentifier().getLast().toString();
 
@@ -794,10 +841,10 @@ public interface VerilogTestbench {
         emitter().increaseIndentation();
         {
             // -- Inputs
-            network.getInputPorts().forEach(p -> getDutIO("", p, true, true));
+            network.getInputPorts().forEach(p -> getDutIO("", p, true, true, vivado2023));
 
             // -- Outputs
-            network.getOutputPorts().forEach(p -> getDutIO("", p, false, true));
+            network.getOutputPorts().forEach(p -> getDutIO("", p, false, true, vivado2023));
 
             emitter().emit(".ap_clk(clock),");
             emitter().emit(".ap_rst_n(reset_n),");
@@ -811,9 +858,9 @@ public interface VerilogTestbench {
         emitter().emitNewLine();
     }
 
-    default void getDutIO(String name, PortDecl port, boolean isInput, boolean isNetwork) {
+    default void getDutIO(String name, PortDecl port, boolean isInput, boolean isNetwork, boolean vivado2023) {
         String wireName = name.isEmpty() ? port.getName() : String.format("q_%s_%s", name, port.getName());
-        String portName = name.isEmpty() ? port.getSafeName() : port.getName() + getPortExtension();
+        String portName = name.isEmpty() ? port.getSafeName() : port.getName() + getPortExtension(vivado2023);
         if (isInput) {
             emitter().emit(".%s_din(%s_din),", portName, wireName);
             emitter().emit(".%s_full_n(%s_full_n),", portName, wireName);
@@ -836,23 +883,29 @@ public interface VerilogTestbench {
         emitter().emitNewLine();
     }
 
-    default void getIO(String name, PortDecl port, boolean isInput) {
+    default void getIO(String name, PortDecl port, boolean isInput, boolean vivado2023) {
         String wireName = name.isEmpty() ? port.getName() : String.format("q_%s_%s", name, port.getName());
         String portName = port.getName();
-        if (isInput) {
-            emitter().emit(".io_%s_peek(%s),", portName, String.format("%s_peek", wireName));
-            emitter().emit(".io_%s_count(%s),", portName, String.format("%s_count", wireName));
-        } else {
-            emitter().emit(".io_%s_size(4096),", portName);
-            emitter().emit(".io_%s_count(0),", portName);
+        if (!vivado2023) {
+            if (isInput) {
+                emitter().emit(".io_%s_peek(%s),", portName, String.format("%s_peek", wireName));
+                emitter().emit(".io_%s_count(%s),", portName, String.format("%s_count", wireName));
+            } else {
+                emitter().emit(".io_%s_size(4096),", portName);
+                emitter().emit(".io_%s_count(0),", portName);
+            }
         }
         emitter().emitNewLine();
     }
 
 
-    default String getPortExtension() {
+    default String getPortExtension(boolean vivado2023) {
         // -- TODO : Add _V_V for type accuracy
-        return "_V";
+        if (vivado2023) {
+            return "_r";
+        } else {
+            return "_V";
+        }
     }
 
 
