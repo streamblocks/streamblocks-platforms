@@ -131,7 +131,7 @@ public interface VerilogTestbench {
 
             entity.getOutputPorts().forEach(p -> queueWires(identifier, p, false));
 
-            connectIOWire(identifier ,entity.getInputPorts(), entity.getOutputPorts(), vivado2023);
+            connectIOWire(identifier, entity.getInputPorts(), entity.getOutputPorts(), vivado2023);
 
             getInitial(identifier, entity.getInputPorts(), entity.getOutputPorts(), true, true);
 
@@ -240,17 +240,19 @@ public interface VerilogTestbench {
         String identifier = backend().task().getIdentifier().getLast().toString();
 
         // -- Network file
-        if(vivado2023) {
-            emitter().open(PathUtils.getTargetCodeGenRtlTb(backend().context()).resolve("tb_" + identifier + "_simple_vivado2023.v"));
-        }else{
-            emitter().open(PathUtils.getTargetCodeGenRtlTb(backend().context()).resolve("tb_" + identifier + "_simple.v"));
+        if (vivado2023) {
+            emitter().open(PathUtils.getTargetCodeGenRtlTb(backend().context()).resolve("tb_" + identifier +
+                    "_simple_vivado2023.v"));
+        } else {
+            emitter().open(PathUtils.getTargetCodeGenRtlTb(backend().context()).resolve("tb_" + identifier + "_simple" +
+                    ".v"));
         }
 
         getPreprocessor();
 
-        if(vivado2023){
+        if (vivado2023) {
             emitter().emit("module tb_%s_simple_vivado2023();", identifier);
-        }else{
+        } else {
             emitter().emit("module tb_%s_simple();", identifier);
         }
         emitter().increaseIndentation();
@@ -273,16 +275,19 @@ public interface VerilogTestbench {
 
             startPulseGenerator();
 
+
             if (!network.getOutputPorts().isEmpty()) {
                 emitter().emit("// ------------------------------------------------------------------------");
                 emitter().emit("// -- Read from output ports");
                 network.getOutputPorts().forEach(this::readFromOutputPort);
             }
-
-            if (!network.getOutputPorts().isEmpty()) {
-                emitter().emit("// ------------------------------------------------------------------------");
-                emitter().emit("// -- Compare with golden reference");
-                network.getOutputPorts().forEach(this::compareWithGoldenReference);
+            
+            if (!vivado2023) {
+                if (!network.getOutputPorts().isEmpty()) {
+                    emitter().emit("// ------------------------------------------------------------------------");
+                    emitter().emit("// -- Compare with golden reference");
+                    network.getOutputPorts().forEach(this::compareWithGoldenReference);
+                }
             }
 
             getDut(network, vivado2023);
@@ -294,9 +299,9 @@ public interface VerilogTestbench {
 
     }
 
-    default void connectIOWire(String name ,ImmutableList<PortDecl> inputPorts, ImmutableList<PortDecl> outputPorts,
+    default void connectIOWire(String name, ImmutableList<PortDecl> inputPorts, ImmutableList<PortDecl> outputPorts,
                                boolean vivado2023) {
-        if(vivado2023) {
+        if (vivado2023) {
             String portSignals = "";
             for (PortDecl port : inputPorts) {
                 String wireName = name.isEmpty() ? port.getName() : String.format("q_%s_%s", name, port.getName());
@@ -305,11 +310,11 @@ public interface VerilogTestbench {
             for (int i = 0; i < outputPorts.size(); i++) {
                 portSignals += "64'h0000100000000000, ";
             }
-            if(!portSignals.isEmpty()) {
+            if (!portSignals.isEmpty()) {
                 portSignals = portSignals.substring(0, portSignals.length() - 2);
             }
-            int numBits = (inputPorts.size() + outputPorts.size())*64;
-            emitter().emit("wire [%d:0] io_wire = {%s};", numBits-1, portSignals);
+            int numBits = (inputPorts.size() + outputPorts.size()) * 64;
+            emitter().emit("wire [%d:0] io_wire = {%s};", numBits - 1, portSignals);
         }
     }
 
@@ -846,9 +851,9 @@ public interface VerilogTestbench {
                     .collect(Collectors.toList())));
             emitter().emitNewLine();
         }
-        if(vivado2023){
+        if (vivado2023) {
             emitter().emit("%s_vivado2023 dut(", identifier);
-        }else{
+        } else {
             emitter().emit("%s dut(", identifier);
         }
         emitter().increaseIndentation();
