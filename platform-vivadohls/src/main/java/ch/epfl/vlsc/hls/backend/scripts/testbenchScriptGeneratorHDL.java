@@ -163,10 +163,13 @@ public interface testbenchScriptGeneratorHDL {
         emitter().emit("cp code-gen/rtl/trigger.sv verilog_testbench_simulation_vivado_2023/");
         emitter().emitNewLine();
 
+
         String identifier = backend().task().getIdentifier().getLast().toString();
         copyTopNetworkFileVivado2023(identifier);
+        emitter().emit("echo \"Generating HDL for individual actors in parallel\"");
         Network network = backend().task().getNetwork();
         network.getInstances().forEach(this::makeAndCopyVivado2023);
+        emitter().emit("wait");
 
         emitter().emit("echo \"Simulation sources in: $projDir/verilog_testbench_simulation_vivado_2023\"");
 
@@ -175,12 +178,14 @@ public interface testbenchScriptGeneratorHDL {
 
     default void makeAndCopyVivado2023(Instance instance) {
         String instanceName = instance.getInstanceName();
-        emitter().emit("echo \"Generate and copy HDL for instance: %s. Follow progress in %s_vivado2023.log\"", instanceName, instanceName);
+        emitter().emit("(");
+        emitter().increaseIndentation();
+        emitter().emit("echo \"    Generating and copying HDL for instance: %s. Follow progress in %s_vivado2023.log\"", instanceName, instanceName);
         emitter().emit("cd build");
         emitter().emit("vitis_hls -f Synthesis_vivado2023.tcl -tclargs %s %s.cpp > %s_vivado2023.log", instanceName, instanceName,instanceName);
         emitter().emit("if [ \"$?\" -ne \"0\" ]; then");
         emitter().increaseIndentation();
-        emitter().emit("echo \"Synthesis failed: Extract from log file:\"");
+        emitter().emit("echo \"    Synthesis failed for %s: Extract from log file:\"", instanceName);
         emitter().emit("tail -20 %s_vivado2023.log", instanceName);
         emitter().emit("exit 1");
         emitter().decreaseIndentation();
@@ -188,6 +193,9 @@ public interface testbenchScriptGeneratorHDL {
         emitter().emit("cp %s_vivado_2023/solution/syn/verilog/*.v ../verilog_testbench_simulation_vivado_2023/", instanceName, instanceName);
         emitter().emit("cp ../code-gen/rtl-tb/tb_%s_simple_vivado2023.v ../verilog_testbench_simulation_vivado_2023/", instanceName);
         emitter().emit("cd ..");
+        emitter().emit("echo \"    HDL generation for %s complete.\"", instanceName);
+        emitter().decreaseIndentation();
+        emitter().emit(")&");
         emitter().emitNewLine();
     }
 }
