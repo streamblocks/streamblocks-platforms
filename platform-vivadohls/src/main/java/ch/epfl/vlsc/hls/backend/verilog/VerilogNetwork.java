@@ -412,14 +412,14 @@ public interface VerilogNetwork {
                 Connection connection = backend().task().getNetwork().getConnections().stream()
                         .filter(c -> c.getTarget().equals(target)).findAny().orElse(null);
                 String queueName = queueNames().get(connection);
-                portSignals += queueName + "_peek, " + queueName + "_count" + ", ";
+                portSignals = queueName + "_count, " + queueName + "_peek" + ", " + portSignals;
             }
             for (PortDecl port : entity.getOutputPorts()) {
                 Connection.End source = new Connection.End(Optional.of(name), port.getName());
                 Connection connection = backend().task().getNetwork().getConnections().stream()
                         .filter(c -> c.getSource().equals(source)).findAny().orElse(null);
                 String queueName = queueNames().get(connection);
-                portSignals += queueName + "_size, " + queueName + "_count" + ", ";
+                portSignals = queueName + "_count, " + queueName + "_size" + ", " + portSignals;
             }
             if(!portSignals.isEmpty()) {
                 portSignals = portSignals.substring(0, portSignals.length() - 2);
@@ -704,6 +704,7 @@ public interface VerilogNetwork {
 
     default void getInstanceIOPortDeclaration(PortDecl port, String name, String portNameExtension, Boolean isInput, boolean vivado2023) {
         String portName = port.getName();
+        String wireName = port.getName();
         if(vivado2023){
             portName = port.getSafeName();
         }
@@ -712,18 +713,18 @@ public interface VerilogNetwork {
         String getPortExtension = getPortExtension(type, vivado2023);
         if (isInput) {
             emitter().emit(".%s%s%s_empty_n(%s),", portName, getPortExtension, portNameExtension,
-                    String.format("q_%s_%s%s_empty_n", name, portName, portNameExtension));
+                    String.format("q_%s_%s%s_empty_n", name, wireName, portNameExtension));
             emitter().emit(".%s%s%s_read(%s),", portName, getPortExtension, portNameExtension,
-                    String.format("q_%s_%s%s_read", name, portName, portNameExtension));
+                    String.format("q_%s_%s%s_read", name, wireName, portNameExtension));
             emitter().emit(".%s%s%s_dout(%s),", portName, getPortExtension, portNameExtension,
-                    String.format("q_%s_%s%s_dout", name, portName, portNameExtension));
+                    String.format("q_%s_%s%s_dout", name, wireName, portNameExtension));
         } else {
             emitter().emit(".%s%s%s_full_n(%s),", portName, getPortExtension, portNameExtension,
-                    String.format("q_%s_%s%s_full_n", name, portName, portNameExtension));
+                    String.format("q_%s_%s%s_full_n", name, wireName, portNameExtension));
             emitter().emit(".%s%s%s_write(%s),", portName, getPortExtension, portNameExtension,
-                    String.format("q_%s_%s%s_write", name, portName, portNameExtension));
+                    String.format("q_%s_%s%s_write", name, wireName, portNameExtension));
             emitter().emit(".%s%s%s_din(%s),", portName, getPortExtension, portNameExtension,
-                    String.format("q_%s_%s%s_din", name, portName, portNameExtension));
+                    String.format("q_%s_%s%s_din", name, wireName, portNameExtension));
         }
     }
 

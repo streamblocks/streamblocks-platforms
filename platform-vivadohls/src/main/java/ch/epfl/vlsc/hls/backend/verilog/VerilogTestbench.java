@@ -305,11 +305,11 @@ public interface VerilogTestbench {
             String portSignals = "";
             for (PortDecl port : inputPorts) {
                 String wireName = name.isEmpty() ? port.getName() : String.format("q_%s_%s", name, port.getName());
-                portSignals += wireName + "_peek, " + wireName + "_count" + ", ";
+                portSignals = wireName + "_count, " + wireName + "_peek" + ", " + portSignals;
             }
             for (PortDecl port : outputPorts) {
                 String wireName = name.isEmpty() ? port.getName() : String.format("q_%s_%s", name, port.getName());
-                portSignals += wireName + "_size, " + wireName + "_count" + ", ";
+                portSignals = wireName + "_count, " + wireName + "_size" + ", " + portSignals;
             }
             if (!portSignals.isEmpty()) {
                 portSignals = portSignals.substring(0, portSignals.length() - 2);
