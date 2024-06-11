@@ -390,19 +390,21 @@ public interface VerilogNetwork {
             emitter().emit("wire    %s;", getTriggerSignalByName(instance, "sleep"));
             emitter().emit("wire    %s;", getTriggerSignalByName(instance, "sync_sleep"));
 
-            generateIOWires(name, instance, vivado2023);
+            generateIOWires(instance, vivado2023);
 
             emitter().emitNewLine();
         }
         emitter().emitNewLine();
     }
 
-    default void generateIOWires(String name, Instance instance, boolean vivado2023){
+    default void generateIOWires(Instance instance, boolean vivado2023){
         if(vivado2023) {
             emitter().emit("// -- IO signal");
 
             GlobalEntityDecl entityDecl = backend().globalnames().entityDecl(instance.getEntityName(), true);
             Entity entity = entityDecl.getEntity();
+
+            String name = instance.getInstanceName();
 
             String portSignals = "";
             for (PortDecl port : entity.getInputPorts()) {
@@ -412,8 +414,12 @@ public interface VerilogNetwork {
                 String queueName = queueNames().get(connection);
                 portSignals += queueName + "_peek, " + queueName + "_count" + ", ";
             }
-            for (int i = 0; i < entity.getOutputPorts().size(); i++) {
-                portSignals += "64'h0000100000000000, ";
+            for (PortDecl port : entity.getOutputPorts()) {
+                Connection.End source = new Connection.End(Optional.of(name), port.getName());
+                Connection connection = backend().task().getNetwork().getConnections().stream()
+                        .filter(c -> c.getSource().equals(source)).findAny().orElse(null);
+                String queueName = queueNames().get(connection);
+                portSignals += queueName + "_size, " + queueName + "_count" + ", ";
             }
             if(!portSignals.isEmpty()) {
                 portSignals = portSignals.substring(0, portSignals.length() - 2);
@@ -698,6 +704,10 @@ public interface VerilogNetwork {
 
     default void getInstanceIOPortDeclaration(PortDecl port, String name, String portNameExtension, Boolean isInput, boolean vivado2023) {
         String portName = port.getName();
+        if(vivado2023){
+            portName = port.getSafeName();
+        }
+
         Type type = backend().types().declaredPortType(port);
         String getPortExtension = getPortExtension(type, vivado2023);
         if (isInput) {
@@ -1031,7 +1041,7 @@ public interface VerilogNetwork {
 
     default String getPortExtension(Type type, boolean vivado2023) {
         if(vivado2023){
-            return "_r";
+            return "";
         }
 
         if (type instanceof IntType) {

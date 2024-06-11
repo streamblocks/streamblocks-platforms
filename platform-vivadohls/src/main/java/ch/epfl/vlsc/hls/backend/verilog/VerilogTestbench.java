@@ -307,8 +307,9 @@ public interface VerilogTestbench {
                 String wireName = name.isEmpty() ? port.getName() : String.format("q_%s_%s", name, port.getName());
                 portSignals += wireName + "_peek, " + wireName + "_count" + ", ";
             }
-            for (int i = 0; i < outputPorts.size(); i++) {
-                portSignals += "64'h0000100000000000, ";
+            for (PortDecl port : outputPorts) {
+                String wireName = name.isEmpty() ? port.getName() : String.format("q_%s_%s", name, port.getName());
+                portSignals += wireName + "_size, " + wireName + "_count" + ", ";
             }
             if (!portSignals.isEmpty()) {
                 portSignals = portSignals.substring(0, portSignals.length() - 2);
@@ -877,8 +878,12 @@ public interface VerilogTestbench {
     }
 
     default void getDutIO(String name, PortDecl port, boolean isInput, boolean isNetwork, boolean vivado2023) {
+        Type type = backend().types().declaredPortType(port);
         String wireName = name.isEmpty() ? port.getName() : String.format("q_%s_%s", name, port.getName());
-        String portName = name.isEmpty() ? port.getSafeName() : port.getName() + getPortExtension(vivado2023);
+        String portName = name.isEmpty() ? port.getSafeName() : port.getName() + getPortExtension(type ,vivado2023);
+        if(vivado2023){
+            portName = name.isEmpty() ? port.getSafeName() : port.getSafeName() + getPortExtension(type ,vivado2023);
+        }
         if (isInput) {
             emitter().emit(".%s_din(%s_din),", portName, wireName);
             emitter().emit(".%s_full_n(%s_full_n),", portName, wireName);
@@ -917,13 +922,14 @@ public interface VerilogTestbench {
     }
 
 
-    default String getPortExtension(boolean vivado2023) {
+    default String getPortExtension(Type type, boolean vivado2023) {
         // -- TODO : Add _V_V for type accuracy
-        if (vivado2023) {
+        /*if (vivado2023) {
             return "_r";
         } else {
             return "_V";
-        }
+        }*/
+        return backend().vnetwork().getPortExtension(type, vivado2023);
     }
 
 
