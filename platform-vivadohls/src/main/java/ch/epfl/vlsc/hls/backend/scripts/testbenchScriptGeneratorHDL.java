@@ -131,6 +131,8 @@ public interface testbenchScriptGeneratorHDL {
         emitter().emit("# required files for testing those actors to my_project/verilog_testbench_simulation_vivado_2023 for");
         emitter().emit("# easy simulation. This script specifically generates HDL for Vivado 2023 and also skips.");
         emitter().emit("# CMAKE generation as the CMAKE compilation flow is designed to work with Vivado 2019.");
+        emitter().emit("NUM_THREADS=16 # Change this if you want more parallel threads running during this thread.");
+        emitter().emit("CURRENT_THREADS=0 # Helper variable - do not change this.");
         emitter().emitNewLine();
 
         emitter().emit("# 1. Make sure we are in the correct directory and print useful info to user ");
@@ -196,6 +198,17 @@ public interface testbenchScriptGeneratorHDL {
         emitter().emit("echo \"    HDL generation for %s complete.\"", instanceName);
         emitter().decreaseIndentation();
         emitter().emit(")&");
+        emitter().emitNewLine();
+        emitter().emit("if [ \"$(($NUM_THREADS))\" -eq \"$(($CURRENT_THREADS))\" ]");
+        emitter().emit("then");
+        emitter().increaseIndentation();
+        emitter().emit("wait -n # Wait for one of the above processes to finish");
+        emitter().decreaseIndentation();
+        emitter().emit("else");
+        emitter().increaseIndentation();
+        emitter().emit("CURRENT_THREADS=$(($CURRENT_THREADS+1))");
+        emitter().decreaseIndentation();
+        emitter().emit("fi");
         emitter().emitNewLine();
     }
 }
