@@ -702,11 +702,30 @@ public interface VerilogNetwork {
         emitter().emitNewLine();
     }
 
+    /**
+     * Vitis likes to transform the port names slightly so that they conform with certain rules. This method applies
+     * those transformations here so that we connect to the correctly spelled port names in the generated verilog.
+     *
+     * @param port Port to produce the sanitized name from.
+     * @return A string of the port name as expected by Vivado.
+     */
+    default String getPostHLSSynthesisPortName(PortDecl port){
+        // 1. Transforms in/out/byte to in_r/out_r/byte_r (case-insensitive)
+        String portName = port.getSafeName();
+        // 2.  Replace double underscore with a single underscore
+        portName = portName.replace("__", "_");
+        // 3. If the port name ends with an underscore, append an s to it.
+        if(portName.charAt(portName.length() - 1) == '_'){
+            portName = portName + "s";
+        }
+        return portName;
+    }
+
     default void getInstanceIOPortDeclaration(PortDecl port, String name, String portNameExtension, Boolean isInput, boolean vivado2023) {
         String portName = port.getName();
         String wireName = port.getName();
         if(vivado2023){
-            portName = port.getSafeName();
+            portName = getPostHLSSynthesisPortName(port);
         }
 
         Type type = backend().types().declaredPortType(port);

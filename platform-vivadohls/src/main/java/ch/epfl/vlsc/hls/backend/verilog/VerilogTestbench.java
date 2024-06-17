@@ -281,7 +281,7 @@ public interface VerilogTestbench {
                 emitter().emit("// -- Read from output ports");
                 network.getOutputPorts().forEach(this::readFromOutputPort);
             }
-            
+
             if (!vivado2023) {
                 if (!network.getOutputPorts().isEmpty()) {
                     emitter().emit("// ------------------------------------------------------------------------");
@@ -880,10 +880,12 @@ public interface VerilogTestbench {
     default void getDutIO(String name, PortDecl port, boolean isInput, boolean isNetwork, boolean vivado2023) {
         Type type = backend().types().declaredPortType(port);
         String wireName = name.isEmpty() ? port.getName() : String.format("q_%s_%s", name, port.getName());
-        String portName = name.isEmpty() ? port.getSafeName() : port.getName() + getPortExtension(type ,vivado2023);
-        if(vivado2023){
-            portName = name.isEmpty() ? port.getSafeName() : port.getSafeName() + getPortExtension(type ,vivado2023);
+        String portName = name.isEmpty() ? port.getSafeName() : port.getName() + getPortExtension(type, vivado2023);
+        if (vivado2023) {
+            portName = name.isEmpty() ? backend().vnetwork().getPostHLSSynthesisPortName(port) :
+                    backend().vnetwork().getPostHLSSynthesisPortName(port) + getPortExtension(type, vivado2023);
         }
+
         if (isInput) {
             emitter().emit(".%s_din(%s_din),", portName, wireName);
             emitter().emit(".%s_full_n(%s_full_n),", portName, wireName);
