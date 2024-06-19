@@ -140,7 +140,10 @@ public interface Instances {
         if (entity instanceof ActorMachine) {
             ActorMachine actor = (ActorMachine) entity;
 
-            if (backend().context().getConfiguration().get(PlatformSettings.defaultController) == PlatformSettings.ControllerKind.BC || actor.controller().getStateList().size() > MAX_STATES_FOR_QUICK_JUMP_CONTROLLER) {
+            if (
+                    backend().context().getConfiguration().get(PlatformSettings.defaultController) == PlatformSettings.ControllerKind.BC ||
+                    actor.controller().getStateList().size() > MAX_STATES_FOR_QUICK_JUMP_CONTROLLER
+            ) {
                 // -- State Functions
                 emitter().emit("// -- State Functions");
 
@@ -154,6 +157,7 @@ public interface Instances {
                     State state = stateMap.entrySet().stream().filter(entry -> Objects.equals(entry.getValue(), s)).map(Map.Entry::getKey).findAny().orElse(null);
                     backend().branchingController().emitStateFunction(instanceName, actor, initialize, stateMap, state);
                 });
+
             }
 
             // -- Scopes
@@ -174,11 +178,13 @@ public interface Instances {
             // -- State functions
             Schedule schedule = new Schedule(actor);
             Priorities priorities = new Priorities(actor);
+            emitter().emit("// -- State Function");
             for (String state : schedule.getEligible().keySet()) {
                 backend().calActorController().emitStateFunction(instanceName, actor, schedule, priorities, state);
             }
 
             // -- Actions
+            emitter().emit("// -- Actions");
             actor.getActions().forEach(a -> action(instanceName, a));
         }
 
@@ -376,7 +382,11 @@ public interface Instances {
         if (actor instanceof ActorMachine) {
             ActorMachine am = (ActorMachine) actor;
 
-            if (backend().context().getConfiguration().get(PlatformSettings.defaultController) == PlatformSettings.ControllerKind.BC || am.controller().getStateList().size() > MAX_STATES_FOR_QUICK_JUMP_CONTROLLER) {
+            if (
+                    backend().context().getConfiguration().get(PlatformSettings.defaultController) == PlatformSettings.ControllerKind.BC ||
+                    am.controller().getStateList().size() > MAX_STATES_FOR_QUICK_JUMP_CONTROLLER
+                )
+            {
                 emitter().emit("struct StateReturn {");
                 emitter().emit("\tint program_counter;");
                 emitter().emit("\tint return_code;");
@@ -461,6 +471,7 @@ public interface Instances {
             emitter().emit("// -- State functions");
             Schedule schedule = new Schedule(actor);
             schedule.getEligible().keySet().forEach(s -> emitter().emit("%s;", backend().calActorController().stateFunctionPrototype(instanceName, false, s)));
+            emitter().emitNewLine();
 
             emitter().emit("// -- Guards");
             actor.getActions().forEach(a -> emitter().emit("%s;", actionGuardPrototype(instanceName, a, false)));
@@ -550,8 +561,10 @@ public interface Instances {
                 emitter().emitNewLine();
             }
 
-
-            if (backend().context().getConfiguration().get(PlatformSettings.defaultController) == PlatformSettings.ControllerKind.BC || actor.controller().getStateList().size() > MAX_STATES_FOR_QUICK_JUMP_CONTROLLER) {
+            if (
+                    backend().context().getConfiguration().get(PlatformSettings.defaultController) == PlatformSettings.ControllerKind.BC ||
+                    actor.controller().getStateList().size() > MAX_STATES_FOR_QUICK_JUMP_CONTROLLER
+            ) {
                 // -- State Functions
                 emitter().emit("// -- State Functions");
                 backend().branchingController().waitTargetBitSets(actor).stream().forEach(s -> {
@@ -678,51 +691,42 @@ public interface Instances {
     default void instanceConstructor(String instanceName, CalActor actor) {
         // -- External memories
 
-        String className = "class_" + instanceName;
-        emitter().emit("%s(){", className);
-        {
-            emitter().increaseIndentation();
-
-            emitter().emit("_FSM_state = s_%s; ", actor.getScheduleFSM().getInitialState());
-
-            for (VarDecl var : actor.getVarDecls()) {
-                String decl = backend().variables().declarationName(var);
-                if (var.getValue() != null && !(var.getValue() instanceof ExprInput)) {
-                    if (var.getValue() instanceof ExprList) {
-                        emitter().emit("{");
-                        emitter().increaseIndentation();
-
-                        backend().statements().copy(types().declaredType(var), backend().variables().declarationName(var), types().type(var.getValue()), expressioneval().evaluate(var.getValue()));
-
-                        emitter().decreaseIndentation();
-                        emitter().emit("}");
-                    } else if (var.getValue() instanceof ExprComprehension) {
-                        emitter().emit("{");
-                        emitter().increaseIndentation();
-
-                        Interpreter interpreter = backend().interpreter();
-                        Environment environment = new Environment();
-                        Value value = interpreter.eval((ExprComprehension) var.getValue(), environment);
-                        Expression expression = backend().converter().apply(value);
-
-                        backend().statements().copy(types().declaredType(var), backend().variables().declarationName(var), types().type(var.getValue()), expressioneval().evaluate(expression));
-
-                        emitter().decreaseIndentation();
-                        emitter().emit("}");
-                    } else if (var.getValue() instanceof ExprLambda || var.getValue() instanceof ExprProc) {
-                        // -- Do nothing
+        List<String> initializations = new ArrayList<>();
+        initializations.add(String.format("_FSM_state(s_%s)", actor.getScheduleFSM().getInitialState()));
+        for(VarDecl var : actor.getVarDecls()){
+            String decl = backend().variables().declarationName(var);
+            if (var.getValue() != null && !(var.getValue() instanceof ExprInput)) {
+                if (var.getValue() instanceof ExprLambda || var.getValue() instanceof ExprProc) {
+                    // -- Do nothing
+                } else {
+                    Interpreter interpreter = backend().interpreter();
+                    Environment environment = new Environment();
+                    Value value = interpreter.eval(var.getValue(), environment);
+                    Expression expression = backend().converter().apply(value);
+                    if (expression instanceof ExprList) {
+                        initializations.add(String.format("%s%s", decl, backend().expressioneval().evaluateWithoutTemp((ExprList) expression)));
                     } else {
-                        Interpreter interpreter = backend().interpreter();
-                        Environment environment = new Environment();
-                        Value value = interpreter.eval((ExprComprehension) var.getValue(), environment);
-                        Expression expression = backend().converter().apply(value);
-                        emitter().emit("%s = %s;", decl, backend().expressioneval().evaluate(expression));
+                        initializations.add(String.format("%s(%s)", decl, backend().expressioneval().evaluate(expression)));
                     }
                 }
-
             }
+        }
 
 
+        String className = "class_" + instanceName;
+        emitter().emit("%s():", className);
+        {
+            emitter().increaseIndentation();
+            for (String init : initializations) {
+                if (initializations.indexOf(init) == initializations.size() - 1) {
+                    emitter().emit(init);
+                } else {
+                    emitter().emit("%s,", init);
+                }
+            }
+            emitter().decreaseIndentation();
+            emitter().emit("{");
+            emitter().decreaseIndentation();
             // -- Parameters
             Instance instance = backend().instancebox().get();
 

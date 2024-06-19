@@ -43,28 +43,33 @@ public interface IdealWeight {
 
         for (Instance instance : network.getInstances()) {
             GlobalEntityDecl entityDecl = backend().globalnames().entityDecl(instance.getEntityName(), true);
-            ActorMachine actor = (ActorMachine) entityDecl.getEntity();
 
-            emitter().emit("<actor id=\"%s\">", instance.getInstanceName());
-            emitter().increaseIndentation();
+            if(entityDecl.getEntity() instanceof ActorMachine) {
+
+                ActorMachine actor = (ActorMachine) entityDecl.getEntity();
+
+                emitter().emit("<actor id=\"%s\">", instance.getInstanceName());
+                emitter().increaseIndentation();
 
 
-            for (Transition transition : actor.getTransitions()) {
-                Map<Port, Integer> inputPortRate = transition.getInputRates();
-                Map<Port, Integer> outputPortRate = transition.getOutputRates();
+                for (Transition transition : actor.getTransitions()) {
+                    Map<Port, Integer> inputPortRate = transition.getInputRates();
+                    Map<Port, Integer> outputPortRate = transition.getOutputRates();
 
-                int maxInput = inputPortRate.values().stream().mapToInt(v -> v).max().orElse(1);
-                int maxOutput = outputPortRate.values().stream().mapToInt(v -> v).max().orElse(1);
+                    int maxInput = inputPortRate.values().stream().mapToInt(v -> v).max().orElse(1);
+                    int maxOutput = outputPortRate.values().stream().mapToInt(v -> v).max().orElse(1);
 
-                int idealLatency = Integer.max(maxInput, maxOutput);
-                String actionName = "unknown";
+                    int idealLatency = Integer.max(maxInput, maxOutput);
+                    String actionName = "unknown";
 
-                Optional<Annotation> annotation = Annotation.getAnnotationWithName("ActionId", transition.getAnnotations());
-                if (annotation.isPresent()) {
-                    actionName = ((ExprLiteral) annotation.get().getParameters().get(0).getExpression()).getText();
+                    Optional<Annotation> annotation = Annotation.getAnnotationWithName("ActionId", transition.getAnnotations());
+                    if (annotation.isPresent()) {
+                        actionName = ((ExprLiteral) annotation.get().getParameters().get(0).getExpression()).getText();
+                    }
+
+                    emitter().emit("<action id=\"%s\" clockcycles=\"%2$s\" clockcycles-min=\"%2$s\" clockcycles-max=\"%2$s\"/>", actionName, idealLatency);
+
                 }
-
-                emitter().emit("<action id=\"%s\" clockcycles=\"%2$s\" clockcycles-min=\"%2$s\" clockcycles-max=\"%2$s\"/>", actionName, idealLatency);
 
             }
 
