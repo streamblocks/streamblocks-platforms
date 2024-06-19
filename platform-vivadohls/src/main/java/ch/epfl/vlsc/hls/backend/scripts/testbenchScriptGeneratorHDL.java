@@ -131,7 +131,7 @@ public interface testbenchScriptGeneratorHDL {
         emitter().emit("# required files for testing those actors to my_project/verilog_testbench_simulation_vivado_2023 for");
         emitter().emit("# easy simulation. This script specifically generates HDL for Vivado 2023 and also skips.");
         emitter().emit("# CMAKE generation as the CMAKE compilation flow is designed to work with Vivado 2019.");
-        emitter().emit("NUM_THREADS=$((`nproc`-2)) # Change this if you want a different number of parallel threads running in this script.");
+        emitter().emit("NUM_THREADS=$((`nproc`-4)) # Change this if you want a different number of parallel threads running in this script.");
         emitter().emit("CURRENT_THREADS=0 # Helper variable - do not change this.");
         emitter().emitNewLine();
 
@@ -185,7 +185,7 @@ public interface testbenchScriptGeneratorHDL {
         emitter().emit("(");
         emitter().increaseIndentation();
         String timestampGeneratingCommand = "$(date -d@$SECONDS -u +%H:%M:%S)";
-        emitter().emit("echo \"    %s Starting process %d of %d\"", timestampGeneratingCommand, instanceIndex, numInstances);
+        emitter().emit("echo \"    %s Starting process %d of %d\"", timestampGeneratingCommand, instanceIndex+1, numInstances);
         emitter().emit("echo \"    Generating and copying HDL for instance: %s. Follow progress in %s_vivado2023.log\"", instanceName, instanceName);
         emitter().emit("cd build");
         emitter().emit("vitis_hls -f Synthesis_vivado2023.tcl -tclargs %s %s.cpp > %s_vivado2023.log", instanceName, instanceName,instanceName);
