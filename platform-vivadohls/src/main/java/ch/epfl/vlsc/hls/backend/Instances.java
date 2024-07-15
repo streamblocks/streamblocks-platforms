@@ -439,12 +439,11 @@ public interface Instances {
         emitter().emit("class %s {", className);
 
 
+        emitter().emit("public:");
+        emitter().increaseIndentation();
+
+        emitter().emit("states _FSM_state;");
         if (!actor.getVarDecls().isEmpty()) {
-            emitter().emit("public:");
-            emitter().increaseIndentation();
-
-            emitter().emit("states _FSM_state;");
-
             for (VarDecl var : actor.getVarDecls()) {
                 if (var.getValue() instanceof ExprLambda || var.getValue() instanceof ExprProc) {
                     backend().callables().callablePrototypes(instanceName, var.getValue());
@@ -468,21 +467,22 @@ public interface Instances {
                     }
                 }
             }
-            emitter().emit("// -- State functions");
-            Schedule schedule = new Schedule(actor);
-            schedule.getEligible().keySet().forEach(s -> emitter().emit("%s;", backend().calActorController().stateFunctionPrototype(instanceName, false, s)));
-            emitter().emitNewLine();
-
-            emitter().emit("// -- Guards");
-            actor.getActions().forEach(a -> emitter().emit("%s;", actionGuardPrototype(instanceName, a, false)));
-            emitter().emitNewLine();
-
-            emitter().emit("// -- Actions");
-            actor.getActions().forEach(a -> emitter().emit("%s;", actionBodyPrototype(instanceName, a, false)));
-            emitter().emitNewLine();
-
-
         }
+        emitter().emit("// -- State functions");
+        Schedule schedule = new Schedule(actor);
+        schedule.getEligible().keySet().forEach(s -> emitter().emit("%s;", backend().calActorController().stateFunctionPrototype(instanceName, false, s)));
+        emitter().emitNewLine();
+
+        emitter().emit("// -- Guards");
+        actor.getActions().forEach(a -> emitter().emit("%s;", actionGuardPrototype(instanceName, a, false)));
+        emitter().emitNewLine();
+
+        emitter().emit("// -- Actions");
+        actor.getActions().forEach(a -> emitter().emit("%s;", actionBodyPrototype(instanceName, a, false)));
+        emitter().emitNewLine();
+
+
+
         emitter().decreaseIndentation();
         emitter().emitNewLine();
 

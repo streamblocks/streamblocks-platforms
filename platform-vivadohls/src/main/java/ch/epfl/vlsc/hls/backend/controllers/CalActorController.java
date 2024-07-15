@@ -45,23 +45,28 @@ public interface CalActorController {
 
         Map<String, List<Action>> eligibleStates = schedule.getEligible();
 
-        emitter().emit("switch(_FSM_state){");
-        {
-            emitter().increaseIndentation();
+        if(eligibleStates.keySet().size() > 1) {
 
-            for (String state : eligibleStates.keySet()) {
-                emitter().emit("case s_%s:", state);
-                emitter().emit("\t_ret = state_%s(%s);", state, String.join(", ", ports));
-                emitter().emit("break;");
-                emitter().emitNewLine();
+            emitter().emit("switch(_FSM_state){");
+            {
+                emitter().increaseIndentation();
+
+                for (String state : eligibleStates.keySet()) {
+                    emitter().emit("case s_%s:", state);
+                    emitter().emit("\t_ret = state_%s(%s);", state, String.join(", ", ports));
+                    emitter().emit("break;");
+                    emitter().emitNewLine();
+                }
+                emitter().emit("default:");
+                emitter().emit("\treturn RETURN_WAIT;");
+
+                emitter().decreaseIndentation();
             }
-            emitter().emit("default:");
-            emitter().emit("\treturn RETURN_WAIT;");
-
-            emitter().decreaseIndentation();
+            emitter().emit("}");
+            emitter().emitNewLine();
+        }else{
+            emitter().emit("\t_ret = state_%s(%s);", schedule.getInitialState().toArray()[0], String.join(", ", ports));
         }
-        emitter().emit("}");
-        emitter().emitNewLine();
 
         emitter().decreaseIndentation();
         emitter().decreaseIndentation();
