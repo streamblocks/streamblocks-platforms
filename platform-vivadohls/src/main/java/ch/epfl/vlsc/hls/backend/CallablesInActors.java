@@ -217,6 +217,10 @@ public interface CallablesInActors {
     }
 
     default void externalCallableDeclaration(VarDecl varDecl) {
+        ImmutableList<String> mathsFunctions = ImmutableList.of(
+                "sqrt"
+        );
+
         if (varDecl.isExternal()) {
             if (!VivadoHLS.externalsToIgnore.contains(varDecl.getName())) {
                 Type type = backend().types().declaredType(varDecl);
@@ -226,9 +230,11 @@ public interface CallablesInActors {
                 for (int i = 0; i < callable.getParameterTypes().size(); i++) {
                     parameterNames.add("p_" + i);
                 }
-                backend().emitter().emit("%s;", externalCallableHeader(varDecl.getOriginalName(), callable, parameterNames));
+                if(!mathsFunctions.contains(varDecl.getOriginalName())) {
+                    backend().emitter().emit("%s;", externalCallableHeader(varDecl.getOriginalName(), callable, parameterNames));
+                }
                 String name = externalWrapperFunctionName(varDecl);
-                backend().emitter().emit("%s;", externalCallableHeader(name, callable, parameterNames));
+                backend().emitter().emit("static %s;", externalCallableHeader(name, callable, parameterNames));
             }
         }
     }
@@ -237,6 +243,7 @@ public interface CallablesInActors {
     }
 
     default void externalCallableDefinition(VarDecl varDecl) {
+
         if (varDecl.isExternal()) {
             if (!VivadoHLS.externalsToIgnore.contains(varDecl.getName())) {
                 Type type = backend().types().declaredType(varDecl);
