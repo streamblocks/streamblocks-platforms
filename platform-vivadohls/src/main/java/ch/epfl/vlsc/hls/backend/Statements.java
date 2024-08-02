@@ -367,6 +367,16 @@ public interface Statements {
 
     default void execute(StmtForeach foreach) {
         forEach(foreach.getGenerator().getCollection(), foreach.getGenerator().getVarDecls(), () -> {
+            if (backend().context().getConfiguration().isDefined(PlatformSettings.foreachLoopUnrollingFactorHLS)) {
+                int unrollFactor = backend().context().getConfiguration().get(PlatformSettings.foreachLoopUnrollingFactorHLS);
+                if(unrollFactor >= 0) {
+                    if (unrollFactor == 0) {
+                        emitter().emit("#pragma HLS unroll");
+                    } else {
+                        emitter().emit("#pragma HLS unroll factor=%d", unrollFactor);
+                    }
+                }
+            }
             for (Expression filter : foreach.getFilters()) {
                 emitter().emit("if (%s) {", expressioneval().evaluate(filter));
                 emitter().increaseIndentation();

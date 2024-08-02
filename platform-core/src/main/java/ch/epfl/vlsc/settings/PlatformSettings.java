@@ -270,5 +270,22 @@ public class PlatformSettings {
         }
     };
 
+    static public IntegerSetting foreachLoopUnrollingFactorHLS = new IntegerSetting() {
+        @Override
+        public String getKey() {
+            return "foreach-loop-unroll-factor-hls";
+        }
+
+        @Override
+        public String getDescription() {
+            return "Tell HLS to unroll foreach loops in actor bodies. Argument value determines loop unroll factor. Set to 0 to unroll as much as possible. See Vitis-HLS #pragma UNROLL for more information.";
+        }
+
+        @Override
+        public Integer defaultValue(Configuration configuration) {
+            return -1;
+        }
+    };
+
 
 }
