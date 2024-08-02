@@ -99,8 +99,8 @@ public interface testbenchScriptGeneratorHDL {
 
     default void copyTopNetworkFileVivado2023(String networkName) {
         emitter().emit("echo \"Copy HDL for instance: %s\"", networkName);
-        emitter().emit("cp code-gen/rtl/%s_vivado2023.sv verilog_testbench_simulation_vivado_2023/", networkName);
-        emitter().emit("cp code-gen/rtl-tb/tb_%s_simple_vivado2023.v verilog_testbench_simulation_vivado_2023/", networkName);
+        emitter().emit("cp code-gen/rtl/%s_vivado2023.sv $outputDir/", networkName);
+        emitter().emit("cp code-gen/rtl-tb/tb_%s_simple_vivado2023.v $outputDir/", networkName);
         emitter().emitNewLine();
     }
 
@@ -128,11 +128,49 @@ public interface testbenchScriptGeneratorHDL {
 
         emitter().emit("#!/bin/bash");
         emitter().emit("# A very simple script that generates the HDL for every HLS actor and them moves all the");
-        emitter().emit("# required files for testing those actors to my_project/verilog_testbench_simulation_vivado_2023 for");
+        emitter().emit("# required files for testing those actors to my_project/verilog_testbench_simulation_vivado_2023 (default) for");
         emitter().emit("# easy simulation. This script specifically generates HDL for Vivado 2023 and also skips.");
         emitter().emit("# CMAKE generation as the CMAKE compilation flow is designed to work with Vivado 2019.");
+        emitter().emitNewLine();
+
+        emitter().emit("# 0. Process Parameters");
+        emitter().emit("fpga=\"xc7z020clg484-1\"");
+        emitter().emit("clock_period_ns=\"3.3\"");
+        emitter().emit("outputDir=\"verilog_testbench_simulation_vivado_2023\"");
         emitter().emit("NUM_THREADS=$((`nproc`-4)) # Change this if you want a different number of parallel threads running in this script.");
         emitter().emit("CURRENT_THREADS=0 # Helper variable - do not change this.");
+        emitter().emit("HELP=0");
+        emitter().emitNewLine();
+
+        emitter().emit("while getopts f:c:o:n:h flag");
+        emitter().emit("do");
+        emitter().increaseIndentation();
+        emitter().emit("case \"${flag}\" in");
+        emitter().increaseIndentation();
+        emitter().emit("f) fpga=${OPTARG};;");
+        emitter().emit("c) clock_period_ns=${OPTARG};;");
+        emitter().emit("o) outputDir=${OPTARG};;");
+        emitter().emit("n) NUM_THREADS=${OPTARG};;");
+        emitter().emit("h) HELP=1;;");
+        emitter().decreaseIndentation();
+        emitter().emit("esac");
+        emitter().decreaseIndentation();
+        emitter().emit("done");
+        emitter().emitNewLine();
+
+        emitter().emit("if [ $HELP -eq 1 ]");
+        emitter().emit("then");
+        emitter().increaseIndentation();
+        emitter().emit("echo \"Script to generate HDL from HLS from every actor in the project. Takes the following arguments:\"");
+        emitter().emit("echo \"    -h Print this message and then exit\"");
+        emitter().emit("echo \"    -o OUTPUT_DIRECTORY The directory to store all the generated HDL files (default: " +
+                "verilog_testbench_simulation_vivado_2023).\"");
+        emitter().emit("echo \"    -f FPGA The fpga to synthesize for (default: xczu7ev-ffvf1517-1-i).\"");
+        emitter().emit("echo \"    -c CLOCK_PERIOD_NS The clock period that the HLS must be specified as in nanoseconds (default: 5.0).\"");
+        emitter().emit("echo \"    -n NUMBER_OF_THREADS The number of parallel threads to run when running this script (default: Total system processors - 4).\"");
+        emitter().emit("exit 1");
+        emitter().decreaseIndentation();
+        emitter().emit("fi");
         emitter().emitNewLine();
 
         emitter().emit("# 1. Make sure we are in the correct directory and print useful info to user ");
@@ -141,15 +179,15 @@ public interface testbenchScriptGeneratorHDL {
         emitter().emit("projDir=`pwd`");
         emitter().emit("echo \"Project directory: $projDir\"");
         emitter().emit("echo \"Project build directory: $projDir/build\"");
-        emitter().emit("echo \"HDL testbench files to be stored in directory: $projDir/verilog_testbench_simulation_vivado_2023\"");
+        emitter().emit("echo \"HDL testbench files to be stored in directory: $projDir/$outputDir\"");
         emitter().emitNewLine();
 
-        emitter().emit("# 2. Generate VIvado TCL script for generating HDL from all HLS files");
+        emitter().emit("# 2. Generate Vivado TCL script for generating HDL from all HLS files");
         emitter().emit("mkdir -p build");
         emitter().emit("cd build");
         emitter().emit("cp ../scripts/Synthesis_vitis.tcl.in Synthesis_vivado2023.tcl");
-        emitter().emit("sed -i -e 's/${FPGA_NAME}/xc7z020clg484-1/g' Synthesis_vivado2023.tcl");
-        emitter().emit("sed -i -e 's/${HLS_CLOCK_PERIOD}/3.3/g' Synthesis_vivado2023.tcl");
+        emitter().emit("sed -i -e \"s@\\${FPGA_NAME}@$fpga@g\" Synthesis_vivado2023.tcl");
+        emitter().emit("sed -i -e \"s@\\${HLS_CLOCK_PERIOD}@$clock_period_ns@g\" Synthesis_vivado2023.tcl");
         emitter().emit("sed -i -e \"s@\\${PROJECT_SOURCE_DIR}@$projDir@g\" Synthesis_vivado2023.tcl");
         emitter().emit("sed -i -e 's/open_project $instance_name/open_project ${instance_name}_vivado_2023/g' Synthesis_vivado2023.tcl");
         emitter().emit("");
@@ -159,10 +197,10 @@ public interface testbenchScriptGeneratorHDL {
         emitter().emitNewLine();
 
         emitter().emit("# 3. Begin generating relevant HDL files and copy them to simulation directory");
-        emitter().emit("mkdir -p verilog_testbench_simulation_vivado_2023");
-        emitter().emit("cp code-gen/rtl/fifo.v verilog_testbench_simulation_vivado_2023/");
-        emitter().emit("cp code-gen/rtl/trigger_common.sv verilog_testbench_simulation_vivado_2023/");
-        emitter().emit("cp code-gen/rtl/trigger.sv verilog_testbench_simulation_vivado_2023/");
+        emitter().emit("mkdir -p $outputDir");
+        emitter().emit("cp code-gen/rtl/fifo.v $outputDir/");
+        emitter().emit("cp code-gen/rtl/trigger_common.sv $outputDir/");
+        emitter().emit("cp code-gen/rtl/trigger.sv $outputDir/");
         emitter().emitNewLine();
 
 
@@ -175,7 +213,7 @@ public interface testbenchScriptGeneratorHDL {
         }
         emitter().emit("wait");
 
-        emitter().emit("echo \"Simulation sources in: $projDir/verilog_testbench_simulation_vivado_2023\"");
+        emitter().emit("echo \"Simulation sources in: $projDir/$outputDir\"");
 
         emitter().close();
     }
@@ -196,8 +234,8 @@ public interface testbenchScriptGeneratorHDL {
         emitter().emit("exit 1");
         emitter().decreaseIndentation();
         emitter().emit("fi");
-        emitter().emit("cp %s_vivado_2023/solution/syn/verilog/*.v ../verilog_testbench_simulation_vivado_2023/", instanceName, instanceName);
-        emitter().emit("cp ../code-gen/rtl-tb/tb_%s_simple_vivado2023.v ../verilog_testbench_simulation_vivado_2023/", instanceName);
+        emitter().emit("cp %s_vivado_2023/solution/syn/verilog/*.v ../$outputDir/", instanceName, instanceName);
+        emitter().emit("cp ../code-gen/rtl-tb/tb_%s_simple_vivado2023.v ../$outputDir/", instanceName);
         emitter().emit("cd ..");
         emitter().emit("echo \"    HDL generation for %s complete.\"", instanceName);
         emitter().decreaseIndentation();
