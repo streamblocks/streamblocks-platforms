@@ -135,7 +135,7 @@ public interface testbenchScriptGeneratorHDL {
 
         emitter().emit("# 0. Process Parameters");
         emitter().emit("fpga=\"xc7z020clg484-1\"");
-        emitter().emit("clock_period_ns=\"3.3\"");
+        emitter().emit("clock_period_ns=\"5.0\"");
         emitter().emit("outputDir=\"verilog_testbench_simulation_vivado_2023\"");
         emitter().emit("NUM_THREADS=$((`nproc`-4)) # Change this if you want a different number of parallel threads running in this script.");
         emitter().emit("CURRENT_THREADS=0 # Helper variable - do not change this.");
@@ -166,7 +166,7 @@ public interface testbenchScriptGeneratorHDL {
         emitter().emit("echo \"    -o OUTPUT_DIRECTORY The directory to store all the generated HDL files (default: " +
                 "verilog_testbench_simulation_vivado_2023).\"");
         emitter().emit("echo \"    -f FPGA The fpga to synthesize for (default: xczu7ev-ffvf1517-1-i).\"");
-        emitter().emit("echo \"    -c CLOCK_PERIOD_NS The clock period that the HLS must be specified as in nanoseconds (default: 5.0).\"");
+        emitter().emit("echo \"    -c CLOCK_PERIOD_NS The clock period that the HLS must be specified as in nanoseconds (default: 10.0).\"");
         emitter().emit("echo \"    -n NUMBER_OF_THREADS The number of parallel threads to run when running this script (default: Total system processors - 4).\"");
         emitter().emit("exit 1");
         emitter().decreaseIndentation();
@@ -189,7 +189,7 @@ public interface testbenchScriptGeneratorHDL {
         emitter().emit("sed -i -e \"s@\\${FPGA_NAME}@$fpga@g\" Synthesis_vivado2023.tcl");
         emitter().emit("sed -i -e \"s@\\${HLS_CLOCK_PERIOD}@$clock_period_ns@g\" Synthesis_vivado2023.tcl");
         emitter().emit("sed -i -e \"s@\\${PROJECT_SOURCE_DIR}@$projDir@g\" Synthesis_vivado2023.tcl");
-        emitter().emit("sed -i -e 's/open_project $instance_name/open_project ${instance_name}_vivado_2023/g' Synthesis_vivado2023.tcl");
+        emitter().emit("sed -i -e 's/open_project $instance_name/open_project ${instance_name}/g' Synthesis_vivado2023.tcl");
         emitter().emit("");
 
 
@@ -234,7 +234,7 @@ public interface testbenchScriptGeneratorHDL {
         emitter().emit("exit 1");
         emitter().decreaseIndentation();
         emitter().emit("fi");
-        emitter().emit("cp %s_vivado_2023/solution/syn/verilog/*.v ../$outputDir/", instanceName, instanceName);
+        emitter().emit("cp %s/solution/syn/verilog/*.v ../$outputDir/", instanceName, instanceName);
         emitter().emit("cp ../code-gen/rtl-tb/tb_%s_simple_vivado2023.v ../$outputDir/", instanceName);
         emitter().emit("cd ..");
         emitter().emit("echo \"    HDL generation for %s complete.\"", instanceName);
@@ -253,4 +253,108 @@ public interface testbenchScriptGeneratorHDL {
         emitter().emit("fi");
         emitter().emitNewLine();
     }
+
+    /**
+     * The script generated here is meant to be called after generateSimpleHDLTestbenchScript_Vivado2023.sh. It takes
+     * all the HDL build from generateSimpleHDLTestbenchScript_Vivado2023.sh, creates a Vivado project from it and
+     * performs synthesis. This is a weird place for this script. At the time of writing this comment, the CMAKE
+     * build for vivado 2023 output from streamblocks was not working properly. The CMAKE build should actually be
+     * fixed and this script folded into that.
+     */
+    default void generateVivadoProjectAndSynthesize_Vivado2023() {
+        emitter().open(PathUtils.getTargetScript(backend().context()).resolve("generateVivadoProjectAndSynthesize_vivado2023.sh"));
+
+
+        emitter().emit("#!/bin/bash");
+        emitter().emit("# A very simple script that generates the Vivado project for the top level CAL actor in this project.");
+        emitter().emit("# This script requires that the HDL for all the sub-actors in the project is generated. As such, it");
+        emitter().emit("# is required that you run the script generateSimpleHDLTestbenchScript_Vivado2023.sh first to work.");
+        emitter().emitNewLine();
+
+        String identifier = backend().task().getIdentifier().getLast().toString();
+        emitter().emit("# 0. Process Parameters");
+        emitter().emit("topName=%s", identifier);
+        emitter().emit("fpga=\"xc7z020clg484-1\"");
+        emitter().emit("clock_period_ns=\"10.0\"");
+        emitter().emit("vivadoProjSubDir=\"vivado_2023_project_dir\"");
+        emitter().emit("HELP=0");
+        emitter().emitNewLine();
+
+        emitter().emit("while getopts f:c:o:h flag");
+        emitter().emit("do");
+        emitter().increaseIndentation();
+        emitter().emit("case \"${flag}\" in");
+        emitter().increaseIndentation();
+        emitter().emit("f) fpga=${OPTARG};;");
+        emitter().emit("c) clock_period_ns=${OPTARG};;");
+        emitter().emit("o) vivadoProjSubDir=${OPTARG};;");
+        emitter().emit("h) HELP=1;;");
+        emitter().decreaseIndentation();
+        emitter().emit("esac");
+        emitter().decreaseIndentation();
+        emitter().emit("done");
+        emitter().emitNewLine();
+
+        emitter().emit("if [ $HELP -eq 1 ]");
+        emitter().emit("then");
+        emitter().increaseIndentation();
+        emitter().emit("echo \"Script to generate an HDL project for the $topName actor. Must be run after generateSimpleHDLTestbenchScript_Vivado2023.sh is run to work:\"");
+        emitter().emit("echo \"    -h Print this message and then exit\"");
+        emitter().emit("echo \"    -o OUTPUT_DIRECTORY The directory to store project (default: " +
+                "vivado_2023_project_dir).\"");
+        emitter().emit("echo \"    -f FPGA The fpga to synthesize for (default: xczu7ev-ffvf1517-1-i).\"");
+        emitter().emit("echo \"    -c CLOCK_PERIOD_NS The clock period that the HLS must be specified as in nanoseconds (default: 10.0).\"");
+        emitter().emit("exit 1");
+        emitter().decreaseIndentation();
+        emitter().emit("fi");
+        emitter().emitNewLine();
+
+        emitter().emit("# 1. Make sure we are in the correct directory and print useful info to user ");
+        emitter().emit("scriptDir=`dirname -- \"$( readlink -f -- \"$0\"; )\";`");
+        emitter().emit("cd $scriptDir/..");
+        emitter().emit("projDir=`pwd`");
+        emitter().emit("echo \"Project directory: $projDir\"");
+        emitter().emit("echo \"Project build directory: $projDir/build\"");
+        emitter().emit("echo \"Vivado Project to be stored in directory: $projDir/$vivadoProjSubDir\"");
+        emitter().emit("cd build");
+        emitter().emitNewLine();
+
+
+        emitter().emit("# 2. Generate the TCL script to create the Vivado project by modifying the template script provided. ");
+        emitter().emit("cp ../scripts/$topName.tcl.in $topName.tcl");
+        emitter().emit("sed -i \"0,/@PROJECT_SOURCE_DIR@/{s#@PROJECT_SOURCE_DIR@/output#$projDir/$vivadoProjSubDir#}\" $topName.tcl");
+        emitter().emit("sed -i -e \"s#@PROJECT_SOURCE_DIR@#$projDir#g\" $topName.tcl");
+        emitter().emit("sed -i -e \"s#@CMAKE_CURRENT_BINARY_DIR@#$projDir/build#g\" $topName.tcl");
+        emitter().emit("sed -i -e \"s#@FPGA_NAME@#$fpga#g\" $topName.tcl");
+        emitter().emit("sed -i -e \"s#${topName}.sv#${topName}_vivado2023.sv#g\" $topName.tcl");
+        emitter().emit("sed -i -e \"s#${topName}_pure.sv#${topName}_pure_vivado2023.sv#g\" $topName.tcl");
+        emitter().emit("echo \"exit\" >> $topName.tcl");
+        emitter().emitNewLine();
+
+        emitter().emit("# 3. Generate clock constraint file from template");
+        emitter().emit("cp ../scripts/clock.xdc.in ../code-gen/xdc/clock.xdc");
+        emitter().emit("sed -i -e \"s#\\${HLS_CLOCK_PERIOD}#$clock_period_ns#g\"  ../code-gen/xdc/clock.xdc");
+        emitter().emitNewLine();
+
+        emitter().emit("# 4. Generate TCL script that adds some extra testbenches to the project");
+        emitter().emit("echo \"");
+        emitter().emit("open_project $projDir/$vivadoProjSubDir/$topName/$topName.xpr");
+        emitter().emit("import_files -fileset sim_1 -norecurse {$projDir/code-gen/rtl-tb/tb_$topName.v}");
+        emitter().emit("import_files -fileset sim_1 -norecurse {$projDir/code-gen/rtl-tb/tb_${topName}_simple_vivado2023.v}");
+        emitter().emit("set_property top tb_${topName}_simple_vivado2023 [get_filesets sim_1]");
+        emitter().emit("set_property top_lib xil_defaultlib [get_filesets sim_1]");
+        emitter().emit("exit");
+        emitter().emit("\" > addTestBenchToProject.tcl");
+        emitter().emitNewLine();
+
+        emitter().emit("# 5. Run the generated Vivado Scripts");
+        emitter().emit("vivado -script $topName.tcl -mode tcl");
+        emitter().emit("vivado -script addTestBenchToProject.tcl -mode tcl");
+        emitter().emitNewLine();
+
+        emitter().emit("echo \"Vivado Project in: $projDir/$vivadoProjSubDir\"");
+
+        emitter().close();
+    }
+
 }

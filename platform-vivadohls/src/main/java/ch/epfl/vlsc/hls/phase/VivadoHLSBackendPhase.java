@@ -394,6 +394,7 @@ public class VivadoHLSBackendPhase implements Phase {
         // -- Generate a script that generates HDL testbenches for each actor in the network.
         backend.testbenchScriptGeneratorHDL().generateSimpleHDLTestbenchScript();
         backend.testbenchScriptGeneratorHDL().generateSimpleHDLTestbenchScript_Vivado2023();
+        backend.testbenchScriptGeneratorHDL().generateVivadoProjectAndSynthesize_Vivado2023();
     }
 
     public static void generateWcfg(VivadoHLSBackend backend) {
