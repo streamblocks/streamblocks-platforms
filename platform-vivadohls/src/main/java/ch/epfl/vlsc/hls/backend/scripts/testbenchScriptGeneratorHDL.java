@@ -337,12 +337,16 @@ public interface testbenchScriptGeneratorHDL {
         emitter().emitNewLine();
 
         emitter().emit("# 4. Generate TCL script that adds some extra testbenches to the project");
+        emitter().emit("# Also generate a more comprehensive utilisation report");
         emitter().emit("echo \"");
         emitter().emit("open_project $projDir/$vivadoProjSubDir/$topName/$topName.xpr");
         emitter().emit("import_files -fileset sim_1 -norecurse {$projDir/code-gen/rtl-tb/tb_$topName.v}");
         emitter().emit("import_files -fileset sim_1 -norecurse {$projDir/code-gen/rtl-tb/tb_${topName}_simple_vivado2023.v}");
         emitter().emit("set_property top tb_${topName}_simple_vivado2023 [get_filesets sim_1]");
         emitter().emit("set_property top_lib xil_defaultlib [get_filesets sim_1]");
+        emitter().emit("open_run synth_1 -name synth_1");
+        emitter().emit("report_utilization -file report_utilization.rpt -hierarchical");
+        emitter().emit("close_design");
         emitter().emit("exit");
         emitter().emit("\" > addTestBenchToProject.tcl");
         emitter().emitNewLine();
