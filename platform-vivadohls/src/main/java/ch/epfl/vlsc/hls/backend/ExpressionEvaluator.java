@@ -952,6 +952,39 @@ public interface ExpressionEvaluator {
         return value;
     }
 
+    default String evaluateExprListSingleDimension(Expression indexer, String index){
+        return evaluate(indexer);
+    }
+
+    default String evaluateExprListSingleDimension(ExprIndexer indexer, String index){
+        VarDecl varDecl = evalExprIndexVar(indexer);
+
+        Type t = backend().types().declaredType(varDecl);
+        ListType listType = null;
+        if (t instanceof ListType) {
+            listType = (ListType) t;
+        } else if (t instanceof RefType) {
+            listType = (ListType) ((RefType) t).getType();
+        }
+
+        List<Integer> sizeByDim = typeseval().sizeByDimension(listType);
+
+        List<String> indexByDim = new ArrayList<>();
+        if (indexer.getStructure() instanceof ExprIndexer) {
+            indexByDim.add(evaluate(indexer.getIndex()));
+            getListIndexes((ExprIndexer) indexer.getStructure()).stream().forEachOrdered(indexByDim::add);
+        } else {
+            indexByDim.add(evaluate(indexer.getIndex()));
+        }
+
+        String startPosition = "";
+        for (int i = 0; i < indexByDim.size(); i++) {
+            startPosition = "" + sizeByDim.get(i) + "*" + indexByDim.get(i) + " ";
+        }
+
+        return variables().name(varDecl) + "[" + startPosition + " + " + index + "]";
+    }
+
     default void evaluateList(VarDecl var, ExprList list) {
         emitter().emit("for(int i = 0; i < %d; i++){", list.getElements().size());
         emitter().increaseIndentation();

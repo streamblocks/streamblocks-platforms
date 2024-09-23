@@ -232,6 +232,15 @@ public interface Statements {
                     copy(type, lvalue, types().type(assign.getExpression()), eval);
                     emitter().decreaseIndentation();
                     emitter().emit("}");
+                } else if (assign.getExpression() instanceof ExprIndexer && type instanceof  ListType) {
+                    String maxIndex = typeseval().sizeByDimension((ListType) type).stream().map(Object::toString).collect(Collectors.joining(" * "));
+                    String index = variables().generateTemp();
+                    String right = expressioneval().evaluateExprListSingleDimension((ExprIndexer)assign.getExpression(),index);
+                    emitter().emit("for (size_t %1$s = 0; %1$s < (%2$s); %1$s++) {", index, maxIndex);
+                    emitter().increaseIndentation();
+                    emitter().emit("%s[%s] = %s;", lvalue, index, right);
+                    emitter().decreaseIndentation();
+                    emitter().emit("}");
                 } else {
                     copy(type, lvalue, types().type(assign.getExpression()), expressioneval().evaluate(assign.getExpression()));
                 }

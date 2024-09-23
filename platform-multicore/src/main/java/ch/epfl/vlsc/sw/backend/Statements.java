@@ -8,12 +8,7 @@ import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.ir.Variable;
 import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
-import se.lth.cs.tycho.ir.expr.ExprBinaryOp;
-import se.lth.cs.tycho.ir.expr.ExprComprehension;
-import se.lth.cs.tycho.ir.expr.ExprGlobalVariable;
-import se.lth.cs.tycho.ir.expr.ExprInput;
-import se.lth.cs.tycho.ir.expr.ExprVariable;
-import se.lth.cs.tycho.ir.expr.Expression;
+import se.lth.cs.tycho.ir.expr.*;
 import se.lth.cs.tycho.ir.stmt.Statement;
 import se.lth.cs.tycho.ir.stmt.StmtAssignment;
 import se.lth.cs.tycho.ir.stmt.StmtBlock;
@@ -164,9 +159,8 @@ public interface Statements {
 
                     emitter().emit("{");
                     emitter().increaseIndentation();
-                    String eval = expressioneval().evaluate(assign.getExpression());
                     Type exprType = types().type(assign.getExpression());
-
+                    String eval = expressioneval().evaluate(assign.getExpression());
                     copySubAccess((ListType) type, varName, (ListType) exprType, eval, index);
                     emitter().decreaseIndentation();
                     emitter().emit("}");
@@ -190,7 +184,17 @@ public interface Statements {
                     copy(type, lvalue, types().type(assign.getExpression()), eval);
                     emitter().decreaseIndentation();
                     emitter().emit("}");
-                } else {
+                } else if (assign.getExpression() instanceof ExprIndexer && type instanceof  ListType) {
+                    String maxIndex = typeseval().sizeByDimension((ListType) type).stream().map(Object::toString).collect(Collectors.joining(" * "));
+                    String index = variables().generateTemp();
+                    String right = expressioneval().evaluateExprListSingleDimension((ExprIndexer)assign.getExpression(),index);
+                    emitter().emit("for (size_t %1$s = 0; %1$s < (%2$s); %1$s++) {", index, maxIndex);
+                    emitter().increaseIndentation();
+                    emitter().emit("%s[%s] = %s;", lvalue, index, right);
+                    emitter().decreaseIndentation();
+                    emitter().emit("}");
+                } else
+                {
                     copy(type, lvalue, types().type(assign.getExpression()), expressioneval().evaluate(assign.getExpression()));
                 }
             }
@@ -225,7 +229,6 @@ public interface Statements {
         emitter().emit("}");
         //}
     }
-
 
     default void copy(SetType lvalueType, String lvalue, SetType rvalueType, String rvalue) {
         emitter().emit("copy_%1$s(&(%2$s), %3$s);", typeseval().type(lvalueType), lvalue, rvalue);
