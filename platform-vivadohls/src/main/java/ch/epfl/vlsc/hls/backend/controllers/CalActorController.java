@@ -77,13 +77,14 @@ public interface CalActorController {
         }*/
     }
 
-    default void generateControllerSimple(CalActor actor, Map<String, List<Action>> eligibleStates, Priorities priorities, Schedule schedule){
+    default void generateControllerSimple(CalActor actor, Map<String, List<Action>> eligibleStates,
+                                          Priorities priorities, Schedule schedule) {
 
         emitter().emit("_ret.returnCode = RETURN_EXECUTED;");
 
         // 1. Collect all input patterns, output expressions and guards across all the actors into a single list
         List<String> conditionList = new ArrayList<>();
-        for(Action action: actor.getActions()){
+        for (Action action : actor.getActions()) {
             conditionList.addAll(inputConditions(action));
             conditionList.addAll(outputConditions(action));
             conditionList.addAll(guards(action));
@@ -96,7 +97,7 @@ public interface CalActorController {
         // from the condition
         Map<String, String> condVarMap = new HashMap<>(conditionList.size());
         int condIndex = 0;
-        for(String cond: conditionList){
+        for (String cond : conditionList) {
             String varName = "condition" + condIndex;
             condVarMap.put(cond, varName);
             emitter().emit("bool %s = %s;", varName, cond);
@@ -107,9 +108,10 @@ public interface CalActorController {
         // 3. Now we implement the controller to decide which action to fire based on the value of these conditions
         // First we need to check which state we are in, and then we try to execute the actions in each of that state
         emitter().emit("// Determine which action to fire based on the conditions variables and current state ");
-        if(eligibleStates.size() == 1){
-            emitActionFiringsPerState(schedule.getInitialState().toArray()[0].toString(), condVarMap, priorities, schedule);
-        }else {
+        if (eligibleStates.size() == 1) {
+            emitActionFiringsPerState(schedule.getInitialState().toArray()[0].toString(), condVarMap, priorities,
+                    schedule);
+        } else {
             emitter().emit("switch(_FSM_state){");
             for (String state : eligibleStates.keySet()) {
                 emitter().emit("case s_%s:", state);
@@ -126,7 +128,8 @@ public interface CalActorController {
         }
     }
 
-    default void emitActionFiringsPerState(String state, Map<String, String> condVarMap, Priorities priorities, Schedule schedule){
+    default void emitActionFiringsPerState(String state, Map<String, String> condVarMap, Priorities priorities,
+                                           Schedule schedule) {
         // 1. Get all the actions in the state and order them from highest to lowest priority.
         List<Action> actionsOnState = schedule.getEligible().get(state);
         Set<QID> selectedTags = actionsOnState.stream().map(Action::getTag).collect(Collectors.toSet());
@@ -143,26 +146,29 @@ public interface CalActorController {
             Action action = actions.get(i);
 
             // 2.1 Gather all condition expressions for this specific action.
-            List<String> conditionExpressions = Stream.concat(Stream.concat(inputConditions(action).stream(), outputConditions(action).stream()), guards(action).stream())
+            List<String> conditionExpressions = Stream.concat(Stream.concat(inputConditions(action).stream(),
+                            outputConditions(action).stream()), guards(action).stream())
                     .collect(Collectors.toList());
 
             // 2.2 Combine all these condition expression logically anded together into a string.
-            String conditionString = conditionExpressions.stream().map(condVarMap::get).collect(Collectors.joining(" && "));
+            String conditionString = conditionExpressions.stream().map(condVarMap::get).collect(Collectors.joining(" " +
+                    "&& "));
 
             // 2.3. Check all these conditions in a single if statement
-            if(i == 0){
+            if (i == 0) {
                 emitter().emit("if (%s) {", conditionString);
-            }else{
+            } else {
                 emitter().emit("else if (%s) {", conditionString);
             }
             emitter().increaseIndentation();
             // 2.4. If all the conditions evaluate to true, execute the action
             emitter().emit("%s(%s);", action.getTag().nameWithUnderscore(), actionIoArguments(action));
-            emitter().emit("_ret.fsmState = s_%s;", schedule.targetState(Collections.singleton(state), action).iterator().next());
+            emitter().emit("_ret.fsmState = s_%s;",
+                    schedule.targetState(Collections.singleton(state), action).iterator().next());
             emitter().decreaseIndentation();
             emitter().emit("}");
         }
-        // 2.5 If no conditions evaluate to true 
+        // 2.5 If no conditions evaluate to true
         emitter().emit("else {");
         emitter().increaseIndentation();
         emitter().emit("_ret.returnCode = RETURN_WAIT;");
@@ -174,14 +180,16 @@ public interface CalActorController {
         if(action.getInputPatterns().isEmpty()){
             emitter().emit("%s(guard_%s(io)){", (isElse ? "} else if": "if"), action.getTag().nameWithUnderscore());
         }else{
-            emitter().emit("%s(%s && guard_%s(io)){", (isElse ? "} else if": "if"), String.join(" && ", inputConditions(action)), action.getTag().nameWithUnderscore());
+            emitter().emit("%s(%s && guard_%s(io)){", (isElse ? "} else if": "if"), String.join(" && ",
+            inputConditions(action)), action.getTag().nameWithUnderscore());
         }
 
         if (!action.getOutputExpressions().isEmpty()) {
             emitter().increaseIndentation();
             emitter().emit("if( %s ) {", String.join(" && ", outputConditions(action)));
             emitter().emit("\t%s(%s);", action.getTag().nameWithUnderscore(), actionIoArguments(action));
-            emitter().emit("\t_ret.fsmState = s_%s;", schedule.targetState(Collections.singleton(state), action).iterator().next());
+            emitter().emit("\t_ret.fsmState = s_%s;", schedule.targetState(Collections.singleton(state), action)
+            .iterator().next());
             emitter().emit("} else {");
             emitter().emit("\t_ret.returnCode = RETURN_WAIT;");
             emitter().emit("}");
@@ -189,7 +197,8 @@ public interface CalActorController {
             emitter().decreaseIndentation();
         } else {
             emitter().emit("\t%s(%s);", action.getTag().nameWithUnderscore(), actionIoArguments(action));
-            emitter().emit("\t_ret.fsmState = s_%s;", schedule.targetState(Collections.singleton(state), action).iterator().next());
+            emitter().emit("\t_ret.fsmState = s_%s;", schedule.targetState(Collections.singleton(state), action)
+            .iterator().next());
         }
     }*/
 
@@ -197,12 +206,14 @@ public interface CalActorController {
         // -- Actor Instance Name
         //String className = "class_" + instanceName;
 
-        //return String.format("StateReturn %sstate_%s(%s)", withClassName ? className + "::" : "", state, backend().instance().entityPorts(instanceName, true, true));
+        //return String.format("StateReturn %sstate_%s(%s)", withClassName ? className + "::" : "", state, backend()
+        // .instance().entityPorts(instanceName, true, true));
         return "";
     }
 
 
-    /*default void emitStateFunction(String instanceName, CalActor actor, Schedule schedule, Priorities priorities, String state) {
+    /*default void emitStateFunction(String instanceName, CalActor actor, Schedule schedule, Priorities priorities,
+    String state) {
         emitter().emit("%s{", stateFunctionPrototype(instanceName, true, state));
         emitter().emit("#pragma HLS INLINE off");
         emitter().emit("#pragma HLS INTERFACE ap_hs port=io");
@@ -265,37 +276,43 @@ public interface CalActorController {
         return String.join(", ", ports);
     }
 
-    default List<String> inputConditions(Action action){
+    default List<String> inputConditions(Action action) {
         List<String> conditions = new ArrayList<>();
 
-        for(InputPattern pattern : action.getInputPatterns()){
-            if(pattern.getRepeatExpr() != null){
-                conditions.add(String.format("(pinAvailIn(%s, io) >= %s) && !%1$s.empty()", backend().instance().channelutils().definedInputPort(pattern.getPort()), backend().expressioneval().evaluate(pattern.getRepeatExpr())));
-            }else{
-                conditions.add(String.format("!%1$s.empty()", backend().instance().channelutils().definedInputPort(pattern.getPort())));
+        for (InputPattern pattern : action.getInputPatterns()) {
+            if (pattern.getRepeatExpr() != null) {
+                conditions.add(String.format("(pinAvailIn(%s, io) >= %s) && !%1$s.empty()",
+                        backend().instance().channelutils().definedInputPort(pattern.getPort()),
+                        backend().expressioneval().evaluate(pattern.getRepeatExpr())));
+            } else {
+                conditions.add(String.format("!%1$s.empty()",
+                        backend().instance().channelutils().definedInputPort(pattern.getPort())));
             }
         }
 
         return conditions;
     }
 
-    default List<String> outputConditions(Action action){
+    default List<String> outputConditions(Action action) {
         List<String> conditions = new ArrayList<>();
 
-        for(OutputExpression output : action.getOutputExpressions()){
-            if(output.getRepeatExpr() != null){
-                conditions.add(String.format("(pinAvailOut(%s, io) >= %s) && !%1$s.full()", backend().instance().channelutils().definedInputPort(output.getPort()), backend().expressioneval().evaluate(output.getRepeatExpr())));
-            }else{
-                conditions.add(String.format("!%1$s.full()", backend().instance().channelutils().definedOutputPort(output.getPort())));
+        for (OutputExpression output : action.getOutputExpressions()) {
+            if (output.getRepeatExpr() != null) {
+                conditions.add(String.format("(pinAvailOut(%s, io) >= %s) && !%1$s.full()",
+                        backend().instance().channelutils().definedInputPort(output.getPort()),
+                        backend().expressioneval().evaluate(output.getRepeatExpr())));
+            } else {
+                conditions.add(String.format("!%1$s.full()",
+                        backend().instance().channelutils().definedOutputPort(output.getPort())));
             }
         }
 
         return conditions;
     }
 
-    default List<String> guards(Action action){
+    default List<String> guards(Action action) {
         List<String> guards = new ArrayList<>();
-        for(Expression guard : action.getGuards()){
+        for (Expression guard : action.getGuards()) {
             guards.add(expressioneval().evaluate(guard));
         }
 
