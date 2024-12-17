@@ -20,6 +20,7 @@ public class AxiConstants {
             case 1:
             case 8:
             case 16:
+                return Optional.of(16);
             case 32:
                 return Optional.of(32);
             case 64:
@@ -31,7 +32,7 @@ public class AxiConstants {
             case 512:
                 return Optional.of(512);
             default:
-                return Optional.empty();
+                return Optional.of(32);
         }
 
     }

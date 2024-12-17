@@ -179,9 +179,6 @@ public interface Instances {
             Schedule schedule = new Schedule(actor);
             Priorities priorities = new Priorities(actor);
             emitter().emit("// -- State Function");
-            for (String state : schedule.getEligible().keySet()) {
-                backend().calActorController().emitStateFunction(instanceName, actor, schedule, priorities, state);
-            }
 
             // -- Actions
             emitter().emit("// -- Actions");

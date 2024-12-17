@@ -17,6 +17,7 @@ import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.entity.am.ActorMachine;
+import se.lth.cs.tycho.ir.entity.cal.CalActor;
 import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.network.Network;
@@ -521,7 +522,7 @@ public interface VerilogNetwork {
 
         emitter().emit("// -- Instance : %s", name);
         if (useTrigger()) {
-            if (entity instanceof ActorMachine) {
+            if (entity instanceof ActorMachine || entity instanceof CalActor) {
 
                 String triggerClass = "Trigger";
                 emitter().emit("%s i_%s_trigger (", triggerClass, name);
@@ -635,7 +636,7 @@ public interface VerilogNetwork {
                 emitter().emitNewLine();
             }
 
-            if (entity instanceof ActorMachine) {
+            if (entity instanceof ActorMachine || entity instanceof CalActor) {
                 // -- IO for Inputs
                 if(vivado2023){
                     emitter().emit(".io(%s_io_wire),", name);
@@ -793,7 +794,7 @@ public interface VerilogNetwork {
                 String.join(" || ", network.getInstances().stream().filter(i -> {
                     GlobalEntityDecl entityDecl = backend().globalnames().entityDecl(i.getEntityName(), true);
                     Entity entity = entityDecl.getEntity();
-                    return entity instanceof ActorMachine;
+                    return (entity instanceof ActorMachine) || (entity instanceof CalActor);
                 }).map(i -> "(~" + i.getInstanceName() + "_ap_idle)").collect(Collectors.toList())));
 
         emitter().emit("assign network_is_executing = (state == _EXECUTING_);");
@@ -821,7 +822,8 @@ public interface VerilogNetwork {
                 String.join(" & ",
                         network.getInstances().stream()
                                 .filter(inst -> (backend().globalnames().entityDecl(inst.getEntityName(), true)
-                                        .getEntity() instanceof ActorMachine))
+                                        .getEntity() instanceof ActorMachine) || (backend().globalnames().entityDecl(inst.getEntityName(), true)
+                                        .getEntity() instanceof CalActor))
                                 .map(i -> i.getInstanceName() + "_trigger_ap_idle")
                                 .collect(Collectors.toList())));
 
@@ -969,7 +971,8 @@ public interface VerilogNetwork {
     default List<String> getTriggerSignalsByName(ImmutableList<Instance> instances, String name) {
         List<String> signals = instances.stream()
                 .filter(inst -> (backend().globalnames().entityDecl(inst.getEntityName(), true)
-                        .getEntity() instanceof ActorMachine))
+                        .getEntity() instanceof ActorMachine)  || (backend().globalnames().entityDecl(inst.getEntityName(), true)
+                        .getEntity() instanceof CalActor))
                 .map(inst -> getTriggerSignalByName(inst, name)).collect(Collectors.toList());
         return signals;
     }
