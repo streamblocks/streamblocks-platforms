@@ -1323,6 +1323,19 @@ public interface Instances {
                 }
             }
 
+            for (InputPattern pattern : action.getInputPatterns()) {
+                for (Match match : pattern.getMatches()) {
+                    VarDecl var = match.getDeclaration();
+                    String decl = backend().variables().declarationName(var);
+
+                    if (pattern.getRepeatExpr() == null) {
+                        emitter().emit("pinRead(%s, %s);", pattern.getPort().getName(), decl);
+                    } else {
+                        emitter().emit("pinReadRepeat(%s, %s, %s);", pattern.getPort().getName(), decl, expressioneval().evaluate(pattern.getRepeatExpr()));
+                    }
+                }
+            }
+
             for (VarDecl decl : action.getVarDecls()) {
 
                 Type t = types().declaredType(decl);
@@ -1349,20 +1362,7 @@ public interface Instances {
                     }
                 }
             }
-
-            for (InputPattern pattern : action.getInputPatterns()) {
-                for (Match match : pattern.getMatches()) {
-                    VarDecl var = match.getDeclaration();
-                    String decl = backend().variables().declarationName(var);
-
-                    if (pattern.getRepeatExpr() == null) {
-                        emitter().emit("pinRead(%s, %s);", pattern.getPort().getName(), decl);
-                    } else {
-                        emitter().emit("pinReadRepeat(%s, %s, %s);", pattern.getPort().getName(), decl, expressioneval().evaluate(pattern.getRepeatExpr()));
-                    }
-                }
-            }
-
+            
             action.getBody().forEach(backend().statements()::execute);
 
             // -- Produce

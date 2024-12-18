@@ -10,6 +10,7 @@ import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.entity.am.ActorMachine;
+import se.lth.cs.tycho.ir.entity.cal.CalActor;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.network.Network;
 import se.lth.cs.tycho.ir.util.ImmutableList;
@@ -806,7 +807,7 @@ public interface VerilogTestbench {
             entity.getOutputPorts().forEach(p -> getDutIO(identifier, p, true, false, vivado2023));
 
             // -- IO interface
-            if (entity instanceof ActorMachine) {
+            if (entity instanceof ActorMachine || entity instanceof CalActor) {
                 entity.getInputPorts().forEach(p -> getIO(identifier, p, true, vivado2023));
                 entity.getOutputPorts().forEach(p -> getIO(identifier, p, false, vivado2023));
                 generateVivado2023IO(entity.getInputPorts(), entity.getOutputPorts(), vivado2023);
