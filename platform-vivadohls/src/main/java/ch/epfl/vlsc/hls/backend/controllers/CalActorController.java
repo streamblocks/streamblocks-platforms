@@ -6,6 +6,7 @@ import ch.epfl.vlsc.platformutils.Emitter;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
+import se.lth.cs.tycho.ir.AbstractIRNode;
 import se.lth.cs.tycho.ir.QID;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.entity.cal.Action;
@@ -82,41 +83,49 @@ public interface CalActorController {
 
         emitter().emit("_ret.returnCode = RETURN_EXECUTED;");
 
-        // 1. Collect all input patterns, output expressions and guards across all the actors into a single list
-        List<String> conditionList = new ArrayList<>();
+        // 1. Collect all input patterns, output expressions and guards across all the actors into two lists
+        // - one list containing the evaluated conditions
+        // - the other containing the IrNode corresponding to these conditions
+        // We need both of these later - it might be better to join them into a single tuple but I was lazy.
+        List<String> conditionListString = new ArrayList<>();
+        List<AbstractIRNode> conditionListIrNode = new ArrayList<>();
         for (Action action : actor.getActions()) {
-            conditionList.addAll(inputConditions(action));
-            conditionList.addAll(outputConditions(action));
-            conditionList.addAll(guards(action));
+            conditionListString.addAll(inputConditions(action));
+            conditionListIrNode.addAll(action.getInputPatterns());
+            conditionListString.addAll(outputConditions(action));
+            conditionListIrNode.addAll(action.getOutputExpressions());
+            conditionListString.addAll(guards(action));
+            conditionListIrNode.addAll(action.getGuards());
         }
 
-        // 2. Assign each of the conditions to a variable at the start of the function. This should result in all
-        // these values being evaluated in parallel in the HDL actor.
+        // 2. Generate assignment for each of the conditions to a variable at the start of the function. This should
+        // result in all these values being evaluated in parallel in the HDL actor.
         emitter().emit("// Check all the conditions once and store them in a variable");
         // Save this variable name and condition expression to a map for use later so we can find the variable again
         // from the condition
-        Map<String, String> condVarMap = new HashMap<>(conditionList.size());
+        Map<AbstractIRNode, String> condNodeMap = new HashMap<>(conditionListString.size());
         int condIndex = 0;
-        for (String cond : conditionList) {
+        for (int i = 0; i < conditionListString.size(); i++) {
+            String cond = conditionListString.get(i);
             String varName = "condition" + condIndex;
-            condVarMap.put(cond, varName);
+            condNodeMap.put(conditionListIrNode.get(i), varName);
             emitter().emit("bool %s = %s;", varName, cond);
             condIndex++;
         }
         emitter().emitNewLine();
 
-        // 3. Now we implement the controller to decide which action to fire based on the value of these conditions
+        // 3. Now we generate the controller to decide which action to fire based on the value of these conditions
         // First we need to check which state we are in, and then we try to execute the actions in each of that state
         emitter().emit("// Determine which action to fire based on the conditions variables and current state ");
         if (eligibleStates.size() == 1) {
-            emitActionFiringsPerState(schedule.getInitialState().toArray()[0].toString(), condVarMap, priorities,
+            emitActionFiringsPerState(schedule.getInitialState().toArray()[0].toString(), condNodeMap, priorities,
                     schedule);
         } else {
             emitter().emit("switch(_FSM_state){");
             for (String state : eligibleStates.keySet()) {
                 emitter().emit("case s_%s:", state);
                 emitter().increaseIndentation();
-                emitActionFiringsPerState(state, condVarMap, priorities, schedule);
+                emitActionFiringsPerState(state, condNodeMap, priorities, schedule);
                 emitter().decreaseIndentation();
                 emitter().emit("break;");
             }
@@ -128,8 +137,9 @@ public interface CalActorController {
         }
     }
 
-    default void emitActionFiringsPerState(String state, Map<String, String> condVarMap, Priorities priorities,
+    default void emitActionFiringsPerState(String state, Map<AbstractIRNode, String> condNodeMap, Priorities priorities,
                                            Schedule schedule) {
+
         // 1. Get all the actions in the state and order them from highest to lowest priority.
         List<Action> actionsOnState = schedule.getEligible().get(state);
         Set<QID> selectedTags = actionsOnState.stream().map(Action::getTag).collect(Collectors.toSet());
@@ -145,16 +155,16 @@ public interface CalActorController {
         for (int i = 0; i < actions.size(); i++) {
             Action action = actions.get(i);
 
-            // 2.1 Gather all condition expressions for this specific action.
-            List<String> conditionExpressions = Stream.concat(Stream.concat(inputConditions(action).stream(),
-                            outputConditions(action).stream()), guards(action).stream())
+            // 2.1 Gather all conditions for this specific action.
+            List<AbstractIRNode> conditionNodes = Stream.concat(Stream.concat(action.getInputPatterns().stream(),
+                            action.getOutputExpressions().stream()), action.getGuards().stream())
                     .collect(Collectors.toList());
 
-            // 2.2 Combine all these condition expression logically anded together into a string.
-            String conditionString = conditionExpressions.stream().map(condVarMap::get).collect(Collectors.joining(" " +
+            // 2.2 Get the corresponding evaluated variable names and combine them logically anded together into a string.
+            String conditionString = conditionNodes.stream().map(condNodeMap::get).collect(Collectors.joining(" " +
                     "&& "));
 
-            // 2.3. Check all these conditions in a single if statement
+            // 2.3. Generate the if statement code that checks the above string.
             if (i == 0) {
                 emitter().emit("if (%s) {", conditionString);
             } else {
@@ -168,7 +178,7 @@ public interface CalActorController {
             emitter().decreaseIndentation();
             emitter().emit("}");
         }
-        // 2.5 If no conditions evaluate to true
+        // 3. If no conditions evaluate to true across all the actions execute this.
         emitter().emit("else {");
         emitter().increaseIndentation();
         emitter().emit("_ret.returnCode = RETURN_WAIT;");
