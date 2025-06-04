@@ -7,6 +7,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import se.lth.cs.mlir.platform.Mlir;
 import se.lth.cs.tycho.compiler.Compiler;
+import se.lth.cs.tycho.phase.CalToAmPhase;
 import se.lth.cs.tycho.platform.Platform;
 import se.lth.cs.tycho.reporting.Diagnostic;
 import se.lth.cs.tycho.reporting.Reporter;
@@ -94,6 +95,7 @@ public class CalToMlirTest {
                 .set(Compiler.sourcePaths, Collections.singletonList(testDescription.getCalFile()))
                 .set(Reporter.reportingLevel, Collections.singleton(Diagnostic.Kind.ERROR)) // Prevent info messages
                 // from spamming the test output
+                .set(CalToAmPhase.bypassAmGeneration, true)
                 .build();
 
         Compiler compiler = new Compiler(platform, config);

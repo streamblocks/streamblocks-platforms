@@ -5,32 +5,56 @@ import java.util.Map;
 import java.util.TreeMap;
 
 /**
+ * A utility class for managing SSA (Static Single Assignment) variable naming during MLIR code generation
+ * for the CAL actor language.
+ * <p>
+ * In SSA form, each variable is assigned exactly once, and every variable is defined before it is used.
+ * While full SSA conversion (as used in imperative languages) often requires control flow analysis like
+ * the LT algorithm with φ-functions, the CAL language is quite simple generally free of complex branching. As a
+ * result, SSA variable generation can be managed with a scoped stack rather than global control-flow-sensitive analysis.
+ * <p>
+ * This class tracks variable lifetimes across nested scopes using a stack of maps. Each map on the stack
+ * corresponds to a scope (e.g., an actor or control construct like `if`), mapping variable names to the
+ * current SSA index. Each time a variable is assigned, the index is incremented to reflect a new SSA version.
+ * <p>
+ * Special attention is given to variable access and update behavior in nested constructs:
+ * <ul>
+ *     <li><b>Aliasing:</b> MLIR does not permit direct SSA assignments like {@code %a = %b}. To support this,
+ *     aliasing is used: the variable `%a` is "aliased" to `%b`, and future accesses to `%a` resolve to `%b`.</li>
+ *     <li><b>Control Flow Constructs:</b> Methods like {@link #getVarToBeAssignedBeforeBlockOpen(String)} and
+ *     {@link #getVarToBeAssignedBeforeBlockClose(String)} handle special cases where a new SSA version should
+ *     not interfere with reads within the same control structure (e.g., inside an `if` or loop).</li>
+ *     <li><b>Scoped Stack:</b> Each call to {@link #newBlock()} pushes a new scope, and {@link #blockDone()}
+ *     pops it, maintaining correct visibility and isolation of SSA indices per scope.</li>
+ *     <li><b>State Variables:</b> Actor state variables differ from local variables in that they persist across
+ *     actor firings and are stored in memory. Therefore, they are not assigned new SSA names. Instead, they are
+ *     recorded in a separate map ({@code stateVar}) with their types and must be explicitly loaded/stored from
+ *     memory when accessed or updated.</li>
+ * </ul>
+ * This class is actor-scoped: a new actor context should reset the stack via {@link #newActorContext()}.
+ * <p>
+ * This is not the neatest approach for this. I developed it before I had properly learnt about SSA form. However, so
+ * far it works, but it is definitely rough around the edges.
+ *
  * @author Gareth Callanan
- * <p>
- * Create a stack keeping track of the SSA variable names used during MLIR generation. This allows for unique
- * operand names to be generated each time a variable is updated.
- * <p>
- * Each element on the stack contains a map \<variable names, integers\>. The map key represents the variable name
- * and the integer represents the current assignment to this variable. The integer needs to increment every time the
- * variable is assigned to in order to respect the SSA rules.
- * <p>
- * MLIR does not allow an operand to be assigned directly to a resul eg: %a = %b is not valid. To get around this,
- * This lass supports aliasing. That way instead of directly assigning, we alias %a to %b, and then whenever
- * a call to this class would return %a, we instead return %b. This gets around this issue.
- * <p>
- * NOTE: I am not sure if this is the best implementation but I am going with it for now.
  */
 public class StackSSA {
 
     LinkedList<Map<String, Integer>> stack;
     Map<String, String> aliases;
+    Map<String, String> stateVar; // Map of a state var and its type
 
     int tempVarIndex;
     int depth;
 
     public StackSSA() {
+        init();
+    }
+
+    private void init() {
         stack = new LinkedList<>();
         aliases = new TreeMap<>();
+        stateVar = new TreeMap<>();
         tempVarIndex = 0;
         depth = -1;
     }
@@ -50,8 +74,8 @@ public class StackSSA {
      */
     public void blockDone() {
         // We need to remove the aliases so that they are not referenced in other contexts.
-        Map<String, Integer> removedItems =  stack.removeLast();
-        for (Map.Entry<String, Integer> entry: removedItems.entrySet()){
+        Map<String, Integer> removedItems = stack.removeLast();
+        for (Map.Entry<String, Integer> entry : removedItems.entrySet()) {
             String nameToRemove = entry.getKey() + "_d" + depth + "_" + entry.getValue();
             aliases.remove(nameToRemove);
         }
@@ -60,15 +84,15 @@ public class StackSSA {
 
     /**
      * Alias one SSA to another
-     *
+     * <p>
      * So instead of: %currentSSA = %alias, everytime we need to get %currentSSA from the stack, %alias is returned
      * instead
      *
      * @param alias
      * @param currentSSA
      */
-    public void aliasSSA(String alias, String currentSSA){
-        aliases.put(currentSSA,alias);
+    public void aliasSSA(String alias, String currentSSA) {
+        aliases.put(currentSSA, alias);
     }
 
     /**
@@ -101,18 +125,20 @@ public class StackSSA {
         while (currentDepth >= 0) {
             Integer fromStack = this.stack.get(currentDepth).get(varName);
             //System.out.println(varName + " Depth " + currentDepth + " of " + depth + " retVal " + fromStack);
-            if (fromStack != null && fromStack != -1) { // The -1 can occur when you are not supposed to get that variable as it is the result of a yield
+            if (fromStack != null && fromStack != -1) { // The -1 can occur when you are not supposed to get that
+                // variable as it is the result of a yield
                 String ssaName = varName + "_d" + currentDepth + "_" + fromStack;
                 String aliasSSA = aliases.get(ssaName);
-                if(aliasSSA != null){
+                if (aliasSSA != null) {
                     return aliasSSA;
-                }else{
+                } else {
                     return ssaName;
                 }
             }
             currentDepth--;
         }
-        throw new Error("Variable " + varName + " does not exist in SSA stack.\n" + this.stack);
+
+        throw new RuntimeException("Variable " + varName + " does not exist in SSA stack.\n" + this.stack);
     }
 
     /**
@@ -169,5 +195,41 @@ public class StackSSA {
         return stack.toString();
     }
 
+    /**
+     * Resets the SSA tracking context for a new actor.
+     * <p>
+     * This method should be called when entering a new CAL actor to clear all previous SSA state,
+     * including variable stacks, aliasing maps, temporary counters, and actor state variable metadata.
+     * It effectively reinitializes the SSA generation system to ensure that no cross-actor interference occurs.
+     */
+    public void newActorContext() {
+        init();
+    }
 
+    /**
+     * Registers an actor state variable along with its type.
+     * <p>
+     * State variables in CAL are persistent across actor firings and are stored in memory rather than
+     * assigned new SSA values. This method stores the state variable name and its type in a dedicated
+     * map so that later accesses can generate appropriate load/store operations instead of SSA renaming.
+     *
+     * @param variableName The name of the state variable (e.g., "counter").
+     * @param type         The string representation of the variable's type (e.g., "!memref<i32>").
+     */
+    public void setStateVar(String variableName, String type) {
+        stateVar.put(variableName, type);
+    }
+
+    /**
+     * Checks whether a variable is a registered actor state variable.
+     * <p>
+     * State variables are stored in memory and not tracked through SSA renaming. This method determines
+     * if a given variable is one of those persistent state variables.
+     *
+     * @param variableName The name of the variable to check.
+     * @return {@code true} if the variable is a state variable stored in memory; {@code false} otherwise.
+     */
+    public boolean hasStateVar(String variableName) {
+        return stateVar.containsKey(variableName);
+    }
 }

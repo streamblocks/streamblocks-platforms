@@ -1,0 +1,6 @@
+{
+  "description": "Check that the general structure of the network and entities is generated correctly.",
+  "cal-file": "1_simple_structure.cal",
+  "mlir-file": "1_simple_structure.mlir",
+  "entity": "hetero.simple.PassThrough"
+}

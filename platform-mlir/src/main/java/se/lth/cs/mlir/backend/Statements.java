@@ -7,6 +7,7 @@ import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.mlir.backend.util.DeferredPortOperationContainer;
 import se.lth.cs.tycho.attribute.Types;
+import se.lth.cs.tycho.ir.Annotation;
 import se.lth.cs.tycho.ir.IRNode;
 import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
@@ -207,14 +208,23 @@ public interface Statements {
      */
     default void execute(StmtAssignment assign) {
         emitter().emit("// Assignment Statement: Start");
+
         if (assign.getLValue() instanceof LValueIndexer) {
             // Assigning values to containers
             LValueIndexer indexer = (LValueIndexer) assign.getLValue();
 
             // 1. Get the list SSA name and the indices
             Type listType = lvalues().getListIndexerType(indexer);
+            String typeString = typeseval().type(listType);
             String listName = variables().name(lvalues().evalLValueIndexerVar(indexer));
-            String listSSA = ssaValueNumberingStack().getVarName(listName);
+            boolean assignToGlobalState = ssaValueNumberingStack().hasStateVar(listName);
+            String listSSA;
+            if(assignToGlobalState){
+                listSSA = ssaValueNumberingStack().getNewTempVar();
+                emitter().emit("%%%s = cal.get(%%%s: !cal.state_ref<%s>) : %s", listSSA, listName, typeString, typeString);
+            }else{
+                listSSA = ssaValueNumberingStack().getVarName(listName);
+            }
             List<String> indices = lvalues().getListIndexes(indexer);
 
             // 2. Get value to assign to the container
@@ -231,7 +241,15 @@ public interface Statements {
             // Standard assignment to a variable
             String lvalue = lvalues().lvalue(assign.getLValue());
             Type type = types().type(assign.getLValue());
-            initialiseWithExpression(type, lvalue, assign.getExpression());
+            String typeString = typeseval().type(type);
+
+            boolean assignToGlobalState = ssaValueNumberingStack().hasStateVar(lvalue);
+            if(assignToGlobalState){
+                String resultSSA = expressioneval().evaluate(assign.getExpression());
+                emitter().emit("cal.set(%%%s: !cal.state_ref<%s>, %%%s: %s)", lvalue, typeString, resultSSA, typeString);
+            }else{
+                initialiseWithExpression(type, lvalue, assign.getExpression());
+            }
         }
 
         emitter().emit("// Assignment Statement: End");
@@ -306,6 +324,16 @@ public interface Statements {
      */
 
     default void execute(StmtCall call) {
+        System.out.println(call.getProcedure());
+
+        String instanceName = backend().instancebox().get().getInstanceName();
+        backend().callablesInActor().functionName(instanceName ,call.getProcedure());
+
+        for(Annotation anno: call.getAnnotations()){
+            System.out.println(anno.getName());
+        }
+
+
         throw new UnsupportedOperationException("StmtCall not implemented in MLIR.");
         /*String proc;
         List<String> parameters = new ArrayList<>();
@@ -739,6 +767,29 @@ public interface Statements {
         }
     }
 
+    default void emitStateVarDecl(VarDecl decl) {
+        Type t = types().declaredType(decl);
+        String declarationName = variables().declarationName(decl);
+
+        //System.out.println(declarationName + " " + t);
+        String typeString = typeseval().type(t);
+        //String lvalueSSA = ssaValueNumberingStack().getVarToBeAssignedTo(lvalueString);
+
+        emitter().emit("%%%s = cal.create_state_var<%s> : !cal.state_ref<%s>", declarationName, typeString, typeString);
+        ssaValueNumberingStack().setStateVar(declarationName, typeString);
+
+        String ssaInitialisedValue;
+        if(decl.getValue() != null){
+            Type inputType = types().type(decl.getValue());
+            String rvalueTemp = expressioneval().evaluate(decl.getValue());
+            ssaInitialisedValue = typeseval().castType(inputType, t, rvalueTemp);
+        } else {
+            ssaInitialisedValue = defaultStateInitialise(t);
+        }
+        emitter().emit("cal.set(%%%s: !cal.state_ref<%s>, %%%s: %s)", declarationName, typeString, ssaInitialisedValue ,typeString);
+
+    }
+
     default void emitDeferredVarDeclMlir() {
         if (!backend().deferredPortOperationsBox().isEmpty()) {
             for (DeferredPortOperationContainer.SinglePortBuilder singleBuilder :
@@ -807,6 +858,24 @@ public interface Statements {
     default void defaultInitialise(ListType lvalueType, String lvalueString) {
         String lvalueSSA = ssaValueNumberingStack().getVarToBeAssignedTo(lvalueString);
         lists().allocateList(lvalueType, lvalueSSA);
+    }
+
+    default String defaultStateInitialise(Type lvalueType) {
+        throw new UnsupportedOperationException(lvalueType.getClass().toString() + " has no defaultStateInitialise " +
+                "function set.");
+    }
+
+    default String defaultStateInitialise(IntType lvalueType) {
+        String typeString = typeseval().type(lvalueType);
+        String lvalueSSA = ssaValueNumberingStack().getNewTempVar();
+        emitter().emit("%%%s = arith.constant 0 : %s", lvalueSSA, typeString);
+        return lvalueSSA;
+    }
+
+    default String defaultStateInitialise(ListType lvalueType) {
+        String lvalueSSA = ssaValueNumberingStack().getNewTempVar();
+        lists().allocateList(lvalueType, lvalueSSA);
+        return lvalueSSA;
     }
 
     /**

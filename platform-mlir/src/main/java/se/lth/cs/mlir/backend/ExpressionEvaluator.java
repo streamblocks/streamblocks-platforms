@@ -8,6 +8,7 @@ import org.multij.Module;
 import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.ir.IRNode;
 import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
+import se.lth.cs.tycho.ir.decl.InputVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.expr.*;
 import se.lth.cs.tycho.ir.network.Instance;
@@ -102,20 +103,22 @@ public interface ExpressionEvaluator {
      */
     default String evaluate(ExprVariable variable) {
         VarDecl decl = backend().varDecls().declaration(variable);
-        /*if (!(decl.getValue() instanceof ExprInput)) {
-            throw new Error("ExprInput not implemented");
-            /*IRNode parent = backend().tree().parent(decl);
-            if ((parent instanceof Scope) || (parent instanceof ActorMachine) || (parent instanceof NamespaceDecl)) {
-                Type type = backend().types().type(decl.getType());
-                if (type instanceof ListType) {
-                    backend().statements().profilingOp().add("__opCounters->prof_DATAHANDLING_LIST_LOAD += 1;");
-                } else {
-                    backend().statements().profilingOp().add("__opCounters->prof_DATAHANDLING_LOAD += 1;");
-                }
+        Type type = types().declaredType(decl);
+        String typeString = typeseval().type(type);
+        return getVariableSSANameOrLoadFromState(variables().name(variable.getVariable()), typeString);
+    }
+
+    default String getVariableSSANameOrLoadFromState(String variableName, String typeString) {
+        try{
+            return ssaValueNumberingStack().getVarName(variableName);
+        } catch (RuntimeException e) {
+            if(ssaValueNumberingStack().hasStateVar(variableName)){
+                String resultSSAValue = ssaValueNumberingStack().getNewTempVar();
+                emitter().emit("%%%s = cal.get(%%%s: !cal.state_ref<%s>) : %s", resultSSAValue, variableName, typeString, typeString);
+                return resultSSAValue;
             }
-        }*/
-        String variableName = ssaValueNumberingStack().getVarName(variables().name(variable.getVariable()));
-        return variableName;
+            throw new RuntimeException("Could not find variable name " + variableName + " on stack or in state variables.");
+        }
     }
 
     /**
@@ -1194,7 +1197,9 @@ public interface ExpressionEvaluator {
         VarDecl varDecl = evalExprIndexVar(indexer);
         Type type = types().declaredType(varDecl);
         String listName = variables().declarationName(varDecl);
-        String listSSA = ssaValueNumberingStack().getVarName(listName);
+        //String listSSA = ssaValueNumberingStack().getVarName(listName);
+        String typeString = typeseval().type(type);
+        String listSSA = getVariableSSANameOrLoadFromState(listName, typeString);
 
         // 2. Here we get the indices, we search recursively through the list as we may have a list of lists.
         List<String> indexByDim = getListIndexes(indexer);

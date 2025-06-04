@@ -1,0 +1,25 @@
+
+namespace hetero.simple:
+  actor Source(int payload_size) ==> int Out:
+
+  end
+
+  actor Sink() int In ==>:
+
+  end
+
+  actor Pass() int In ==> int Out:
+
+  end
+
+  network PassThrough() ==> :
+  entities
+    source = Source(payload_size = 20);
+    pass  = Pass() { partition = "hw"; };
+    sink = Sink();
+  structure
+    source.Out --> pass.In { bufferSize = 1; };
+    pass.Out --> sink.In { bufferSize = 1; } ;
+  end
+
+end

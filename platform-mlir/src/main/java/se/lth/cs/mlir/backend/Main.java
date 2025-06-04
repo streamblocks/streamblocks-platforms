@@ -1,7 +1,6 @@
 package se.lth.cs.mlir.backend;
 
 import ch.epfl.vlsc.platformutils.Emitter;
-import ch.epfl.vlsc.platformutils.PathUtils;
 import ch.epfl.vlsc.sw.ir.PartitionHandle.Pair;
 import org.multij.Binding;
 import org.multij.BindingKind;
@@ -13,7 +12,6 @@ import se.lth.cs.tycho.ir.network.Connection;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.network.Network;
 
-import java.nio.file.Path;
 import java.util.*;
 
 /**
@@ -42,7 +40,7 @@ public interface Main {
         initNetwork();
     }
 
-    default void defineEntities(){
+    default void defineEntities() {
 
         Set<String> definedInstancesClasses = new HashSet<>(backend().task().getNetwork().getInstances().size());
 
@@ -50,7 +48,7 @@ public interface Main {
             GlobalEntityDecl entityDecl = globalnames().entityDecl(instance.getEntityName(), true);
             String entityClass = entityDecl.getOriginalName();
             // Check if this specific instance class has been defined, if not, we define it or else we skip this
-            if(definedInstancesClasses.add(entityClass)){
+            if (definedInstancesClasses.add(entityClass)) {
                 backend().instance().generateInstance(instance);
                 emitter().emitNewLine();
             }
@@ -59,27 +57,26 @@ public interface Main {
     }
 
     /**
-     * Generate a top module for the DFG MLIR dialect.
+     * Generate a top module for the CAL MLIR dialect. This is very very rough right now. Thats why so much is
+     * commented out
      * <p>
      * Here is an example of what we need to generate:
      * <p>
-     * func.func @top(%in1: i32, %in2: i32, %in3: i32) -> i32
+     * // -- Top Network: Defines structure of actor application
+     * cal.network
      * {
-     * ....%q1_in, %q1_out = dfg.channel(4) : i32
-     * ....%q2_in, %q2_out = dfg.channel(4) : i32
-     * ....%q3_in, %q3_out = dfg.channel(4) : i32
-     * ....%q4_in, %q4_out = dfg.channel(4) : i32
-     * ....%q5_in, %q5_out = dfg.channel(4) : i32
-     * ....// line break
-     * ....dfg.push(%in1) %q1_in : i32
-     * ....dfg.push(%in2) %q2_in : i32
-     * ....dfg.push(%in3) %q3_in : i32
-     * ....// line break
-     * ....dfg.instantiate @adder inputs(%q1_out, %q2_out) outputs(%q4_in) : (i32, i32) -> i32
-     * ....dfg.instantiate @multiplier inputs(%q4_out, %q3_out) outputs(%q5_in) : (i32, i32) -> i32
-     * ....//line break
-     * ....%0 = dfg.pull %q5_out : i32
-     * ....func.return %0 : i32
+     * ....// -- Instantiate channels between actors
+     * ....%queue_from_pass_Out, %queue_to_sink_In = fifo.create<i32>(1) : !fifo.input_port<i32>, !fifo.output_port<i32>
+     * ....%queue_from_source_Out, %queue_to_pass_In = fifo.create<i32>(1) : !fifo.input_port<i32>, !fifo
+     * .output_port<i32>
+     * ....// -- Instantiate actors (also known as nodes/instances)
+     * ....cal.create_instance @Source "source" ()
+     * ....ports_out(%queue_from_source_Out: !fifo.input_port<i32>)
+     * ....cal.create_instance @Pass "pass" ()
+     * ....ports_in(%queue_to_pass_In: !fifo.output_port<i32>)
+     * ....ports_out(%queue_from_pass_Out: !fifo.input_port<i32>)
+     * ....cal.create_instance @Sink "sink" ()
+     * ....ports_in(%queue_to_sink_In: !fifo.output_port<i32>)
      * }
      */
     default void initNetwork() {
@@ -97,22 +94,25 @@ public interface Main {
                     .add(tgt);
         }
 
+        // THIS COMMENTED OUT BLOCK OF CODE DOES NOT WORK - It is a relic from when I tried convert CAL to the DFG
+        // dialect, it could be useful as I update the cal dialect. So I have left it in but it means nothing
         // 2. Generate the list of input operands for the %top operation:
         //  In the example: "func.func @top(%in1: i32, %in2: i32, %in3: i32)", %in3: i32, is one input operand
         //  with both the name and return type specified. We generate the list op operands in this format
-        String inArgs = "";
-        if (!network.getInputPorts().isEmpty()) {
-            for (PortDecl port : network.getInputPorts()) {
-                // We need the name of the port as well as the token type. We can get the token type from
-                // channelUtils, but we need a Connection.End object.
-                // This is present in srctoTgt map, but to search this is unecessary if we can just regenerate the
-                // object.
-                Connection.End end = new Connection.End(Optional.empty(), port.getName());
-                String tokenType = backend().typeseval().type(backend().channelsutils().sourceEndType(end)).toString();
-                inArgs = inArgs + "%" + port.getName() + ": " + tokenType + ", ";
-            }
-            inArgs = inArgs.substring(0, inArgs.length() - 2);
-        }
+//        String inArgs = "";
+//        if (!network.getInputPorts().isEmpty()) {
+//            for (PortDecl port : network.getInputPorts()) {
+//                // We need the name of the port as well as the token type. We can get the token type from
+//                // channelUtils, but we need a Connection.End object.
+//                // This is present in srctoTgt map, but to search this is unecessary if we can just regenerate the
+//                // object.
+//                Connection.End end = new Connection.End(Optional.empty(), port.getName());
+//                String tokenType = backend().typeseval().type(backend().channelsutils().sourceEndType(end))
+//                .toString();
+//                inArgs = inArgs + "%" + port.getName() + ": " + tokenType + ", ";
+//            }
+//            inArgs = inArgs.substring(0, inArgs.length() - 2);
+//        }
 
         // 3. The return  from the top needs to be specified in two places:
         //      1. The list of return types in the @top function: @top(...) -> i32, i32  //(i32, i32 are the return
@@ -120,50 +120,65 @@ public interface Main {
         //      2. In the func.return operation as "func.return %0, %1 : i32, i32" // %0 %1 are the operands to return
         //      with i32, i32 being their type.
         // We generate the lists of types and operands separately, to be combined later as needed.
-        String outOperands = "";
-        String outTypes = "";
-        if (!network.getOutputPorts().isEmpty()) {
-            for (PortDecl port : network.getOutputPorts()) {
-                Connection.End end = new Connection.End(Optional.empty(), port.getName());
-                String tokenType = backend().typeseval().type(backend().channelsutils().targetEndType(end)).toString();
-                outTypes = outTypes + tokenType + ", ";
-                outOperands = outOperands + "%" + port.getName() + ", ";
-            }
-            outOperands = outOperands.substring(0, outOperands.length() - 2);
-            outTypes = outTypes.substring(0, outTypes.length() - 2);
-        }
+//        String outOperands = "";
+//        String outTypes = "";
+//        if (!network.getOutputPorts().isEmpty()) {
+//            for (PortDecl port : network.getOutputPorts()) {
+//                Connection.End end = new Connection.End(Optional.empty(), port.getName());
+//                String tokenType = backend().typeseval().type(backend().channelsutils().targetEndType(end))
+//                .toString();
+//                outTypes = outTypes + tokenType + ", ";
+//                outOperands = outOperands + "%" + port.getName() + ", ";
+//            }
+//            outOperands = outOperands.substring(0, outOperands.length() - 2);
+//            outTypes = outTypes.substring(0, outTypes.length() - 2);
+//        }
 
         // 4. We now finally have everything we need for the func operation, so lets generate it
-        // 4.1 Generate the first line of the operation
+        // 4.1 Generate the first line of the cal.network operation
         emitter().emit("// -- Top Network: Defines structure of actor application");
-        emitter().emit("func.func @top(%s) -> (%s)", inArgs, outTypes);
+        emitter().emit("cal.network");
         emitter().emit("{");
         emitter().emit("");
         emitter().increaseIndentation();
 
-        // 4.2 Generate the body of the network excluding the return statement
+        // 4.2 Generate the body of the network
         generateTopNetworkBody(srcToTgt, network.getInstances());
 
-        // 4.3 Generate the required func.return for the func.func operand
-        emitter().emit("// -- Return");
-        if(outOperands.isEmpty()){
-            emitter().emit("func.return");
-        }else{
-            emitter().emit("func.return %s: %s", outOperands, outTypes);
-        }
 
-        // 4.4 Done with the @top operation, close it.
+        // 4.4 Done with the main network operation, close it.
         emitter().decreaseIndentation();
         emitter().emit("}");
         emitter().emit("");
     }
 
+    /**
+     * Generates the MLIR body of the `cal.network` operation, which defines the structure of the dataflow
+     * network by connecting instances (actors) via FIFO channels.
+     * <p>
+     * This method builds the top-level interconnect between actor instances by:
+     * <ol>
+     *     <li>Instantiating FIFO channels between source and target ports.</li>
+     *     <li>(Not yet supported) Connecting top-level network input ports to FIFO channels.</li>
+     *     <li>(Not yet supported) Connecting FIFO channels to top-level network output ports.</li>
+     *     <li>Instantiating actors and wiring their input and output ports to the appropriate channels.</li>
+     * </ol>
+     * The method first constructs textual representations of each network component in separate buffers,
+     * which are then emitted in order to preserve the structure and readability of the generated MLIR code.
+     * <p>
+     * <strong>Limitations:</strong> Due to current CAL-to-MLIR backend constraints, support for network-level
+     * input and output ports is not implemented. As a result, the logic related to these ports is commented out.
+     *
+     * @param srcToTgt  A mapping from each source port (as {@link Connection.End}) to its corresponding list
+     *                  of target ports. This determines the FIFO connections to generate.
+     * @param instances The list of actor instances to instantiate within the network.
+     */
     default void generateTopNetworkBody(Map<Connection.End, List<Connection.End>> srcToTgt, List<Instance> instances) {
         // These 4 arrays contains different sections of the network body that need to be generated:
         // We fill these arrays at the start and then output them via the emitter in the correct order at the end.
         // 1. Channel instantiation: eg '%q1_in, %q1_out = dfg.channel(4) : i32'
-        // 2. Connect output ports to channels: eg '%0 = dfg.pull %q5_out : i32'
-        // 3. Connect input ports to channels: eg 'dfg.push(%in1) %q1_in : i32'
+        // 2. Connect output ports to channels - not supported in cal.network operation in MLIR yet
+        // 3. Connect input ports to channels - not supported in cal.network operation in MLIR yet
         // 4. Instantiate the actors/entities/node: eg 'dfg.instantiate @adder inputs(%q1_out, %q2_out) outputs
         //                                                  (%q4_in) : (i32, i32) -> i32'
         // Points 1,2 and 3 are closely related, so they are all generated within the same for-loop at the start but
@@ -173,7 +188,6 @@ public interface Main {
         List<String> connectChannelsToOutPorts = new ArrayList<>();
         List<String> instanceInstantiation = new ArrayList<>();
 
-        // We need 
         for (Map.Entry<Connection.End, List<Connection.End>> entry : srcToTgt.entrySet()) {
             // 1. Channel instantiation
             String channelInput = "", channelOutput = "", type = "";
@@ -197,20 +211,22 @@ public interface Main {
                     channelSize = backend().channelsutils().targetEndSize(tgt);
                 }
                 channelOutput = channelOutput + tgt.getPort();
-                instantiatedChannels.add(("%%queue_from_" + channelInput + ", %%queue_to_" + channelOutput + " = dfg" +
-                        ".channel(" + channelSize + ") : " + type));
+                instantiatedChannels.add(("%%queue_from_" + channelInput + ", %%queue_to_" + channelOutput + " = fifo" +
+                        ".create<" + type + ">(" + channelSize + ") : !fifo.input_port<" + type + ">, !fifo" +
+                        ".output_port<" + type + ">"));
 
                 // 2. Connect output ports to channels
-                if (!tgt.getInstance().isPresent()) {
-                    connectChannelsToOutPorts.add("%%" + channelOutput + " = dfg.pull %%queue_to_" + channelOutput +
-                            " : " + type);
-                }
+                //if (!tgt.getInstance().isPresent()) {
+                //    connectChannelsToOutPorts.add("%%" + channelOutput + " = dfg.pull %%queue_to_" + channelOutput +
+                //            " : " + type);
+                //}
             }
 
             // 3. Connect input ports to channels
-            if (!src.getInstance().isPresent()) {
-                connectChannelsToInPorts.add("dfg.push(%%" + channelInput + ") %%queue_from_" + channelInput + " : " + type);
-            }
+            //if (!src.getInstance().isPresent()) {
+            //    connectChannelsToInPorts.add("dfg.push(%%" + channelInput + ") %%queue_from_" + channelInput + " :
+            //    " + type);
+            //}
         }
 
         // 4. Instantiate the actors/entities/node
@@ -223,8 +239,9 @@ public interface Main {
             String inputPortNames = "";
             String inputPortTypes = "";
             if (!entityDecl.getEntity().getInputPorts().isEmpty()) {
-                for (Pair<PortDecl, String> pair : backend().channelsutils().getInputPortNamesAndTypes(entityName, entityDecl)) {
-                    inputPortTypes = inputPortTypes + pair._2 + ", ";
+                for (Pair<PortDecl, String> pair : backend().channelsutils().getInputPortNamesAndTypes(entityName,
+                        entityDecl)) {
+                    inputPortTypes = inputPortTypes + "!fifo.output_port<" + pair._2 + ">, ";
                     inputPortNames = inputPortNames + "%%queue_to_" + entityName + "_" + pair._1 + ", ";
                 }
                 inputPortNames = inputPortNames.substring(0, inputPortNames.length() - 2);
@@ -235,8 +252,9 @@ public interface Main {
             String outputPortNames = "";
             String outputPortTypes = "";
             if (!entityDecl.getEntity().getOutputPorts().isEmpty()) {
-                for (Pair<PortDecl, String> pair : backend().channelsutils().getOutputPortNamesAndTypes(entityName, entityDecl)) {
-                    outputPortTypes = outputPortTypes + pair._2 + ", ";
+                for (Pair<PortDecl, String> pair : backend().channelsutils().getOutputPortNamesAndTypes(entityName,
+                        entityDecl)) {
+                    outputPortTypes = outputPortTypes + "!fifo.input_port<" + pair._2 + ">, ";
                     outputPortNames = outputPortNames + "%%queue_from_" + entityName + "_" + pair._1 + ", ";
                 }
                 outputPortNames = outputPortNames.substring(0, outputPortNames.length() - 2);
@@ -244,10 +262,13 @@ public interface Main {
             }
 
             // 4.3 Generate the MLIR for the actor using everything we have generated
-            instanceInstantiation.add("dfg.instantiate @" + entityClass + " // Instance name: " + entityName);
-            instanceInstantiation.add("\tinputs(" + inputPortNames + ")");
-            instanceInstantiation.add("\toutputs(" + outputPortNames + ") :");
-            instanceInstantiation.add("\t(" + inputPortTypes + ") -> (" + outputPortTypes + ")");
+            instanceInstantiation.add("cal.create_instance @" + entityClass + " \"" + entityName + "\" ()");
+            if (!inputPortNames.isEmpty()) {
+                instanceInstantiation.add("\tports_in(" + inputPortNames + ": " + inputPortTypes + ")");
+            }
+            if (!outputPortNames.isEmpty()) {
+                instanceInstantiation.add("\tports_out(" + outputPortNames + ": " + outputPortTypes + ")");
+            }
         }
 
         // 5. Now emit everything that has been generated
@@ -257,11 +278,11 @@ public interface Main {
         }
         emitter().emit("");
 
-        emitter().emit("// -- Connect input channels to arguments");
+        /*emitter().emit("// -- Connect input channels to arguments");
         for (String line : connectChannelsToInPorts) {
             emitter().emit(line);
         }
-        emitter().emit("");
+        emitter().emit("");*/
 
         emitter().emit("// -- Instantiate actors (also known as nodes/instances)");
         for (String line : instanceInstantiation) {
@@ -269,10 +290,10 @@ public interface Main {
         }
         emitter().emit("");
 
-        emitter().emit("// -- Connect output channels to return arguments");
+        /*emitter().emit("// -- Connect output channels to return arguments");
         for (String line : connectChannelsToOutPorts) {
             emitter().emit(line);
         }
-        emitter().emit("");
+        emitter().emit("");*/
     }
 }
