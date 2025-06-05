@@ -1,11 +1,43 @@
-int Q = 4 + 1; // A standard global variable
-int P = 1 + Q; // A global variable that references another;
+namespace simple:
+    int Q = 4 + 1; // A standard global variable
+    int P = 1 + Q; // A global variable that references another;
 
-actor GlobalVariables() int In ==> int Out:
-    action In:[t] ==> Out:[t + x]
-    var
-        int x := 0
-    do
-        x := x + P;
+
+    actor GlobalVariables() int In ==> int Out:
+        action In:[t] ==> Out:[t + x]
+        var
+            int x := 0
+        do
+            x := x + P;
+            // Expected P = 5
+        end
+    end
+
+    actor Source(int payload_size) ==> int Out:
+        int counter := 0;
+        transmit: action ==> Out:[t]
+        guard counter < payload_size
+        var t := counter
+        do
+            println("Tx: " + t);
+            counter := counter + 1;
+        end
+    end
+
+    actor Sink() int In ==>:
+        action In:[t] ==>
+        do
+            println("Rx: " + t);
+        end
+    end
+
+    network Top() ==> :
+    entities
+            source = Source(payload_size = 1);
+            pass  = GlobalVariables() {};
+            sink = Sink();
+    structure
+            source.Out --> pass.In { bufferSize = 3; };
+            pass.Out --> sink.In { bufferSize = 3; } ;
     end
 end

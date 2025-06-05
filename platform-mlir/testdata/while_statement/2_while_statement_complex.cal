@@ -1,31 +1,65 @@
-actor ComplexWhile() int In ==> int Out:
-    action In:[t] ==> Out:[z + t * 10, a + t * 10]
-    var
-        int x := 0,
-        int y := 0,
-        int z := 0,
-        int a := 0,
-        int b := 0
-    do
-        // 1. Nested while statement, expect z of 16
-        while x < 4 do
-          y := 0;
-          while y < 4 do
-            y := y + 1;
-            z := z + 1;
-          end
-          x := x + 1;
-        end
+namespace simple:
+    actor ComplexWhile() int In ==> int Out:
+        action In:[t] ==> Out:[z + t * 10, a + t * 10]
+        var
+            int x := 0,
+            int y := 0,
+            int z := 0,
+            int a := 0,
+            int b := 0
+        do
+            // 1. Nested while statement, expect z of 16
+            while x < 4 do
+            y := 0;
+                while y < 4 do
+                    y := y + 1;
+                    z := z + 1;
+                end
+            x := x + 1;
+            end
+            println("z: " + z);
 
-        // 2. Loop containing an if statement, expect z of 6
-        b := 0;
-        while b < 10 do
-          if (b < 5) then
-            b := b + 1;
-          else
-            b := b * 2;
-          end
-          a := a + 1;
+            // 2. Loop containing an if statement, expect b of 10 and a of 6
+            b := 0;
+            while b < 10 do
+                if (b < 5) then
+                    b := b + 1;
+                else
+                    b := b * 2;
+                end
+            a := a + 1;
+            end
+            println("b: " + b);
+            println("a: " + a);
         end
+    end
+
+    actor Source(int payload_size) ==> int Out:
+        int counter := 0;
+        transmit: action ==> Out:[t]
+        guard counter < payload_size
+        var t := counter
+        do
+            t :=  t+1;
+            println("Tx: " + t);
+            counter := counter + 1;
+        end
+    end
+
+    actor Sink() int In ==>:
+        action In:[t] ==>
+        do
+            println("Rx: " + t);
+        end
+    end
+
+    network Top() ==> :
+    entities
+            source = Source(payload_size = 3);
+            pass  = ComplexWhile() {};
+            sink = Sink();
+    structure
+            source.Out --> pass.In { bufferSize = 4; };
+            pass.Out --> sink.In { bufferSize = 4; } ;
     end
 end

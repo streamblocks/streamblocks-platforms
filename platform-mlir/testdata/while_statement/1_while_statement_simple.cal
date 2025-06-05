@@ -1,10 +1,41 @@
-actor WhileSimple() int In ==> int Out:
-    action In:[t] ==> Out:[t + x]
-    var
-        int x := 0
-    do
-        while x < 5 do
-            x := x + 1;
+namespace simple:
+    actor WhileSimple() int In ==> int Out:
+        action In:[t] ==> Out:[t + x]
+        var
+            int x := 0
+        do
+            while x < 5 do
+                x := x + 1;
+            end
         end
+    end
+
+    actor Source(int payload_size) ==> int Out:
+        int counter := 0;
+        transmit: action ==> Out:[t]
+        guard counter < payload_size
+        var t := counter
+        do
+            t :=  t+1;
+            println("Tx: " + t);
+            counter := counter + 1;
+        end
+    end
+
+    actor Sink() int In ==>:
+        action In:[t] ==>
+        do
+            println("Rx: " + t);
+        end
+    end
+
+    network Top() ==> :
+    entities
+            source = Source(payload_size = 3);
+            pass  = WhileSimple() {};
+            sink = Sink();
+    structure
+            source.Out --> pass.In { bufferSize = 3; };
+            pass.Out --> sink.In { bufferSize = 3; } ;
     end
 end

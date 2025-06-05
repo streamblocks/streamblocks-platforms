@@ -1,13 +1,44 @@
-actor AssignList() int In ==> int Out:
-    action In:[t1] ==> Out:[list] repeat 4
-    var
-      List(type:uint, size=4) list,
-      uint index := 0
-    do
-      list[0] := 1;
-      while list[0] < 4 do
-        list[list[0]] := t1 + list[0];
-        list[0] := list[0] + 1;
-      end
+namespace simple:
+    actor AssignList() int In ==> int Out:
+        action In:[t1] ==> Out:[list] repeat 4
+        var
+        List(type:uint, size=4) list := [1,2,3,4],
+        uint index := 0
+        do
+            list[0] := 1;
+            while list[0] < 4 do
+                list[list[0]] := t1 + list[0];
+                list[0] := list[0] + 1;
+            end
+            //println("List: " + list[0] + ", " + list[1] + ", " + list[2] + ", " + list[3]);
+        end
+    end
+
+    actor Source(int payload_size) ==> int Out:
+        int counter := 0;
+        transmit: action ==> Out:[t]
+        guard counter < payload_size
+        var t := counter
+        do
+            println("Tx: " + t);
+            counter := counter + 1;
+        end
+    end
+
+    actor Sink() int In ==>:
+        action In:[t] ==>
+        do
+            println("Rx: " + t);
+        end
+    end
+
+    network Top() ==> :
+    entities
+            source = Source(payload_size = 2);
+            pass  = AssignList() {};
+            sink = Sink();
+    structure
+            source.Out --> pass.In { bufferSize = 1; };
+            pass.Out --> sink.In { bufferSize = 4; } ;
     end
 end

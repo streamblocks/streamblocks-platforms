@@ -1,24 +1,58 @@
-actor UnaryExpr() int In ==> int Out:
-    action In:[t] ==> Out:[x]
-    var
-        int x := 0
-    do
-        // 1. Test unary minus
-        x := -t;
+namespace simple:
+    actor UnaryExpr() int In ==> int Out:
+        action In:[t] ==> Out:[x]
+        var
+            int x := 100
+        do
+            // 1. Test unary minus
+            x := -t;
+            println("" + x); // -2
 
-        // 2. Test logical not
-        // Expect this to evaluate to true:
-        //     1. x = t therefore x != -t evaluates to false
-        //     2. not (false) evaluates to true
-        // x becomes x := -t + 1
-        if not (x != -t) then
-          x := x + 1;
+            // 2. Test logical not
+            // Expect this to evaluate to true:
+            //     1. x = t therefore x != -t evaluates to false
+            //     2. not (false) evaluates to true
+            // x becomes x := -t + 1
+            if not (x != -t) then
+                x := x + 1;
+            end
+            println("" + x); // -1
+
+            // Test bitwise inversion
+            // ~x inverts all the bits in x.
+            // +1 on top of the inversion, is a twos complement inversion
+            // We thus expect x to become x = -(-t+1) = t-1
+            x := ~x + 1;
+            println("" + x); // +1
         end
+    end
 
-        // Test bitwise inversion
-        // ~x inverts all the bits in x.
-        // +1 on top of the inversion, is a twos complement inversion
-        // We thus expect x to become x = -(-t+1) = t-1
-        x := ~x + 1;
+    actor Source(int payload_size) ==> int Out:
+        int counter := 0;
+        transmit: action ==> Out:[t]
+        guard counter < payload_size
+        var t := counter
+        do
+            t :=  t+2;
+            println("Tx: " + t);
+            counter := counter + 1;
+        end
+    end
+
+    actor Sink() int In ==>:
+        action In:[t] ==>
+        do
+            println("Rx: " + t);
+        end
+    end
+
+    network Top() ==> :
+    entities
+            source = Source(payload_size = 1);
+            pass  = UnaryExpr() {};
+            sink = Sink();
+    structure
+            source.Out --> pass.In { bufferSize = 3; };
+            pass.Out --> sink.In { bufferSize = 3; } ;
     end
 end

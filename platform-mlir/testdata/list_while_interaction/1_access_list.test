@@ -2,5 +2,5 @@
   "description": "A while statement that iteratively accesses elements in a list.",
   "cal-file": "1_access_list.cal",
   "mlir-file": "1_access_list.mlir",
-  "entity": "AccessList"
+  "entity": "simple.Top"
 }

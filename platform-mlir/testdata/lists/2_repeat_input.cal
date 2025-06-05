@@ -1,9 +1,42 @@
-actor RepeatInput() int In1, int In2 ==> int Out:
-    action In1:[t1] repeat 2, In2:[t2] repeat 2 ==> Out:[a]
-    var
-      int b := 1,
-      int a
-    do
-      a := t1[0] + t1[1] + t2[0] + t2[1] + b;
+namespace simple:
+    actor RepeatInput() int In1, int In2 ==> int Out:
+        action In1:[t1] repeat 2, In2:[t2] repeat 2 ==> Out:[a]
+        var
+            int b := 1,
+            int a
+        do
+            a := t1[0] + t1[1] + t2[0] + t2[1] + b;
+        end
+    end
+
+    actor Source(int payload_size) ==> int Out:
+        int counter := 0;
+        transmit: action ==> Out:[t]
+        guard counter < payload_size
+        var t := counter
+        do
+            t :=  t+1;
+            println("Tx: " + t);
+            counter := counter + 1;
+        end
+    end
+
+    actor Sink() int In ==>:
+        action In:[t] ==>
+        do
+            println("Rx: " + t);
+        end
+    end
+
+    network Top() ==> :
+    entities
+            source1 = Source(payload_size = 3);
+            source2 = Source(payload_size = 3);
+            pass  = RepeatInput() {};
+            sink = Sink();
+    structure
+            source1.Out --> pass.In1 { bufferSize = 2; };
+            source2.Out --> pass.In2 { bufferSize = 2; };
+            pass.Out --> sink.In { bufferSize = 1; } ;
     end
 end

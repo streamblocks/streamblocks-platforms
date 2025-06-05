@@ -1,22 +1,55 @@
-actor ConditionsSimple() int In ==> int Out:
-    action In:[t] ==> Out:[t + x]
-    var
-        int x := 100
-    do
-        if t >= 20 && t <= 40 then // Test >=, <=, and &&
-          x := 1000;
-        end
+namespace simple:
+    actor ConditionsSimple() int In ==> int Out:
+        action In:[t] ==> Out:[x]
+        var
+            int x := 100
+        do
+            if t >= 20 && t <= 40 then // Test >=, <=, and &&
+                x := 1000;
+            end
 
-        if t < 20 || t > 40 then // Test >, <, and ||
-          x := 10000;
-        end
+            if t < 20 || t > 40 then // Test >, <, and ||
+                x := 10000;
+            end
 
-        if t != 20 then // Test !=
-          x := x + 1;
-        end
+            if t != 20 then // Test !=
+                x := x + 1;
+            end
 
-        if t = 20 then // Test =
-          x := x + 2;
+            if t = 20 then // Test =
+                x := x + 2;
+            end
+
+            // Expect the values x = 10001, 1002, 1001, 1001, 10001
         end
+    end
+
+    actor Source(int payload_size) ==> int Out:
+        int counter := 0;
+        transmit: action ==> Out:[t]
+        guard counter < payload_size
+        var t := counter
+        do
+            t :=  (t + 1) * 10;
+            println("Tx: " + t);
+            counter := counter + 1;
+        end
+    end
+
+    actor Sink() int In ==>:
+        action In:[t] ==>
+        do
+            println("Rx: " + t);
+        end
+    end
+
+    network Top() ==> :
+    entities
+            source = Source(payload_size = 5);
+            pass  = ConditionsSimple() {};
+            sink = Sink();
+    structure
+            source.Out --> pass.In { bufferSize = 3; };
+            pass.Out --> sink.In { bufferSize = 3; } ;
     end
 end

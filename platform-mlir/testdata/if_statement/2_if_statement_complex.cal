@@ -1,33 +1,64 @@
-actor IfComplex() int In ==> int Out:
-    action In:[t] ==> Out:[t + x + y]
-    var
-        int x := 0,
-        int y := 0
-    do
-        // 1. An if with no else statement
-        if t >= 20 then
-            x := x + 1;
-        end
+namespace simple:
+    actor IfComplex() int In ==> int Out:
+        action In:[t] ==> Out:[t + x + y]
+        var
+            int x := 0,
+            int y := 0
+        do
+            // 1. An if with no else statement
+            if t >= 20 then
+                x := x + 1;
+            end
 
-        // 2. If statement where assignments of different variables are made
-        if t >= 40 then
-            x := x + 1;
-        else
-            y := y + 1;
-        end
+            // 2. If statement where assignments of different variables are made
+            if t >= 40 then
+                x := x + 1;
+            else
+                y := y + 6;
+            end
 
-        // 3. Nested If statements
-        if t < 60 then
-            if t > 20 then
-                if t < 40 then
-                  x := x + 100000;
+            // 3. Nested If statements
+            if t < 60 then
+                if t > 20 then
+                    if t < 40 then
+                    x := x + 100000;
+                    end
                 end
             end
-        end
 
-        // 4. If statement, no return
-        if t < 80 then
+            // 4. If statement, no return
+            if t < 80 then
 
+            end
         end
+    end
+
+    actor Source(int payload_size) ==> int Out:
+        int counter := 0;
+        transmit: action ==> Out:[t]
+        guard counter < payload_size
+        var t := counter
+        do
+            t := (t + 1 ) * 10;
+            println("Tx: " + t);
+            counter := counter + 1;
+        end
+    end
+
+    actor Sink() int In ==>:
+        action In:[t] ==>
+        do
+            println("Rx: " + t);
+        end
+    end
+
+    network Top() ==> :
+    entities
+            source = Source(payload_size = 5);
+            pass  = IfComplex() {};
+            sink = Sink();
+    structure
+            source.Out --> pass.In { bufferSize = 3; };
+            pass.Out --> sink.In { bufferSize = 3; } ;
     end
 end

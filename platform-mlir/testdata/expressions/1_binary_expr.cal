@@ -1,17 +1,57 @@
-actor BinaryExpr() int In ==> int Out:
-    action In:[t] ==> Out:[x]
-    var
-        // Multiple binary expressions chained: 100
-        int x := 25 + 25 + 25 + 25
-    do
-        x := x + 1;  // 101
-        x := x - 2;  // 99
-        x := x * 10; // 990
-        x := x / 2;  // 495
-        x := x % 4;  // 3
-        x := x >> 1; // 1
-        x := x | 6;  // 7
-        x := x & 5;  // 5
-        x := x << 1; // 10
+namespace simple:
+    actor BinaryExpr() int In ==> int Out:
+        action In:[t] ==> Out:[x]
+        var
+            // Multiple binary expressions chained: 100
+            int x := 25 + 25 + 25 + 25
+        do
+            x := x + 1;  // 101
+            println("" + x);
+            x := x - 2;  // 99
+            println("" + x);
+            x := x * 10; // 990
+            println("" + x);
+            x := x / 2;  // 495
+            println("" + x);
+            x := x % 4;  // 3
+            println("" + x);
+            x := x >> 1; // 1
+            println("" + x);
+            x := x | 6;  // 7
+            println("" + x);
+            x := x & 5;  // 5
+            println("" + x);
+            x := x << 1; // 10
+            println("" + x);
+        end
+    end
+
+    actor Source(int payload_size) ==> int Out:
+        int counter := 0;
+        transmit: action ==> Out:[t]
+        guard counter < payload_size
+        var t := counter
+        do
+            t :=  t+1;
+            println("Tx: " + t);
+            counter := counter + 1;
+        end
+    end
+
+    actor Sink() int In ==>:
+        action In:[t] ==>
+        do
+            println("Rx: " + t);
+        end
+    end
+
+    network Top() ==> :
+    entities
+            source = Source(payload_size = 1);
+            pass  = BinaryExpr() {};
+            sink = Sink();
+    structure
+            source.Out --> pass.In { bufferSize = 3; };
+            pass.Out --> sink.In { bufferSize = 3; } ;
     end
 end

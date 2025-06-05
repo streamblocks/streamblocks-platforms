@@ -2,5 +2,5 @@
   "description": "Test that global variables are correctly generated.",
   "cal-file": "global_vars_simple.cal",
   "mlir-file": "global_vars_simple.mlir",
-  "entity": "GlobalVariables"
+  "entity": "simple.Top"
 }

@@ -2,5 +2,5 @@
   "description": "Different binary expressions.",
   "cal-file": "1_binary_expr.cal",
   "mlir-file": "1_binary_expr.mlir",
-  "entity": "BinaryExpr"
+  "entity": "simple.Top"
 }

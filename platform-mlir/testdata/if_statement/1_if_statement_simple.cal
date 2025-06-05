@@ -1,12 +1,43 @@
-actor IfSimple() int In ==> int Out:
-    action In:[t] ==> Out:[t + x]
-    var
-        int x := 0
-    do
-        if t >= 20 then
-            x := x + 1;
-        else
-            x := x - 1;
+namespace simple:
+    actor IfSimple() int In ==> int Out:
+        action In:[t] ==> Out:[t + x]
+        var
+            int x := 0
+        do
+            if t >= 20 then
+                x := x + 1;
+            else
+                x := x - 1;
+            end
         end
+    end
+
+    actor Source(int payload_size) ==> int Out:
+        int counter := 0;
+        transmit: action ==> Out:[t]
+        guard counter < payload_size
+        var t := counter
+        do
+            t := (t + 1 ) * 10;
+            println("Tx: " + t);
+            counter := counter + 1;
+        end
+    end
+
+    actor Sink() int In ==>:
+        action In:[t] ==>
+        do
+            println("Rx: " + t);
+        end
+    end
+
+    network Top() ==> :
+    entities
+            source = Source(payload_size = 5);
+            pass  = IfSimple() {};
+            sink = Sink();
+    structure
+            source.Out --> pass.In { bufferSize = 3; };
+            pass.Out --> sink.In { bufferSize = 3; } ;
     end
 end

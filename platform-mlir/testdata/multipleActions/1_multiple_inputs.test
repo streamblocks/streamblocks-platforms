@@ -1,0 +1,6 @@
+{
+  "description": "An actor with multiple actions consuming from different input ports.",
+  "cal-file": "1_multiple_inputs.cal",
+  "mlir-file": "1_multiple_inputs.mlir",
+  "entity": "simple.Top"
+}
