@@ -6,8 +6,8 @@ import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.mlir.backend.util.DeferredPortOperationContainer;
+import se.lth.cs.mlir.backend.util.PrintStringResult;
 import se.lth.cs.tycho.attribute.Types;
-import se.lth.cs.tycho.ir.Annotation;
 import se.lth.cs.tycho.ir.IRNode;
 import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
@@ -96,7 +96,7 @@ public interface Statements {
             if (write.getRepeatExpression() != null) {
                 // 1. Output ports with repeat keywords need to have a CAL list (converted to MLIR memref) passed to
                 // them through "write.getValues().get(0)".
-                if(write.getValues().size() != 1){
+                if (write.getValues().size() != 1) {
                     throw new Error("Output expressions with the repeat keyword only support a single expression.");
                 }
 
@@ -130,7 +130,7 @@ public interface Statements {
                 List<String> tempSSAs = new ArrayList<>();
                 for (Expression expr : write.getValues()) {
                     String evalSSA = expressioneval().evaluate(expr);
-                    String convertedSSA = typeseval().castType(types().type(expr), portType , evalSSA);
+                    String convertedSSA = typeseval().castType(types().type(expr), portType, evalSSA);
                     tempSSAs.add(convertedSSA);
                     //emitter().emit("dfg.push(%%%s) %%%s : %s", tempVar, portName, portType);
                 }
@@ -219,10 +219,11 @@ public interface Statements {
             String listName = variables().name(lvalues().evalLValueIndexerVar(indexer));
             boolean assignToGlobalState = ssaValueNumberingStack().hasStateVar(listName);
             String listSSA;
-            if(assignToGlobalState){
+            if (assignToGlobalState) {
                 listSSA = ssaValueNumberingStack().getNewTempVar();
-                emitter().emit("%%%s = cal.get(%%%s: !cal.state_ref<%s>) : %s", listSSA, listName, typeString, typeString);
-            }else{
+                emitter().emit("%%%s = cal.get(%%%s: !cal.state_ref<%s>) : %s", listSSA, listName, typeString,
+                        typeString);
+            } else {
                 listSSA = ssaValueNumberingStack().getVarName(listName);
             }
             List<String> indices = lvalues().getListIndexes(indexer);
@@ -244,10 +245,11 @@ public interface Statements {
             String typeString = typeseval().type(type);
 
             boolean assignToGlobalState = ssaValueNumberingStack().hasStateVar(lvalue);
-            if(assignToGlobalState){
+            if (assignToGlobalState) {
                 String resultSSA = expressioneval().evaluate(assign.getExpression());
-                emitter().emit("cal.set(%%%s: !cal.state_ref<%s>, %%%s: %s)", lvalue, typeString, resultSSA, typeString);
-            }else{
+                emitter().emit("cal.set(%%%s: !cal.state_ref<%s>, %%%s: %s)", lvalue, typeString, resultSSA,
+                        typeString);
+            } else {
                 initialiseWithExpression(type, lvalue, assign.getExpression());
             }
         }
@@ -323,18 +325,31 @@ public interface Statements {
      * Statement Call
      */
 
+
+    /**
+     * Generates MLIR for a call statement
+     *
+     * This implementation only handles calls to the special built-in procedures `println` and `print`.
+     * - If the procedure is `println`, it emits a print instruction followed by a newline.
+     * - If the procedure is `print`, it emits a print instruction without a newline.
+     *
+     * Any other procedure call will result in an UnsupportedOperationException.
+     */
     default void execute(StmtCall call) {
-        System.out.println(call.getProcedure());
 
-        String instanceName = backend().instancebox().get().getInstanceName();
-        backend().callablesInActor().functionName(instanceName ,call.getProcedure());
-
-        for(Annotation anno: call.getAnnotations()){
-            System.out.println(anno.getName());
+        if (call.getProcedure() instanceof ExprGlobalVariable) {
+            ExprGlobalVariable variable = (ExprGlobalVariable) call.getProcedure();
+            VarDecl decl = backend().varDecls().declaration(variable);
+            if (decl.getName().equals("println")) {
+                generatePrint(call.getArgs().get(0), true);
+            } else if (decl.getName().equals("print")) {
+                generatePrint(call.getArgs().get(0), false);
+            }
+        } else {
+            throw new UnsupportedOperationException("StmtCall not implemented in MLIR.");
         }
 
-
-        throw new UnsupportedOperationException("StmtCall not implemented in MLIR.");
+        //backend().callablesInActor().procHeader(instanceName, call.getProcedure());
         /*String proc;
         List<String> parameters = new ArrayList<>();
         boolean directlyCallable = backend().callablesInActor().directlyCallable(call.getProcedure());*/
@@ -360,6 +375,95 @@ public interface Statements {
         emitter().emit("%s(%s);", proc, String.join(", ", parameters));
         profilingOp().add("__opCounters->prof_DATAHANDLING_CALL += 1;");*/
     }
+
+    /**
+     * Emits MLIR code to print an expression, formatted as a string with optional arguments.
+     * If newLine is true, a newline is appended to the format string.
+     */
+    default void generatePrint(Expression arg, boolean newLine) {
+        PrintStringResult toPrint = generatePrintString(arg);
+
+        String formatString = toPrint.formatString;
+        if (newLine) {
+            formatString += "\\n";
+        }
+
+        String ssaArgs = toPrint.ssaValues.isEmpty() ? "" :
+                ", %" + String.join(", %", toPrint.ssaValues);
+
+        String typeSignature = toPrint.types.isEmpty() ? "" :
+                ": (" + String.join(", ", toPrint.types) + ")";
+
+        emitter().emit("fifo.print(\"%s\\00\"%s) %s", formatString, ssaArgs, typeSignature);
+    }
+
+
+    default PrintStringResult generatePrintString(Expression expr) {
+        throw new UnsupportedOperationException("Cannot print string containing node of type: " + expr.getClass());
+    }
+
+    default PrintStringResult generatePrintString(ExprBinaryOp binaryExpr) {
+        PrintStringResult ret = new PrintStringResult();
+        for (Expression expr : binaryExpr.getOperands()) {
+            ret = PrintStringResult.merge(ret, generatePrintString(expr));
+        }
+        return ret;
+    }
+
+    default PrintStringResult generatePrintString(ExprLiteral expr) {
+        String raw = expr.getText();
+        if (raw.startsWith("\"") && raw.endsWith("\"") && raw.length() >= 2) {
+            raw = raw.substring(1, raw.length() - 1);
+        }
+        return new PrintStringResult(raw);
+    }
+
+    default PrintStringResult generatePrintString(ExprVariable variable) {
+        VarDecl decl = backend().varDecls().declaration(variable);
+        Type type = types().declaredType(decl);
+        String typeString = typeseval().type(type);
+        String ssaName = expressioneval().getVariableSSANameOrLoadFromState(variables().name(variable.getVariable()),
+                typeString);
+        return new PrintStringResult("%" + printFormat(type), ssaName, typeString);
+    }
+
+    default PrintStringResult generatePrintString(ExprGlobalVariable expr) {
+        OptionalLong value = backend().constants().intValue(expr);
+        if (value.isPresent()) {
+            return new PrintStringResult("" + value.getAsLong());
+        }
+        Type varType = types().type(expr);
+        String typeString = typeseval().type(varType);
+        String ssaName = ssaValueNumberingStack().getVarName(expr.getGlobalName().toString());
+        return new PrintStringResult("%" + printFormat(varType), ssaName, typeString);
+    }
+
+    String printFormat(Type type);
+
+    default String printFormat(BoolType type) {
+        return "i";
+    }
+
+    default String printFormat(IntType type) {
+        if (type.getSize().isPresent()) {
+            if (type.getSize().getAsInt() <= 32) {
+                return type.isSigned() ? "i" : "u";
+            } else {
+                return type.isSigned() ? "lli" : "llu";
+            }
+        } else {
+            return type.isSigned() ? "i" : "u";
+        }
+    }
+
+    default String printFormat(RealType type) {
+        return "f";
+    }
+
+    default String printFormat(StringType type) {
+        return "s";
+    }
+
 
     /*
      * Statement Block
@@ -660,7 +764,7 @@ public interface Statements {
         // These are the latest version of the argument names generated within the while before block
         if (whileReturnValues.isEmpty()) {
             emitter().emit("scf.condition(%%%s)", conditionVar);
-        }else{
+        } else {
             String beforeRegionReturn = assignedVars.stream()
                     .map(x -> "%" + ssaValueNumberingStack().getVarName(lvalues().lvalue(x)))
                     .collect(Collectors.joining(", "));
@@ -689,7 +793,7 @@ public interface Statements {
         // 2.3 Yield the basic block - returns back the before block which checks the condition again
         if (whileReturnValues.isEmpty()) {
             emitter().emit("scf.yield");
-        }else{
+        } else {
             String yieldReturn = assignedVars.stream()
                     .map(x -> "%" + ssaValueNumberingStack().getVarName(lvalues().lvalue(x)))
                     .collect(Collectors.joining(", "));
@@ -779,14 +883,15 @@ public interface Statements {
         ssaValueNumberingStack().setStateVar(declarationName, typeString);
 
         String ssaInitialisedValue;
-        if(decl.getValue() != null){
+        if (decl.getValue() != null) {
             Type inputType = types().type(decl.getValue());
             String rvalueTemp = expressioneval().evaluate(decl.getValue());
             ssaInitialisedValue = typeseval().castType(inputType, t, rvalueTemp);
         } else {
             ssaInitialisedValue = defaultStateInitialise(t);
         }
-        emitter().emit("cal.set(%%%s: !cal.state_ref<%s>, %%%s: %s)", declarationName, typeString, ssaInitialisedValue ,typeString);
+        emitter().emit("cal.set(%%%s: !cal.state_ref<%s>, %%%s: %s)", declarationName, typeString,
+                ssaInitialisedValue, typeString);
 
     }
 
@@ -910,9 +1015,9 @@ public interface Statements {
     default Set<LValue> getNestedAssignments(StmtAssignment stmt) {
         // When this is an LValueIndex, this is the assignment to a location in a list is a[1] = 3. In this case, the
         // SSA is not updated, only the internal list data. For our use case, we do not need this non-updating SSA.
-        if(stmt.getLValue() instanceof LValueIndexer) {
+        if (stmt.getLValue() instanceof LValueIndexer) {
             return Collections.emptySet();
-        }else{
+        } else {
             return Collections.singleton(stmt.getLValue());
         }
     }
