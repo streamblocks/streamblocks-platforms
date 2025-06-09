@@ -1,43 +1,50 @@
+// Expected Output:
+// Tx0: 1
+// Tx0: 2
+// Tx0: 3
+// Tx0: 4
+// Rx0: 10
+
 namespace simple:
     actor AccessList() int In ==> int Out:
         action In:[t1] repeat 4 ==> Out:[sum]
         var
-        int sum := 0,
-        int index := 0
+            int sum := 0,
+            int index := 0
         do
-        while index < 4 do
-            sum := sum + t1[index];
-            index := index + 1;
-        end
+            while index < 4 do
+                sum := sum + t1[index];
+                index := index + 1;
+            end
         end
     end
 
-    actor Source(int payload_size) ==> int Out:
+    actor Source(int payload_size, int actor_index) ==> int Out:
         int counter := 0;
         transmit: action ==> Out:[t]
         guard counter < payload_size
-        var t := counter
+        var t := counter + 100*actor_index
         do
-            t := (t + 1 ) * 10;
-            println("Tx: " + t);
+            t :=  t+1;
+            println("Tx" + actor_index + ": " + t);
             counter := counter + 1;
         end
     end
 
-    actor Sink() int In ==>:
+    actor Sink(int actor_index) int In ==>:
         action In:[t] ==>
         do
-            println("Rx: " + t);
+            println("Rx" + actor_index + ": " + t);
         end
     end
 
     network Top() ==> :
     entities
-            source = Source(payload_size = 4);
-            pass  = AccessList() {};
-            sink = Sink();
+            source = Source(payload_size = 4, actor_index = 0);
+            DUT  = AccessList() {};
+            sink = Sink(actor_index = 0);
     structure
-            source.Out --> pass.In { bufferSize = 4; };
-            pass.Out --> sink.In { bufferSize = 1; } ;
+            source.Out --> DUT.In { bufferSize = 4; };
+            DUT.Out --> sink.In { bufferSize = 1; } ;
     end
 end

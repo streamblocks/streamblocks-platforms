@@ -1,13 +1,51 @@
-actor ListContainsIndex() int In ==> int Out:
-    action In:[t1] ==> Out:[list] repeat 4
-    var
-      List(type:uint, size=4) list,
-      uint index := 0
-    do
-      list[0] := 1;
-      while list[0] < 4 do
-        list[list[0]] := t1 + list[0];
-        list[0] := list[0] + 1;
-      end
+// Expected Output:
+// Tx0: 1
+// Rx0: 4
+// Rx0: 2
+// Rx0: 3
+// Rx0: 4
+
+namespace simple:
+    actor ListContainsIndex() int In ==> int Out:
+        action In:[t1] ==> Out:[list] repeat 4
+        var
+            List(type:uint, size=4) list,
+            uint index := 0
+        do
+            list[0] := 1;
+            while list[0] < 4 do
+                list[list[0]] := t1 + list[0];
+                list[0] := list[0] + 1;
+            end
+        end
+    end
+
+    actor Source(int payload_size, int actor_index) ==> int Out:
+        int counter := 0;
+        transmit: action ==> Out:[t]
+        guard counter < payload_size
+        var t := counter + 100*actor_index
+        do
+            t :=  t+1;
+            println("Tx" + actor_index + ": " + t);
+            counter := counter + 1;
+        end
+    end
+
+    actor Sink(int actor_index) int In ==>:
+        action In:[t] ==>
+        do
+            println("Rx" + actor_index + ": " + t);
+        end
+    end
+
+    network Top() ==> :
+    entities
+            source = Source(payload_size = 1, actor_index = 0);
+            DUT  = ListContainsIndex() {};
+            sink = Sink(actor_index = 0);
+    structure
+            source.Out --> DUT.In { bufferSize = 1; };
+            DUT.Out --> sink.In { bufferSize = 4; } ;
     end
 end

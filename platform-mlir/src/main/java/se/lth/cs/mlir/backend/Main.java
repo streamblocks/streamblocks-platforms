@@ -1,6 +1,7 @@
 package se.lth.cs.mlir.backend;
 
 import ch.epfl.vlsc.platformutils.Emitter;
+import ch.epfl.vlsc.settings.PlatformSettings;
 import ch.epfl.vlsc.sw.ir.PartitionHandle.Pair;
 import org.multij.Binding;
 import org.multij.BindingKind;
@@ -48,7 +49,13 @@ public interface Main {
             GlobalEntityDecl entityDecl = globalnames().entityDecl(instance.getEntityName(), true);
             String entityClass = entityDecl.getOriginalName();
             // Check if this specific instance class has been defined, if not, we define it or else we skip this
-            if (definedInstancesClasses.add(entityClass)) {
+
+            if(backend().context().getConfiguration().get(PlatformSettings.generateSingleDeclarationPerActor)) {
+                if (definedInstancesClasses.add(entityClass)) {
+                    backend().instance().generateInstance(instance);
+                    emitter().emitNewLine();
+                }
+            }else{
                 backend().instance().generateInstance(instance);
                 emitter().emitNewLine();
             }
@@ -57,7 +64,7 @@ public interface Main {
     }
 
     /**
-     * Generate a top module for the CAL MLIR dialect. This is very very rough right now. Thats why so much is
+     * Generate a top module for the CAL MLIR dialect. This is very, very rough right now. That's why so much is
      * commented out
      * <p>
      * Here is an example of what we need to generate:
@@ -262,7 +269,11 @@ public interface Main {
             }
 
             // 4.3 Generate the MLIR for the actor using everything we have generated
-            instanceInstantiation.add("cal.create_instance @" + entityClass + " \"" + entityName + "\" ()");
+            if(backend().context().getConfiguration().get(PlatformSettings.generateSingleDeclarationPerActor)) {
+                instanceInstantiation.add("cal.create_instance @" + entityClass + " \"" + entityName + "\" ()");
+            }else{
+                instanceInstantiation.add("cal.create_instance @" + entityName + " \"" + entityName + "\" ()");
+            }
             if (!inputPortNames.isEmpty()) {
                 instanceInstantiation.add("\tports_in(" + inputPortNames + ": " + inputPortTypes + ")");
             }

@@ -1,3 +1,12 @@
+// Expected Output
+// Tx1: 101
+// Tx2: 201
+// Tx1: 102
+// Tx2: 202
+// Rx: 607
+// Tx1: 103
+// Tx2: 203
+
 namespace simple:
     actor RepeatInput() int In1, int In2 ==> int Out:
         action In1:[t1] repeat 2, In2:[t2] repeat 2 ==> Out:[a]
@@ -9,14 +18,14 @@ namespace simple:
         end
     end
 
-    actor Source(int payload_size) ==> int Out:
+    actor Source(int payload_size, int actor_index) ==> int Out:
         int counter := 0;
         transmit: action ==> Out:[t]
         guard counter < payload_size
-        var t := counter
+        var t := counter + 100*actor_index
         do
             t :=  t+1;
-            println("Tx: " + t);
+            println("Tx" + actor_index + ": " + t);
             counter := counter + 1;
         end
     end
@@ -30,8 +39,8 @@ namespace simple:
 
     network Top() ==> :
     entities
-            source1 = Source(payload_size = 3);
-            source2 = Source(payload_size = 3);
+            source1 = Source(payload_size = 3, actor_index = 1);
+            source2 = Source(payload_size = 3, actor_index = 2);
             pass  = RepeatInput() {};
             sink = Sink();
     structure

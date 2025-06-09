@@ -1,11 +1,60 @@
-actor RepeatOutput() int In ==> int Out:
-    action In:[t] ==> Out:[list] repeat 4
-        var
-          List(type:int, size=4) list
+// Expected Output:
+// Tx0: 1
+// Rx: 41
+// Tx0: 2
+// Rx: 31
+// Rx: 21
+// Rx: 11
+// Rx: 42
+// Tx0: 3
+// Rx: 32
+// Rx: 22
+// Rx: 12
+// Rx: 43
+// Rx: 33
+// Rx: 23
+// Rx: 13
+
+
+namespace simple:
+    actor RepeatOutput() int In ==> int Out:
+        action In:[t] ==> Out:[list] repeat 4
+            var
+            List(type:int, size=4) list
+            do
+            list[0] := 40 + t;
+            list[1] := 30 + t;
+            list[2] := 20 + t;
+            list[3] := 10 + t;
+            end
+    end
+
+    actor Source(int payload_size, int actor_index) ==> int Out:
+        int counter := 0;
+        transmit: action ==> Out:[t]
+        guard counter < payload_size
+        var t := counter + 100*actor_index
         do
-          list[0] := 40 + t;
-          list[1] := 30 + t;
-          list[2] := 20 + t;
-          list[3] := 10 + t;
+            t :=  t+1;
+            println("Tx" + actor_index + ": " + t);
+            counter := counter + 1;
         end
+    end
+
+    actor Sink() int In ==>:
+        action In:[t] ==>
+        do
+            println("Rx: " + t);
+        end
+    end
+
+    network Top() ==> :
+    entities
+            source = Source(payload_size = 3, actor_index = 0);
+            DUT  = RepeatOutput() {};
+            sink = Sink();
+    structure
+            source.Out --> DUT.In { bufferSize = 1; };
+            DUT.Out --> sink.In { bufferSize = 4; } ;
+    end
 end

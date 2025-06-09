@@ -34,7 +34,7 @@ namespace simple:
 
     network Top() ==> :
     entities
-            source = Source(payload_size = 2);
+            source = Source(payload_size = 5);
             pass  = AssignList() {};
             sink = Sink();
     structure

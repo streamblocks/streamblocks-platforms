@@ -1,33 +1,83 @@
-actor NestedListSimple() int In ==> int Out:
-    action In:[t1] ==> Out:[list_flat] repeat 16
-    var
-      List(type:List(type:uint, size=4), size=4) list_2d,
-      uint list2d_index_x := 0,
-      uint list2d_index_y := 0,
-      List(type:uint, size=16) list_flat,
-      uint list_flat_index := 0
-      //uint index := 0
-    do
-      // Assign to the nested list
-      while list2d_index_x < 4 do
-        list2d_index_y := 0;
-        while list2d_index_y < 4 do
-          list_2d[list2d_index_x][list2d_index_y] := list2d_index_x * 4 +list2d_index_y;
-          list2d_index_y := list2d_index_y + 1;
-        end
-        list2d_index_x := list2d_index_x + 1;
-      end
+// Expected Output:
+// Tx0: 1
+// Rx0: 0
+// Rx0: 1
+// Rx0: 2
+// Rx0: 3
+// Rx0: 4
+// Rx0: 5
+// Rx0: 6
+// Rx0: 7
+// Rx0: 8
+// Rx0: 9
+// Rx0: 10
+// Rx0: 11
+// Rx0: 12
+// Rx0: 13
+// Rx0: 14
+// Rx0: 15
 
-      // Access the nested list
-      list2d_index_x := 0;
-      while list2d_index_x < 4 do
-        list2d_index_y := 0;
-        while list2d_index_y < 4 do
-          list_flat[list_flat_index] := list_2d[list2d_index_x][list2d_index_y];
-          list2d_index_y := list2d_index_y + 1;
-          list_flat_index := list_flat_index + 1;
+namespace simple:
+    actor NestedListSimple() int In ==> int Out:
+        action In:[t1] ==> Out:[list_flat] repeat 16
+        var
+            List(type:List(type:uint, size=4), size=4) list_2d,
+            uint list2d_index_x := 0,
+            uint list2d_index_y := 0,
+            List(type:uint, size=16) list_flat,
+            uint list_flat_index := 0
+            //uint index := 0
+        do
+            // Assign to the nested list
+            while list2d_index_x < 4 do
+                list2d_index_y := 0;
+                while list2d_index_y < 4 do
+                    list_2d[list2d_index_x][list2d_index_y] := list2d_index_x * 4 +list2d_index_y;
+                    list2d_index_y := list2d_index_y + 1;
+                end
+                list2d_index_x := list2d_index_x + 1;
+            end
+
+            // Access the nested list
+            list2d_index_x := 0;
+            while list2d_index_x < 4 do
+                list2d_index_y := 0;
+                while list2d_index_y < 4 do
+                    list_flat[list_flat_index] := list_2d[list2d_index_x][list2d_index_y];
+                    list2d_index_y := list2d_index_y + 1;
+                    list_flat_index := list_flat_index + 1;
+                end
+                list2d_index_x := list2d_index_x + 1;
+            end
         end
-        list2d_index_x := list2d_index_x + 1;
-      end
+    end
+
+    actor Source(int payload_size, int actor_index) ==> int Out:
+        int counter := 0;
+        transmit: action ==> Out:[t]
+        guard counter < payload_size
+        var t := counter + 100*actor_index
+        do
+            t :=  t+1;
+            println("Tx" + actor_index + ": " + t);
+            counter := counter + 1;
+        end
+    end
+
+    actor Sink(int actor_index) int In ==>:
+        action In:[t] ==>
+        do
+            println("Rx" + actor_index + ": " + t);
+        end
+    end
+
+    network Top() ==> :
+    entities
+            source = Source(payload_size = 1, actor_index = 0);
+            DUT  = NestedListSimple() {};
+            sink = Sink(actor_index = 0);
+    structure
+            source.Out --> DUT.In { bufferSize = 1; };
+            DUT.Out --> sink.In { bufferSize = 16; } ;
     end
 end

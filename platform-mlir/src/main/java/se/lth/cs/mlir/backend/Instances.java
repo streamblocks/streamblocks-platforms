@@ -2,12 +2,14 @@ package se.lth.cs.mlir.backend;
 
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.utils.StackSSA;
+import ch.epfl.vlsc.settings.PlatformSettings;
 import ch.epfl.vlsc.sw.ir.PartitionHandle;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.GlobalNames;
 import se.lth.cs.tycho.attribute.Types;
+import se.lth.cs.tycho.ir.ValueParameter;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.decl.InputVarDecl;
 import se.lth.cs.tycho.ir.decl.LocalVarDecl;
@@ -133,10 +135,13 @@ public interface Instances {
         String outputPortString =
                 outputPortNamesTypes.stream().map(x -> "%" + x._1 + ": !fifo.input_port<" + x._2 + ">").collect(Collectors.joining(","));
 
-
         // 1. Declare the actor
         emitter().emit("//-- Definition of actor class: %s", entityClass);
-        emitter().emit("cal.actor @" + entityClass + " ()");
+        if(backend().context().getConfiguration().get(PlatformSettings.generateSingleDeclarationPerActor)) {
+            emitter().emit("cal.actor @" + entityClass + " ()");
+        }else{
+            emitter().emit("cal.actor @" + entityName + " ()");
+        }
         if (!inputPortString.isEmpty()) {
             emitter().emit("\tports_in(%s)", inputPortString);
         }

@@ -2,5 +2,5 @@
   "description": "A nested lists of lists literal.",
   "cal-file": "6_nested_list_literal.cal",
   "mlir-file": "6_nested_list_literal.mlir",
-  "entity": "NestedLiterals"
+  "entity": "simple.Top"
 }

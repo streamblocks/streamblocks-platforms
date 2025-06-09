@@ -2,5 +2,5 @@
   "description": "Assign and access nested lists.",
   "cal-file": "4_nested_list_simple.cal",
   "mlir-file": "4_nested_list_simple.mlir",
-  "entity": "NestedListSimple"
+  "entity": "simple.Top"
 }

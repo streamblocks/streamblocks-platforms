@@ -2,5 +2,5 @@
   "description": "Declare a simple list and read and write to it.",
   "cal-file": "1_lists_simple.cal",
   "mlir-file": "1_lists_simple.mlir",
-  "entity": "ListsSimple"
+  "entity": "simple.Top"
 }

@@ -1,8 +1,66 @@
-actor RepeatInputOutput () int In1, int In2 ==> int Out1, int Out2:
-    action
-            In1:[t1] repeat 4, In2:[t2]
-        ==>
-            Out1:[t1] repeat 4, Out2:[t2+1]
+// Expected Output:
+// Tx0: 1
+// Tx1: 101
+// Tx0: 2
+// Tx0: 3
+// Tx0: 4
+// Rx0: 1
+// Rx1: 102
+// Tx0: 5
+// Tx1: 102
+// Rx0: 2
+// Tx0: 6
+// Rx0: 3
+// Tx0: 7
+// Rx0: 4
+// Tx0: 8
+// Rx0: 5
+// Rx1: 103
+// Rx0: 6
+// Rx0: 7
+// Rx0: 8
 
+
+namespace simple:
+    actor RepeatInputOutput () int In1, int In2 ==> int Out1, int Out2:
+        action
+                In1:[t1] repeat 4, In2:[t2]
+            ==>
+                Out1:[t1] repeat 4, Out2:[t2+1]
+
+        end
     end
-  end
+
+    actor Source(int payload_size, int actor_index) ==> int Out:
+        int counter := 0;
+        transmit: action ==> Out:[t]
+        guard counter < payload_size
+        var t := counter + 100*actor_index
+        do
+            t :=  t+1;
+            println("Tx" + actor_index + ": " + t);
+            counter := counter + 1;
+        end
+    end
+
+    actor Sink(int actor_index) int In ==>:
+        action In:[t] ==>
+        do
+            println("Rx" + actor_index + ": " + t);
+        end
+    end
+
+    network Top() ==> :
+    entities
+            source1 = Source(payload_size = 8, actor_index = 0);
+            source2 = Source(payload_size = 2, actor_index = 1);
+            DUT  = RepeatInputOutput() {};
+            sink1 = Sink(actor_index = 0);
+            sink2 = Sink(actor_index = 1);
+    structure
+            source1.Out --> DUT.In1 { bufferSize = 4; };
+            source2.Out --> DUT.In2 { bufferSize = 1; };
+            DUT.Out1 --> sink1.In { bufferSize = 4; } ;
+            DUT.Out2 --> sink2.In { bufferSize = 1; } ;
+    end
+end

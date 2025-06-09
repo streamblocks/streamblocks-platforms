@@ -12,12 +12,16 @@ import se.lth.cs.tycho.phase.Phase;
 import se.lth.cs.tycho.reporting.CompilationException;
 import se.lth.cs.tycho.reporting.Diagnostic;
 import se.lth.cs.tycho.reporting.Reporter;
+import se.lth.cs.tycho.settings.Configuration;
+import se.lth.cs.tycho.settings.OnOffSetting;
 import se.lth.cs.tycho.settings.Setting;
 
 import java.nio.file.Path;
 import java.util.List;
 
 public class MlirPhase implements Phase {
+
+
 
     /**
      * Code generation path
@@ -48,7 +52,8 @@ public class MlirPhase implements Phase {
     public List<Setting<?>> getPhaseSettings() {
         return ImmutableList.of(
                 PlatformSettings.scopeLivenessAnalysis,
-                PlatformSettings.defaultBufferDepth
+                PlatformSettings.defaultBufferDepth,
+                PlatformSettings.generateSingleDeclarationPerActor
         );
     }
 

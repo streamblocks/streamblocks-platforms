@@ -61,6 +61,24 @@ public class PlatformSettings {
             return false;
         }
     };
+
+    static public OnOffSetting generateSingleDeclarationPerActor = new OnOffSetting() {
+        @Override
+        public String getKey() {
+            return "generate-single-declaration-per-actor";
+        }
+
+        @Override
+        public String getDescription() {
+            return "For every instance of an actor, streamblocks generally creates a new MLIR declaration of this actor. In some cases you may want many instances to refer to the same actor declaration. This setting will ensure that only a single declaration is generated. This can produce bugs in cases where different actor instances have different parameters. Use with care.";
+        }
+
+        @Override
+        public Boolean defaultValue(Configuration configuration) {
+            return false;
+        }
+    };
+
     // -- Partition phase setting
     static public OnOffSetting PartitionNetwork =  new OnOffSetting() {
         @Override

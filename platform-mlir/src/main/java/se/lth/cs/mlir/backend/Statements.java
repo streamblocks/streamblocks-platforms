@@ -427,6 +427,13 @@ public interface Statements {
         return new PrintStringResult("%" + printFormat(type), ssaName, typeString);
     }
 
+    default PrintStringResult generatePrintString(ExprIndexer expr) {
+        Type type = types().type(expr);
+        String typeString = typeseval().type(type);
+        String ssaName = expressioneval().evaluate(expr);
+        return new PrintStringResult("%" + printFormat(type), ssaName, typeString);
+    }
+
     default PrintStringResult generatePrintString(ExprGlobalVariable expr) {
         OptionalLong value = backend().constants().intValue(expr);
         if (value.isPresent()) {

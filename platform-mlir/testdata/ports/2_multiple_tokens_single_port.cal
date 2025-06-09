@@ -1,3 +1,44 @@
-actor ProduceConsume() int In ==> int Out:
-    action In:[t1, t2] ==> Out:[t2, t1] end
+// Expected Output:
+// Tx0: 1
+// Tx0: 2
+// Rx0: 2
+// Tx0: 3
+// Rx0: 1
+// Tx0: 4
+// Rx0: 4
+// Rx0: 3
+
+namespace simple:
+    actor ProduceConsume() int In ==> int Out:
+        action In:[t1, t2] ==> Out:[t2, t1] end
+    end
+
+    actor Source(int payload_size, int actor_index) ==> int Out:
+        int counter := 0;
+        transmit: action ==> Out:[t]
+        guard counter < payload_size
+        var t := counter + 100*actor_index
+        do
+            t :=  t+1;
+            println("Tx" + actor_index + ": " + t);
+            counter := counter + 1;
+        end
+    end
+
+    actor Sink(int actor_index) int In ==>:
+        action In:[t] ==>
+        do
+            println("Rx" + actor_index + ": " + t);
+        end
+    end
+
+    network Top() ==> :
+    entities
+            source = Source(payload_size = 4, actor_index = 0);
+            DUT  = ProduceConsume() {};
+            sink = Sink(actor_index = 0);
+    structure
+            source.Out --> DUT.In { bufferSize = 2; };
+            DUT.Out --> sink.In { bufferSize = 2; } ;
+    end
 end

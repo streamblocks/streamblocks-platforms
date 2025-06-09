@@ -1,14 +1,55 @@
-actor ListsSimple() int In ==> int Out:
-    action In:[t] ==> Out:[a + t]
-    var
-      List(type:int, size=4) list,
-      int a := 0
-    do
-      list[0] := 40;
-      list[1] := 30;
-      list[2] := 20;
-      list[3] := 10;
-      // #list is the size of the list
-      a := list[0] + list[1] + list[2] + list[3] + #list;
+// Expected Output:
+// Tx1: 101
+// Rx: 205
+// Tx1: 102
+// Rx: 206
+// Tx1: 103
+// Rx: 207
+
+
+namespace simple:
+    actor ListsSimple() int In ==> int Out:
+        // output is t + 104
+        action In:[t] ==> Out:[a + t]
+        var
+        List(type:int, size=4) list,
+        int a := 0
+        do
+        list[0] := 40;
+        list[1] := 30;
+        list[2] := 20;
+        list[3] := 10;
+        // #list is the size of the list
+        a := list[0] + list[1] + list[2] + list[3] + #list;
+        end
+    end
+
+    actor Source(int payload_size, int actor_index) ==> int Out:
+        int counter := 0;
+        transmit: action ==> Out:[t]
+        guard counter < payload_size
+        var t := counter + 100*actor_index
+        do
+            t :=  t+1;
+            println("Tx" + actor_index + ": " + t);
+            counter := counter + 1;
+        end
+    end
+
+    actor Sink() int In ==>:
+        action In:[t] ==>
+        do
+            println("Rx: " + t);
+        end
+    end
+
+    network Top() ==> :
+    entities
+            source = Source(payload_size = 3, actor_index = 1);
+            DUT  = ListsSimple() {};
+            sink = Sink();
+    structure
+            source.Out --> DUT.In { bufferSize = 1; };
+            DUT.Out --> sink.In { bufferSize = 1; } ;
     end
 end

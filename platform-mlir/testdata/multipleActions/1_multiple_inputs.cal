@@ -3,50 +3,15 @@ namespace simple:
         action In1:[t] ==> Out:[t] end
         action In2:[t] ==> Out:[t] end
         action In3:[t] ==> Out:[t] end
-
-        // action In:[t1] ==> Out:[list] repeat 4
-        // var
-        // List(type:uint, size=4) list := [1,2,3,4],
-        // uint index := 0
-        // do
-        //     list[0] := 1;
-        //     while list[0] < 4 do
-        //         list[list[0]] := t1 + list[0];
-        //         list[0] := list[0] + 1;
-        //     end
-        //     //println("List: " + list[0] + ", " + list[1] + ", " + list[2] + ", " + list[3]);
-        // end
     end
 
-    actor Source1(int payload_size) ==> int Out:
+    actor Source(int payload_size, int actor_index) ==> int Out:
         int counter := 0;
         transmit: action ==> Out:[t]
         guard counter < payload_size
-        var t := counter + 1*10
+        var t := counter + 100*actor_index
         do
-            println("Src1: " + t);
-            counter := counter + 1;
-        end
-    end
-
-    actor Source2(int payload_size) ==> int Out:
-        int counter := 0;
-        transmit: action ==> Out:[t]
-        guard counter < payload_size
-        var t := counter + 2*10
-        do
-            println("Src2: " + t);
-            counter := counter + 1;
-        end
-    end
-
-    actor Source3(int payload_size) ==> int Out:
-        int counter := 0;
-        transmit: action ==> Out:[t]
-        guard counter < payload_size
-        var t := counter + 3*10
-        do
-            println("Src3: " + t);
+            println("Src: " + actor_index + " " + t);
             counter := counter + 1;
         end
     end
@@ -60,9 +25,9 @@ namespace simple:
 
     network Top() ==> :
     entities
-            source1 = Source1(payload_size = 4);
-            source2 = Source2(payload_size = 4);
-            source3 = Source3(payload_size = 4);
+            source1 = Source(payload_size = 4, actor_index = 1);
+            source2 = Source(payload_size = 4, actor_index = 2);
+            source3 = Source(payload_size = 4, actor_index = 3);
             merge  = Merge() {};
             sink = Sink();
     structure

@@ -1,8 +1,56 @@
-actor ListLiterals() int In ==> int Out:
-    action In:[t1] ==> Out:[list] repeat 4
-    var
-      List(type:int, size=4) list := [100,100,100,100]
-    do
-      list := [100+t1,200+t1,300+t1,400+t1];
+// Expected Output:
+// Tx0: 1
+// Rx0: 101
+// Tx0: 2
+// Rx0: 201
+// Rx0: 301
+// Rx0: 401
+// Rx0: 102
+// Tx0: 3
+// Rx0: 202
+// Rx0: 302
+// Rx0: 402
+// Rx0: 103
+// Rx0: 203
+// Rx0: 303
+// Rx0: 403
+
+namespace simple:
+    actor ListLiterals() int In ==> int Out:
+        action In:[t1] ==> Out:[list] repeat 4
+        var
+        List(type:int, size=4) list := [100,100,100,100]
+        do
+        list := [100+t1,200+t1,300+t1,400+t1];
+        end
+    end
+
+    actor Source(int payload_size, int actor_index) ==> int Out:
+        int counter := 0;
+        transmit: action ==> Out:[t]
+        guard counter < payload_size
+        var t := counter + 100*actor_index
+        do
+            t :=  t+1;
+            println("Tx" + actor_index + ": " + t);
+            counter := counter + 1;
+        end
+    end
+
+    actor Sink(int actor_index) int In ==>:
+        action In:[t] ==>
+        do
+            println("Rx" + actor_index + ": " + t);
+        end
+    end
+
+    network Top() ==> :
+    entities
+            source = Source(payload_size = 3, actor_index = 0);
+            DUT  = ListLiterals() {};
+            sink = Sink(actor_index = 0);
+    structure
+            source.Out --> DUT.In { bufferSize = 1; };
+            DUT.Out --> sink.In { bufferSize = 4; } ;
     end
 end

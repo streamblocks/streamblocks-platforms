@@ -2,5 +2,5 @@
   "description": "A while statement that treats the first element as the array index. This element is updated and accessed each iteration. This creates an program where a while loop does not actually return anything, as the list itself is updated, not its SSA operand.",
   "cal-file": "3_list_contains_index.cal",
   "mlir-file": "3_list_contains_index.mlir",
-  "entity": "ListContainsIndex"
+  "entity": "simple.Top"
 }

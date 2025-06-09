@@ -1,5 +1,5 @@
 //-- Definition of actor class: Source
-cal.actor @Source ()
+cal.actor @source ()
 	ports_out(%Out: !fifo.input_port<i32>)
 {
 	// -- Actor body
@@ -45,7 +45,7 @@ cal.actor @Source ()
 }
 
 //-- Definition of actor class: ComplexWhile
-cal.actor @ComplexWhile ()
+cal.actor @pass ()
 	ports_in(%In: !fifo.output_port<i32>)
 	ports_out(%Out: !fifo.input_port<i32>)
 {
@@ -194,7 +194,7 @@ cal.actor @ComplexWhile ()
 }
 
 //-- Definition of actor class: Sink
-cal.actor @Sink ()
+cal.actor @sink ()
 	ports_in(%In: !fifo.output_port<i32>)
 {
 	// -- Actor body
@@ -216,12 +216,12 @@ cal.network
 	%queue_from_source_Out, %queue_to_pass_In = fifo.create<i32>(4) : !fifo.input_port<i32>, !fifo.output_port<i32>
 
 	// -- Instantiate actors (also known as nodes/instances)
-	cal.create_instance @Source "source" ()
+	cal.create_instance @source "source" ()
 		ports_out(%queue_from_source_Out: !fifo.input_port<i32>)
-	cal.create_instance @ComplexWhile "pass" ()
+	cal.create_instance @pass "pass" ()
 		ports_in(%queue_to_pass_In: !fifo.output_port<i32>)
 		ports_out(%queue_from_pass_Out: !fifo.input_port<i32>)
-	cal.create_instance @Sink "sink" ()
+	cal.create_instance @sink "sink" ()
 		ports_in(%queue_to_sink_In: !fifo.output_port<i32>)
 
 }
