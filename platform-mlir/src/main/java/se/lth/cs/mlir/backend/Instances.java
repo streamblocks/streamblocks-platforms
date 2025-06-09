@@ -9,7 +9,7 @@ import org.multij.BindingKind;
 import org.multij.Module;
 import se.lth.cs.tycho.attribute.GlobalNames;
 import se.lth.cs.tycho.attribute.Types;
-import se.lth.cs.tycho.ir.ValueParameter;
+import se.lth.cs.tycho.ir.QID;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.decl.InputVarDecl;
 import se.lth.cs.tycho.ir.decl.LocalVarDecl;
@@ -24,10 +24,10 @@ import se.lth.cs.tycho.ir.expr.ExprProc;
 import se.lth.cs.tycho.ir.expr.Expression;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.stmt.Statement;
+import se.lth.cs.tycho.transformation.cal2am.Priorities;
 import se.lth.cs.tycho.type.Type;
 
-import java.util.List;
-import java.util.OptionalLong;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Module
@@ -130,16 +130,16 @@ public interface Instances {
         List<PartitionHandle.Pair<PortDecl, String>> outputPortNamesTypes =
                 channelutils().getOutputPortNamesAndTypes(entityName, entityDecl);
 
-        String inputPortString =
-                inputPortNamesTypes.stream().map(x -> "%" + x._1 + ": !fifo.output_port<" + x._2 + ">").collect(Collectors.joining(","));
-        String outputPortString =
-                outputPortNamesTypes.stream().map(x -> "%" + x._1 + ": !fifo.input_port<" + x._2 + ">").collect(Collectors.joining(","));
+        String inputPortString = inputPortNamesTypes.stream().map(x -> "%" + x._1 + ": !fifo.output_port<" + x._2 +
+                ">").collect(Collectors.joining(","));
+        String outputPortString = outputPortNamesTypes.stream().map(x -> "%" + x._1 + ": !fifo.input_port<" + x._2 +
+                ">").collect(Collectors.joining(","));
 
         // 1. Declare the actor
         emitter().emit("//-- Definition of actor class: %s", entityClass);
-        if(backend().context().getConfiguration().get(PlatformSettings.generateSingleDeclarationPerActor)) {
+        if (backend().context().getConfiguration().get(PlatformSettings.generateSingleDeclarationPerActor)) {
             emitter().emit("cal.actor @" + entityClass + " ()");
-        }else{
+        } else {
             emitter().emit("cal.actor @" + entityName + " ()");
         }
         if (!inputPortString.isEmpty()) {
@@ -173,12 +173,32 @@ public interface Instances {
         ssaValueNumberingStack().newActorContext();
         ssaValueNumberingStack().newBlock();
 
+        // Loop through remaining tags for each action, repeatedly selecting prioritized ones
+        // and assigning them decreasing priority values (starting from highest).
+        // This ensures the most important tags (as prioritized by the actor) get the highest priority.
+        // Additionally designed so the lowest priority actions are always assigned a priority of 0.
+        // We use logic present in the ActorMachine conversion pass (Priorities class) to do this.
+        // If there are multiple tags at the same priority level we give them the same priority
+        Priorities priorities = new Priorities(actor);
+        Map<QID, Integer> priorityMap = new HashMap<>();
+        Set<QID> remainingTags = actor.getActions().stream().map(Action::getTag).collect(Collectors.toSet());
+        int priority = actor.getActions().size() - 1; // This is the highest possible priority
+        while (!remainingTags.isEmpty()) {
+            Set<QID> prioritizedTags = priorities.getPrioritized(null, remainingTags);
+            priority = priority - (prioritizedTags.size() - 1);
+            for (QID qid : prioritizedTags) {
+                priorityMap.put(qid, priority);
+            }
+            remainingTags.removeAll(prioritizedTags);
+            priority--;
+        }
+
         for (LocalVarDecl decl : actor.getVarDecls()) {
             statements().emitStateVarDecl(decl);
         }
 
         for (Action action : actor.getActions()) {
-            genAction(action);
+            genAction(action, priorityMap);
         }
 
         ssaValueNumberingStack().blockDone();
@@ -229,14 +249,14 @@ public interface Instances {
      * }
      * </pre>
      *
-     * @param action The CAL action definition to be emitted as a `cal.action` MLIR block.
+     * @param action      The CAL action definition to be emitted as a `cal.action` MLIR block.
+     * @param priorityMap
      */
-    default void genAction(Action action) {
+    default void genAction(Action action, Map<QID, Integer> priorityMap) {
         ssaValueNumberingStack().newBlock();
         String actionTag = action.getTag().toString();
 
-        // TODO: Set priority
-        String priority = "priority=0";
+        String priority = "priority=" + priorityMap.get(action.getTag());
         emitter().emit("// Generation action: %s", actionTag);
 
         emitter().emit("cal.action \"%s\" %s {", actionTag, priority);
@@ -306,8 +326,8 @@ public interface Instances {
         // Case 1: Out:[t] repeat x
         if (outputExpression.getRepeatExpr() != null) {
             if (expressions.size() != 1) {
-                throw new RuntimeException("Action in \"" + instanceName +
-                        "\" actor contains a repeat expression and multiple matches. This is not allowed.");
+                throw new RuntimeException("Action in \"" + instanceName + "\" actor contains a repeat expression and" +
+                        " multiple matches. This is not allowed.");
             }
 
             OptionalLong repeatValueOpt = backend().constants().intValue(outputExpression.getRepeatExpr());
@@ -369,8 +389,8 @@ public interface Instances {
         // Case 1: In:[t] repeat x
         if (inputPattern.getRepeatExpr() != null) {
             if (matches.size() != 1) {
-                throw new RuntimeException("Action in \"" + instanceName +
-                        "\" actor contains a repeat expression and multiple matches. This is not allowed.");
+                throw new RuntimeException("Action in \"" + instanceName + "\" actor contains a repeat expression and" +
+                        " multiple matches. This is not allowed.");
             }
 
             OptionalLong repeatValueOpt = backend().constants().intValue(inputPattern.getRepeatExpr());

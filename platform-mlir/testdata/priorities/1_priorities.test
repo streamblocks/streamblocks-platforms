@@ -1,0 +1,6 @@
+{
+  "description": "Generate MLIR of an actor with multiple actions, each with a different priority.",
+  "cal-file": "1_priorities.cal",
+  "mlir-file": "1_priorities.mlir",
+  "entity": "simple.Top"
+}

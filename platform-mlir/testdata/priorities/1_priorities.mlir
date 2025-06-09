@@ -1,5 +1,5 @@
 //-- Definition of actor class: Source
-cal.actor @source ()
+cal.actor @source1 ()
 	ports_out(%Out: !fifo.input_port<i32>)
 {
 	// -- Actor body
@@ -13,7 +13,7 @@ cal.actor @source ()
 		cal.predicate {
 			%tmp_2 = cal.get(%l_counter__7: !cal.state_ref<i32>) : i32
 			// Evaluate global variable $eval2.
-			%tmp_3 = arith.constant 3 : i2
+			%tmp_3 = arith.constant 2 : i2
 			%tmp_4 = arith.extui %tmp_3 : i2 to i32
 			// Evaluate global variable $eval2 done: assigned to tmp_4 above in this context.
 			%tmp_5 = arith.cmpi slt, %tmp_2, %tmp_4 : i32
@@ -52,14 +52,14 @@ cal.actor @source ()
 	}
 }
 
-//-- Definition of actor class: ProduceConsume
+//-- Definition of actor class: PrioritisedActions
 cal.actor @DUT ()
 	ports_in(%In: !fifo.output_port<i32>)
 	ports_out(%Out: !fifo.input_port<i32>)
 {
 	// -- Actor body
-	// Generation action: $untagged0
-	cal.action "$untagged0" priority=0 {
+	// Generation action: act1
+	cal.action "act1" priority=2 {
 		// Input Pattern: Start
 		%l_t__10_d1_0 = fifo.pop(%In: !fifo.output_port<i32>) : i32
 		// Input Pattern: End
@@ -67,10 +67,37 @@ cal.actor @DUT ()
 		fifo.push(%Out: !fifo.input_port<i32>, %l_t__10_d1_0: i32)
 		// Output Expression: End
 	}
+	// Generation action: act2
+	cal.action "act2" priority=1 {
+		// Input Pattern: Start
+		%l_t__13_d1_0 = fifo.pop(%In: !fifo.output_port<i32>) : i32
+		// Input Pattern: End
+		// Output Expression: Start
+		fifo.push(%Out: !fifo.input_port<i32>, %l_t__13_d1_0: i32)
+		// Output Expression: End
+	}
+	// Generation action: act3
+	cal.action "act3" priority=0 {
+		// Input Pattern: Start
+		%l_t__16_d1_0 = fifo.pop(%In: !fifo.output_port<i32>) : i32
+		// Input Pattern: End
+		// Output Expression: Start
+		fifo.push(%Out: !fifo.input_port<i32>, %l_t__16_d1_0: i32)
+		// Output Expression: End
+	}
+	// Generation action: act4
+	cal.action "act4" priority=2 {
+		// Input Pattern: Start
+		%l_t__19_d1_0 = fifo.pop(%In: !fifo.output_port<i32>) : i32
+		// Input Pattern: End
+		// Output Expression: Start
+		fifo.push(%Out: !fifo.input_port<i32>, %l_t__19_d1_0: i32)
+		// Output Expression: End
+	}
 }
 
 //-- Definition of actor class: Sink
-cal.actor @sink ()
+cal.actor @sink1 ()
 	ports_in(%In: !fifo.output_port<i32>)
 {
 	// -- Actor body
@@ -88,17 +115,17 @@ cal.network
 {
 
 	// -- Instantiate channels between actors
-	%queue_from_source_Out, %queue_to_DUT_In = fifo.create<i32>(1) : !fifo.input_port<i32>, !fifo.output_port<i32>
-	%queue_from_DUT_Out, %queue_to_sink_In = fifo.create<i32>(1) : !fifo.input_port<i32>, !fifo.output_port<i32>
+	%queue_from_source1_Out, %queue_to_DUT_In = fifo.create<i32>(1) : !fifo.input_port<i32>, !fifo.output_port<i32>
+	%queue_from_DUT_Out, %queue_to_sink1_In = fifo.create<i32>(1) : !fifo.input_port<i32>, !fifo.output_port<i32>
 
 	// -- Instantiate actors (also known as nodes/instances)
-	cal.create_instance @source "source" ()
-		ports_out(%queue_from_source_Out: !fifo.input_port<i32>)
+	cal.create_instance @source1 "source1" ()
+		ports_out(%queue_from_source1_Out: !fifo.input_port<i32>)
 	cal.create_instance @DUT "DUT" ()
 		ports_in(%queue_to_DUT_In: !fifo.output_port<i32>)
 		ports_out(%queue_from_DUT_Out: !fifo.input_port<i32>)
-	cal.create_instance @sink "sink" ()
-		ports_in(%queue_to_sink_In: !fifo.output_port<i32>)
+	cal.create_instance @sink1 "sink1" ()
+		ports_in(%queue_to_sink1_In: !fifo.output_port<i32>)
 
 }
 
