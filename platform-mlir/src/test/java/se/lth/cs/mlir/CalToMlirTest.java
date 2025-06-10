@@ -77,6 +77,8 @@ public class CalToMlirTest {
 
     @Test
     public void singleTest() throws Configuration.Builder.UnknownKeyException, IOException {
+        System.gc();
+
         // 1. Check that the input files exist
         assertTrue("File '" + testDescription.getCalFile() + "' does not exist.",
                 Files.exists(testDescription.getCalFile()));
