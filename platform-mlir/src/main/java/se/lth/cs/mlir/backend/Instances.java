@@ -25,6 +25,7 @@ import se.lth.cs.tycho.ir.expr.Expression;
 import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.stmt.Statement;
 import se.lth.cs.tycho.transformation.cal2am.Priorities;
+import se.lth.cs.tycho.type.IntType;
 import se.lth.cs.tycho.type.Type;
 
 import java.util.*;
@@ -345,8 +346,14 @@ public interface Instances {
                 String ssaToPush = ssaValueNumberingStack().getNewTempVar();
                 emitter().emit("%%%s = arith.constant %d : index", constSSA, i);
                 emitter().emit("%%%s = memref.load %%%s[%%%s] : %s", ssaToPush, memrefSSA, constSSA, memrefTypeStr);
-                emitter().emit("fifo.push(%%%s: !fifo.input_port<%s>, %%%s: %s)", portName, portTypeStr, ssaToPush,
-                        portTypeStr);
+
+                if (portType instanceof IntType) {
+                    if (typeseval().canCastFromI32(portType)) {
+                        ssaToPush = typeseval().castType(new IntType(OptionalInt.of(32), true), portType, ssaToPush);
+                    }
+                }
+
+                emitter().emit("fifo.push(%%%s: !fifo.input_port<%s>, %%%s: %s)", portName, portTypeStr, ssaToPush, portTypeStr);
             }
 
         } else {
@@ -382,6 +389,7 @@ public interface Instances {
      */
     default void genInputPattern(InputPattern inputPattern) {
         String portName = inputPattern.getPort().getName();
+        Type portType = types().portType(inputPattern.getPort());
 
         List<Match> matches = inputPattern.getMatches();
         String instanceName = backend().instancebox().get().getInstanceName();
@@ -404,7 +412,8 @@ public interface Instances {
 
             Type listType = types().declaredType(decl);
             String listTypeStr = typeseval().type(listType);
-            String innerTypeStr = typeseval().type(typeseval().innerType(listType));
+            Type innerType = typeseval().innerType(listType);
+            String innerTypeStr = typeseval().type(innerType);
 
             emitter().emit("%%%s = memref.alloca() : %s", memrefName, listTypeStr);
 
@@ -414,8 +423,7 @@ public interface Instances {
                 String popSSA = ssaValueNumberingStack().getNewTempVar();
 
                 emitter().emit("%%%s = arith.constant %d : index", constSSA, i);
-                emitter().emit("%%%s = fifo.pop(%%%s: !fifo.output_port<%s>) : %s", popSSA, portName, innerTypeStr,
-                        innerTypeStr);
+                popFromPort(portName, portType, popSSA, innerType);
                 emitter().emit("memref.store %%%s, %%%s[%%%s] : %s", popSSA, memrefName, constSSA, listTypeStr);
             }
 
@@ -425,14 +433,31 @@ public interface Instances {
                 InputVarDecl decl = match.getDeclaration();
                 String declName = backend().variables().declarationName(decl);
                 String ssaName = ssaValueNumberingStack().getVarToBeAssignedTo(declName);
-
-                Type type = types().declaredType(decl);
-                String typeStr = typeseval().type(type);
-
-                emitter().emit("%%%s = fifo.pop(%%%s: !fifo.output_port<%s>) : %s", ssaName, portName, typeStr,
-                        typeStr);
+                Type expectedType = types().declaredType(decl);
+                popFromPort(portName, portType, ssaName, expectedType);
             }
         }
+    }
+
+    default void popFromPort(String portName, Type portType, String ssaName, Type expectedType) {
+        throw new UnsupportedOperationException("popPortValue not implemented for types: " + expectedType + " and " + portType);
+    }
+
+    default void popFromPort(String portName, IntType portType, String ssaName, IntType expectedType) {
+        String expectedTypeStr = typeseval().type(expectedType);
+        String portTypeStr = typeseval().type(portType);
+
+        if (typeseval().mustCastInt(portType, expectedType)) {
+            emitter().emit("%%%s = fifo.pop(%%%s: !fifo.output_port<%s>) : %s", ssaName, portName, portTypeStr,
+                    portTypeStr);
+
+            String tempSSA = ssaValueNumberingStack().getNewTempVar();
+            typeseval().castInt(portType, expectedType, tempSSA, ssaName);
+        } else {
+            emitter().emit("%%%s = fifo.pop(%%%s: !fifo.output_port<%s>) : %s", ssaName, portName, expectedTypeStr,
+                    expectedTypeStr);
+        }
+
     }
 
     default void genGuard(Expression guard) {

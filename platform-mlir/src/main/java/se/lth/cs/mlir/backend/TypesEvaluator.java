@@ -260,6 +260,15 @@ public interface TypesEvaluator {
         return !isI32;
     }
 
+    default boolean mustCastInt(Type fromType, Type toType){
+        throw new Error("Expected types to be int type. Got: " + fromType + " and " + toType);
+    }
+
+    default boolean mustCastInt(IntType fromType, IntType toType){
+        // 1. If the from and to type is the same, do nothing
+        return fromType.getSize().orElse(32) != toType.getSize().orElse(32);
+    }
+
     default String castType(ListType fromType, ListType toType, String listNameSSA) {
         List<Integer> fromListDimension = sizeByDimension(fromType);
         List<Integer> toListDimension = sizeByDimension(fromType);

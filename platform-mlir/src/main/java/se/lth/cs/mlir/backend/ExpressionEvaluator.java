@@ -70,24 +70,25 @@ public interface ExpressionEvaluator {
     // -- Evaluate Expressions
 
     default String evaluateCall(Expression expression) {
-        return evaluate(expression);
+        throw new UnsupportedOperationException("ExpressionEvaluator.evaluateCall() function not supported for: " + expression.getClass());
+        //return evaluate(expression);
     }
 
-    default String evaluateCall(ExprVariable variable) {
-        IRNode parent = backend().tree().parent(variable);
-
-        if (parent instanceof StmtCall || parent instanceof ExprApplication) {
-            VarDecl decl = backend().varDecls().declaration(variable.getVariable());
-            String prefix = "";
-            if (!backend().instancebox().isEmpty()) {
-                Instance instance = backend().instancebox().get();
-                prefix = instance.getInstanceName() + "_";
-            }
-            return prefix + variable.getVariable().getName();
-        }
-
-        return variables().name(variable.getVariable());
-    }
+//    default String evaluateCall(ExprVariable variable) {
+//        IRNode parent = backend().tree().parent(variable);
+//
+//        if (parent instanceof StmtCall || parent instanceof ExprApplication) {
+//            VarDecl decl = backend().varDecls().declaration(variable.getVariable());
+//            String prefix = "";
+//            if (!backend().instancebox().isEmpty()) {
+//                Instance instance = backend().instancebox().get();
+//                prefix = instance.getInstanceName() + "_";
+//            }
+//            return prefix + variable.getVariable().getName();
+//        }
+//
+//        return variables().name(variable.getVariable());
+//    }
 
 
     default String evaluate(Expression expr) {
@@ -1155,6 +1156,7 @@ public interface ExpressionEvaluator {
         String listSSA = ssaValueNumberingStack().getNewTempVar();
         lists().allocateList(t, listSSA);
 
+
         evaluateSubList(listSSA, indices, sizeByDim, t, list, t);
 
         return listSSA;
@@ -1181,6 +1183,13 @@ public interface ExpressionEvaluator {
         lists().store(listSSA, innerExprCast, indices, containerType);
     }
 
+    default void evaluateSubList(String listSSA, List<String> indices, List<Integer> sizeByDim, IntType currentType,
+                                 Expression expr, ListType containerType) {
+        String innerExprSSA = evaluate(expr);
+        String innerExprCast = typeseval().castType(types().type(expr), typeseval().resizeInnerType(currentType), innerExprSSA);
+        lists().store(listSSA, innerExprCast, indices, containerType);
+    }
+
     default String evaluateExprList(Expression expr) {
         return evaluate(expr);
     }
@@ -1195,19 +1204,25 @@ public interface ExpressionEvaluator {
     default String evaluate(ExprIndexer indexer) {
         // 1. Get the list the indexer belongs to, get its ssa name and type
         VarDecl varDecl = evalExprIndexVar(indexer);
-        Type type = types().declaredType(varDecl);
+        Type listType = types().declaredType(varDecl);
+        Type innerType = typeseval().innerType(listType);
         String listName = variables().declarationName(varDecl);
         //String listSSA = ssaValueNumberingStack().getVarName(listName);
-        String typeString = typeseval().type(type);
-        String listSSA = getVariableSSANameOrLoadFromState(listName, typeString);
+        String listTypeString = typeseval().type(listType);
+        String listSSA = getVariableSSANameOrLoadFromState(listName, listTypeString);
 
         // 2. Here we get the indices, we search recursively through the list as we may have a list of lists.
         List<String> indexByDim = getListIndexes(indexer);
 
         // 3. Load the value from the memref object
+        Type returnType = types().type(indexer);
         String ssaReturn = ssaValueNumberingStack().getNewTempVar();
-        lists().load(listSSA, ssaReturn, indexByDim, type);
-        return ssaReturn;
+
+        //emitter().emit("\\Here!" + typeseval().type(innerType) + " " + typeseval().type(returnType));
+        lists().load(listSSA, ssaReturn, indexByDim, listType);
+
+        String ssaReturnCast = typeseval().castType(innerType, returnType, ssaReturn);
+        return ssaReturnCast;
     }
 
 

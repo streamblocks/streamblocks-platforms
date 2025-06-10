@@ -32,6 +32,9 @@ public interface ListGenerator {
     // lists of lists. If the list contains: [tmp1, tmp2, tmp3], then this will be transformed to [%tmp1, %tmp2, %tmp3]
     default void store(String listSSA, String ssaToStore, List<String> indicesList, Type listType) {
         String indices = String.join(", %", indicesList);
+        Type innerType = backend().typeseval().innerType(listType);
+
+
         emitter().emit("memref.store %%%s, %%%s[%%%s] : %s", ssaToStore, listSSA, indices,
                 backend().typeseval().type(listType));
     }
@@ -40,8 +43,20 @@ public interface ListGenerator {
     // lists of lists. If the list contains: [tmp1, tmp2, tmp3], then this will be transformed to [%tmp1, %tmp2, %tmp3]
     default void load(String listSSA, String ssaDest, List<String> indicesList, Type listType) {
         String indices = String.join(", %", indicesList);
-        emitter().emit("%%%s = memref.load %%%s[%%%s] : %s", ssaDest, listSSA, indices,
-                backend().typeseval().type(listType));
+        Type innerType = backend().typeseval().innerType(listType);
+
+        if (innerType instanceof IntType) {
+            if (backend().typeseval().canCastFromI32(innerType)) {
+                String tempSSA = backend().ssaValueNumberingStack().getNewTempVar();
+                emitter().emit("%%%s = memref.load %%%s[%%%s] : %s", tempSSA, listSSA, indices,
+                        backend().typeseval().type(listType));
+
+                backend().typeseval().castInt(new IntType(OptionalInt.of(32), true), innerType, tempSSA, ssaDest);
+            }
+        } else {
+            emitter().emit("%%%s = memref.load %%%s[%%%s] : %s", ssaDest, listSSA, indices,
+                    backend().typeseval().type(listType));
+        }
     }
 
     default String generateIndexFromInt(int index) {

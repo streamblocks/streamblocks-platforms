@@ -144,21 +144,17 @@ cal.actor @pass ()
 		%tmp_10 = arith.constant 0 : i1
 		%tmp_11 = arith.extui %tmp_10 : i1 to i32
 		%tmp_12 = arith.index_cast %tmp_11: i32 to index
-		%tmp_13 = memref.load %l_t1__10_d1_0[%tmp_12] : memref<2xi32>
 		%tmp_14 = arith.constant 1 : i1
 		%tmp_15 = arith.extui %tmp_14 : i1 to i32
 		%tmp_16 = arith.index_cast %tmp_15: i32 to index
-		%tmp_17 = memref.load %l_t1__10_d1_0[%tmp_16] : memref<2xi32>
 		%tmp_18 = arith.addi %tmp_13, %tmp_17 : i32
 		%tmp_19 = arith.constant 0 : i1
 		%tmp_20 = arith.extui %tmp_19 : i1 to i32
 		%tmp_21 = arith.index_cast %tmp_20: i32 to index
-		%tmp_22 = memref.load %l_t2__13_d1_0[%tmp_21] : memref<2xi32>
 		%tmp_23 = arith.addi %tmp_18, %tmp_22 : i32
 		%tmp_24 = arith.constant 1 : i1
 		%tmp_25 = arith.extui %tmp_24 : i1 to i32
 		%tmp_26 = arith.index_cast %tmp_25: i32 to index
-		%tmp_27 = memref.load %l_t2__13_d1_0[%tmp_26] : memref<2xi32>
 		%tmp_28 = arith.addi %tmp_23, %tmp_27 : i32
 		%tmp_29 = arith.addi %tmp_28, %tmp_9 : i32
 		// l_a__15_d1_1 aliased to tmp_29

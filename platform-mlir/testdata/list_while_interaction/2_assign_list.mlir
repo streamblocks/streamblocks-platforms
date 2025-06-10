@@ -88,7 +88,6 @@ cal.actor @pass ()
 			%tmp_20 = arith.constant 0 : i1
 			%tmp_21 = arith.extui %tmp_20 : i1 to i32
 			%tmp_22 = arith.index_cast %tmp_21: i32 to index
-			%tmp_23 = memref.load %tmp_0[%tmp_22] : memref<4xi32>
 			%tmp_24 = arith.constant 4 : i3
 			%tmp_25 = arith.extui %tmp_24 : i3 to i32
 			%tmp_26 = arith.cmpi ult, %tmp_23, %tmp_25 : i32
@@ -100,12 +99,10 @@ cal.actor @pass ()
 			%tmp_28 = arith.constant 0 : i1
 			%tmp_29 = arith.extui %tmp_28 : i1 to i32
 			%tmp_30 = arith.index_cast %tmp_29: i32 to index
-			%tmp_31 = memref.load %tmp_0[%tmp_30] : memref<4xi32>
 			%tmp_32 = arith.index_cast %tmp_31: i32 to index
 			%tmp_33 = arith.constant 0 : i1
 			%tmp_34 = arith.extui %tmp_33 : i1 to i32
 			%tmp_35 = arith.index_cast %tmp_34: i32 to index
-			%tmp_36 = memref.load %tmp_0[%tmp_35] : memref<4xi32>
 			%tmp_37 = arith.addi %l_t1__5_d1_0, %tmp_36 : i32
 			memref.store %tmp_37, %tmp_0[%tmp_32] : memref<4xi32>
 			// Assignment Statement: End
@@ -116,7 +113,6 @@ cal.actor @pass ()
 			%tmp_41 = arith.constant 0 : i1
 			%tmp_42 = arith.extui %tmp_41 : i1 to i32
 			%tmp_43 = arith.index_cast %tmp_42: i32 to index
-			%tmp_44 = memref.load %tmp_0[%tmp_43] : memref<4xi32>
 			%tmp_45 = arith.constant 1 : i1
 			%tmp_46 = arith.extui %tmp_45 : i1 to i32
 			%tmp_47 = arith.addi %tmp_44, %tmp_46 : i32

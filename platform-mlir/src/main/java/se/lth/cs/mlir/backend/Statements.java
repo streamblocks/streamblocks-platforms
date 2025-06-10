@@ -233,24 +233,27 @@ public interface Statements {
             Type outputType = types().type(indexer);
             String rvalueSSATemp = expressioneval().evaluate(assign.getExpression());
             String rvalueSSA = typeseval().castType(inputType, outputType, rvalueSSATemp);
+            String rvalueSSAResized = typeseval().castType(outputType, typeseval().resizeInnerType(outputType), rvalueSSA);
 
             // 3. Emit the operation that stores the value in the memref
-            lists().store(listSSA, rvalueSSA, indices, listType);
+            lists().store(listSSA, rvalueSSAResized, indices, listType);
         } else if (assign.getExpression() instanceof ExprComprehension) {
             throw new Error("ExprComprehension functionality not implemented in execute(StmtAssignment)");
         } else {
             // Standard assignment to a variable
             String lvalue = lvalues().lvalue(assign.getLValue());
-            Type type = types().type(assign.getLValue());
-            String typeString = typeseval().type(type);
+            Type stateType = types().type(assign.getLValue());
+            String stateTypeString = typeseval().type(stateType);
 
             boolean assignToGlobalState = ssaValueNumberingStack().hasStateVar(lvalue);
             if (assignToGlobalState) {
                 String resultSSA = expressioneval().evaluate(assign.getExpression());
-                emitter().emit("cal.set(%%%s: !cal.state_ref<%s>, %%%s: %s)", lvalue, typeString, resultSSA,
-                        typeString);
+                Type inputType = types().type(assign.getExpression());
+                String resultSSACast = typeseval().castType(inputType , stateType, resultSSA);
+                emitter().emit("cal.set(%%%s: !cal.state_ref<%s>, %%%s: %s)", lvalue, stateTypeString, resultSSACast,
+                        stateTypeString);
             } else {
-                initialiseWithExpression(type, lvalue, assign.getExpression());
+                initialiseWithExpression(stateType, lvalue, assign.getExpression());
             }
         }
 
