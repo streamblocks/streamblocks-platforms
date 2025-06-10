@@ -617,10 +617,7 @@ public interface Statements {
     /*
      * Statement Foreach - this is an absolute mess and could be cleaned up
      */
-
     default void execute(StmtForeach foreach) {
-        System.out.println("StmtForeach");
-        //throw new UnsupportedOperationException("StmtForeach not implemented in MLIR.");
         emitter().emit("// Foreach Statement: Begin");
         //emitter().emit("//     Variable declarations attached to foreach statement: Begin");
         if (foreach.getGenerator().getVarDecls().size() > 1) {
@@ -632,7 +629,7 @@ public interface Statements {
                     "statements over a range, eg: 1..10. Other collections not yet supported.");
         }
 
-        // Generate the declared variable
+        // Generate the loop index variable
         VarDecl loopIndexVariableDeclaration = foreach.getGenerator().getVarDecls().get(0);
         String loopIndexVariableName = variables().declarationName(loopIndexVariableDeclaration);
         String loopIndexVariableSSA = ssaValueNumberingStack().getVarToBeAssignedTo(loopIndexVariableName);
@@ -646,6 +643,7 @@ public interface Statements {
         String initialValueCast_i32 = typeseval().castType(initalValueType,  signed32Type , initialValue);
         String initialValueCast_index = ssaValueNumberingStack().getNewTempVar() + "_lb";
         emitter().emit("%%%s = index.casts %%%s : i32 to index", initialValueCast_index, initialValueCast_i32);
+
         Type finalValueType = types().type(rangeExpr.getOperands().get(1));
         String finalValue = expressioneval().evaluate(rangeExpr.getOperands().get(1));
         String finalValueCast_i32 = typeseval().castType(finalValueType,  signed32Type , finalValue);
@@ -654,19 +652,12 @@ public interface Statements {
         String stepValue = ssaValueNumberingStack().getNewTempVar() + "_step";
         emitter().emit("%%%s = index.constant 1", stepValue);
 
-        // Generate the return arguments and the arguments passed in
+        // Generate the return arguments and the arguments passed in and the initial values of the arguments
         List<LValue> assignedVars = getConditionalReturnLvalues(foreach);
         String returnValuesTypes = assignedVars.stream()
                 .map(x -> typeseval().type(types().type(x)))
                 .collect(Collectors.joining(", "));
 
-        // 1. Condition check block of the while statement ()
-        // We need three different SSA arguments in the scf.while line (before region).
-        //    - initialValues - the values passed into the while loop from the surrounding context
-        //    - whileReturnValues - the SSA values that are returned from the while loop
-        //    - argumentNames - these are the names that the initial values get assigned to in this scope
-        // The initial values and argument names get merged together into the inputToArgumentString.
-        // eg: %whileReturnValue1 = scf.while (%argumentName1 = %initialValue1)
         List<String> initialValues = assignedVars.stream()
                 .map(x -> "%" + ssaValueNumberingStack().getVarName(lvalues().lvalue(x)))
                 .collect(Collectors.toList());
@@ -1068,7 +1059,7 @@ public interface Statements {
         Set<String> lvaluesNames = new HashSet<>();
         for (LValue lVal : lvaluesOriginal) {
             String lValueName = lvalues().lvalue(lVal);
-            if (lvaluesNames.add(lValueName)) {
+            if (lvaluesNames.add(lValueName) && !ssaValueNumberingStack().hasStateVar(lValueName)) {
                 lvaluesToReturn.add(lVal);
             }
         }

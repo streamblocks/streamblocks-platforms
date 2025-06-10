@@ -1,0 +1,60 @@
+// Expected Output:
+// Tx: 0
+// a: 2
+// b: 2
+// Rx: 2
+// Tx: 1
+// a: 4
+// b: 6
+// Rx: 4
+
+
+namespace simple:
+    actor StateAndIf() int In ==> int Out:
+        int b := 0;
+
+        action In:[t] ==> Out:[a]
+        var
+            int a := 0
+        do
+            if t = 1 then
+                a := 4;
+                b := b + 4;
+            else
+                a := 2;
+                b := b + 2;
+            end
+            println("a: " + a);
+            println("b: " + b);
+        end
+    end
+
+    actor Source(int payload_size, int actor_index) ==> int Out:
+        int counter := 0;
+        transmit: action ==> Out:[t]
+        guard counter < payload_size
+        var t := counter + 100*actor_index
+        do
+            t :=  t+1;
+            println("Tx" + actor_index + ": " + t);
+            counter := counter + 1;
+        end
+    end
+
+    actor Sink() int In ==>:
+        action In:[t] ==>
+        do
+            println("Rx: " + t);
+        end
+    end
+
+    network Top() ==> :
+    entities
+            source = Source(payload_size = 3, actor_index = 1);
+            DUT  = StateAndIf() {};
+            sink = Sink();
+    structure
+            source.Out --> DUT.In { bufferSize = 1; };
+            DUT.Out --> sink.In { bufferSize = 1; } ;
+    end
+end

@@ -1,0 +1,6 @@
+{
+  "description": "Test accessing state variables in if statements.",
+  "cal-file": "1_state_in_if.cal",
+  "mlir-file": "1_state_in_if.mlir",
+  "entity": "simple.Top"
+}

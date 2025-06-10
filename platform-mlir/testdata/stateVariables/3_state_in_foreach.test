@@ -1,0 +1,6 @@
+{
+  "description": "Test the repeat keyword on output ports.",
+  "cal-file": "3_state_in_foreach.cal",
+  "mlir-file": "3_state_in_foreach.mlir",
+  "entity": "simple.Top"
+}

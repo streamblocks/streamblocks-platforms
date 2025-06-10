@@ -1,0 +1,6 @@
+{
+  "description": "Test accessing state variables in while loops.",
+  "cal-file": "2_state_in_while.cal",
+  "mlir-file": "2_state_in_while.mlir",
+  "entity": "simple.Top"
+}
