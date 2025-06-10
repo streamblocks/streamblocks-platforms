@@ -224,23 +224,40 @@ public interface TypesEvaluator {
             // 1. If the from and to type is the same, do nothing
             return inputSSA;
         } else {
-            String outSSA = ssaValueNumberingStack().getNewTempVar();
-            // 2. Sign extend if the destination is greater than the source
-            if (toType.getSize().orElse(32) >= fromType.getSize().orElse(32)) {
-                // 2.1 Commands are different based on the sign
-                if (fromType.isSigned()) {
-                    emitter().emit("%%%s = arith.extsi %%%s : %s to %s", outSSA, inputSSA, type(fromType),
-                            type(toType));
-                } else {
-                    emitter().emit("%%%s = arith.extui %%%s : %s to %s", outSSA, inputSSA, type(fromType),
-                            type(toType));
-                }
-            } else {
-                // 3. Truncate if the destination is greater than the source
-                emitter().emit("%%%s = arith.trunci %%%s : %s to %s", outSSA, inputSSA, type(fromType), type(toType));
-            }
-            return outSSA;
+            String outputSSA = ssaValueNumberingStack().getNewTempVar();
+            castInt(fromType, toType, inputSSA, outputSSA);
+            return outputSSA;
         }
+    }
+
+    default void castInt(IntType fromType, IntType toType, String inputSSA, String outputSSA){
+        // 1. Sign extend if the destination is greater than the source
+        if (toType.getSize().orElse(32) >= fromType.getSize().orElse(32)) {
+            // 1.1 Commands are different based on the sign
+            if (fromType.isSigned()) {
+                emitter().emit("%%%s = arith.extsi %%%s : %s to %s", outputSSA, inputSSA, type(fromType),
+                        type(toType));
+            } else {
+                emitter().emit("%%%s = arith.extui %%%s : %s to %s", outputSSA, inputSSA, type(fromType),
+                        type(toType));
+            }
+        } else {
+            // 2. Truncate if the destination is greater than the source
+            emitter().emit("%%%s = arith.trunci %%%s : %s to %s", outputSSA, inputSSA, type(fromType), type(toType));
+        }
+    }
+
+    default void castInt(Type fromType, Type toType, String inputSSA, String outputSSA){
+        throw new Error("Expected both types to be int type. Got LHS: " + fromType + " and RHS: " + toType);
+    }
+
+    default boolean canCastFromI32(Type toType){
+        throw new Error("Expected type to be int type. Got: " + toType);
+    }
+
+    default boolean canCastFromI32(IntType toType){
+        boolean isI32 = toType.getSize().orElse(32) == 32;
+        return !isI32;
     }
 
     default String castType(ListType fromType, ListType toType, String listNameSSA) {

@@ -1,0 +1,97 @@
+// Expected Output:
+// Tx: 0
+// a1: 0 b1: 1
+//     a2: 0 b2: 2
+//     a2: 1 b2: 3
+//     a2: 3 b2: 4
+//     a2: 6 b2: 5
+//     a2: 10 b2: 6
+//     a2: 15 b2: 7
+// a1: 16 b1: 8
+//     a2: 16 b2: 9
+//     a2: 17 b2: 10
+//     a2: 19 b2: 11
+//     a2: 22 b2: 12
+//     a2: 26 b2: 13
+//     a2: 31 b2: 14
+// a1: 33 b1: 15
+//     a2: 33 b2: 16
+//     a2: 34 b2: 17
+//     a2: 36 b2: 18
+//     a2: 39 b2: 19
+//     a2: 43 b2: 20
+//     a2: 48 b2: 21
+// a1: 51 b1: 22
+//     a2: 51 b2: 23
+//     a2: 52 b2: 24
+//     a2: 54 b2: 25
+//     a2: 57 b2: 26
+//     a2: 61 b2: 27
+//     a2: 66 b2: 28
+// a1: 70 b1: 29
+//     a2: 70 b2: 30
+//     a2: 71 b2: 31
+//     a2: 73 b2: 32
+//     a2: 76 b2: 33
+//     a2: 80 b2: 34
+//     a2: 85 b2: 35
+// a1: 90 b1: 36
+//     a2: 90 b2: 37
+//     a2: 91 b2: 38
+//     a2: 93 b2: 39
+//     a2: 96 b2: 40
+//     a2: 100 b2: 41
+//     a2: 105 b2: 42
+// a3: 105 b3: 42
+// Rx: 147
+
+namespace simple:
+    actor ForeachComplex() int In ==> int Out:
+        action In:[t] ==> Out:[a + b]
+        var
+            int a := 0,
+            int b := 0
+        do
+            foreach uint(size=8) j in 0..2+2*2 do
+                b := b + 1;
+                a := a + j;
+                println("a1: " + a + " b1: " + b);
+                foreach uint j in 0..2+2*2 do
+                    b := b + 1;
+                    a := a + j;
+                    println("    a2: " + a + " b2: " + b);
+                end
+            end
+            println("a3: " + a + " b3: " + b);
+        end
+    end
+
+    actor Source(int payload_size) ==> int Out:
+        int counter := 0;
+        transmit: action ==> Out:[t]
+        guard counter < payload_size
+        var t := counter
+        do
+            t :=  t+1;
+            println("Tx: " + t);
+            counter := counter + 1;
+        end
+    end
+
+    actor Sink() int In ==>:
+        action In:[t] ==>
+        do
+            println("Rx: " + t);
+        end
+    end
+
+    network Top() ==> :
+    entities
+            source = Source(payload_size = 3);
+            pass  = ForeachComplex() {};
+            sink = Sink();
+    structure
+            source.Out --> pass.In { bufferSize = 4; };
+            pass.Out --> sink.In { bufferSize = 4; } ;
+    end
+end

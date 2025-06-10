@@ -1,0 +1,6 @@
+{
+  "description": "Test more complicated arrangements of while statements. Nested whiles and whiles with if-statements included",
+  "cal-file": "2_foreach_statement_complex.cal",
+  "mlir-file": "2_foreach_statement_complex.mlir",
+  "entity": "simple.Top"
+}

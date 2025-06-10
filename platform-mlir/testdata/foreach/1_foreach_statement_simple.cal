@@ -1,0 +1,82 @@
+// Expected Output
+// Tx: 0
+// a1: 0 b1: 1
+// a1: 1 b1: 2
+// a1: 3 b1: 3
+// a1: 6 b1: 4
+// a1: 10 b1: 5
+// a1: 15 b1: 6
+// a2: 0 b2: 1
+// a2: 1 b2: 2
+// a2: 3 b2: 3
+// a2: 6 b2: 4
+// a2: 10 b2: 5
+// a2: 15 b2: 6
+// a2: 0 b2: 1
+// a2: 1 b2: 2
+// a2: 3 b2: 3
+// a2: 6 b2: 4
+// a2: 10 b2: 5
+// a2: 15 b2: 6
+// Rx: 21
+
+namespace simple:
+    actor ForeachSimple() int In ==> int Out:
+        action In:[t] ==> Out:[a + b]
+        var
+            int a := 0,
+            int b := 0
+        do
+            foreach uint(size=8) j in 0..2+2*2 do
+                b := b + 1;
+                a := a + j;
+                println("a1: " + a + " b1: " + b);
+            end
+
+            a := 0;
+            b := 0;
+            foreach uint j in 0..2+2*2 do
+                b := b + 1;
+                a := a + j;
+                println("a2: " + a + " b2: " + b);
+            end
+
+            a := 0;
+            b := 0;
+            foreach int j in 0..2+2*2 do
+                b := b + 1;
+                a := a + j;
+                println("a2: " + a + " b2: " + b);
+            end
+        end
+    end
+
+    actor Source(int payload_size) ==> int Out:
+        int counter := 0;
+        transmit: action ==> Out:[t]
+        guard counter < payload_size
+        var t := counter
+        do
+            t :=  t+1;
+            println("Tx: " + t);
+            counter := counter + 1;
+        end
+    end
+
+    actor Sink() int In ==>:
+        action In:[t] ==>
+        do
+            println("Rx: " + t);
+        end
+    end
+
+    network Top() ==> :
+    entities
+            source = Source(payload_size = 1);
+            pass  = ForeachSimple() {};
+            sink = Sink();
+    structure
+            source.Out --> pass.In { bufferSize = 1; };
+            pass.Out --> sink.In { bufferSize = 1; } ;
+    end
+end

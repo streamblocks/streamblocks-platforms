@@ -1,0 +1,6 @@
+{
+  "description": "Generate MLIR scf.foreach from CAL foreach statement in an actor body. Only the simplest case is tested.",
+  "cal-file": "1_foreach_statement_simple.cal",
+  "mlir-file": "1_foreach_statement_simple.mlir",
+  "entity": "simple.Top"
+}

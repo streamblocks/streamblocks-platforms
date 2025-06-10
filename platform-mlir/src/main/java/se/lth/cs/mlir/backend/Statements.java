@@ -328,11 +328,11 @@ public interface Statements {
 
     /**
      * Generates MLIR for a call statement
-     *
+     * <p>
      * This implementation only handles calls to the special built-in procedures `println` and `print`.
      * - If the procedure is `println`, it emits a print instruction followed by a newline.
      * - If the procedure is `print`, it emits a print instruction without a newline.
-     *
+     * <p>
      * Any other procedure call will result in an UnsupportedOperationException.
      */
     default void execute(StmtCall call) {
@@ -615,40 +615,42 @@ public interface Statements {
     }
 
     /*
-     * Statement Foreach
+     * Statement Foreach - this is an absolute mess and could be cleaned up
      */
 
     default void execute(StmtForeach foreach) {
         System.out.println("StmtForeach");
-        throw new UnsupportedOperationException("StmtForeach not implemented in MLIR.");
-        /*emitter().emit("// Foreach Statement: Begin");
+        //throw new UnsupportedOperationException("StmtForeach not implemented in MLIR.");
+        emitter().emit("// Foreach Statement: Begin");
         //emitter().emit("//     Variable declarations attached to foreach statement: Begin");
         if (foreach.getGenerator().getVarDecls().size() > 1) {
             throw new UnsupportedOperationException("MLIR backend currently only supports single " +
                     "variables in foreach statements.");
         }
-        if(!(foreach.getGenerator().getCollection() instanceof ExprBinaryOp)){
+        if (!(foreach.getGenerator().getCollection() instanceof ExprBinaryOp)) {
             throw new UnsupportedOperationException("MLIR backend currently only supports foreach " +
                     "statements over a range, eg: 1..10. Other collections not yet supported.");
         }
 
         // Generate the declared variable
-        VarDecl decl = foreach.getGenerator().getVarDecls().get(0);
-        String declarationName = variables().declarationName(decl);
-        String ssaName = ssaValueNumberingStack().getVarToBeAssignedTo(declarationName);
+        VarDecl loopIndexVariableDeclaration = foreach.getGenerator().getVarDecls().get(0);
+        String loopIndexVariableName = variables().declarationName(loopIndexVariableDeclaration);
+        String loopIndexVariableSSA = ssaValueNumberingStack().getVarToBeAssignedTo(loopIndexVariableName);
+        Type loopIndexVariableType = types().declaredType(loopIndexVariableDeclaration);
 
         // Generate the loop upper and lower bounds
         ExprBinaryOp rangeExpr = (ExprBinaryOp) foreach.getGenerator().getCollection();
         Type initalValueType = types().type(rangeExpr.getOperands().get(0));
         String initialValue = expressioneval().evaluate(rangeExpr.getOperands().get(0));
-        String initialValueCast = ssaValueNumberingStack().getNewTempVar() + "_lb";
-        emitter().emit("%%%s = index.casts %%%s : %s to index", initialValueCast, initialValue, typeseval().type
-        (initalValueType));
+        Type signed32Type = new IntType(OptionalInt.of(32), true);
+        String initialValueCast_i32 = typeseval().castType(initalValueType,  signed32Type , initialValue);
+        String initialValueCast_index = ssaValueNumberingStack().getNewTempVar() + "_lb";
+        emitter().emit("%%%s = index.casts %%%s : i32 to index", initialValueCast_index, initialValueCast_i32);
         Type finalValueType = types().type(rangeExpr.getOperands().get(1));
         String finalValue = expressioneval().evaluate(rangeExpr.getOperands().get(1));
-        String finalValueCast = ssaValueNumberingStack().getNewTempVar() + "_ub";
-        emitter().emit("%%%s = index.casts %%%s : %s to index", finalValueCast, finalValue, typeseval().type
-        (finalValueType));
+        String finalValueCast_i32 = typeseval().castType(finalValueType,  signed32Type , finalValue);
+        String finalValueCast_index = ssaValueNumberingStack().getNewTempVar() + "_ub";
+        emitter().emit("%%%s = index.casts %%%s : i32 to index", finalValueCast_index, finalValueCast_i32);
         String stepValue = ssaValueNumberingStack().getNewTempVar() + "_step";
         emitter().emit("%%%s = index.constant 1", stepValue);
 
@@ -684,20 +686,38 @@ public interface Statements {
         }
 
 
-        emitter().emit("%s = scf.for %%%s = %%%s to %%%s step %%%s ", forReturnValues, ssaName, initialValueCast,
-        finalValueCast, stepValue);
+        if (forReturnValues.isEmpty()) {
+            emitter().emit("scf.for %%%s = %%%s to %%%s step %%%s", loopIndexVariableSSA, initialValueCast_index,
+                    finalValueCast_index, stepValue);
+        } else {
+            emitter().emit("%s = scf.for %%%s = %%%s to %%%s step %%%s", forReturnValues, loopIndexVariableSSA, initialValueCast_index,
+                    finalValueCast_index, stepValue);
+        }
         emitter().emit("\t\titer_args(%s) -> (%s) {", inputToArgumentString, returnValuesTypes);
         emitter().increaseIndentation();
+
+        // We need to cast loop index variable to the correct type as it is now currently an index
+        String loopIndexVariableSSA_i32 = ssaValueNumberingStack().getVarToBeAssignedTo(loopIndexVariableName);
+        emitter().emit("%%%s = arith.index_cast %%%s : index to i32", loopIndexVariableSSA_i32, loopIndexVariableSSA);
+        if(!signed32Type.equals(loopIndexVariableType) && typeseval().canCastFromI32(loopIndexVariableType)){
+            String loopIndexVariable_correctType = ssaValueNumberingStack().getVarToBeAssignedTo(loopIndexVariableName);
+            typeseval().castInt(signed32Type, loopIndexVariableType, loopIndexVariableSSA_i32, loopIndexVariable_correctType);
+        }
+
+        // Print out the statements in the loop body
         foreach.getBody().forEach(this::execute);
 
+        // Print out the yeild statement if required
         String returnValuesInYield = assignedVars.stream()
                 .map(x -> "%" + ssaValueNumberingStack().getVarName(lvalues().lvalue(x)))
                 .collect(Collectors.joining(", "));
-        emitter().emit("scf.yield %s : %s", returnValuesInYield, returnValuesTypes);
+        if (!returnValuesInYield.isEmpty()) {
+            emitter().emit("scf.yield %s : %s", returnValuesInYield, returnValuesTypes);
+        }
         emitter().decreaseIndentation();
         emitter().emit("}");
         emitter().emit("// Foreach Statement: End");
-        ssaValueNumberingStack().blockDone();*/
+        ssaValueNumberingStack().blockDone();
     }
 
     /**
