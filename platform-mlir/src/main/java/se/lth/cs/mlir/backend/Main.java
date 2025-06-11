@@ -37,8 +37,14 @@ public interface Main {
     }
 
     default void main() {
+        generateGlobals();
         defineEntities();
         initNetwork();
+    }
+
+    // These are global functions and procedures, etc
+    default void generateGlobals(){
+        backend().globals().globalHeader();
     }
 
     default void defineEntities() {

@@ -1,0 +1,6 @@
+{
+  "description": "Tests that global functions can be declared and called.",
+  "cal-file": "1_global_function.cal",
+  "mlir-file": "1_global_function.mlir",
+  "entity": "simple.Top"
+}

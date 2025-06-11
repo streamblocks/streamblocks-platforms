@@ -1,0 +1,58 @@
+// Expected Output:
+// Tx: 0
+// Rx: 385
+// Tx: 1
+// Rx: 385
+
+
+namespace simple:
+  actor Source(int payload_size) ==> int Out:
+    int counter := 0;
+    transmit: action ==> Out:[t]
+    guard counter < payload_size
+    var t = counter
+    do
+      println("Tx: " + t);
+      counter := counter + 1;
+    end
+  end
+
+  actor Sink() int In ==>:
+    action In:[t] ==>
+    do
+        println("Rx: " + t);
+    end
+  end
+
+  function multiply(int a, int b) --> int
+      // If we just multiply a*b, then the result is treated as int(size = m+n) and automatic
+      // truncation occurs before we bit shift throwing away necessary information. By defining
+      // this variable and assigning a to it, the result of the multiplication of this with b
+      // is of type int(size = 2*m+2*n), meaning that no information is thrown away before the
+      // bitshift.
+      var int temp = 64:
+      temp*b*a + 1
+  end
+
+  actor FunctionCall() int In ==> int Out:
+      int b := 3;
+
+      action In:[t] ==> Out:[a + t]
+      var
+          int a := 2
+      do
+          a := multiply(a, b);
+      end
+  end
+
+  network Top() ==> :
+  entities
+    source = Source(payload_size = 2);
+    DUT  = FunctionCall();
+    sink = Sink();
+  structure
+    source.Out --> DUT.In { bufferSize = 1; };
+    DUT.Out --> sink.In { bufferSize = 1; } ;
+  end
+
+end

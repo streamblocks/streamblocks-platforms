@@ -63,8 +63,8 @@ public interface TypesEvaluator {
     }
 
     default String type(UnitType type) {
-        throw new UnsupportedOperationException("Type not implemented in MLIR.");
-        //return "void";
+        //throw new UnsupportedOperationException("Type not implemented in MLIR.");
+        return "void";
     }
 
     default String type(ListType type) {

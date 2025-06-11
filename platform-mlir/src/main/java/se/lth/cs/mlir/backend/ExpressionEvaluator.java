@@ -8,12 +8,9 @@ import org.multij.Module;
 import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.ir.IRNode;
 import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
-import se.lth.cs.tycho.ir.decl.InputVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.expr.*;
-import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.stmt.StmtAssignment;
-import se.lth.cs.tycho.ir.stmt.StmtCall;
 import se.lth.cs.tycho.ir.stmt.lvalue.LValueVariable;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.type.*;
@@ -70,8 +67,9 @@ public interface ExpressionEvaluator {
     // -- Evaluate Expressions
 
     default String evaluateCall(Expression expression) {
-        throw new UnsupportedOperationException("ExpressionEvaluator.evaluateCall() function not supported for: " + expression.getClass());
-        //return evaluate(expression);
+        //return "temp_evaluate_call";
+        //throw new UnsupportedOperationException("ExpressionEvaluator.evaluateCall() function not supported for: " + expression.getClass());
+        return evaluate(expression);
     }
 
 //    default String evaluateCall(ExprVariable variable) {
@@ -178,12 +176,16 @@ public interface ExpressionEvaluator {
         emitter().emit("// Evaluate global variable %s.", decl.getName());
         Type inputType = types().type(declExpression);
         Type outputType = types().declaredType(decl);
-        String rvalueTemp = evaluate(declExpression);
-        String rvalueSSA = typeseval().castType(inputType, outputType, rvalueTemp);
-        emitter().emit("// Evaluate global variable %s done: assigned to %s above in this context.", decl.getName(),
-                rvalueSSA);
 
-        return rvalueSSA;
+        if(inputType instanceof LambdaType){
+            return variables().globalName(variable);
+        }else {
+            String rvalueTemp = evaluate(declExpression);
+            String rvalueSSA = typeseval().castType(inputType, outputType, rvalueTemp);
+            emitter().emit("// Evaluate global variable %s done: assigned to %s above in this context.", decl.getName(),
+                    rvalueSSA);
+            return rvalueSSA;
+        }
     }
 
     /**
@@ -353,8 +355,12 @@ public interface ExpressionEvaluator {
     default String evaluate(ExprBinaryOp binaryOp) {
         assert binaryOp.getOperations().size() == 1 && binaryOp.getOperands().size() == 2;
         String operation = binaryOp.getOperations().get(0);
-        BinaryOpStruct convertedOperands = convertBinaryExprTypes(binaryOp);
         Type outputType = types().type(binaryOp);
+
+        BinaryOpStruct convertedOperands = convertBinaryExprTypes(binaryOp, operation);
+
+
+
 
         String returnedSSA, convertedSSA;
         // These arithmetic and bitwise operations take place in three steps
@@ -459,10 +465,11 @@ public interface ExpressionEvaluator {
      * This function determines the common type that the two operands must be converted to and then converts them to
      * that type.
      *
-     * @param binaryOp The binary op to be converted
+     * @param binaryOp  The binary op to be converted
+     * @param operation
      * @return A BinaryOpStruct giving the common output type and the
      */
-    default BinaryOpStruct convertBinaryExprTypes(ExprBinaryOp binaryOp) {
+    default BinaryOpStruct convertBinaryExprTypes(ExprBinaryOp binaryOp, String operation) {
         Type lhsType = types().type(binaryOp.getOperands().get(0));
         Type rhsType = types().type(binaryOp.getOperands().get(1));
         Type exprOutputType = types().type(binaryOp);
@@ -472,18 +479,22 @@ public interface ExpressionEvaluator {
         Types.Implementation conversionMethods =
                 (Types.Implementation) backend().task().getModule(Types.Implementation.key);
         Type typeToCastTo = conversionMethods.leastUpperBound(lhsType, rhsType);
+        //Type computeType = conversionMethods.computeType(binaryOp);
 
         // In cases where the output type is an integer, some operations can result in a type that has more bits
         // than the common type of the lhs and rhs. Eg, if lhs is int3 and rhs is int3, then rhs+lhs can result in
         // int4. In this case we want to cast both to this larger type.
         if (typeToCastTo instanceof IntType && exprOutputType instanceof IntType) {
-            typeToCastTo = conversionMethods.leastUpperBound(typeToCastTo, exprOutputType);
+            //typeToCastTo = conversionMethods.leastUpperBound(typeToCastTo, exprOutputType);
+            typeToCastTo = conversionMethods.computeType(binaryOp);
         }
 
         String lhsTempVar = evaluate(binaryOp.getOperands().get(0));
         String rhsTempVar = evaluate(binaryOp.getOperands().get(1));
+        //emitter().emit("// Cast takes place here" + typeToCastTo + " " + exprOutputType + " " + computeType);
         lhsTempVar = typeseval().castType(lhsType, typeToCastTo, lhsTempVar);
         rhsTempVar = typeseval().castType(rhsType, typeToCastTo, rhsTempVar);
+        //emitter().emit("// Cast takes place here end" + typeToCastTo + " " + exprOutputType);
         return new BinaryOpStruct(typeToCastTo, lhsTempVar, rhsTempVar);
     }
 
@@ -1360,18 +1371,21 @@ public interface ExpressionEvaluator {
     default String evaluate(ExprLet let) {
         let.forEachChild(backend().callables()::declareEnvironmentForCallablesInScope);
         for (VarDecl decl : let.getVarDecls()) {
-            Type type = types().declaredType(decl);
-            String name = variables().declarationName(decl);
-            emitter().emit("%s = %s;", declarations().declaration(type, name),
-                    backend().defaultValues().defaultValue(type));
-            emitter().emit("{");
-            emitter().increaseIndentation();
-            String eval = evaluate(decl.getValue());
-            backend().statements().copy(type, name, types().type(decl.getValue()), eval);
-            emitter().decreaseIndentation();
-            emitter().emit("}");
+              backend().statements().emitVarDecl(decl);
+//            Type type = types().declaredType(decl);
+//            String name = variables().declarationName(decl);
+//            emitter().emit("%s = %s;", declarations().declaration(type, name),
+//                    backend().defaultValues().defaultValue(type));
+//            emitter().emit("{");
+//            emitter().increaseIndentation();
+//            String eval = evaluate(decl.getValue());
+//            backend().statements().copy(type, name, types().type(decl.getValue()), eval);
+//            emitter().decreaseIndentation();
+//            emitter().emit("}");
         }
-        return evaluate(let.getBody());
+        String returnSSA = evaluate(let.getBody());
+
+        return returnSSA;
     }
 
     default String evaluate(ExprTypeConstruction construction) {

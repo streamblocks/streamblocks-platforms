@@ -3,6 +3,7 @@ package se.lth.cs.mlir.backend;
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.utils.Box;
 import ch.epfl.vlsc.platformutils.utils.StackSSA;
+import se.lth.cs.mlir.backend.Globals;
 import org.multij.Binding;
 import org.multij.Module;
 import org.multij.MultiJ;
@@ -32,6 +33,12 @@ public interface MlirBackend {
     @Binding(LAZY)
     default GlobalNames globalnames() {
         return task().getModule(GlobalNames.key);
+    }
+
+    // -- Globals, things like functions and procedures
+    @Binding(LAZY)
+    default Globals globals() {
+        return MultiJ.from(Globals.class).bind("backend").to(this).instance();
     }
 
     // -- Emitter
@@ -180,12 +187,12 @@ public interface MlirBackend {
     }
 
     @Binding(LAZY)
-    default BuildSystem buildSystem(){
+    default BuildSystem buildSystem() {
         return MultiJ.from(BuildSystem.class).bind("backend").to(this).instance();
     }
 
     @Binding(LAZY)
-    default TestbenchGenerator testbenchGenerator(){
+    default TestbenchGenerator testbenchGenerator() {
         return MultiJ.from(TestbenchGenerator.class).bind("backend").to(this).instance();
     }
 

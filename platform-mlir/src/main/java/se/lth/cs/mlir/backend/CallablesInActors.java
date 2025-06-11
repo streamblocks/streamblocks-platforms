@@ -70,27 +70,21 @@ public interface CallablesInActors {
                         "%" + backend().ssaValueNumberingStack().getVarToBeAssignedTo(backend().variables().declarationName(x)) + " : " + // Get the ssa name
                                 backend().typeseval().type(backend().types().declaredType(x))); // get the SSA type
         // Then join these into a string
-        String parameterNamesString = String.join(",", parameterNames);
+        String parameterNamesString = String.join(", ", parameterNames);
 
         backend().emitter().emit("func.func @%s(%s) -> %s {", name, parameterNamesString, returnTypeString);
         backend().emitter().increaseIndentation();
 
+        Type inputType = backend().types().type(lambda.getBody());
+        Type outputType = returnType.getReturnType();
         String returnSSA = backend().expressionEval().evaluate(lambda.getBody());
-        backend().emitter().emit("func.return %%%s : %s", returnSSA, returnTypeString);
+        String returnSSAConverted = backend().typeseval().castType(inputType, outputType, returnSSA);
+        backend().emitter().emit("func.return %%%s : %s", returnSSAConverted, returnTypeString);
 
         backend().emitter().decreaseIndentation();
         backend().emitter().emit("}", instanceName);
 
         backend().ssaValueNumberingStack().blockDone();
-
-        /*backend().emitter().emit("%s {", lambdaHeader(instanceName, lambda));
-        backend().emitter().increaseIndentation();
-        LambdaType type = (LambdaType) backend().types().type(lambda);
-        backend().emitter().emit("%s __ret = %s;", backend().typeseval().type(type.getReturnType()), backend()
-        .expressionEval().evaluate(lambda.getBody()));
-        backend().emitter().emit("return __ret;");
-        backend().emitter().decreaseIndentation();
-        backend().emitter().emit("}");*/
     }
 
     /**
