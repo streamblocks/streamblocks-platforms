@@ -66,26 +66,27 @@ cal.actor @DUT ()
 		%tmp_8 = arith.extui %tmp_7 : i3 to i32
 		%tmp_9_ub = index.casts %tmp_8 : i32 to index
 		%tmp_10_step = index.constant 1
-		%l_a__11_d1_1 = scf.for %l_j_d1_0 = %tmp_6_lb to %tmp_9_ub step %tmp_10_step
+		%tmp_11_ub_plus_1 = arith.addi %tmp_9_ub, %tmp_10_step : index
+		%l_a__11_d1_1 = scf.for %l_j_d1_0 = %tmp_6_lb to %tmp_11_ub_plus_1 step %tmp_10_step
 				iter_args(%l_a__11_d2_0 = %tmp_3) -> (i32) {
 			%l_j_d2_0 = arith.index_cast %l_j_d1_0 : index to i32
 			// Assignment Statement: Start
-			%tmp_11 = arith.constant 1 : i1
-			%tmp_12 = arith.extui %tmp_11 : i1 to i32
-			%tmp_13 = arith.addi %l_a__11_d2_0, %tmp_12 : i32
-			// l_a__11_d2_1 aliased to tmp_13
+			%tmp_12 = arith.constant 1 : i1
+			%tmp_13 = arith.extui %tmp_12 : i1 to i32
+			%tmp_14 = arith.addi %l_a__11_d2_0, %tmp_13 : i32
+			// l_a__11_d2_1 aliased to tmp_14
 			// Assignment Statement: End
 			// Assignment Statement: Start
-			%tmp_14 = cal.get(%l_b__7: !cal.state_ref<i32>) : i32
-			%tmp_15 = arith.constant 1 : i1
-			%tmp_16 = arith.extui %tmp_15 : i1 to i32
-			%tmp_17 = arith.addi %tmp_14, %tmp_16 : i32
-			cal.set(%l_b__7: !cal.state_ref<i32>, %tmp_17: i32)
+			%tmp_15 = cal.get(%l_b__7: !cal.state_ref<i32>) : i32
+			%tmp_16 = arith.constant 1 : i1
+			%tmp_17 = arith.extui %tmp_16 : i1 to i32
+			%tmp_18 = arith.addi %tmp_15, %tmp_17 : i32
+			cal.set(%l_b__7: !cal.state_ref<i32>, %tmp_18: i32)
 			// Assignment Statement: End
-			fifo.print("a: %i\n\00", %tmp_13) : (i32)
-			%tmp_18 = cal.get(%l_b__7: !cal.state_ref<i32>) : i32
-			fifo.print("b: %i\n\00", %tmp_18) : (i32)
-			scf.yield %tmp_13 : i32
+			fifo.print("a: %i\n\00", %tmp_14) : (i32)
+			%tmp_19 = cal.get(%l_b__7: !cal.state_ref<i32>) : i32
+			fifo.print("b: %i\n\00", %tmp_19) : (i32)
+			scf.yield %tmp_14 : i32
 		}
 		// Foreach Statement: End
 		// Output Expression: Start

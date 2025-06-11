@@ -654,6 +654,8 @@ public interface Statements {
         emitter().emit("%%%s = index.casts %%%s : i32 to index", finalValueCast_index, finalValueCast_i32);
         String stepValue = ssaValueNumberingStack().getNewTempVar() + "_step";
         emitter().emit("%%%s = index.constant 1", stepValue);
+        String finalValueCast_index_plus1 = ssaValueNumberingStack().getNewTempVar() + "_ub_plus_1";
+        emitter().emit("%%%s = arith.addi %%%s, %%%s : index", finalValueCast_index_plus1, finalValueCast_index, stepValue);
 
         // Generate the return arguments and the arguments passed in and the initial values of the arguments
         List<LValue> assignedVars = getConditionalReturnLvalues(foreach);
@@ -682,10 +684,10 @@ public interface Statements {
 
         if (forReturnValues.isEmpty()) {
             emitter().emit("scf.for %%%s = %%%s to %%%s step %%%s", loopIndexVariableSSA, initialValueCast_index,
-                    finalValueCast_index, stepValue);
+                    finalValueCast_index_plus1, stepValue);
         } else {
             emitter().emit("%s = scf.for %%%s = %%%s to %%%s step %%%s", forReturnValues, loopIndexVariableSSA, initialValueCast_index,
-                    finalValueCast_index, stepValue);
+                    finalValueCast_index_plus1, stepValue);
         }
         emitter().emit("\t\titer_args(%s) -> (%s) {", inputToArgumentString, returnValuesTypes);
         emitter().increaseIndentation();

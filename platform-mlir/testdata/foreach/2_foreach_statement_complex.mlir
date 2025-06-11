@@ -81,53 +81,55 @@ cal.actor @pass ()
 		%tmp_16 = arith.extui %tmp_15 : i5 to i32
 		%tmp_17_ub = index.casts %tmp_16 : i32 to index
 		%tmp_18_step = index.constant 1
-		%l_a__7_d1_1, %l_b__8_d1_1 = scf.for %l_j_d1_0 = %tmp_6_lb to %tmp_17_ub step %tmp_18_step
+		%tmp_19_ub_plus_1 = arith.addi %tmp_17_ub, %tmp_18_step : index
+		%l_a__7_d1_1, %l_b__8_d1_1 = scf.for %l_j_d1_0 = %tmp_6_lb to %tmp_19_ub_plus_1 step %tmp_18_step
 				iter_args(%l_a__7_d2_0 = %tmp_1, %l_b__8_d2_0 = %tmp_3) -> (i32, i32) {
 			%l_j_d2_0 = arith.index_cast %l_j_d1_0 : index to i32
 			%l_j_d2_1 = arith.trunci %l_j_d2_0 : i32 to i8
 			// Assignment Statement: Start
-			%tmp_19 = arith.constant 1 : i1
-			%tmp_20 = arith.extui %tmp_19 : i1 to i32
-			%tmp_21 = arith.addi %l_b__8_d2_0, %tmp_20 : i32
-			// l_b__8_d2_1 aliased to tmp_21
+			%tmp_20 = arith.constant 1 : i1
+			%tmp_21 = arith.extui %tmp_20 : i1 to i32
+			%tmp_22 = arith.addi %l_b__8_d2_0, %tmp_21 : i32
+			// l_b__8_d2_1 aliased to tmp_22
 			// Assignment Statement: End
 			// Assignment Statement: Start
-			%tmp_22 = arith.extui %l_j_d2_1 : i8 to i32
-			%tmp_23 = arith.addi %l_a__7_d2_0, %tmp_22 : i32
-			// l_a__7_d2_1 aliased to tmp_23
+			%tmp_23 = arith.extui %l_j_d2_1 : i8 to i32
+			%tmp_24 = arith.addi %l_a__7_d2_0, %tmp_23 : i32
+			// l_a__7_d2_1 aliased to tmp_24
 			// Assignment Statement: End
-			fifo.print("a1: %i b1: %i\n\00", %tmp_23, %tmp_21) : (i32, i32)
+			fifo.print("a1: %i b1: %i\n\00", %tmp_24, %tmp_22) : (i32, i32)
 			// Foreach Statement: Begin
-			%tmp_24 = arith.constant 0 : i1
-			%tmp_25 = arith.extui %tmp_24 : i1 to i32
-			%tmp_26_lb = index.casts %tmp_25 : i32 to index
-			%tmp_27 = arith.constant 2 : i2
+			%tmp_25 = arith.constant 0 : i1
+			%tmp_26 = arith.extui %tmp_25 : i1 to i32
+			%tmp_27_lb = index.casts %tmp_26 : i32 to index
 			%tmp_28 = arith.constant 2 : i2
 			%tmp_29 = arith.constant 2 : i2
-			%tmp_30 = arith.extui %tmp_28 : i2 to i4
+			%tmp_30 = arith.constant 2 : i2
 			%tmp_31 = arith.extui %tmp_29 : i2 to i4
-			%tmp_32 = arith.muli %tmp_30, %tmp_31 : i4
-			%tmp_33 = arith.extui %tmp_27 : i2 to i5
-			%tmp_34 = arith.extui %tmp_32 : i4 to i5
-			%tmp_35 = arith.addi %tmp_33, %tmp_34 : i5
-			%tmp_36 = arith.extui %tmp_35 : i5 to i32
-			%tmp_37_ub = index.casts %tmp_36 : i32 to index
-			%tmp_38_step = index.constant 1
-			%l_a__7_d2_2, %l_b__8_d2_2 = scf.for %l_j_d2_2 = %tmp_26_lb to %tmp_37_ub step %tmp_38_step
-					iter_args(%l_a__7_d3_0 = %tmp_23, %l_b__8_d3_0 = %tmp_21) -> (i32, i32) {
+			%tmp_32 = arith.extui %tmp_30 : i2 to i4
+			%tmp_33 = arith.muli %tmp_31, %tmp_32 : i4
+			%tmp_34 = arith.extui %tmp_28 : i2 to i5
+			%tmp_35 = arith.extui %tmp_33 : i4 to i5
+			%tmp_36 = arith.addi %tmp_34, %tmp_35 : i5
+			%tmp_37 = arith.extui %tmp_36 : i5 to i32
+			%tmp_38_ub = index.casts %tmp_37 : i32 to index
+			%tmp_39_step = index.constant 1
+			%tmp_40_ub_plus_1 = arith.addi %tmp_38_ub, %tmp_39_step : index
+			%l_a__7_d2_2, %l_b__8_d2_2 = scf.for %l_j_d2_2 = %tmp_27_lb to %tmp_40_ub_plus_1 step %tmp_39_step
+					iter_args(%l_a__7_d3_0 = %tmp_24, %l_b__8_d3_0 = %tmp_22) -> (i32, i32) {
 				%l_j_d3_0 = arith.index_cast %l_j_d2_2 : index to i32
 				// Assignment Statement: Start
-				%tmp_39 = arith.constant 1 : i1
-				%tmp_40 = arith.extui %tmp_39 : i1 to i32
-				%tmp_41 = arith.addi %l_b__8_d3_0, %tmp_40 : i32
-				// l_b__8_d3_1 aliased to tmp_41
+				%tmp_41 = arith.constant 1 : i1
+				%tmp_42 = arith.extui %tmp_41 : i1 to i32
+				%tmp_43 = arith.addi %l_b__8_d3_0, %tmp_42 : i32
+				// l_b__8_d3_1 aliased to tmp_43
 				// Assignment Statement: End
 				// Assignment Statement: Start
-				%tmp_42 = arith.addi %l_a__7_d3_0, %l_j_d3_0 : i32
-				// l_a__7_d3_1 aliased to tmp_42
+				%tmp_44 = arith.addi %l_a__7_d3_0, %l_j_d3_0 : i32
+				// l_a__7_d3_1 aliased to tmp_44
 				// Assignment Statement: End
-				fifo.print("    a2: %i b2: %i\n\00", %tmp_42, %tmp_41) : (i32, i32)
-				scf.yield %tmp_42, %tmp_41 : i32, i32
+				fifo.print("    a2: %i b2: %i\n\00", %tmp_44, %tmp_43) : (i32, i32)
+				scf.yield %tmp_44, %tmp_43 : i32, i32
 			}
 			// Foreach Statement: End
 			scf.yield %l_a__7_d2_2, %l_b__8_d2_2 : i32, i32
@@ -135,8 +137,8 @@ cal.actor @pass ()
 		// Foreach Statement: End
 		fifo.print("a3: %i b3: %i\n\00", %l_a__7_d1_1, %l_b__8_d1_1) : (i32, i32)
 		// Output Expression: Start
-		%tmp_43 = arith.addi %l_a__7_d1_1, %l_b__8_d1_1 : i32
-		fifo.push(%Out: !fifo.input_port<i32>, %tmp_43: i32)
+		%tmp_45 = arith.addi %l_a__7_d1_1, %l_b__8_d1_1 : i32
+		fifo.push(%Out: !fifo.input_port<i32>, %tmp_45: i32)
 		// Output Expression: End
 	}
 }
