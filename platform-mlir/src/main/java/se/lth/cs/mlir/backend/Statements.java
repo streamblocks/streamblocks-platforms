@@ -2,6 +2,7 @@ package se.lth.cs.mlir.backend;
 
 import ch.epfl.vlsc.platformutils.Emitter;
 import ch.epfl.vlsc.platformutils.utils.StackSSA;
+import ch.epfl.vlsc.settings.PlatformSettings;
 import org.multij.Binding;
 import org.multij.BindingKind;
 import org.multij.Module;
@@ -10,8 +11,11 @@ import se.lth.cs.mlir.backend.util.PrintStringResult;
 import se.lth.cs.tycho.attribute.Types;
 import se.lth.cs.tycho.ir.IRNode;
 import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
+import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
+import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.expr.*;
+import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.stmt.*;
 import se.lth.cs.tycho.ir.stmt.lvalue.LValue;
 import se.lth.cs.tycho.ir.stmt.lvalue.LValueIndexer;
@@ -233,7 +237,8 @@ public interface Statements {
             Type outputType = types().type(indexer);
             String rvalueSSATemp = expressioneval().evaluate(assign.getExpression());
             String rvalueSSA = typeseval().castType(inputType, outputType, rvalueSSATemp);
-            String rvalueSSAResized = typeseval().castType(outputType, typeseval().resizeInnerType(outputType), rvalueSSA);
+            String rvalueSSAResized = typeseval().castType(outputType, typeseval().resizeInnerType(outputType),
+                    rvalueSSA);
 
             // 3. Emit the operation that stores the value in the memref
             lists().store(listSSA, rvalueSSAResized, indices, listType);
@@ -249,7 +254,7 @@ public interface Statements {
             if (assignToGlobalState) {
                 String resultSSA = expressioneval().evaluate(assign.getExpression());
                 Type inputType = types().type(assign.getExpression());
-                String resultSSACast = typeseval().castType(inputType , stateType, resultSSA);
+                String resultSSACast = typeseval().castType(inputType, stateType, resultSSA);
                 emitter().emit("cal.set(%%%s: !cal.state_ref<%s>, %%%s: %s)", lvalue, stateTypeString, resultSSACast,
                         stateTypeString);
             } else {
@@ -350,36 +355,39 @@ public interface Statements {
                 generatePrint(call.getArgs().get(0), false);
             }
         } else {
-            throw new UnsupportedOperationException("StmtCall not implemented in MLIR.");
-        }
 
+
+            String proc;
+            List<String> parameters = new ArrayList<>();
+            List<String> parameterTypes = new ArrayList<>();
+
+            Entity entity = backend().entitybox().get();
+            List<AbstractMap.SimpleEntry<String, String>> stateVariablesList = backend().instance().getStateVariableNamesAndTypes(entity);
+            for (AbstractMap.SimpleEntry<String, String> entry : stateVariablesList) {
+                parameters.add("%" +entry.getKey());
+                parameterTypes.add("!cal.state_ref<" + entry.getValue() + ">");
+            }
+
+            ExprVariable variable = (ExprVariable) call.getProcedure();
+            proc = variables().name(variable.getVariable());
+
+            Instance actorInstance = backend().instancebox().get();
+            if(backend().context().getConfiguration().get(PlatformSettings.generateSingleDeclarationPerActor)) {
+                GlobalEntityDecl entityDecl = backend().globalnames().entityDecl(actorInstance.getEntityName(), true);
+                proc = entityDecl.getOriginalName() + "_" + proc;
+            }else{
+                proc = actorInstance.getInstanceName() + "_" + proc;
+            }
+
+            for (Expression parameter : call.getArgs()) {
+                String ssaValue = expressioneval().evaluate(parameter);
+                parameters.add("%" + ssaValue);
+                parameterTypes.add(typeseval().type(types().type(parameter)));
+            }
+
+            emitter().emit("func.call @%s(%s) : (%s) -> ()", proc, String.join(", ", parameters), String.join(", ", parameterTypes));
+        }
         emitter().emit("// Call Statement: End");
-
-        //backend().callablesInActor().procHeader(instanceName, call.getProcedure());
-        /*String proc;
-        List<String> parameters = new ArrayList<>();
-        boolean directlyCallable = backend().callablesInActor().directlyCallable(call.getProcedure());*/
-/*
-        if (directlyCallable.isPresent()) {
-            proc = directlyCallable.get();
-            parameters.add("NULL");
-        } else {
-            String name = expressioneval().evaluate(call.getProcedure());
-            proc = name + ".f";
-            parameters.add(name + ".env");
-        }*/
-
-       /* if (!directlyCallable) {
-            parameters.add("thisActor");
-        }
-        proc = expressioneval().evaluateCall(call.getProcedure());
-
-        for (Expression parameter : call.getArgs()) {
-            parameters.add(expressioneval().evaluate(parameter));
-        }
-
-        emitter().emit("%s(%s);", proc, String.join(", ", parameters));
-        profilingOp().add("__opCounters->prof_DATAHANDLING_CALL += 1;");*/
     }
 
     /**
@@ -398,9 +406,9 @@ public interface Statements {
                 ", %" + String.join(", %", toPrint.ssaValues);
 
         String typeSignature = toPrint.types.isEmpty() ? "" :
-                ": (" + String.join(", ", toPrint.types) + ")";
+                " : (" + String.join(", ", toPrint.types) + ")";
 
-        emitter().emit("fifo.print(\"%s\\00\"%s) %s", formatString, ssaArgs, typeSignature);
+        emitter().emit("fifo.print(\"%s\\00\"%s)%s", formatString, ssaArgs, typeSignature);
     }
 
 
@@ -646,19 +654,20 @@ public interface Statements {
         Type initalValueType = types().type(rangeExpr.getOperands().get(0));
         String initialValue = expressioneval().evaluate(rangeExpr.getOperands().get(0));
         Type signed32Type = new IntType(OptionalInt.of(32), true);
-        String initialValueCast_i32 = typeseval().castType(initalValueType,  signed32Type , initialValue);
+        String initialValueCast_i32 = typeseval().castType(initalValueType, signed32Type, initialValue);
         String initialValueCast_index = ssaValueNumberingStack().getNewTempVar() + "_lb";
         emitter().emit("%%%s = index.casts %%%s : i32 to index", initialValueCast_index, initialValueCast_i32);
 
         Type finalValueType = types().type(rangeExpr.getOperands().get(1));
         String finalValue = expressioneval().evaluate(rangeExpr.getOperands().get(1));
-        String finalValueCast_i32 = typeseval().castType(finalValueType,  signed32Type , finalValue);
+        String finalValueCast_i32 = typeseval().castType(finalValueType, signed32Type, finalValue);
         String finalValueCast_index = ssaValueNumberingStack().getNewTempVar() + "_ub";
         emitter().emit("%%%s = index.casts %%%s : i32 to index", finalValueCast_index, finalValueCast_i32);
         String stepValue = ssaValueNumberingStack().getNewTempVar() + "_step";
         emitter().emit("%%%s = index.constant 1", stepValue);
         String finalValueCast_index_plus1 = ssaValueNumberingStack().getNewTempVar() + "_ub_plus_1";
-        emitter().emit("%%%s = arith.addi %%%s, %%%s : index", finalValueCast_index_plus1, finalValueCast_index, stepValue);
+        emitter().emit("%%%s = arith.addi %%%s, %%%s : index", finalValueCast_index_plus1, finalValueCast_index,
+                stepValue);
 
         // Generate the return arguments and the arguments passed in and the initial values of the arguments
         List<LValue> assignedVars = getConditionalReturnLvalues(foreach);
@@ -689,7 +698,8 @@ public interface Statements {
             emitter().emit("scf.for %%%s = %%%s to %%%s step %%%s", loopIndexVariableSSA, initialValueCast_index,
                     finalValueCast_index_plus1, stepValue);
         } else {
-            emitter().emit("%s = scf.for %%%s = %%%s to %%%s step %%%s", forReturnValues, loopIndexVariableSSA, initialValueCast_index,
+            emitter().emit("%s = scf.for %%%s = %%%s to %%%s step %%%s", forReturnValues, loopIndexVariableSSA,
+                    initialValueCast_index,
                     finalValueCast_index_plus1, stepValue);
         }
         emitter().emit("\t\titer_args(%s) -> (%s) {", inputToArgumentString, returnValuesTypes);
@@ -698,9 +708,10 @@ public interface Statements {
         // We need to cast loop index variable to the correct type as it is now currently an index
         String loopIndexVariableSSA_i32 = ssaValueNumberingStack().getVarToBeAssignedTo(loopIndexVariableName);
         emitter().emit("%%%s = arith.index_cast %%%s : index to i32", loopIndexVariableSSA_i32, loopIndexVariableSSA);
-        if(!signed32Type.equals(loopIndexVariableType) && typeseval().canCastFromI32(loopIndexVariableType)){
+        if (!signed32Type.equals(loopIndexVariableType) && typeseval().canCastFromI32(loopIndexVariableType)) {
             String loopIndexVariable_correctType = ssaValueNumberingStack().getVarToBeAssignedTo(loopIndexVariableName);
-            typeseval().castInt(signed32Type, loopIndexVariableType, loopIndexVariableSSA_i32, loopIndexVariable_correctType);
+            typeseval().castInt(signed32Type, loopIndexVariableType, loopIndexVariableSSA_i32,
+                    loopIndexVariable_correctType);
         }
 
         // Print out the statements in the loop body

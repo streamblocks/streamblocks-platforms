@@ -1,0 +1,72 @@
+// Expected Output
+// Tx: 1
+// TempIn: 0 1
+// Here!
+// TempOut: 12 1
+// TempIn: 0 1
+// Here!
+// TempOut: 13 1
+// Rx: 1
+// Tx: 2
+// TempIn: 12 2
+// Here!
+// TempOut: 24 2
+// TempIn: 13 2
+// Here!
+// TempOut: 26 2
+// Rx: 2
+
+
+namespace simple:
+    actor ProcedureCaller(int test) int In ==> int Out:
+
+        int temp := 0;
+        int temp1 := 10;
+
+        procedure processRxItem(int dataItem)
+        var
+            int tempOut := 1
+        begin
+            temp := temp + tempOut + dataItem + test;
+            println("Here!");
+        end
+
+        action In:[t] ==> Out:[t]
+        do
+            println("TempIn: " + temp + " " + t);
+            processRxItem(temp1);
+            println("TempOut: " + temp + " " + t);
+        end
+    end
+
+    actor Source(int payload_size) ==> int Out:
+        int counter := 0;
+        transmit: action ==> Out:[t]
+        guard counter < payload_size
+        var t := counter
+        do
+            t :=  t+1;
+            println("Tx: " + t);
+            counter := counter + 1;
+        end
+    end
+
+    actor Sink() int In ==>:
+        action In:[t] ==>
+        do
+            println("Rx: " + t);
+        end
+    end
+
+    network Top() ==> :
+    entities
+            source = Source(payload_size = 2);
+            DUT1  = ProcedureCaller(test = 1) {};
+            DUT2  = ProcedureCaller(test = 2) {};
+            sink = Sink();
+    structure
+            source.Out --> DUT1.In { bufferSize = 1; };
+            DUT1.Out --> DUT2.In { bufferSize = 1; };
+            DUT2.Out --> sink.In { bufferSize = 1; } ;
+    end
+end

@@ -1,0 +1,6 @@
+{
+  "description": "Test defining and calling procedures in actors",
+  "cal-file": "2_local_procedure.cal",
+  "mlir-file": "2_local_procedure.mlir",
+  "entity": "simple.Top"
+}

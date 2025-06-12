@@ -95,12 +95,7 @@ public interface CallablesInActors {
      */
 
     default void callableDefinition(String instanceName, ExprProc proc) {
-        throw new UnsupportedOperationException("Procedures not yet supported in MLIR backend");
-        /*backend().emitter().emit("%s {", procHeader(instanceName, proc));
-        backend().emitter().increaseIndentation();
-        proc.getBody().forEach(backend().statements()::execute);
-        backend().emitter().decreaseIndentation();
-        backend().emitter().emit("}");*/
+        throw new UnsupportedOperationException("This logic has been implemented somewhere else for ExprProcs");
     }
 
     default void callablePrototypes(String instanceName, IRNode callable) {
@@ -126,22 +121,23 @@ public interface CallablesInActors {
      */
     default String callableHeader(String instanceName, String name, CallableType type, List<String> parameterNames,
                                   boolean withEnv) {
-        List<String> parameters = new ArrayList<>();
-        if (withEnv) {
-            parameters.add(String.format("%s *thisActor", "ActorInstance_" + instanceName));
-        }
-        assert parameterNames.size() == type.getParameterTypes().size();
-        for (int i = 0; i < parameterNames.size(); i++) {
-            parameters.add(backend().declarations().declarationParameter(type.getParameterTypes().get(i),
-                    parameterNames.get(i)));
-        }
-
-        String result = backend().typeseval().type(type.getReturnType());
-        result += " ";
-        result += name;
-        result += "(";
-        result += String.join(", ", parameters);
-        result += ")";
+//        List<String> parameters = new ArrayList<>();
+//        if (withEnv) {
+//            parameters.add(String.format("%s *thisActor", "ActorInstance_" + instanceName));
+//        }
+//        assert parameterNames.size() == type.getParameterTypes().size();
+//        for (int i = 0; i < parameterNames.size(); i++) {
+//            parameters.add(backend().declarations().declarationParameter(type.getParameterTypes().get(i),
+//                    parameterNames.get(i)));
+//        }
+//
+//        String result = backend().typeseval().type(type.getReturnType());
+//        result += " ";
+//        result += name;
+//        result += "(";
+//        result += String.join(", ", parameters);
+//        result += ")";
+        String result = "func.func @" + instanceName + "_" + name + "() -> () {}";
         return result;
     }
 

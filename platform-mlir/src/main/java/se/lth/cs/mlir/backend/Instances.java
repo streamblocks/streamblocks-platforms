@@ -13,11 +13,9 @@ import se.lth.cs.tycho.ir.QID;
 import se.lth.cs.tycho.ir.decl.GlobalEntityDecl;
 import se.lth.cs.tycho.ir.decl.InputVarDecl;
 import se.lth.cs.tycho.ir.decl.LocalVarDecl;
-import se.lth.cs.tycho.ir.decl.VarDecl;
+import se.lth.cs.tycho.ir.decl.ParameterVarDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
-import se.lth.cs.tycho.ir.entity.am.ActorMachine;
-import se.lth.cs.tycho.ir.entity.am.Scope;
 import se.lth.cs.tycho.ir.entity.cal.*;
 import se.lth.cs.tycho.ir.expr.ExprLambda;
 import se.lth.cs.tycho.ir.expr.ExprProc;
@@ -136,7 +134,10 @@ public interface Instances {
         String outputPortString = outputPortNamesTypes.stream().map(x -> "%" + x._1 + ": !fifo.input_port<" + x._2 +
                 ">").collect(Collectors.joining(","));
 
-        // 1. Declare the actor
+        // 1. Generate the callables such as functions and procedures - this has to be outside of the actor declaration
+        genCallables(entityDecl.getEntity());
+
+        // 2. Declare the actor
         emitter().emit("//-- Definition of actor class: %s", entityClass);
         if (backend().context().getConfiguration().get(PlatformSettings.generateSingleDeclarationPerActor)) {
             emitter().emit("cal.actor @" + entityClass + " ()");
@@ -152,11 +153,8 @@ public interface Instances {
         emitter().emit("{");
         emitter().increaseIndentation();
 
-        // 2. Generate the actions of the actor
-        genActions(entityDecl.getEntity());
-
-        // 3. Generate the callables such as functions and procedures
-        // genCallables(entityName, entityDecl.getEntity());
+        // 3. Generate the actions of the actor
+        genActorBody(entityDecl.getEntity());
 
         // 4. Close the actor
         emitter().decreaseIndentation();
@@ -166,9 +164,9 @@ public interface Instances {
         backend().entitybox().clear();
     }
 
-    void genActions(Entity entity);
+    void genActorBody(Entity entity);
 
-    default void genActions(CalActor actor) {
+    default void genActorBody(CalActor actor) {
         emitter().emit("// -- Actor body");
 
         ssaValueNumberingStack().newActorContext();
@@ -194,8 +192,11 @@ public interface Instances {
             priority--;
         }
 
+        // Generate the state variables
         for (LocalVarDecl decl : actor.getVarDecls()) {
-            statements().emitStateVarDecl(decl);
+            if (!(decl.getValue() instanceof ExprProc) && !(decl.getValue() instanceof ExprLambda)) {
+                statements().emitStateVarDecl(decl);
+            }
         }
 
         for (Action action : actor.getActions()) {
@@ -353,7 +354,8 @@ public interface Instances {
                     }
                 }
 
-                emitter().emit("fifo.push(%%%s: !fifo.input_port<%s>, %%%s: %s)", portName, portTypeStr, ssaToPush, portTypeStr);
+                emitter().emit("fifo.push(%%%s: !fifo.input_port<%s>, %%%s: %s)", portName, portTypeStr, ssaToPush,
+                        portTypeStr);
             }
 
         } else {
@@ -471,28 +473,72 @@ public interface Instances {
     /*
      * Callables are things like CAL functions, procedures or lambdas that can be called from a statement
      */
-    void genCallables(String instanceName, Entity entity);
+    void genCallables(Entity entity);
 
 
-    default void genCallables(String instanceName, ActorMachine am) {
-        boolean hasCallables = false;
+    default void genCallables(CalActor actor) {
+        for (LocalVarDecl decl : actor.getVarDecls()) {
+            if (decl.getValue() instanceof ExprProc) {
+                ExprProc proc = (ExprProc) decl.getValue();
+                ssaValueNumberingStack().newActorContext();
+                ssaValueNumberingStack().newBlock();
 
-        for (Scope scope : am.getScopes()) {
-            if (scope.isPersistent()) {
-                for (VarDecl decl : scope.getDeclarations()) {
-                    if (decl.getValue() != null) {
-                        Expression expr = decl.getValue();
-                        if (expr instanceof ExprLambda || expr instanceof ExprProc) {
-                            if (!hasCallables) {
-                                hasCallables = true;
-                                emitter().emit("// -- Callables");
-                            }
-                            backend().callablesInActor().callableDefinition(instanceName, expr);
-                            emitter().emitNewLine();
-                        }
-                    }
+                List<String> parameters = new ArrayList<>();
+
+                List<AbstractMap.SimpleEntry<String, String>> stateVariablesList = getStateVariableNamesAndTypes(actor);
+                for (AbstractMap.SimpleEntry<String, String> entry : stateVariablesList) {
+                    ssaValueNumberingStack().setStateVar(entry.getKey(), entry.getValue());
+                    parameters.add("%" + entry.getKey() + ": !cal.state_ref<" + entry.getValue() + ">");
                 }
+
+                for (ParameterVarDecl paramDecl : proc.getValueParameters()) {
+                    String paramName = backend().variables().declarationName(paramDecl);
+                    String paramType = backend().typeseval().type(backend().types().declaredType(paramDecl));
+                    String ssaValue = ssaValueNumberingStack().getVarToBeAssignedTo(paramName);
+                    parameters.add("%" + ssaValue + ": " + paramType);
+                }
+
+
+                String instanceName = backend().variables().declarationName(decl);
+                Instance actorInstance = backend().instancebox().get();
+                if(backend().context().getConfiguration().get(PlatformSettings.generateSingleDeclarationPerActor)) {
+                    GlobalEntityDecl entityDecl = globalnames().entityDecl(actorInstance.getEntityName(), true);
+                    instanceName = entityDecl.getOriginalName() + "_" + instanceName;
+                }else{
+                    instanceName = actorInstance.getInstanceName() + "_" + instanceName;
+                }
+
+                String result = "func.func @" + instanceName + "(" + String.join(", ", parameters) + ") {";
+                backend().emitter().emit("%s", result);
+                backend().emitter().increaseIndentation();
+                proc.getBody().forEach(backend().statements()::execute);
+                backend().emitter().emit("func.return");
+                backend().emitter().decreaseIndentation();
+                backend().emitter().emit("}");
+
+                ssaValueNumberingStack().blockDone();
+
+                emitter().emit("");
             }
         }
+    }
+
+    default List<AbstractMap.SimpleEntry<String, String>> getStateVariableNamesAndTypes(CalActor actor) {
+        List<AbstractMap.SimpleEntry<String, String>> list = new ArrayList<>();
+
+        for (LocalVarDecl decl : actor.getVarDecls()) {
+            if (!(decl.getValue() instanceof ExprProc) && !(decl.getValue() instanceof ExprLambda)) {
+                Type t = types().declaredType(decl);
+                String declarationName = backend().variables().declarationName(decl);
+                String typeString = typeseval().type(t);
+                list.add(new AbstractMap.SimpleEntry<>(declarationName, typeString));
+            }
+        }
+
+        return list;
+    }
+
+    default List<AbstractMap.SimpleEntry<String, String>> getStateVariableNamesAndTypes(Entity entity) {
+        throw new UnsupportedOperationException("getStateVariableNamesAndTypes not implemented for type: " + entity);
     }
 }
