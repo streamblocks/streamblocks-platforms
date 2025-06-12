@@ -30,7 +30,9 @@ cal.actor @source ()
 		%tmp_9 = arith.addi %tmp_6, %tmp_8 : i32
 		// l_t__3_d1_1 aliased to tmp_9
 		// Assignment Statement: End
+		// Call Statement: Start
 		fifo.print("Tx: %i\n\00", %tmp_9) : (i32)
+		// Call Statement: End
 		// Assignment Statement: Start
 		%tmp_10 = cal.get(%l_counter__2: !cal.state_ref<i32>) : i32
 		%tmp_11 = arith.constant 1 : i1
@@ -78,28 +80,36 @@ cal.actor @pass ()
 		%tmp_16 = arith.addi %tmp_13, %tmp_15 : i32
 		// l_x__7_d1_1 aliased to tmp_16
 		// Assignment Statement: End
+		// Call Statement: Start
 		fifo.print("%i\n\00", %tmp_16) : (i32)
+		// Call Statement: End
 		// Assignment Statement: Start
 		%tmp_17 = arith.constant 2 : i2
 		%tmp_18 = arith.extui %tmp_17 : i2 to i32
 		%tmp_19 = arith.subi %tmp_16, %tmp_18 : i32
 		// l_x__7_d1_2 aliased to tmp_19
 		// Assignment Statement: End
+		// Call Statement: Start
 		fifo.print("%i\n\00", %tmp_19) : (i32)
+		// Call Statement: End
 		// Assignment Statement: Start
 		%tmp_20 = arith.constant 10 : i4
 		%tmp_21 = arith.extui %tmp_20 : i4 to i32
 		%tmp_22 = arith.muli %tmp_19, %tmp_21 : i32
 		// l_x__7_d1_3 aliased to tmp_22
 		// Assignment Statement: End
+		// Call Statement: Start
 		fifo.print("%i\n\00", %tmp_22) : (i32)
+		// Call Statement: End
 		// Assignment Statement: Start
 		%tmp_23 = arith.constant 2 : i2
 		%tmp_24 = arith.extui %tmp_23 : i2 to i32
 		%tmp_25 = arith.divsi %tmp_22, %tmp_24 : i32
 		// l_x__7_d1_4 aliased to tmp_25
 		// Assignment Statement: End
+		// Call Statement: Start
 		fifo.print("%i\n\00", %tmp_25) : (i32)
+		// Call Statement: End
 		// Assignment Statement: Start
 		%tmp_26 = arith.constant 4 : i3
 		%tmp_27 = arith.trunci %tmp_25 : i32 to i3
@@ -107,21 +117,27 @@ cal.actor @pass ()
 		%tmp_29 = arith.extui %tmp_28 : i3 to i32
 		// l_x__7_d1_5 aliased to tmp_29
 		// Assignment Statement: End
+		// Call Statement: Start
 		fifo.print("%i\n\00", %tmp_29) : (i32)
+		// Call Statement: End
 		// Assignment Statement: Start
 		%tmp_30 = arith.constant 1 : i1
 		%tmp_31 = arith.extui %tmp_30 : i1 to i32
 		%tmp_32 = arith.shrsi %tmp_29, %tmp_31 : i32
 		// l_x__7_d1_6 aliased to tmp_32
 		// Assignment Statement: End
+		// Call Statement: Start
 		fifo.print("%i\n\00", %tmp_32) : (i32)
+		// Call Statement: End
 		// Assignment Statement: Start
 		%tmp_33 = arith.constant 6 : i3
 		%tmp_34 = arith.extui %tmp_33 : i3 to i32
 		%tmp_35 = arith.ori %tmp_32, %tmp_34 : i32
 		// l_x__7_d1_7 aliased to tmp_35
 		// Assignment Statement: End
+		// Call Statement: Start
 		fifo.print("%i\n\00", %tmp_35) : (i32)
+		// Call Statement: End
 		// Assignment Statement: Start
 		%tmp_36 = arith.constant 5 : i3
 		%tmp_37 = arith.trunci %tmp_35 : i32 to i3
@@ -129,14 +145,18 @@ cal.actor @pass ()
 		%tmp_39 = arith.extui %tmp_38 : i3 to i32
 		// l_x__7_d1_8 aliased to tmp_39
 		// Assignment Statement: End
+		// Call Statement: Start
 		fifo.print("%i\n\00", %tmp_39) : (i32)
+		// Call Statement: End
 		// Assignment Statement: Start
 		%tmp_40 = arith.constant 1 : i1
 		%tmp_41 = arith.extui %tmp_40 : i1 to i32
 		%tmp_42 = arith.shli %tmp_39, %tmp_41 : i32
 		// l_x__7_d1_9 aliased to tmp_42
 		// Assignment Statement: End
+		// Call Statement: Start
 		fifo.print("%i\n\00", %tmp_42) : (i32)
+		// Call Statement: End
 		// Output Expression: Start
 		fifo.push(%Out: !fifo.input_port<i32>, %tmp_42: i32)
 		// Output Expression: End
@@ -153,7 +173,9 @@ cal.actor @sink ()
 		// Input Pattern: Start
 		%l_t__9_d1_0 = fifo.pop(%In: !fifo.output_port<i32>) : i32
 		// Input Pattern: End
+		// Call Statement: Start
 		fifo.print("Rx: %i\n\00", %l_t__9_d1_0) : (i32)
+		// Call Statement: End
 	}
 }
 

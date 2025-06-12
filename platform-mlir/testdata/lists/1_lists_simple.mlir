@@ -38,7 +38,9 @@ cal.actor @source ()
 		%tmp_15 = arith.addi %tmp_12, %tmp_14 : i32
 		// l_t__4_d1_1 aliased to tmp_15
 		// Assignment Statement: End
+		// Call Statement: Start
 		fifo.print("Tx1: %i\n\00", %tmp_15) : (i32)
+		// Call Statement: End
 		// Assignment Statement: Start
 		%tmp_16 = cal.get(%l_counter__3: !cal.state_ref<i32>) : i32
 		%tmp_17 = arith.constant 1 : i1
@@ -107,17 +109,21 @@ cal.actor @DUT ()
 		%tmp_22 = arith.constant 0 : i1
 		%tmp_23 = arith.extui %tmp_22 : i1 to i32
 		%tmp_24 = arith.index_cast %tmp_23: i32 to index
+		%tmp_25 = memref.load %l_list__9_d1_0[%tmp_24] : memref<4xi32>
 		%tmp_26 = arith.constant 1 : i1
 		%tmp_27 = arith.extui %tmp_26 : i1 to i32
 		%tmp_28 = arith.index_cast %tmp_27: i32 to index
+		%tmp_29 = memref.load %l_list__9_d1_0[%tmp_28] : memref<4xi32>
 		%tmp_30 = arith.addi %tmp_25, %tmp_29 : i32
 		%tmp_31 = arith.constant 2 : i2
 		%tmp_32 = arith.extui %tmp_31 : i2 to i32
 		%tmp_33 = arith.index_cast %tmp_32: i32 to index
+		%tmp_34 = memref.load %l_list__9_d1_0[%tmp_33] : memref<4xi32>
 		%tmp_35 = arith.addi %tmp_30, %tmp_34 : i32
 		%tmp_36 = arith.constant 3 : i2
 		%tmp_37 = arith.extui %tmp_36 : i2 to i32
 		%tmp_38 = arith.index_cast %tmp_37: i32 to index
+		%tmp_39 = memref.load %l_list__9_d1_0[%tmp_38] : memref<4xi32>
 		%tmp_40 = arith.addi %tmp_35, %tmp_39 : i32
 		%tmp_41 = arith.constant 4 : i32
 		%tmp_42 = arith.addi %tmp_40, %tmp_41 : i32
@@ -140,7 +146,9 @@ cal.actor @sink ()
 		// Input Pattern: Start
 		%l_t__11_d1_0 = fifo.pop(%In: !fifo.output_port<i32>) : i32
 		// Input Pattern: End
+		// Call Statement: Start
 		fifo.print("Rx: %i\n\00", %l_t__11_d1_0) : (i32)
+		// Call Statement: End
 	}
 }
 

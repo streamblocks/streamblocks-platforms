@@ -339,6 +339,7 @@ public interface Statements {
      * Any other procedure call will result in an UnsupportedOperationException.
      */
     default void execute(StmtCall call) {
+        emitter().emit("// Call Statement: Start");
 
         if (call.getProcedure() instanceof ExprGlobalVariable) {
             ExprGlobalVariable variable = (ExprGlobalVariable) call.getProcedure();
@@ -351,6 +352,8 @@ public interface Statements {
         } else {
             throw new UnsupportedOperationException("StmtCall not implemented in MLIR.");
         }
+
+        emitter().emit("// Call Statement: End");
 
         //backend().callablesInActor().procHeader(instanceName, call.getProcedure());
         /*String proc;

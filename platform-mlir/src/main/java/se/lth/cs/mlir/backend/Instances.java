@@ -362,7 +362,6 @@ public interface Instances {
                 String tokenSSAName = expressioneval().evaluate(expr);
                 Type exprType = types().type(expr);
                 String castTokenSSA = typeseval().castType(exprType, portType, tokenSSAName);
-
                 emitter().emit("fifo.push(%%%s: !fifo.input_port<%s>, %%%s: %s)", portName, portTypeStr, castTokenSSA
                         , portTypeStr);
             }

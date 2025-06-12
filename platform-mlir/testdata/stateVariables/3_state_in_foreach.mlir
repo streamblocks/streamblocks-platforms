@@ -24,7 +24,9 @@ cal.actor @source ()
 		%tmp_6 = cal.get(%l_counter__2: !cal.state_ref<i32>) : i32
 		// l_t__3_d1_0 aliased to tmp_6
 		// Action Local Variable Decl: End
+		// Call Statement: Start
 		fifo.print("Tx: %i\n\00", %tmp_6) : (i32)
+		// Call Statement: End
 		// Assignment Statement: Start
 		%tmp_7 = cal.get(%l_counter__2: !cal.state_ref<i32>) : i32
 		%tmp_8 = arith.constant 1 : i1
@@ -83,9 +85,13 @@ cal.actor @DUT ()
 			%tmp_18 = arith.addi %tmp_15, %tmp_17 : i32
 			cal.set(%l_b__7: !cal.state_ref<i32>, %tmp_18: i32)
 			// Assignment Statement: End
+			// Call Statement: Start
 			fifo.print("a: %i\n\00", %tmp_14) : (i32)
+			// Call Statement: End
+			// Call Statement: Start
 			%tmp_19 = cal.get(%l_b__7: !cal.state_ref<i32>) : i32
 			fifo.print("b: %i\n\00", %tmp_19) : (i32)
+			// Call Statement: End
 			scf.yield %tmp_14 : i32
 		}
 		// Foreach Statement: End
@@ -105,7 +111,9 @@ cal.actor @sink ()
 		// Input Pattern: Start
 		%l_t__5_d1_0 = fifo.pop(%In: !fifo.output_port<i32>) : i32
 		// Input Pattern: End
+		// Call Statement: Start
 		fifo.print("Rx: %i\n\00", %l_t__5_d1_0) : (i32)
+		// Call Statement: End
 	}
 }
 

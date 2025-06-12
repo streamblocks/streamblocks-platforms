@@ -32,7 +32,9 @@ cal.actor @source1 ()
 		%tmp_12 = arith.addi %tmp_6, %tmp_11 : i32
 		// l_t__8_d1_0 aliased to tmp_12
 		// Action Local Variable Decl: End
+		// Call Statement: Start
 		fifo.print("Src: 1 %i\n\00", %tmp_12) : (i32)
+		// Call Statement: End
 		// Assignment Statement: Start
 		%tmp_13 = cal.get(%l_counter__7: !cal.state_ref<i32>) : i32
 		%tmp_14 = arith.constant 1 : i1
@@ -80,7 +82,9 @@ cal.actor @source2 ()
 		%tmp_12 = arith.addi %tmp_6, %tmp_11 : i32
 		// l_t__10_d1_0 aliased to tmp_12
 		// Action Local Variable Decl: End
+		// Call Statement: Start
 		fifo.print("Src: 2 %i\n\00", %tmp_12) : (i32)
+		// Call Statement: End
 		// Assignment Statement: Start
 		%tmp_13 = cal.get(%l_counter__9: !cal.state_ref<i32>) : i32
 		%tmp_14 = arith.constant 1 : i1
@@ -128,7 +132,9 @@ cal.actor @source3 ()
 		%tmp_12 = arith.addi %tmp_6, %tmp_11 : i32
 		// l_t__12_d1_0 aliased to tmp_12
 		// Action Local Variable Decl: End
+		// Call Statement: Start
 		fifo.print("Src: 3 %i\n\00", %tmp_12) : (i32)
+		// Call Statement: End
 		// Assignment Statement: Start
 		%tmp_13 = cal.get(%l_counter__11: !cal.state_ref<i32>) : i32
 		%tmp_14 = arith.constant 1 : i1
@@ -187,7 +193,9 @@ cal.actor @sink ()
 		// Input Pattern: Start
 		%l_t__23_d1_0 = fifo.pop(%In: !fifo.output_port<i32>) : i32
 		// Input Pattern: End
+		// Call Statement: Start
 		fifo.print("Rx: %i\n\00", %l_t__23_d1_0) : (i32)
+		// Call Statement: End
 	}
 }
 

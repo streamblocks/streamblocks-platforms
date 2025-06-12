@@ -38,7 +38,9 @@ cal.actor @source ()
 		%tmp_15 = arith.addi %tmp_12, %tmp_14 : i32
 		// l_t__8_d1_1 aliased to tmp_15
 		// Assignment Statement: End
+		// Call Statement: Start
 		fifo.print("Tx0: %i\n\00", %tmp_15) : (i32)
+		// Call Statement: End
 		// Assignment Statement: Start
 		%tmp_16 = cal.get(%l_counter__7: !cal.state_ref<i32>) : i32
 		%tmp_17 = arith.constant 1 : i1
@@ -134,7 +136,9 @@ cal.actor @sink ()
 		// Input Pattern: Start
 		%l_t__5_d1_0 = fifo.pop(%In: !fifo.output_port<i32>) : i32
 		// Input Pattern: End
+		// Call Statement: Start
 		fifo.print("Rx0: %i\n\00", %l_t__5_d1_0) : (i32)
+		// Call Statement: End
 	}
 }
 

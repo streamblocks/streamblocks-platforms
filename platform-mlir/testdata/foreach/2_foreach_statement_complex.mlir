@@ -30,7 +30,9 @@ cal.actor @source ()
 		%tmp_9 = arith.addi %tmp_6, %tmp_8 : i32
 		// l_t__3_d1_1 aliased to tmp_9
 		// Assignment Statement: End
+		// Call Statement: Start
 		fifo.print("Tx: %i\n\00", %tmp_9) : (i32)
+		// Call Statement: End
 		// Assignment Statement: Start
 		%tmp_10 = cal.get(%l_counter__2: !cal.state_ref<i32>) : i32
 		%tmp_11 = arith.constant 1 : i1
@@ -97,7 +99,9 @@ cal.actor @pass ()
 			%tmp_24 = arith.addi %l_a__7_d2_0, %tmp_23 : i32
 			// l_a__7_d2_1 aliased to tmp_24
 			// Assignment Statement: End
+			// Call Statement: Start
 			fifo.print("a1: %i b1: %i\n\00", %tmp_24, %tmp_22) : (i32, i32)
+			// Call Statement: End
 			// Foreach Statement: Begin
 			%tmp_25 = arith.constant 0 : i1
 			%tmp_26 = arith.extui %tmp_25 : i1 to i32
@@ -128,14 +132,18 @@ cal.actor @pass ()
 				%tmp_44 = arith.addi %l_a__7_d3_0, %l_j_d3_0 : i32
 				// l_a__7_d3_1 aliased to tmp_44
 				// Assignment Statement: End
+				// Call Statement: Start
 				fifo.print("    a2: %i b2: %i\n\00", %tmp_44, %tmp_43) : (i32, i32)
+				// Call Statement: End
 				scf.yield %tmp_44, %tmp_43 : i32, i32
 			}
 			// Foreach Statement: End
 			scf.yield %l_a__7_d2_2, %l_b__8_d2_2 : i32, i32
 		}
 		// Foreach Statement: End
+		// Call Statement: Start
 		fifo.print("a3: %i b3: %i\n\00", %l_a__7_d1_1, %l_b__8_d1_1) : (i32, i32)
+		// Call Statement: End
 		// Output Expression: Start
 		%tmp_45 = arith.addi %l_a__7_d1_1, %l_b__8_d1_1 : i32
 		fifo.push(%Out: !fifo.input_port<i32>, %tmp_45: i32)
@@ -153,7 +161,9 @@ cal.actor @sink ()
 		// Input Pattern: Start
 		%l_t__10_d1_0 = fifo.pop(%In: !fifo.output_port<i32>) : i32
 		// Input Pattern: End
+		// Call Statement: Start
 		fifo.print("Rx: %i\n\00", %l_t__10_d1_0) : (i32)
+		// Call Statement: End
 	}
 }
 
