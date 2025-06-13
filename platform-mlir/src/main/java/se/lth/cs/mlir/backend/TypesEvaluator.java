@@ -219,6 +219,13 @@ public interface TypesEvaluator {
         return inputSSA;
     }
 
+    default String castType(RealType fromType, RealType toType, String inputSSA) {
+        if (fromType.getSize() == toType.getSize())
+            return inputSSA;
+        else
+            throw new Error("Type conversion not implemented from " + fromType + " to " + toType);
+    }
+
     default String castType(IntType fromType, IntType toType, String inputSSA) {
         if (fromType.getSize().orElse(32) == toType.getSize().orElse(32)) {
             // 1. If the from and to type is the same, do nothing
@@ -230,7 +237,31 @@ public interface TypesEvaluator {
         }
     }
 
-    default void castInt(IntType fromType, IntType toType, String inputSSA, String outputSSA){
+    default String castType(IntType fromType, RealType toType, String inputSSA) {
+        String outputSSA = ssaValueNumberingStack().getNewTempVar();
+        if(fromType.isSigned()){
+            emitter().emit("%%%s = arith.sitofp %%%s : %s to %s", outputSSA, inputSSA, type(fromType),
+                    type(toType));
+        }else{
+            emitter().emit("%%%s = arith.uitofp %%%s : %s to %s", outputSSA, inputSSA, type(fromType),
+                    type(toType));
+        }
+        return outputSSA;
+    }
+
+    default String castType(RealType fromType, IntType toType, String inputSSA) {
+        String outputSSA = ssaValueNumberingStack().getNewTempVar();
+        if(toType.isSigned()){
+            emitter().emit("%%%s = arith.fptosi %%%s : %s to %s", outputSSA, inputSSA, type(fromType),
+                    type(toType));
+        }else{
+            emitter().emit("%%%s = arith.fptoui %%%s : %s to %s", outputSSA, inputSSA, type(fromType),
+                    type(toType));
+        }
+        return outputSSA;
+    }
+
+    default void castInt(IntType fromType, IntType toType, String inputSSA, String outputSSA) {
         // 1. Sign extend if the destination is greater than the source
         if (toType.getSize().orElse(32) >= fromType.getSize().orElse(32)) {
             // 1.1 Commands are different based on the sign
@@ -247,27 +278,28 @@ public interface TypesEvaluator {
         }
     }
 
-    default void castInt(Type fromType, Type toType, String inputSSA, String outputSSA){
+    default void castInt(Type fromType, Type toType, String inputSSA, String outputSSA) {
         throw new Error("Expected both types to be int type. Got LHS: " + fromType + " and RHS: " + toType);
     }
 
-    default boolean canCastFromI32(Type toType){
+    default boolean canCastFromI32(Type toType) {
         throw new Error("Expected type to be int type. Got: " + toType);
     }
 
-    default boolean canCastFromI32(IntType toType){
+    default boolean canCastFromI32(IntType toType) {
         boolean isI32 = toType.getSize().orElse(32) == 32;
         return !isI32;
     }
 
-    default boolean mustCastInt(Type fromType, Type toType){
+    default boolean mustCastInt(Type fromType, Type toType) {
         throw new Error("Expected types to be int type. Got: " + fromType + " and " + toType);
     }
 
-    default boolean mustCastInt(IntType fromType, IntType toType){
+    default boolean mustCastInt(IntType fromType, IntType toType) {
         // 1. If the from and to type is the same, do nothing
         return fromType.getSize().orElse(32) != toType.getSize().orElse(32);
     }
+
 
     default String castType(ListType fromType, ListType toType, String listNameSSA) {
         List<Integer> fromListDimension = sizeByDimension(fromType);

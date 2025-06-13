@@ -1,0 +1,6 @@
+{
+  "description": "Check that type conversion between fp and int types occurs correctly.",
+  "cal-file": "4_expr_mixed_fp_and_int.cal",
+  "mlir-file": "4_expr_mixed_fp_and_int.mlir",
+  "entity": "simple.Top"
+}

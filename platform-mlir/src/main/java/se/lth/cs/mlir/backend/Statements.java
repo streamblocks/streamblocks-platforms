@@ -988,13 +988,19 @@ public interface Statements {
      */
     default void defaultInitialise(Type lvalueType, String lvalueString) {
         throw new UnsupportedOperationException(lvalueType.getClass().toString() + " has no defaultInitialise " +
-                "function set.");
+                "function defined.");
     }
 
     default void defaultInitialise(IntType lvalueType, String lvalueString) {
         String typeString = typeseval().type(lvalueType);
         String lvalueSSA = ssaValueNumberingStack().getVarToBeAssignedTo(lvalueString);
         emitter().emit("%%%s = arith.constant 0 : %s", lvalueSSA, typeString);
+    }
+
+    default void defaultInitialise(RealType lvalueType, String lvalueString) {
+        String typeString = typeseval().type(lvalueType);
+        String lvalueSSA = ssaValueNumberingStack().getVarToBeAssignedTo(lvalueString);
+        emitter().emit("%%%s = arith.constant 0.0 : %s", lvalueSSA, typeString);
     }
 
     default void defaultInitialise(ListType lvalueType, String lvalueString) {

@@ -24,6 +24,7 @@ import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.stmt.Statement;
 import se.lth.cs.tycho.transformation.cal2am.Priorities;
 import se.lth.cs.tycho.type.IntType;
+import se.lth.cs.tycho.type.RealType;
 import se.lth.cs.tycho.type.Type;
 
 import java.util.*;
@@ -442,6 +443,16 @@ public interface Instances {
 
     default void popFromPort(String portName, Type portType, String ssaName, Type expectedType) {
         throw new UnsupportedOperationException("popPortValue not implemented for types: " + expectedType + " and " + portType);
+    }
+
+    default void popFromPort(String portName, RealType portType, String ssaName, RealType expectedType) {
+        String expectedTypeStr = typeseval().type(expectedType);
+        if(!portType.equals(expectedType)) {
+            throw new UnsupportedOperationException("popPortValue not implemented for non matching real types: " + expectedType + " and " + portType);
+        }else{
+            emitter().emit("%%%s = fifo.pop(%%%s: !fifo.output_port<%s>) : %s", ssaName, portName, expectedTypeStr,
+                    expectedTypeStr);
+        }
     }
 
     default void popFromPort(String portName, IntType portType, String ssaName, IntType expectedType) {

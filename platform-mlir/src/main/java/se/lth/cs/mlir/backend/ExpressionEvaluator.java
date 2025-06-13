@@ -68,7 +68,8 @@ public interface ExpressionEvaluator {
 
     default String evaluateCall(Expression expression) {
         //return "temp_evaluate_call";
-        //throw new UnsupportedOperationException("ExpressionEvaluator.evaluateCall() function not supported for: " + expression.getClass());
+        //throw new UnsupportedOperationException("ExpressionEvaluator.evaluateCall() function not supported for: " +
+        // expression.getClass());
         return evaluate(expression);
     }
 
@@ -108,15 +109,17 @@ public interface ExpressionEvaluator {
     }
 
     default String getVariableSSANameOrLoadFromState(String variableName, String typeString) {
-        try{
+        try {
             return ssaValueNumberingStack().getVarName(variableName);
         } catch (RuntimeException e) {
-            if(ssaValueNumberingStack().hasStateVar(variableName)){
+            if (ssaValueNumberingStack().hasStateVar(variableName)) {
                 String resultSSAValue = ssaValueNumberingStack().getNewTempVar();
-                emitter().emit("%%%s = cal.get(%%%s: !cal.state_ref<%s>) : %s", resultSSAValue, variableName, typeString, typeString);
+                emitter().emit("%%%s = cal.get(%%%s: !cal.state_ref<%s>) : %s", resultSSAValue, variableName,
+                        typeString, typeString);
                 return resultSSAValue;
             }
-            throw new RuntimeException("Could not find variable name " + variableName + " on stack or in state variables.");
+            throw new RuntimeException("Could not find variable name " + variableName + " on stack or in state " +
+                    "variables.");
         }
     }
 
@@ -177,9 +180,9 @@ public interface ExpressionEvaluator {
         Type inputType = types().type(declExpression);
         Type outputType = types().declaredType(decl);
 
-        if(inputType instanceof LambdaType){
+        if (inputType instanceof LambdaType) {
             return variables().globalName(variable);
-        }else {
+        } else {
             String rvalueTemp = evaluate(declExpression);
             String rvalueSSA = typeseval().castType(inputType, outputType, rvalueTemp);
             emitter().emit("// Evaluate global variable %s done: assigned to %s above in this context.", decl.getName(),
@@ -199,6 +202,7 @@ public interface ExpressionEvaluator {
         String tempName = ssaValueNumberingStack().getNewTempVar();
         switch (literal.getKind()) {
             case Integer:
+            case Real:
                 emitter().emit("%%%s = arith.constant %s : %s", tempName, literal.getText(),
                         typeseval().type(types().type(literal)));
                 return tempName;
@@ -206,8 +210,6 @@ public interface ExpressionEvaluator {
                 return "true";
             case False:
                 return "false";
-            case Real:
-                return literal.getText();
             case String:
                 return literal.getText();
             default:
@@ -360,8 +362,6 @@ public interface ExpressionEvaluator {
         BinaryOpStruct convertedOperands = convertBinaryExprTypes(binaryOp, operation);
 
 
-
-
         String returnedSSA, convertedSSA;
         // These arithmetic and bitwise operations take place in three steps
         // 1. Convert to a common type as done above ()
@@ -499,12 +499,18 @@ public interface ExpressionEvaluator {
     }
 
     default String evaluateBinaryAdd(Type type, String lhsOperand, String rhsOperand) {
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException("evaluateBinaryAdd not supported for type: " + type);
     }
 
     default String evaluateBinaryAdd(IntType type, String lhsOperand, String rhsOperand) {
         String output = ssaValueNumberingStack().getNewTempVar();
         emitter().emit("%%%s = arith.addi %%%s, %%%s : %s", output, lhsOperand, rhsOperand, typeseval().type(type));
+        return output;
+    }
+
+    default String evaluateBinaryAdd(RealType type, String lhsOperand, String rhsOperand) {
+        String output = ssaValueNumberingStack().getNewTempVar();
+        emitter().emit("%%%s = arith.addf %%%s, %%%s : %s", output, lhsOperand, rhsOperand, typeseval().type(type));
         return output;
     }
 
@@ -668,6 +674,12 @@ public interface ExpressionEvaluator {
         return output;
     }
 
+    default String evaluateBinarySub(RealType type, String lhsOperand, String rhsOperand) {
+        String output = ssaValueNumberingStack().getNewTempVar();
+        emitter().emit("%%%s = arith.subf %%%s, %%%s : %s", output, lhsOperand, rhsOperand, typeseval().type(type));
+        return output;
+    }
+
     default String evaluateBinaryTimes(Type type, String lhsOperand, String rhsOperand) {
         throw new UnsupportedOperationException();
     }
@@ -675,6 +687,12 @@ public interface ExpressionEvaluator {
     default String evaluateBinaryTimes(IntType type, String lhsOperand, String rhsOperand) {
         String output = ssaValueNumberingStack().getNewTempVar();
         emitter().emit("%%%s = arith.muli %%%s, %%%s : %s", output, lhsOperand, rhsOperand, typeseval().type(type));
+        return output;
+    }
+
+    default String evaluateBinaryTimes(RealType type, String lhsOperand, String rhsOperand) {
+        String output = ssaValueNumberingStack().getNewTempVar();
+        emitter().emit("%%%s = arith.mulf %%%s, %%%s : %s", output, lhsOperand, rhsOperand, typeseval().type(type));
         return output;
     }
 
@@ -690,6 +708,13 @@ public interface ExpressionEvaluator {
         else
             emitter().emit("%%%s = arith.divui %%%s, %%%s : %s", output, lhsOperand, rhsOperand,
                     typeseval().type(type));
+        return output;
+    }
+
+    default String evaluateBinaryDiv(RealType type, String lhsOperand, String rhsOperand) {
+        String output = ssaValueNumberingStack().getNewTempVar();
+        emitter().emit("%%%s = arith.divf %%%s, %%%s : %s", output, lhsOperand, rhsOperand,
+                typeseval().type(type));
         return output;
     }
 
@@ -713,6 +738,13 @@ public interface ExpressionEvaluator {
         else
             emitter().emit("%%%s = arith.remui %%%s, %%%s : %s", output, lhsOperand, rhsOperand,
                     typeseval().type(type));
+        return output;
+    }
+
+    default String evaluateBinaryMod(RealType type, String lhsOperand, String rhsOperand) {
+        String output = ssaValueNumberingStack().getNewTempVar();
+        emitter().emit("%%%s = arith.remf %%%s, %%%s : %s", output, lhsOperand, rhsOperand,
+                typeseval().type(type));
         return output;
     }
 
@@ -757,6 +789,13 @@ public interface ExpressionEvaluator {
         return tempResult;
     }
 
+    default String evaluateBinaryEq(RealType type, String lhsOperand, String rhsOperand) {
+        String tempResult = ssaValueNumberingStack().getNewTempVar();
+        emitter().emit("%%%s = arith.cmpf oeq, %%%s, %%%s : %s", tempResult, lhsOperand, rhsOperand,
+                typeseval().type(type));
+        return tempResult;
+    }
+
     default String evaluateBinaryNEq(Type type, String lhsOperand, String rhsOperand) {
         throw new UnsupportedOperationException();
     }
@@ -764,6 +803,13 @@ public interface ExpressionEvaluator {
     default String evaluateBinaryNEq(IntType type, String lhsOperand, String rhsOperand) {
         String tempResult = ssaValueNumberingStack().getNewTempVar();
         emitter().emit("%%%s = arith.cmpi ne, %%%s, %%%s : %s", tempResult, lhsOperand, rhsOperand,
+                typeseval().type(type));
+        return tempResult;
+    }
+
+    default String evaluateBinaryNEq(RealType type, String lhsOperand, String rhsOperand) {
+        String tempResult = ssaValueNumberingStack().getNewTempVar();
+        emitter().emit("%%%s = arith.cmpf one, %%%s, %%%s : %s", tempResult, lhsOperand, rhsOperand,
                 typeseval().type(type));
         return tempResult;
     }
@@ -783,6 +829,13 @@ public interface ExpressionEvaluator {
         return tempResult;
     }
 
+    default String evaluateBinaryLtn(RealType type, String lhsOperand, String rhsOperand) {
+        String tempResult = ssaValueNumberingStack().getNewTempVar();
+        emitter().emit("%%%s = arith.cmpf olt, %%%s, %%%s : %s", tempResult, lhsOperand, rhsOperand,
+                typeseval().type(type));
+        return tempResult;
+    }
+
     default String evaluateBinaryLeq(Type type, String lhsOperand, String rhsOperand) {
         throw new UnsupportedOperationException();
     }
@@ -795,6 +848,13 @@ public interface ExpressionEvaluator {
         else
             emitter().emit("%%%s = arith.cmpi ule, %%%s, %%%s : %s", tempResult, lhsOperand, rhsOperand,
                     typeseval().type(type));
+        return tempResult;
+    }
+
+    default String evaluateBinaryLeq(RealType type, String lhsOperand, String rhsOperand) {
+        String tempResult = ssaValueNumberingStack().getNewTempVar();
+        emitter().emit("%%%s = arith.cmpf ole, %%%s, %%%s : %s", tempResult, lhsOperand, rhsOperand,
+                typeseval().type(type));
         return tempResult;
     }
 
@@ -813,6 +873,13 @@ public interface ExpressionEvaluator {
         return tempResult;
     }
 
+    default String evaluateBinaryGtn(RealType type, String lhsOperand, String rhsOperand) {
+        String tempResult = ssaValueNumberingStack().getNewTempVar();
+        emitter().emit("%%%s = arith.cmpf ogt, %%%s, %%%s : %s", tempResult, lhsOperand, rhsOperand,
+                typeseval().type(type));
+        return tempResult;
+    }
+
     default String evaluateBinaryGeq(Type type, String lhsOperand, String rhsOperand) {
         throw new UnsupportedOperationException("" + type);
     }
@@ -825,6 +892,13 @@ public interface ExpressionEvaluator {
         else
             emitter().emit("%%%s = arith.cmpi uge, %%%s, %%%s : %s", tempResult, lhsOperand, rhsOperand,
                     typeseval().type(type));
+        return tempResult;
+    }
+
+    default String evaluateBinaryGeq(RealType type, String lhsOperand, String rhsOperand) {
+        String tempResult = ssaValueNumberingStack().getNewTempVar();
+        emitter().emit("%%%s = arith.cmpf oge, %%%s, %%%s : %s", tempResult, lhsOperand, rhsOperand,
+                typeseval().type(type));
         return tempResult;
     }
 
@@ -911,6 +985,17 @@ public interface ExpressionEvaluator {
         String outputTypeString = typeseval().type(outputType);
         emitter().emit("%%%s = arith.constant 0 : %s", zeroConstant, outputTypeString);
         emitter().emit("%%%s = arith.subi %%%s, %%%s : %s", subResult, zeroConstant, ssaNamePostCast, outputTypeString);
+        return subResult;
+    }
+
+    default String evaluateUnaryMinus(RealType inputType, RealType outputType, ExprUnaryOp expr) {
+        String ssaNamePreCast = evaluate(expr.getOperand());
+        String ssaNamePostCast = typeseval().castType(inputType, outputType, ssaNamePreCast);
+        String zeroConstant = ssaValueNumberingStack().getNewTempVar();
+        String subResult = ssaValueNumberingStack().getNewTempVar();
+        String outputTypeString = typeseval().type(outputType);
+        emitter().emit("%%%s = arith.constant 0.0 : %s", zeroConstant, outputTypeString);
+        emitter().emit("%%%s = arith.subf %%%s, %%%s : %s", subResult, zeroConstant, ssaNamePostCast, outputTypeString);
         return subResult;
     }
 
@@ -1190,14 +1275,16 @@ public interface ExpressionEvaluator {
     default void evaluateSubList(String listSSA, List<String> indices, List<Integer> sizeByDim, Type currentType,
                                  Expression expr, ListType containerType) {
         String innerExprSSA = evaluate(expr);
-        String innerExprCast = typeseval().castType(types().type(expr), typeseval().resizeInnerType(currentType), innerExprSSA);
+        String innerExprCast = typeseval().castType(types().type(expr), typeseval().resizeInnerType(currentType),
+                innerExprSSA);
         lists().store(listSSA, innerExprCast, indices, containerType);
     }
 
     default void evaluateSubList(String listSSA, List<String> indices, List<Integer> sizeByDim, IntType currentType,
                                  Expression expr, ListType containerType) {
         String innerExprSSA = evaluate(expr);
-        String innerExprCast = typeseval().castType(types().type(expr), typeseval().resizeInnerType(currentType), innerExprSSA);
+        String innerExprCast = typeseval().castType(types().type(expr), typeseval().resizeInnerType(currentType),
+                innerExprSSA);
         lists().store(listSSA, innerExprCast, indices, containerType);
     }
 
@@ -1371,7 +1458,7 @@ public interface ExpressionEvaluator {
     default String evaluate(ExprLet let) {
         let.forEachChild(backend().callables()::declareEnvironmentForCallablesInScope);
         for (VarDecl decl : let.getVarDecls()) {
-              backend().statements().emitVarDecl(decl);
+            backend().statements().emitVarDecl(decl);
 //            Type type = types().declaredType(decl);
 //            String name = variables().declarationName(decl);
 //            emitter().emit("%s = %s;", declarations().declaration(type, name),

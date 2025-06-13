@@ -1,0 +1,6 @@
+{
+  "description": "Test binary expressions using floating point types.",
+  "cal-file": "3_binary_expr_fp.cal",
+  "mlir-file": "3_binary_expr_fp.mlir",
+  "entity": "simple.Top"
+}
