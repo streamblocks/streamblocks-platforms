@@ -435,16 +435,18 @@ public interface Statements {
     default PrintStringResult generatePrintString(ExprVariable variable) {
         VarDecl decl = backend().varDecls().declaration(variable);
         Type type = types().declaredType(decl);
-        String typeString = typeseval().type(type);
+        String typeString = typeseval().type(getCorrectTypeForPrinting(type));
         String ssaName = expressioneval().getVariableSSANameOrLoadFromState(variables().name(variable.getVariable()),
                 typeString);
+        ssaName = convertSSAToCorrectTypeForPrinting(ssaName, type);
         return new PrintStringResult("%" + printFormat(type), ssaName, typeString);
     }
 
     default PrintStringResult generatePrintString(ExprIndexer expr) {
         Type type = types().type(expr);
-        String typeString = typeseval().type(type);
+        String typeString = typeseval().type(getCorrectTypeForPrinting(type));
         String ssaName = expressioneval().evaluate(expr);
+        ssaName = convertSSAToCorrectTypeForPrinting(ssaName, type);
         return new PrintStringResult("%" + printFormat(type), ssaName, typeString);
     }
 
@@ -454,9 +456,39 @@ public interface Statements {
             return new PrintStringResult("" + value.getAsLong());
         }
         Type varType = types().type(expr);
-        String typeString = typeseval().type(varType);
         String ssaName = ssaValueNumberingStack().getVarName(expr.getGlobalName().toString());
+        String typeString = typeseval().type(getCorrectTypeForPrinting(varType));
+        ssaName = convertSSAToCorrectTypeForPrinting(ssaName, varType);
         return new PrintStringResult("%" + printFormat(varType), ssaName, typeString);
+    }
+
+    default String convertSSAToCorrectTypeForPrinting(String ssaName, Type type){
+        return ssaName;
+    }
+
+    default String convertSSAToCorrectTypeForPrinting(String ssaName, IntType type){
+        Type requiredType = getCorrectTypeForPrinting(type);
+        return typeseval().castType(type, requiredType, ssaName);
+    }
+
+    default Type getCorrectTypeForPrinting(Type type){
+        return type;
+    }
+
+    default Type getCorrectTypeForPrinting(IntType type){
+        IntType retType;
+
+        if (type.getSize().isPresent()) {
+            if (type.getSize().getAsInt() <= 32) {
+                retType = new IntType(OptionalInt.of(32), type.isSigned());
+            } else {
+                retType = new IntType(OptionalInt.of(64), type.isSigned());
+            }
+        } else {
+            retType = new IntType(OptionalInt.of(32), type.isSigned());
+        }
+
+        return retType;
     }
 
     String printFormat(Type type);
