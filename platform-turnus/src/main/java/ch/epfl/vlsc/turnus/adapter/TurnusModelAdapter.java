@@ -282,7 +282,7 @@ public class TurnusModelAdapter {
 
             TypeList typeList = DataflowFactory.eINSTANCE.createTypeList();
             if (listType.getSize().isPresent()) {
-                typeList.setElements(listType.getSize().getAsInt());
+                typeList.setElements(listType.getSize().getAsLong());
             }
             typeList.setListType(getTurnusType(listType.getElementType()));
             return typeList;

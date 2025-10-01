@@ -103,9 +103,9 @@ public interface LValues {
             listType = (ListType) ((RefType) t).getType();
         }
 
-        List<Integer> listSizeDim = backend().typeseval().sizeByDimension(listType);
+        List<Long> listSizeDim = backend().typeseval().sizeByDimension(listType);
 
-        List<Integer> elementSizeDim = new ArrayList<>();
+        List<Long> elementSizeDim = new ArrayList<>();
 
         if(listType.getElementType() instanceof ListType) {
             elementSizeDim = backend().typeseval().sizeByDimension((ListType) listType.getElementType());
@@ -123,7 +123,7 @@ public interface LValues {
             for (int i = 0; i < indexByDim.size(); i++) {
                 List<String> dims = new ArrayList<>();
                 for (int j = i; j < elementSizeDim.size(); j++) {
-                    dims.add(Integer.toString(elementSizeDim.get(j)));
+                    dims.add(Long.toString(elementSizeDim.get(j)));
                 }
                 structureIndex.add(String.format("%s*%s", String.join("*", dims), indexByDim.get(i)));
             }
@@ -167,7 +167,7 @@ public interface LValues {
             listType = (ListType) ((RefType) t).getType();
         }
 
-        List<Integer> listSizeDim = backend().typeseval().sizeByDimension(listType);
+        List<Long> listSizeDim = backend().typeseval().sizeByDimension(listType);
 
         List<String> indexByDim = new ArrayList<>();
         if (indexer.getStructure() instanceof LValueIndexer) {

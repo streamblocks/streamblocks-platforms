@@ -186,7 +186,7 @@ public interface VerilogNetwork {
 
     default void getPortDeclaration(PortDecl port, boolean isInput) {
         Type type = backend().types().declaredPortType(port);
-        int bitSize = backend().typeseval().sizeOfBits(type);
+        long bitSize = backend().typeseval().sizeOfBits(type);
         if (isInput) {
             emitter().emit("input  wire [%d:0] %s_din,", bitSize - 1, port.getName());
             emitter().emit("output wire %s_full_n,", port.getName());
@@ -302,7 +302,7 @@ public interface VerilogNetwork {
 
             emitter().emit("// -- Queue wires : %s", queueName);
             if (connection.getSource().getInstance().isPresent()) {
-                int dataWidth = getQueueDataWidth(connection);
+                long dataWidth = getQueueDataWidth(connection);
 
                 String source = String.format("q_%s_%s", connection.getSource().getInstance().get(),
                         connection.getSource().getPort());
@@ -311,7 +311,7 @@ public interface VerilogNetwork {
             }
 
             if (connection.getTarget().getInstance().isPresent()) {
-                int dataWidth = getQueueDataWidth(connection);
+                long dataWidth = getQueueDataWidth(connection);
 
                 String target = String.format("q_%s_%s", connection.getTarget().getInstance().get(),
                         connection.getTarget().getPort());
@@ -319,7 +319,7 @@ public interface VerilogNetwork {
                 emitter().emitNewLine();
             }
 
-            int dataWidth = getQueueDataWidth(connection);
+            long dataWidth = getQueueDataWidth(connection);
             emitter().emit("wire [%d:0] %s_peek;", dataWidth - 1, queueName);
             emitter().emit("wire [31:0] %s_count;", queueName);
             emitter().emit("wire [31:0] %s_size;", queueName);
@@ -328,7 +328,7 @@ public interface VerilogNetwork {
 
     }
 
-    default void getFifoQueueWiresIO(Integer dataWidth, String name, Boolean isInput) {
+    default void getFifoQueueWiresIO(Long dataWidth, String name, Boolean isInput) {
         if (isInput) {
             emitter().emit("wire [%d:0] %s_din;", dataWidth - 1, name);
             emitter().emit("wire %s_full_n;", name);
@@ -415,11 +415,11 @@ public interface VerilogNetwork {
             target = connection.getTarget().getPort();
         }
 
-        int dataWidth = getQueueDataWidth(connection);
+        long dataWidth = getQueueDataWidth(connection);
         getQueueInstantiation(queueName, dataWidth, source, target);
     }
 
-    default void getQueueInstantiation(String queueName, int dataWidth, String source, String target) {
+    default void getQueueInstantiation(String queueName, long dataWidth, String source, String target) {
         emitter().emit("// -- Queue FIFO : %s", queueName);
         emitter().emit("FIFO #(");
         {
@@ -1026,7 +1026,7 @@ public interface VerilogNetwork {
         return queueNames().get(connection);
     }
 
-    default int getQueueDataWidth(Connection connection) {
+    default long getQueueDataWidth(Connection connection) {
         return backend().typeseval().sizeOfBits(getQueueType(connection));
     }
 

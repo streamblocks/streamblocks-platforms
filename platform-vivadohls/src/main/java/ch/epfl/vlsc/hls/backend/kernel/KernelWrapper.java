@@ -104,12 +104,12 @@ public interface KernelWrapper {
         emitter().close();
     }
 
-    default String getAxiParameter(String name, String param, int value) {
+    default String getAxiParameter(String name, String param, long value) {
         return "parameter integer C_M_AXI_" + name + "_" + param + " = " + value;
     }
     default ImmutableList<String> getPortParameters(PortDecl port) {
         Type type = backend().types().declaredPortType(port);
-        int bitSize = backend().typeseval().sizeOfBits(type);
+        long bitSize = backend().typeseval().sizeOfBits(type);
         String portName = port.getName().toUpperCase();
         ImmutableList.Builder<String> params  = ImmutableList.builder();
         if (bitSize > 512) {
@@ -121,7 +121,7 @@ public interface KernelWrapper {
         return ImmutableList.of(
                 getAxiParameter(portName, "ID_WIDTH", 1),
                 getAxiParameter(portName, "ADDR_WIDTH", AxiConstants.C_M_AXI_ADDR_WIDTH),
-                getAxiParameter(portName, "DATA_WIDTH", AxiConstants.getAxiDataWidth(bitSize).orElse(512)),
+                getAxiParameter(portName, "DATA_WIDTH", AxiConstants.getAxiDataWidth((int)bitSize).orElse(512)),
                 getAxiParameter(portName, "AWUSER_WIDTH", 1),
                 getAxiParameter(portName, "ARUSER_WIDTH", 1),
                 getAxiParameter(portName, "WUSER_WIDTH", 1),

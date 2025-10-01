@@ -97,7 +97,7 @@ public interface WcfgWaveform {
     default void wvObjectArrayPort(String hierarchy, PortDecl port, boolean isInput, boolean hasExtension) {
         String portName = port.getName();
         Type type = backend().types().declaredPortType(port);
-        int bitSize = backend().typeseval().sizeOfBits(type);
+        long bitSize = backend().typeseval().sizeOfBits(type);
         emitter().emit("<wvobject type=\"array\" fp_name=\"/%s/%s%s%s\">", hierarchy, portName, getPortExtension(hasExtension), isInput ? "_dout" : "_din");
         {
             emitter().increaseIndentation();
@@ -141,7 +141,7 @@ public interface WcfgWaveform {
     }
 */
 
-    default void wvObjectArray(String hierarchy, String name, Integer nbBits) {
+    default void wvObjectArray(String hierarchy, String name, Long nbBits) {
         emitter().emit("<wvobject type=\"array\" fp_name=\"/%s/%s\">", hierarchy, name);
         {
             emitter().increaseIndentation();
@@ -289,14 +289,14 @@ public interface WcfgWaveform {
         int currentGroupCounter = groupCounter;
         currentGroupCounter++;
         Type type = backend().types().declaredPortType(port);
-        int bitSize = backend().typeseval().sizeOfBits(type);
+        long bitSize = backend().typeseval().sizeOfBits(type);
         emitter().emit("<wvobject type=\"group\" fp_name=\"%d\">", currentGroupCounter);
         {
             emitter().increaseIndentation();
 
             emitter().emit("<obj_property name=\"label\">%s</obj_property>", port.getName());
             emitter().emit("<obj_property name=\"DisplayName\">label</obj_property>");
-            wvObjectArray("tb_" + name, port.getName() + "_token_counter", 31);
+            wvObjectArray("tb_" + name, port.getName() + "_token_counter", 31L);
             wvObjectArray("tb_" + name, port.getName() + "_exp_value", bitSize - 1);
 
 

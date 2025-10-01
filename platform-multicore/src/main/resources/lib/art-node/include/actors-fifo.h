@@ -67,7 +67,7 @@ static inline void FIFO_NAME(pinWrite)(LocalOutputPort *p, FIFO_TYPE token) {
     *(writePtr++) = token;
 
     if (writePtr >= (FIFO_TYPE *) p->bufferEnd)
-        writePtr = p->bufferStart;
+        writePtr = (FIFO_TYPE *)  p->bufferStart;
     p->writePtr = writePtr;
     p->spaceLeft--;
 }
@@ -87,7 +87,7 @@ static inline void FIFO_NAME(pinWriteRepeat)(LocalOutputPort *p,
         int numBytes = bufferEnd - startPtr;
         memcpy(startPtr, buf, numBytes);
         buf = (FIFO_TYPE *) ((char *) buf + numBytes);
-        startPtr = p->bufferStart;
+        startPtr = (char *) p->bufferStart;
         endPtr = startPtr + (endPtr - bufferEnd);
     }
 
@@ -137,7 +137,7 @@ static inline void FIFO_NAME(pinConsumeRepeat)(LocalInputPort *p,
     if (endPtr >= bufferEnd) {
         // Buffer wrap
         int numBytes = bufferEnd - startPtr;
-        startPtr = p->bufferStart;
+        startPtr = (const char*) p->bufferStart;
         endPtr = startPtr + (endPtr - bufferEnd);
     }
     p->readPtr = endPtr;
@@ -159,7 +159,7 @@ static inline void FIFO_NAME(pinReadRepeat)(LocalInputPort *p,
         int numBytes = bufferEnd - startPtr;
         memcpy(buf, startPtr, numBytes);
         buf = (FIFO_TYPE *) ((char *) buf + numBytes);
-        startPtr = p->bufferStart;
+        startPtr = (const char*) p->bufferStart;
         endPtr = startPtr + (endPtr - bufferEnd);
     }
     memcpy(buf, startPtr, endPtr - startPtr);
@@ -198,7 +198,7 @@ static inline void FIFO_NAME(pinPeekRepeat)(LocalInputPort *p,
         int numBytes = bufferEnd - startPtr;
         memcpy(buf, startPtr, numBytes);
         buf = (FIFO_TYPE *) ((char *) buf + numBytes);
-        startPtr = p->bufferStart;
+        startPtr = (const char*) p->bufferStart;
         endPtr = startPtr + (endPtr - bufferEnd);
     }
     memcpy(buf, startPtr, endPtr - startPtr);

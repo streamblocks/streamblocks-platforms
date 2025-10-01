@@ -599,7 +599,7 @@ public interface Expressions {
         String elem = evaluate(binaryOp.getOperands().get(0));
         String list = evaluate(binaryOp.getOperands().get(1));
         emitter().emit("%s = false;", backend().declarations().declaration(BoolType.INSTANCE, tmp));
-        emitter().emit("for (size_t %1$s = 0; (%1$s < %2$s) && !(%3$s); %1$s++) {", index, rhs.getSize().getAsInt(), tmp);
+        emitter().emit("for (size_t %1$s = 0; (%1$s < %2$s) && !(%3$s); %1$s++) {", index, rhs.getSize().getAsLong(), tmp);
         emitter().increaseIndentation();
         emitter().emit("%s |= %s;", tmp, backend().statements().compare(lhs, elem, rhs.getElementType(), String.format("%s.data[%s]", list, index)));
         emitter().decreaseIndentation();
@@ -703,7 +703,7 @@ public interface Expressions {
     }
 
     default String evaluateUnarySize(ListType type, ExprUnaryOp expr) {
-        return "" + type.getSize().getAsInt();
+        return "" + type.getSize().getAsLong();
     }
 
     default String evaluateUnarySize(SetType type, ExprUnaryOp expr) {

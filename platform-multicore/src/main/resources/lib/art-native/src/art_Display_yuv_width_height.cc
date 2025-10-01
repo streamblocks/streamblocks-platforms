@@ -4,6 +4,7 @@
  * by xlim2c version 0.6 (June 3, 2009)
  */
 
+#include <cstdio>
 #include <stdlib.h>
 #include <time.h>
 #include <sys/timeb.h>
@@ -93,6 +94,20 @@ static const ActionDescription actionDescriptions[] = {
 // -- Condition Description
 static const ConditionDescription conditionDescription[] = {};
 
+
+#ifdef CAL_RT_CALVIN
+ActorClass ActorClass_art_Display_yuv_width_height = INIT_ActorClass(
+    (char*) "ART.art_Display_yuv_width_height",
+    ActorInstance_art_Display_yuv_width_height,
+    art_Display_yuv_width_height_constructor,
+    art_Display_yuv_width_height_setParam,
+    art_Display_yuv_width_height_action_scheduler,
+    art_Display_yuv_width_height_destructor,
+    3, inputPortDescriptions,
+    0, 0, // if Out-port: 1, outputPortDescriptions,
+    2, actionDescriptions
+);
+#else
 ActorClass ActorClass_art_Display_yuv_width_height = INIT_ActorClass(
         "ART.art_Display_yuv_width_height",
         ActorInstance_art_Display_yuv_width_height,
@@ -106,6 +121,7 @@ ActorClass ActorClass_art_Display_yuv_width_height = INIT_ActorClass(
         0, conditionDescription,
         0, stateVariableDescription
 );
+#endif
 
 static const int exitcode_block_WIDTH_1[] = {
         EXITCODE_BLOCK(1), 1, 1

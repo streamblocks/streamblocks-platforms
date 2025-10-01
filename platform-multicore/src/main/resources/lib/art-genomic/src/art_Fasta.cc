@@ -37,7 +37,7 @@
 
 #include <errno.h>
 #include <zlib.h>
-
+#include <cstdio>
 #include "actors-rts.h"
 #include "kseq.h"
 #include "art_genomic_constant.h"
@@ -254,6 +254,19 @@ static const ActionDescription actionDescriptions[] = {{"action", "action", 0,
 // -- Condition Description
 static const ConditionDescription conditionDescription[] = {};
 
+#ifdef CAL_RT_CALVIN
+ActorClass klass = INIT_ActorClass(
+        (char*) "ART.art_Fasta",
+        ActorInstance_art_Fasta,
+        constructor,
+        setParam,
+        art_Fasta_scheduler,
+        destructor,
+        0, 0,
+        1, outputPortDescriptions,
+        1, actionDescriptions
+);
+#else
 ActorClass ActorClass_art_Fasta = INIT_ActorClass(
         "ART.art_Fasta",
         ActorInstance_art_Fasta,
@@ -267,3 +280,4 @@ ActorClass ActorClass_art_Fasta = INIT_ActorClass(
         0, conditionDescription,
         0, stateVariableDescription
 );
+#endif

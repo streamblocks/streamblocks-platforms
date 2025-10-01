@@ -76,8 +76,8 @@ public interface Simulator {
     }
 
     default LogicVector getSCPortType(PortDecl port) {
-        int bitWidth = backend().typeseval().sizeOfBits(backend().types().declaredPortType(port));
-        return new LogicVector(bitWidth);
+        long bitWidth = backend().typeseval().sizeOfBits(backend().types().declaredPortType(port));
+        return new LogicVector((int)bitWidth);
     }
 
     default void getWriter(PortDecl inputPort) {

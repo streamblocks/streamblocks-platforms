@@ -192,7 +192,7 @@ public interface Memories {
 
             Optional<Long> innerBytes = sizeInBytes(type.getElementType());
             if (innerBytes.isPresent() && type.getSize().isPresent()) {
-                return Optional.of(innerBytes.get() * type.getSize().getAsInt());
+                return Optional.of(innerBytes.get() * type.getSize().getAsLong());
             } else {
                 return Optional.empty();
             }
@@ -241,9 +241,9 @@ public interface Memories {
 
             Type elementType = listType.getElementType();
             if (elementType instanceof ListType) {
-                return Long.valueOf(listType.getSize().getAsInt()) * listDepth((ListType) elementType);
+                return Long.valueOf(listType.getSize().getAsLong()) * listDepth((ListType) elementType);
             } else {
-                return Long.valueOf(listType.getSize().getAsInt());
+                return Long.valueOf(listType.getSize().getAsLong());
             }
         }
 
