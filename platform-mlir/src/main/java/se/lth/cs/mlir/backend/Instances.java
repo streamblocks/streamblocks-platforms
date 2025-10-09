@@ -349,13 +349,13 @@ public interface Instances {
                 String ssaToPush = ssaValueNumberingStack().getNewTempVar();
                 emitter().emit("%%%s = arith.constant %d : index", constSSA, i);
                 emitter().emit("%%%s = memref.load %%%s[%%%s] : %s", ssaToPush, memrefSSA, constSSA, memrefTypeStr);
-
+/*
                 if (portType instanceof IntType) {
                     if (typeseval().canCastFromI32(portType)) {
                         ssaToPush = typeseval().castType(new IntType(OptionalInt.of(32), true), portType, ssaToPush);
                     }
                 }
-
+ */
                 emitter().emit("fifo.push(%%%s: !fifo.input_port<%s>, %%%s: %s)", portName, portTypeStr, ssaToPush,
                         portTypeStr);
             }
@@ -487,7 +487,7 @@ public interface Instances {
      */
     void genCallables(Entity entity);
 
-
+    
     default void genCallables(CalActor actor) {
         for (LocalVarDecl decl : actor.getVarDecls()) {
             if (decl.getValue() instanceof ExprProc) {
@@ -511,7 +511,7 @@ public interface Instances {
                 }
 
 
-                String instanceName = backend().variables().declarationName(decl);
+                String instanceName = decl.getName();
                 Instance actorInstance = backend().instancebox().get();
                 if(backend().context().getConfiguration().get(PlatformSettings.generateSingleDeclarationPerActor)) {
                     GlobalEntityDecl entityDecl = globalnames().entityDecl(actorInstance.getEntityName(), true);
@@ -537,13 +537,13 @@ public interface Instances {
                 ssaValueNumberingStack().newBlock();
 
                 List<String> parameters = new ArrayList<>();
-
+/* 
                 List<AbstractMap.SimpleEntry<String, String>> stateVariablesList = getStateVariableNamesAndTypes(actor);
                 for (AbstractMap.SimpleEntry<String, String> entry : stateVariablesList) {
                     ssaValueNumberingStack().setStateVar(entry.getKey(), entry.getValue());
                     parameters.add("%" + entry.getKey() + ": !cal.state_ref<" + entry.getValue() + ">");
                 }
-
+ */
                 for (ParameterVarDecl paramDecl : lambda.getValueParameters()) {
                     String paramName = backend().variables().declarationName(paramDecl);
                     String paramType = backend().typeseval().type(backend().types().declaredType(paramDecl));
@@ -552,7 +552,7 @@ public interface Instances {
                 }
 
 
-                String instanceName = backend().variables().declarationName(decl);
+                String instanceName = decl.getName();
                 Instance actorInstance = backend().instancebox().get();
                 if(backend().context().getConfiguration().get(PlatformSettings.generateSingleDeclarationPerActor)) {
                     GlobalEntityDecl entityDecl = globalnames().entityDecl(actorInstance.getEntityName(), true);

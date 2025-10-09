@@ -379,6 +379,7 @@ public interface Statements {
                 proc = actorInstance.getInstanceName() + "_" + proc;
             }
 
+            // -- FIXME : type casting like in ExprApplication
             for (Expression parameter : call.getArgs()) {
                 String ssaValue = expressioneval().evaluate(parameter);
                 parameters.add("%" + ssaValue);
