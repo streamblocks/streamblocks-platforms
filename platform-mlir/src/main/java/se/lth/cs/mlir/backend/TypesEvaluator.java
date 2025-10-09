@@ -79,8 +79,8 @@ public interface TypesEvaluator {
             size = size + "x" + sizeInt;
             innerType = innerTypeAsList.getElementType();
         }
-        Type resizedInnerType = resizeInnerType(innerType);
-        return "memref<" + size + "x" + type(resizedInnerType) + ">";
+        //Type resizedInnerType = resizeInnerType(innerType);
+        return "memref<" + size + "x" + type(innerType) + ">";
     }
 
     /**

@@ -24,6 +24,7 @@ import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.stmt.Statement;
 import se.lth.cs.tycho.transformation.cal2am.Priorities;
 import se.lth.cs.tycho.type.IntType;
+import se.lth.cs.tycho.type.LambdaType;
 import se.lth.cs.tycho.type.RealType;
 import se.lth.cs.tycho.type.Type;
 
@@ -530,7 +531,62 @@ public interface Instances {
                 ssaValueNumberingStack().blockDone();
 
                 emitter().emit("");
+            } else if (decl.getValue() instanceof ExprLambda) {
+                ExprLambda lambda = (ExprLambda) decl.getValue();
+                ssaValueNumberingStack().newActorContext();
+                ssaValueNumberingStack().newBlock();
+
+                List<String> parameters = new ArrayList<>();
+
+                List<AbstractMap.SimpleEntry<String, String>> stateVariablesList = getStateVariableNamesAndTypes(actor);
+                for (AbstractMap.SimpleEntry<String, String> entry : stateVariablesList) {
+                    ssaValueNumberingStack().setStateVar(entry.getKey(), entry.getValue());
+                    parameters.add("%" + entry.getKey() + ": !cal.state_ref<" + entry.getValue() + ">");
+                }
+
+                for (ParameterVarDecl paramDecl : lambda.getValueParameters()) {
+                    String paramName = backend().variables().declarationName(paramDecl);
+                    String paramType = backend().typeseval().type(backend().types().declaredType(paramDecl));
+                    String ssaValue = ssaValueNumberingStack().getVarToBeAssignedTo(paramName);
+                    parameters.add("%" + ssaValue + ": " + paramType);
+                }
+
+
+                String instanceName = backend().variables().declarationName(decl);
+                Instance actorInstance = backend().instancebox().get();
+                if(backend().context().getConfiguration().get(PlatformSettings.generateSingleDeclarationPerActor)) {
+                    GlobalEntityDecl entityDecl = globalnames().entityDecl(actorInstance.getEntityName(), true);
+                    instanceName = entityDecl.getOriginalName() + "_" + instanceName;
+                }else{
+                    instanceName = actorInstance.getInstanceName() + "_" + instanceName;
+                }
+
+                LambdaType type = (LambdaType) backend().types().type(lambda);
+                String result = "func.func @" + instanceName + "(" + String.join(", ", parameters) + ") -> " + backend().typeseval().type(type.getReturnType()) + " {";
+                backend().emitter().emit("%s", result);
+                backend().emitter().increaseIndentation();
+
+                //proc.getBody().forEach(backend().statements()::execute);
+
+                Type bodyType = types().type(lambda.getBody());
+                Type returnType = type.getReturnType();
+                if(bodyType.equals(returnType)){
+                    backend().emitter().emit("func.return %%%s : %s" , backend().expressionEval().evaluate(lambda.getBody()), backend().typeseval().type(type.getReturnType()));
+                } else{
+                    String bodySSA = backend().expressionEval().evaluate(lambda.getBody());
+                    String castSSA = backend().typeseval().castType(bodyType, returnType, bodySSA);
+                    backend().emitter().emit("func.return %%%s : %s" , castSSA, backend().typeseval().type(type.getReturnType()));
+                }
+
+
+                backend().emitter().decreaseIndentation();
+                backend().emitter().emit("}");
+
+                ssaValueNumberingStack().blockDone();
+
+                emitter().emit("");
             }
+
         }
     }
 

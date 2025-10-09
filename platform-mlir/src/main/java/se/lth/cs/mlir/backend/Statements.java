@@ -237,7 +237,7 @@ public interface Statements {
             Type outputType = types().type(indexer);
             String rvalueSSATemp = expressioneval().evaluate(assign.getExpression());
             String rvalueSSA = typeseval().castType(inputType, outputType, rvalueSSATemp);
-            String rvalueSSAResized = typeseval().castType(outputType, typeseval().resizeInnerType(outputType),
+            String rvalueSSAResized = typeseval().castType(outputType, outputType,
                     rvalueSSA);
 
             // 3. Emit the operation that stores the value in the memref

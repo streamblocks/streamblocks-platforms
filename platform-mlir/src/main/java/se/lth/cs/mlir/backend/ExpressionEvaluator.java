@@ -10,7 +10,9 @@ import se.lth.cs.tycho.ir.IRNode;
 import se.lth.cs.tycho.ir.decl.GeneratorVarDecl;
 import se.lth.cs.tycho.ir.decl.VarDecl;
 import se.lth.cs.tycho.ir.expr.*;
+import se.lth.cs.tycho.ir.network.Instance;
 import se.lth.cs.tycho.ir.stmt.StmtAssignment;
+import se.lth.cs.tycho.ir.stmt.StmtCall;
 import se.lth.cs.tycho.ir.stmt.lvalue.LValueVariable;
 import se.lth.cs.tycho.ir.util.ImmutableList;
 import se.lth.cs.tycho.type.*;
@@ -72,6 +74,22 @@ public interface ExpressionEvaluator {
         // expression.getClass());
         return evaluate(expression);
     }
+
+    default String evaluateCall(ExprVariable variable) {
+        IRNode parent = backend().tree().parent(variable);
+
+        if (parent instanceof StmtCall || parent instanceof ExprApplication) {
+            String prefix = "";
+            if (!backend().instancebox().isEmpty()) {
+                Instance instance = backend().instancebox().get();
+                prefix = instance.getInstanceName() + "_";
+            }
+            return prefix + variable.getVariable().getName();
+        }
+
+        return variables().name(variable.getVariable());
+    }
+
 
 //    default String evaluateCall(ExprVariable variable) {
 //        IRNode parent = backend().tree().parent(variable);
@@ -1283,8 +1301,10 @@ public interface ExpressionEvaluator {
     default void evaluateSubList(String listSSA, List<String> indices, List<Integer> sizeByDim, IntType currentType,
                                  Expression expr, ListType containerType) {
         String innerExprSSA = evaluate(expr);
-        String innerExprCast = typeseval().castType(types().type(expr), typeseval().resizeInnerType(currentType),
+        String innerExprCast = typeseval().castType(types().type(expr), currentType,
                 innerExprSSA);
+        //String innerExprCast = typeseval().castType(types().type(expr), typeseval().resizeInnerType(currentType),
+        //        innerExprSSA);
         lists().store(listSSA, innerExprCast, indices, containerType);
     }
 
@@ -1377,30 +1397,59 @@ public interface ExpressionEvaluator {
     }
 
     /**
-     * Evaluate expression if
+     * Evaluate expression if - Generate MLIR for conditional expressions using scf.if
+     * 
+     * Expression if has the form:
+     * %result = scf.if %condition -> (return_type) {
+     *     %then_value = ...
+     *     scf.yield %then_value : return_type
+     * } else {
+     *     %else_value = ...
+     *     scf.yield %else_value : return_type
+     * }
      *
      * @param expr
      * @return
      */
     default String evaluate(ExprIf expr) {
-        Type type = types().type(expr);
-        String temp = variables().generateTemp();
-        String decl = declarations().declarationTemp(type, temp);
-        emitter().emit("%s = %s;", decl, backend().defaultValues().defaultValue(type));
-        emitter().emit("if (%s) {", evaluate(expr.getCondition()));
+        emitter().emit("// Expression If: Begin");
+        String conditionVar = evaluate(expr.getCondition());
+        
+        // Get the result type for the if expression
+        Type resultType = types().type(expr);
+        String resultTypeString = typeseval().type(resultType);
+        
+        // Generate SSA name for the result
+        String resultSSA = ssaValueNumberingStack().getNewTempVar();
+        
+        // Generate the scf.if with return type
+        emitter().emit("%%%s = scf.if %%%s -> (%s) {", resultSSA, conditionVar, resultTypeString);
+        
+        // Generate the then branch
         emitter().increaseIndentation();
-        Type thenType = types().type(expr.getThenExpr());
+        ssaValueNumberingStack().newBlock();
         String thenValue = evaluate(expr.getThenExpr());
-        backend().statements().copy(type, temp, thenType, thenValue);
+        Type thenType = types().type(expr.getThenExpr());
+        String thenValueCast = typeseval().castType(thenType, resultType, thenValue);
+        emitter().emit("scf.yield %%%s : %s", thenValueCast, resultTypeString);
+        ssaValueNumberingStack().blockDone();
         emitter().decreaseIndentation();
+        
+        // Generate the else branch
         emitter().emit("} else {");
         emitter().increaseIndentation();
-        Type elseType = types().type(expr.getElseExpr());
+        ssaValueNumberingStack().newBlock();
         String elseValue = evaluate(expr.getElseExpr());
-        backend().statements().copy(type, temp, elseType, elseValue);
+        Type elseType = types().type(expr.getElseExpr());
+        String elseValueCast = typeseval().castType(elseType, resultType, elseValue);
+        emitter().emit("scf.yield %%%s : %s", elseValueCast, resultTypeString);
+        ssaValueNumberingStack().blockDone();
         emitter().decreaseIndentation();
+        
         emitter().emit("}");
-        return temp;
+        emitter().emit("// Expression If: End");
+        
+        return resultSSA;
     }
 
     /**

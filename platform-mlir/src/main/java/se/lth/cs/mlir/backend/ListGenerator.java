@@ -44,17 +44,23 @@ public interface ListGenerator {
     default void load(String listSSA, String ssaDest, List<String> indicesList, Type listType) {
         String indices = String.join(", %", indicesList);
         Type innerType = backend().typeseval().innerType(listType);
-
+        /*
         if (innerType instanceof IntType && backend().typeseval().canCastFromI32(innerType)) {
             String tempSSA = backend().ssaValueNumberingStack().getNewTempVar();
             emitter().emit("%%%s = memref.load %%%s[%%%s] : %s", tempSSA, listSSA, indices,
                     backend().typeseval().type(listType));
 
-            backend().typeseval().castInt(new IntType(OptionalInt.of(32), true), innerType, tempSSA, ssaDest);
+            //backend().typeseval().castInt(new IntType(OptionalInt.of(32), true), innerType, tempSSA, ssaDest);
+            backend().typeseval().castInt(listType, innerType, tempSSA, ssaDest);
         } else {
+
             emitter().emit("%%%s = memref.load %%%s[%%%s] : %s", ssaDest, listSSA, indices,
                     backend().typeseval().type(listType));
         }
+                    
+        */
+        emitter().emit("%%%s = memref.load %%%s[%%%s] : %s", ssaDest, listSSA, indices,
+                    backend().typeseval().type(listType));
     }
 
     default String generateIndexFromInt(int index) {
