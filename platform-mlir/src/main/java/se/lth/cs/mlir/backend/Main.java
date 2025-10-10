@@ -150,7 +150,7 @@ public interface Main {
         // 4. We now finally have everything we need for the func operation, so lets generate it
         // 4.1 Generate the first line of the cal.network operation
         emitter().emit("// -- Top Network: Defines structure of actor application");
-        emitter().emit("cal.network");
+        emitter().emit("cal.network @Top() ");
         emitter().emit("{");
         emitter().emit("");
         emitter().increaseIndentation();

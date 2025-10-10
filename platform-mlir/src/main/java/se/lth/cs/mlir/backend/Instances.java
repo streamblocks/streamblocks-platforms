@@ -344,21 +344,27 @@ public interface Instances {
             Type memrefType = types().type(expr);
             String memrefTypeStr = typeseval().type(memrefType);
             long repeatCount = repeatValueOpt.getAsLong();
-            for (int i = 0; i < repeatCount; i++) {
-                String constSSA = ssaValueNumberingStack().getNewTempVar();
-                String ssaToPush = ssaValueNumberingStack().getNewTempVar();
-                emitter().emit("%%%s = arith.constant %d : index", constSSA, i);
-                emitter().emit("%%%s = memref.load %%%s[%%%s] : %s", ssaToPush, memrefSSA, constSSA, memrefTypeStr);
-/*
-                if (portType instanceof IntType) {
-                    if (typeseval().canCastFromI32(portType)) {
-                        ssaToPush = typeseval().castType(new IntType(OptionalInt.of(32), true), portType, ssaToPush);
-                    }
-                }
- */
-                emitter().emit("fifo.push(%%%s: !fifo.input_port<%s>, %%%s: %s)", portName, portTypeStr, ssaToPush,
-                        portTypeStr);
-            }
+
+            // Bounds and step for scf.for
+            String lbSSA = ssaValueNumberingStack().getNewTempVar();
+            String ubSSA = ssaValueNumberingStack().getNewTempVar();
+            String stepSSA = ssaValueNumberingStack().getNewTempVar();
+            emitter().emit("%%%s = arith.constant 0 : index", lbSSA);
+            emitter().emit("%%%s = arith.constant %d : index", ubSSA, repeatCount);
+            emitter().emit("%%%s = arith.constant 1 : index", stepSSA);
+
+            // scf.for loop body: load from memref and push to fifo
+            String ivSSA = ssaValueNumberingStack().getNewTempVar();
+            emitter().emit("scf.for %%%s = %%%s to %%%s step %%%s {", ivSSA, lbSSA, ubSSA, stepSSA);
+            emitter().increaseIndentation();
+
+            String ssaToPush = ssaValueNumberingStack().getNewTempVar();
+            emitter().emit("%%%s = memref.load %%%s[%%%s] : %s", ssaToPush, memrefSSA, ivSSA, memrefTypeStr);
+            emitter().emit("fifo.push(%%%s: !fifo.input_port<%s>, %%%s: %s)", portName, portTypeStr, ssaToPush,
+                    portTypeStr);
+
+            emitter().decreaseIndentation();
+            emitter().emit("}");
 
         } else {
             // Case 2: Out:[t1, t2, ...]
@@ -416,19 +422,30 @@ public interface Instances {
             Type listType = types().declaredType(decl);
             String listTypeStr = typeseval().type(listType);
             Type innerType = typeseval().innerType(listType);
-            String innerTypeStr = typeseval().type(innerType);
 
             emitter().emit("%%%s = memref.alloca() : %s", memrefName, listTypeStr);
 
             long repeatCount = repeatValueOpt.getAsLong();
-            for (int i = 0; i < repeatCount; i++) {
-                String constSSA = ssaValueNumberingStack().getNewTempVar();
-                String popSSA = ssaValueNumberingStack().getNewTempVar();
 
-                emitter().emit("%%%s = arith.constant %d : index", constSSA, i);
-                popFromPort(portName, portType, popSSA, innerType);
-                emitter().emit("memref.store %%%s, %%%s[%%%s] : %s", popSSA, memrefName, constSSA, listTypeStr);
-            }
+            // Build constants for scf.for bounds and step
+            String lbSSA = ssaValueNumberingStack().getNewTempVar();
+            String ubSSA = ssaValueNumberingStack().getNewTempVar();
+            String stepSSA = ssaValueNumberingStack().getNewTempVar();
+            emitter().emit("%%%s = arith.constant 0 : index", lbSSA);
+            emitter().emit("%%%s = arith.constant %d : index", ubSSA, repeatCount);
+            emitter().emit("%%%s = arith.constant 1 : index", stepSSA);
+
+            // Emit scf.for loop to pop from port and store into memref
+            String ivSSA = ssaValueNumberingStack().getNewTempVar();
+            emitter().emit("scf.for %%%s = %%%s to %%%s step %%%s {", ivSSA, lbSSA, ubSSA, stepSSA);
+            emitter().increaseIndentation();
+
+            String popSSA = ssaValueNumberingStack().getNewTempVar();
+            popFromPort(portName, portType, popSSA, innerType);
+            emitter().emit("memref.store %%%s, %%%s[%%%s] : %s", popSSA, memrefName, ivSSA, listTypeStr);
+
+            emitter().decreaseIndentation();
+            emitter().emit("}");
 
         } else {
             // Case 2: In:[t1, t2, ...]
