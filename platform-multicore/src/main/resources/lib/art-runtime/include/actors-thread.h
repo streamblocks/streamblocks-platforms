@@ -176,11 +176,12 @@ static int pthread_setaffinity_np(pthread_t thread, size_t cpu_size,
 
 
 #define art_semaphore_create(semaphore, number) semaphore_create(mach_task_self(), (semaphore), SYNC_POLICY_FIFO, (number))
-#define art_semaphore_wait(semaphore) semaphore_wait(semaphore)
-#define art_semaphore_try_wait(semaphore) semaphore_wait(semaphore)
-#define art_semaphore_set(semaphore) semaphore_signal(semaphore)
-#define art_semaphore_destroy(semaphore) semaphore_destroy(mach_task_self(), &(semaphore))
+#define art_semaphore_wait(semaphore) semaphore_wait(*(semaphore))
+#define art_semaphore_try_wait(semaphore) semaphore_wait(*(semaphore))
+#define art_semaphore_set(semaphore) semaphore_signal(*(semaphore))
+#define art_semaphore_destroy(semaphore) semaphore_destroy(mach_task_self(), (semaphore))
 #define art_semaphore_t semaphore_t
+
 
 #else
 
