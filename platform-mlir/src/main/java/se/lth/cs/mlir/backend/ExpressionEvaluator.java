@@ -229,9 +229,11 @@ public interface ExpressionEvaluator {
                         typeseval().type(types().type(literal)));
                 return tempName;
             case True:
-                return "true";
+                emitter().emit("%%%s = arith.constant 1 : i1", tempName);
+                 return tempName;
             case False:
-                return "false";
+                emitter().emit("%%%s = arith.constant 0 : i1", tempName);
+                return tempName;
             case String:
                 return literal.getText();
             default:
