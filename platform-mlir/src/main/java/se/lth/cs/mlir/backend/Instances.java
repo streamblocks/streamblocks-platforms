@@ -345,17 +345,9 @@ public interface Instances {
             String memrefTypeStr = typeseval().type(memrefType);
             long repeatCount = repeatValueOpt.getAsLong();
 
-            // Bounds and step for scf.for
-            String lbSSA = ssaValueNumberingStack().getNewTempVar();
-            String ubSSA = ssaValueNumberingStack().getNewTempVar();
-            String stepSSA = ssaValueNumberingStack().getNewTempVar();
-            emitter().emit("%%%s = arith.constant 0 : index", lbSSA);
-            emitter().emit("%%%s = arith.constant %d : index", ubSSA, repeatCount);
-            emitter().emit("%%%s = arith.constant 1 : index", stepSSA);
-
-            // scf.for loop body: load from memref and push to fifo
+            // affine.for loop body: load from memref and push to fifo
             String ivSSA = ssaValueNumberingStack().getNewTempVar();
-            emitter().emit("scf.for %%%s = %%%s to %%%s step %%%s {", ivSSA, lbSSA, ubSSA, stepSSA);
+            emitter().emit("affine.for %%%s = 0 to %d {", ivSSA, repeatCount);
             emitter().increaseIndentation();
 
             String ssaToPush = ssaValueNumberingStack().getNewTempVar();

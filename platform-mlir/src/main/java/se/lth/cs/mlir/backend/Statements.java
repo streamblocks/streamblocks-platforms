@@ -76,7 +76,7 @@ public interface Statements {
     void execute(Statement stmt);
 
     @Binding(BindingKind.LAZY)
-    default List profilingOp() {
+    default List<String> profilingOp() {
         return new ArrayList<String>();
     }
 
@@ -666,7 +666,9 @@ public interface Statements {
      */
     default void execute(StmtForeach foreach) {
         emitter().emit("// Foreach Statement: Begin");
-        boolean isAffine = backend().affineAnalysis().isAffine(foreach);
+        // Only use affine.for when bounds are simple compile-time constants.
+        // Otherwise, fall back to scf.for. This avoids illegal affine symbols.
+        boolean isAffine; // decided below
         //emitter().emit("//     Variable declarations attached to foreach statement: Begin");
         if (foreach.getGenerator().getVarDecls().size() > 1) {
             throw new UnsupportedOperationException("MLIR backend currently only supports single " +
@@ -685,40 +687,56 @@ public interface Statements {
 
         // Generate the loop upper and lower bounds
         ExprBinaryOp rangeExpr = (ExprBinaryOp) foreach.getGenerator().getCollection();
-        Type initalValueType = types().type(rangeExpr.getOperands().get(0));
-        String initialValue = expressioneval().evaluate(rangeExpr.getOperands().get(0));
-        Type signed32Type = new IntType(OptionalInt.of(32), true);
-        String initialValueCast_i32 = typeseval().castType(initalValueType, signed32Type, initialValue);
-    String initialValueCast_index = ssaValueNumberingStack().getNewTempVar() + "_lb";
-    emitter().emit("%%%s = arith.index_cast %%%s : i32 to index", initialValueCast_index, initialValueCast_i32);
-    String initialValue_affine_lb = initialValueCast_index;
-    if (isAffine) {
-        // Ensure lb is produced by an affine op (identity) to be a valid symbol
-        initialValue_affine_lb = ssaValueNumberingStack().getNewTempVar() + "_lb_aff";
-        emitter().emit("%%%s = affine.apply affine_map<(s0) -> (s0)>(%%%s)", initialValue_affine_lb,
-            initialValueCast_index);
-    }
+        // Determine if bounds are compile-time constants (integer literals).
+        Expression lbExpr = rangeExpr.getOperands().get(0);
+        Expression ubExpr = rangeExpr.getOperands().get(1);
+        OptionalLong lbConst = OptionalLong.empty();
+        OptionalLong ubConst = OptionalLong.empty();
+        if (lbExpr instanceof ExprLiteral) {
+            try {
+                lbConst = OptionalLong.of(Long.parseLong(((ExprLiteral) lbExpr).getText()));
+            } catch (NumberFormatException ignored) { /* not a pure int literal */ }
+        }
+        if (ubExpr instanceof ExprLiteral) {
+            try {
+                ubConst = OptionalLong.of(Long.parseLong(((ExprLiteral) ubExpr).getText()));
+            } catch (NumberFormatException ignored) { /* not a pure int literal */ }
+        }
 
-        Type finalValueType = types().type(rangeExpr.getOperands().get(1));
-        String finalValue = expressioneval().evaluate(rangeExpr.getOperands().get(1));
-        String finalValueCast_i32 = typeseval().castType(finalValueType, signed32Type, finalValue);
-    String finalValueCast_index = ssaValueNumberingStack().getNewTempVar() + "_ub";
-    emitter().emit("%%%s = arith.index_cast %%%s : i32 to index", finalValueCast_index, finalValueCast_i32);
-    // Compute the half-open upper bound (+1) differently depending on affine/scf path
-    String finalValueCast_index_plus1;
-    String stepValue = null;
-    if (isAffine) {
-        finalValueCast_index_plus1 = ssaValueNumberingStack().getNewTempVar() + "_ub_plus_1";
-        // Use affine.apply to keep the bound legal for affine dialect (avoid arith.addi as a symbol)
-        emitter().emit("%%%s = affine.apply affine_map<(s0) -> (s0 + 1)>(%%%s)", finalValueCast_index_plus1,
-            finalValueCast_index);
-    } else {
-        stepValue = ssaValueNumberingStack().getNewTempVar() + "_step";
-        emitter().emit("%%%s = index.constant 1", stepValue);
-        finalValueCast_index_plus1 = ssaValueNumberingStack().getNewTempVar() + "_ub_plus_1";
-        emitter().emit("%%%s = arith.addi %%%s, %%%s : index", finalValueCast_index_plus1, finalValueCast_index,
-            stepValue);
-    }
+        // Use affine.for only when both bounds are integer literals.
+        isAffine = lbConst.isPresent() && ubConst.isPresent();
+
+        // Prepare bound SSA/text depending on path.
+        String lbIndexSSA;
+        String ubPlus1SSA;
+        String stepValue = null;
+        Type signed32Type = new IntType(OptionalInt.of(32), true);
+
+        if (isAffine) {
+            // For constant bounds, emit them directly as literals in affine.for (no SSA needed).
+            lbIndexSSA = String.valueOf(lbConst.getAsLong());
+            ubPlus1SSA = String.valueOf(ubConst.getAsLong() + 1);
+        } else {
+            // Dynamic/arithmetic bounds: use scf.for and compute index-typed lb/ub+1 via arith ops.
+            Type initialValueType = types().type(lbExpr);
+            String initialValue = expressioneval().evaluate(lbExpr);
+            String initialValueCast_i32 = typeseval().castType(initialValueType, signed32Type, initialValue);
+            lbIndexSSA = ssaValueNumberingStack().getNewTempVar() + "_lb";
+            emitter().emit("%%%s = arith.index_cast %%%s : i32 to index", lbIndexSSA, initialValueCast_i32);
+
+            Type finalValueType = types().type(ubExpr);
+            String finalValue = expressioneval().evaluate(ubExpr);
+            String finalValueCast_i32 = typeseval().castType(finalValueType, signed32Type, finalValue);
+            String finalValueCast_index = ssaValueNumberingStack().getNewTempVar() + "_ub";
+            emitter().emit("%%%s = arith.index_cast %%%s : i32 to index", finalValueCast_index, finalValueCast_i32);
+
+            // step = 1 : index
+            stepValue = ssaValueNumberingStack().getNewTempVar() + "_step";
+            emitter().emit("%%%s = arith.constant 1 : index", stepValue);
+            // ub+1
+            ubPlus1SSA = ssaValueNumberingStack().getNewTempVar() + "_ub_plus_1";
+            emitter().emit("%%%s = arith.addi %%%s, %%%s : index", ubPlus1SSA, finalValueCast_index, stepValue);
+        }
 
         // Generate the return arguments and the arguments passed in and the initial values of the arguments
         List<LValue> assignedVars = getConditionalReturnLvalues(foreach);
@@ -746,22 +764,20 @@ public interface Statements {
 
 
         if (isAffine) {
-            // affine.for requires a constant step; use step 1. Bounds must be index-typed (already cast above).
+            // Emit affine.for with literal bounds directly (no SSA bounds).
             if (forReturnValues.isEmpty()) {
-                emitter().emit("affine.for %%%s = %%%s to %%%s step 1", loopIndexVariableSSA, initialValue_affine_lb,
-                        finalValueCast_index_plus1);
+                emitter().emit("affine.for %%%s = %s to %s step 1", loopIndexVariableSSA, lbIndexSSA, ubPlus1SSA);
             } else {
-                emitter().emit("%s = affine.for %%%s = %%%s to %%%s step 1", forReturnValues, loopIndexVariableSSA,
-                        initialValue_affine_lb, finalValueCast_index_plus1);
+                emitter().emit("%s = affine.for %%%s = %s to %s step 1", forReturnValues, loopIndexVariableSSA,
+                        lbIndexSSA, ubPlus1SSA);
             }
         } else {
             if (forReturnValues.isEmpty()) {
-                emitter().emit("scf.for %%%s = %%%s to %%%s step %%%s", loopIndexVariableSSA, initialValueCast_index,
-                        finalValueCast_index_plus1, stepValue);
+                emitter().emit("scf.for %%%s = %%%s to %%%s step %%%s", loopIndexVariableSSA, lbIndexSSA,
+                        ubPlus1SSA, stepValue);
             } else {
                 emitter().emit("%s = scf.for %%%s = %%%s to %%%s step %%%s", forReturnValues, loopIndexVariableSSA,
-                        initialValueCast_index,
-                        finalValueCast_index_plus1, stepValue);
+                        lbIndexSSA, ubPlus1SSA, stepValue);
             }
         }
         emitter().emit("\t\titer_args(%s) -> (%s) {", inputToArgumentString, returnValuesTypes);
