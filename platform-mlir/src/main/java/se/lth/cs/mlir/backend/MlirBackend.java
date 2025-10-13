@@ -119,6 +119,11 @@ public interface MlirBackend {
         return new StackSSA();
     }
 
+    @Binding(LAZY)
+    default AffineAnalysis affineAnalysis() {
+        return task().getModule(AffineAnalysis.key);
+    }
+
     // -- Constant Evaluator
     @Binding(LAZY)
     default ConstantEvaluator constants() {
