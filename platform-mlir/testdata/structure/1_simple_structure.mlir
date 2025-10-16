@@ -3,6 +3,10 @@ cal.actor @source ()
 	ports_out(%Out: !fifo.input_port<i32>)
 {
 	// -- Actor body
+	%l_$state = cal.create_state_var<i32> : !cal.state_ref<i32>
+	%tmp_0 = arith.constant 0 : i1
+	%tmp_1 = arith.extui %tmp_0 : i1 to i32
+	cal.set(%l_$state: !cal.state_ref<i32>, %tmp_1: i32)
 }
 
 //-- Definition of actor class: Pass
@@ -11,6 +15,10 @@ cal.actor @pass ()
 	ports_out(%Out: !fifo.input_port<i32>)
 {
 	// -- Actor body
+	%l_$state = cal.create_state_var<i32> : !cal.state_ref<i32>
+	%tmp_0 = arith.constant 0 : i1
+	%tmp_1 = arith.extui %tmp_0 : i1 to i32
+	cal.set(%l_$state: !cal.state_ref<i32>, %tmp_1: i32)
 }
 
 //-- Definition of actor class: Sink
@@ -18,6 +26,10 @@ cal.actor @sink ()
 	ports_in(%In: !fifo.output_port<i32>)
 {
 	// -- Actor body
+	%l_$state = cal.create_state_var<i32> : !cal.state_ref<i32>
+	%tmp_0 = arith.constant 0 : i1
+	%tmp_1 = arith.extui %tmp_0 : i1 to i32
+	cal.set(%l_$state: !cal.state_ref<i32>, %tmp_1: i32)
 }
 
 // -- Top Network: Defines structure of actor application

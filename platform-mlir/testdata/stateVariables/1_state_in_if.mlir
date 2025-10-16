@@ -7,49 +7,58 @@ cal.actor @source ()
 	%tmp_0 = arith.constant 0 : i1
 	%tmp_1 = arith.extui %tmp_0 : i1 to i32
 	cal.set(%l_counter__3: !cal.state_ref<i32>, %tmp_1: i32)
+	%l_$state = cal.create_state_var<i32> : !cal.state_ref<i32>
+	%tmp_2 = arith.constant 0 : i1
+	%tmp_3 = arith.extui %tmp_2 : i1 to i32
+	cal.set(%l_$state: !cal.state_ref<i32>, %tmp_3: i32)
 	// Generation action: transmit
 	cal.action "transmit" priority=0 {
 		// Guard: Start
 		cal.predicate {
-			%tmp_2 = cal.get(%l_counter__3: !cal.state_ref<i32>) : i32
+			%tmp_4 = cal.get(%l_counter__3: !cal.state_ref<i32>) : i32
 			// Evaluate global variable $eval2.
-			%tmp_3 = arith.constant 3 : i2
-			%tmp_4 = arith.extui %tmp_3 : i2 to i32
-			// Evaluate global variable $eval2 done: assigned to tmp_4 above in this context.
-			%tmp_5 = arith.cmpi slt, %tmp_2, %tmp_4 : i32
-			cal.predicate_result %tmp_5 : i1
+			%tmp_5 = arith.constant 3 : i2
+			%tmp_6 = arith.extui %tmp_5 : i2 to i32
+			// Evaluate global variable $eval2 done: assigned to tmp_6 above in this context.
+			%tmp_7 = arith.cmpi slt, %tmp_4, %tmp_6 : i32
+			cal.predicate_result %tmp_7 : i1
 		}
 		// Guard: End
 		// Action Local Variable Decl: Start
-		%tmp_6 = cal.get(%l_counter__3: !cal.state_ref<i32>) : i32
-		%tmp_7 = arith.constant 100 : i7
+		%tmp_8 = cal.get(%l_counter__3: !cal.state_ref<i32>) : i32
+		%tmp_9 = arith.constant 100 : i7
 		// Evaluate global variable $eval1.
-		%tmp_8 = arith.constant 1 : i1
-		%tmp_9 = arith.extui %tmp_8 : i1 to i32
-		// Evaluate global variable $eval1 done: assigned to tmp_9 above in this context.
-		%tmp_10 = arith.extui %tmp_7 : i7 to i32
-		%tmp_11 = arith.muli %tmp_10, %tmp_9 : i32
-		%tmp_12 = arith.addi %tmp_6, %tmp_11 : i32
-		// l_t__4_d1_0 aliased to tmp_12
+		%tmp_10 = arith.constant 1 : i1
+		%tmp_11 = arith.extui %tmp_10 : i1 to i32
+		// Evaluate global variable $eval1 done: assigned to tmp_11 above in this context.
+		%tmp_12 = arith.extui %tmp_9 : i7 to i32
+		%tmp_13 = arith.muli %tmp_12, %tmp_11 : i32
+		%tmp_14 = arith.addi %tmp_8, %tmp_13 : i32
+		// l_t__4_d1_0 aliased to tmp_14
 		// Action Local Variable Decl: End
 		// Assignment Statement: Start
-		%tmp_13 = arith.constant 1 : i1
-		%tmp_14 = arith.extui %tmp_13 : i1 to i32
-		%tmp_15 = arith.addi %tmp_12, %tmp_14 : i32
-		// l_t__4_d1_1 aliased to tmp_15
+		%tmp_15 = arith.constant 1 : i1
+		%tmp_16 = arith.extui %tmp_15 : i1 to i32
+		%tmp_17 = arith.addi %tmp_14, %tmp_16 : i32
+		// l_t__4_d1_1 aliased to tmp_17
 		// Assignment Statement: End
 		// Call Statement: Start
-		fifo.print("Tx1: %i\n\00", %tmp_15) : (i32)
+		fifo.print("Tx1: %i\n\00", %tmp_17) : (i32)
 		// Call Statement: End
 		// Assignment Statement: Start
-		%tmp_16 = cal.get(%l_counter__3: !cal.state_ref<i32>) : i32
-		%tmp_17 = arith.constant 1 : i1
-		%tmp_18 = arith.extui %tmp_17 : i1 to i32
-		%tmp_19 = arith.addi %tmp_16, %tmp_18 : i32
-		cal.set(%l_counter__3: !cal.state_ref<i32>, %tmp_19: i32)
+		%tmp_18 = cal.get(%l_counter__3: !cal.state_ref<i32>) : i32
+		%tmp_19 = arith.constant 1 : i1
+		%tmp_20 = arith.extui %tmp_19 : i1 to i32
+		%tmp_21 = arith.addi %tmp_18, %tmp_20 : i32
+		cal.set(%l_counter__3: !cal.state_ref<i32>, %tmp_21: i32)
+		// Assignment Statement: End
+		// Assignment Statement: Start
+		%tmp_22 = arith.constant 0 : i1
+		%tmp_23 = arith.extui %tmp_22 : i1 to i32
+		cal.set(%l_$state: !cal.state_ref<i32>, %tmp_23: i32)
 		// Assignment Statement: End
 		// Output Expression: Start
-		fifo.push(%Out: !fifo.input_port<i32>, %tmp_15: i32)
+		fifo.push(%Out: !fifo.input_port<i32>, %tmp_17: i32)
 		// Output Expression: End
 	}
 }
@@ -64,57 +73,66 @@ cal.actor @DUT ()
 	%tmp_0 = arith.constant 0 : i1
 	%tmp_1 = arith.extui %tmp_0 : i1 to i32
 	cal.set(%l_b__5: !cal.state_ref<i32>, %tmp_1: i32)
+	%l_$state = cal.create_state_var<i32> : !cal.state_ref<i32>
+	%tmp_2 = arith.constant 0 : i1
+	%tmp_3 = arith.extui %tmp_2 : i1 to i32
+	cal.set(%l_$state: !cal.state_ref<i32>, %tmp_3: i32)
 	// Generation action: $untagged0
 	cal.action "$untagged0" priority=0 {
 		// Input Pattern: Start
 		%l_t__7_d1_0 = fifo.pop(%In: !fifo.output_port<i32>) : i32
 		// Input Pattern: End
 		// Action Local Variable Decl: Start
-		%tmp_2 = arith.constant 0 : i1
-		%tmp_3 = arith.extui %tmp_2 : i1 to i32
-		// l_a__9_d1_0 aliased to tmp_3
+		%tmp_4 = arith.constant 0 : i1
+		%tmp_5 = arith.extui %tmp_4 : i1 to i32
+		// l_a__9_d1_0 aliased to tmp_5
 		// Action Local Variable Decl: End
 		// If Statement: Begin
-		%tmp_4 = arith.constant 1 : i1
-		%tmp_5 = arith.extui %tmp_4 : i1 to i32
-		%tmp_6 = arith.cmpi eq, %l_t__7_d1_0, %tmp_5 : i32
-		%l_a__9_d1_1 = scf.if %tmp_6 -> (i32) {
+		%tmp_6 = arith.constant 1 : i1
+		%tmp_7 = arith.extui %tmp_6 : i1 to i32
+		%tmp_8 = arith.cmpi eq, %l_t__7_d1_0, %tmp_7 : i32
+		%l_a__9_d1_1 = scf.if %tmp_8 -> (i32) {
 			// Assignment Statement: Start
-			%tmp_7 = arith.constant 4 : i3
-			%tmp_8 = arith.extui %tmp_7 : i3 to i32
-			// l_a__9_d2_0 aliased to tmp_8
+			%tmp_9 = arith.constant 4 : i3
+			%tmp_10 = arith.extui %tmp_9 : i3 to i32
+			// l_a__9_d2_0 aliased to tmp_10
 			// Assignment Statement: End
 			// Assignment Statement: Start
-			%tmp_9 = cal.get(%l_b__5: !cal.state_ref<i32>) : i32
-			%tmp_10 = arith.constant 4 : i3
-			%tmp_11 = arith.extui %tmp_10 : i3 to i32
-			%tmp_12 = arith.addi %tmp_9, %tmp_11 : i32
-			cal.set(%l_b__5: !cal.state_ref<i32>, %tmp_12: i32)
+			%tmp_11 = cal.get(%l_b__5: !cal.state_ref<i32>) : i32
+			%tmp_12 = arith.constant 4 : i3
+			%tmp_13 = arith.extui %tmp_12 : i3 to i32
+			%tmp_14 = arith.addi %tmp_11, %tmp_13 : i32
+			cal.set(%l_b__5: !cal.state_ref<i32>, %tmp_14: i32)
 			// Assignment Statement: End
-			scf.yield %tmp_8 : i32
+			scf.yield %tmp_10 : i32
 		} else {
 			// Assignment Statement: Start
-			%tmp_13 = arith.constant 2 : i2
-			%tmp_14 = arith.extui %tmp_13 : i2 to i32
-			// l_a__9_d2_0 aliased to tmp_14
+			%tmp_15 = arith.constant 2 : i2
+			%tmp_16 = arith.extui %tmp_15 : i2 to i32
+			// l_a__9_d2_0 aliased to tmp_16
 			// Assignment Statement: End
 			// Assignment Statement: Start
-			%tmp_15 = cal.get(%l_b__5: !cal.state_ref<i32>) : i32
-			%tmp_16 = arith.constant 2 : i2
-			%tmp_17 = arith.extui %tmp_16 : i2 to i32
-			%tmp_18 = arith.addi %tmp_15, %tmp_17 : i32
-			cal.set(%l_b__5: !cal.state_ref<i32>, %tmp_18: i32)
+			%tmp_17 = cal.get(%l_b__5: !cal.state_ref<i32>) : i32
+			%tmp_18 = arith.constant 2 : i2
+			%tmp_19 = arith.extui %tmp_18 : i2 to i32
+			%tmp_20 = arith.addi %tmp_17, %tmp_19 : i32
+			cal.set(%l_b__5: !cal.state_ref<i32>, %tmp_20: i32)
 			// Assignment Statement: End
-			scf.yield %tmp_14 : i32
+			scf.yield %tmp_16 : i32
 		}
 		// If Statement: End
 		// Call Statement: Start
 		fifo.print("a: %i\n\00", %l_a__9_d1_1) : (i32)
 		// Call Statement: End
 		// Call Statement: Start
-		%tmp_19 = cal.get(%l_b__5: !cal.state_ref<i32>) : i32
-		fifo.print("b: %i\n\00", %tmp_19) : (i32)
+		%tmp_21 = cal.get(%l_b__5: !cal.state_ref<i32>) : i32
+		fifo.print("b: %i\n\00", %tmp_21) : (i32)
 		// Call Statement: End
+		// Assignment Statement: Start
+		%tmp_22 = arith.constant 0 : i1
+		%tmp_23 = arith.extui %tmp_22 : i1 to i32
+		cal.set(%l_$state: !cal.state_ref<i32>, %tmp_23: i32)
+		// Assignment Statement: End
 		// Output Expression: Start
 		fifo.push(%Out: !fifo.input_port<i32>, %l_a__9_d1_1: i32)
 		// Output Expression: End
@@ -126,6 +144,10 @@ cal.actor @sink ()
 	ports_in(%In: !fifo.output_port<i32>)
 {
 	// -- Actor body
+	%l_$state = cal.create_state_var<i32> : !cal.state_ref<i32>
+	%tmp_0 = arith.constant 0 : i1
+	%tmp_1 = arith.extui %tmp_0 : i1 to i32
+	cal.set(%l_$state: !cal.state_ref<i32>, %tmp_1: i32)
 	// Generation action: $untagged0
 	cal.action "$untagged0" priority=0 {
 		// Input Pattern: Start
@@ -134,6 +156,11 @@ cal.actor @sink ()
 		// Call Statement: Start
 		fifo.print("Rx: %i\n\00", %l_t__11_d1_0) : (i32)
 		// Call Statement: End
+		// Assignment Statement: Start
+		%tmp_2 = arith.constant 0 : i1
+		%tmp_3 = arith.extui %tmp_2 : i1 to i32
+		cal.set(%l_$state: !cal.state_ref<i32>, %tmp_3: i32)
+		// Assignment Statement: End
 	}
 }
 

@@ -97,7 +97,6 @@ public class CalToMlirTest {
                 .set(Compiler.sourcePaths, Collections.singletonList(testDescription.getCalFile()))
                 .set(Reporter.reportingLevel, Collections.singleton(Diagnostic.Kind.ERROR)) // Prevent info messages
                 // from spamming the test output
-                .set(CalToAmPhase.bypassAmGeneration, true)
                 .build();
 
         Compiler compiler = new Compiler(platform, config);
