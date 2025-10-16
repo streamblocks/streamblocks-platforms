@@ -1114,7 +1114,7 @@ public interface ExpressionEvaluator {
 
         String startPosition = "";
         for (int i = 0; i < indexByDim.size(); i++) {
-            startPosition = "" + sizeByDim.get(i) + "*" + indexByDim.get(i) + " ";
+            startPosition = "" + sizeByDim.get(i+1) + "*" + indexByDim.get(i) + " ";
         }
 
         return variables().name(varDecl) + "[" + startPosition + " + " + index + "]";

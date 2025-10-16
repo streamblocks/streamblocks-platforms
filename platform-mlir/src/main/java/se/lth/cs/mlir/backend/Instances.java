@@ -17,6 +17,7 @@ import se.lth.cs.tycho.ir.decl.ParameterVarDecl;
 import se.lth.cs.tycho.ir.entity.Entity;
 import se.lth.cs.tycho.ir.entity.PortDecl;
 import se.lth.cs.tycho.ir.entity.cal.*;
+import se.lth.cs.tycho.ir.expr.ExprIndexer;
 import se.lth.cs.tycho.ir.expr.ExprLambda;
 import se.lth.cs.tycho.ir.expr.ExprProc;
 import se.lth.cs.tycho.ir.expr.Expression;
@@ -326,8 +327,18 @@ public interface Instances {
         List<Expression> expressions = outputExpression.getExpressions();
         String instanceName = backend().instancebox().get().getInstanceName();
 
+        Expression tempExpr = outputExpression.getExpressions().get(0);
+        boolean is2D = false;
+        String indexerType = "";
+        if (tempExpr instanceof ExprIndexer) {
+            ExprIndexer exprIndexer = (ExprIndexer) tempExpr;
+            indexerType = typeseval().type(types().type(exprIndexer.getStructure()));
+            is2D = indexerType.startsWith("memref<")
+                    && indexerType.substring(7, indexerType.length() - 1).split("x").length == 3;
+        }
+
         // Case 1: Out:[t] repeat x
-        if (outputExpression.getRepeatExpr() != null) {
+        if (outputExpression.getRepeatExpr() != null && !is2D) {
             if (expressions.size() != 1) {
                 throw new RuntimeException("Action in \"" + instanceName + "\" actor contains a repeat expression and" +
                         " multiple matches. This is not allowed.");
@@ -359,8 +370,42 @@ public interface Instances {
                         portTypeStr);
             }
 
-        } else {
-            // Case 2: Out:[t1, t2, ...]
+        } else if(outputExpression.getRepeatExpr() != null && is2D) {
+            // Case 2: Out:[t[y]] repeat x // y is an array of numbers. Hardcoded fix, not robust TODO: Improve this
+            if (expressions.size() != 1) {
+                throw new RuntimeException("Action in \"" + instanceName + "\" actor contains a repeat expression and" +
+                        " multiple matches. This is not allowed.");
+            }
+
+            OptionalLong repeatValueOpt = backend().constants().intValue(outputExpression.getRepeatExpr());
+            if (repeatValueOpt.isEmpty()) {
+                throw new RuntimeException("Value for repeat expression could not be evaluated at compile time.");
+            }
+
+            Expression expr = outputExpression.getExpressions().get(0);
+            ExprIndexer exprIndexer = (ExprIndexer) tempExpr;
+            String memrefSSA = expressioneval().evaluate(exprIndexer.getStructure());
+            String firstIndexInt = expressioneval().evaluate(exprIndexer.getIndex());
+            String firstIndex = ssaValueNumberingStack().getNewTempVar();
+            typeseval().castIntToIndex(types().type(exprIndexer.getIndex()), firstIndexInt, firstIndex);
+            long repeatCount = repeatValueOpt.getAsLong();
+            for (int i = 0; i < repeatCount; i++) {
+                String constSSA = ssaValueNumberingStack().getNewTempVar();
+                String ssaToPush = ssaValueNumberingStack().getNewTempVar();
+                emitter().emit("%%%s = arith.constant %d : index", constSSA, i);
+                emitter().emit("%%%s = memref.load %%%s[%%%s ,%%%s] : %s", ssaToPush, memrefSSA, firstIndex, constSSA, indexerType);
+
+                if (portType instanceof IntType) {
+                    if (typeseval().canCastFromI32(portType)) {
+                        ssaToPush = typeseval().castType(new IntType(OptionalInt.of(32), true), portType, ssaToPush);
+                    }
+                }
+
+                emitter().emit("fifo.push(%%%s: !fifo.input_port<%s>, %%%s: %s)", portName, portTypeStr, ssaToPush,
+                        portTypeStr);
+            }
+        }else {
+            // Case 3 Out:[t1, t2, ...]
             for (Expression expr : expressions) {
                 String tokenSSAName = expressioneval().evaluate(expr);
                 Type exprType = types().type(expr);

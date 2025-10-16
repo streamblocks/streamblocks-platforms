@@ -222,7 +222,15 @@ public interface TypesEvaluator {
     default String castType(RealType fromType, RealType toType, String inputSSA) {
         if (fromType.getSize() == toType.getSize())
             return inputSSA;
-        else
+        else if(fromType.getSize() == 32 && toType.getSize() == 64){
+            String retSSA = ssaValueNumberingStack().getNewTempVar();
+            emitter().emit("%%%s = arith.extf %%%s : f32 to f64", retSSA, inputSSA);
+            return retSSA;
+        } else if(fromType.getSize() == 64 && toType.getSize() == 32){
+            String retSSA = ssaValueNumberingStack().getNewTempVar();
+            emitter().emit("%%%s = arith.truncf %%%s : f64 to f32", retSSA, inputSSA);
+            return retSSA;
+        }else
             throw new Error("Type conversion not implemented from " + fromType + " to " + toType);
     }
 
@@ -280,6 +288,13 @@ public interface TypesEvaluator {
 
     default void castInt(Type fromType, Type toType, String inputSSA, String outputSSA) {
         throw new Error("Expected both types to be int type. Got LHS: " + fromType + " and RHS: " + toType);
+    }
+
+    default void castIntToIndex(Type fromType, String inputSSA, String outputSSA) {
+        if(!(fromType instanceof IntType))
+            throw new Error("Expected type to be int. Got LHS: " + fromType);
+        String i32 = castType(fromType, new IntType(OptionalInt.of(32), false), inputSSA);
+        emitter().emit("%%%s = arith.index_cast %%%s : i32 to index", outputSSA, i32);
     }
 
     default boolean canCastFromI32(Type toType) {
